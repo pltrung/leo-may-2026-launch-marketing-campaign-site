@@ -39,27 +39,27 @@ function getTintGlow(tint: CloudPersonality["tint"]) {
 export default function StepCloudField({ onCloudClick }: StepCloudFieldProps) {
   return (
     <div
-      className="fixed inset-0 z-50 flex min-h-full w-full items-center justify-center overflow-hidden bg-gradient-to-b from-[#e4e9f2] via-[#eef1f7] to-[#f2f5fa]"
-      style={{ top: 0, left: 0, right: 0, bottom: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-gradient-to-b from-[#e4e9f2] via-[#eef1f7] to-[#f2f5fa]"
+      style={{ top: 0, left: 0, right: 0, bottom: 0, width: "100vw", height: "100vh" }}
     >
       <div className="fog-layer fog-dense" />
       <div className="fog-layer fog-billows" />
       <div className="fog-layer fog-wisps" />
       <div className="grain-overlay" />
 
-      {/* Centered grid — max-w-5xl like In-Dinner content width feel */}
-      <div className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6 py-12 flex flex-wrap items-center justify-center gap-8 sm:gap-10 md:gap-12">
+      {/* Centered grid — clouds visible immediately, light stagger */}
+      <div className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6 py-12 flex flex-wrap items-center justify-center gap-8 sm:gap-10 md:gap-12 min-h-0">
         {cloudPersonalities.map((p, i) => (
           <motion.button
             key={p.id}
             type="button"
-            initial={{ opacity: 0, scale: 0.88, y: 20 }}
+            initial={{ opacity: 1, scale: 1, y: 0 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ ...spring, delay: 0.05 * i }}
+            transition={{ duration: 0.3, delay: i * 0.04 }}
             whileHover={{ scale: 1.06, y: -4 }}
             whileTap={{ scale: 0.97 }}
             onClick={() => onCloudClick(p)}
-            className="leo-cloud group relative h-32 w-40 cursor-pointer touch-manipulation sm:h-36 sm:w-44 md:h-40 md:w-48 overflow-hidden"
+            className="leo-cloud group relative h-32 w-40 flex-shrink-0 cursor-pointer touch-manipulation sm:h-36 sm:w-44 md:h-40 md:w-48 overflow-hidden"
             style={{
               borderRadius: blobShapes[i % blobShapes.length],
               animation: `cloudFloat ${floatDurations[i % floatDurations.length]}s ease-in-out infinite`,

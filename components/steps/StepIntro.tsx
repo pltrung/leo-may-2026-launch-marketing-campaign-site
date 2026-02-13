@@ -14,7 +14,7 @@ export default function StepIntro() {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
       className="fixed inset-0 z-50 overflow-hidden bg-gradient-to-b from-[#e4e9f2] via-[#eef1f7] to-[#f2f5fa]"
-      style={{ top: 0, left: 0, right: 0, bottom: 0 }}
+      style={{ top: 0, left: 0, right: 0, bottom: 0, width: "100vw", height: "100vh" }}
     >
       {/* Layer 1: Dense ground fog — white/gray at bottom, dissipating up */}
       <div className="fog-layer fog-dense" />

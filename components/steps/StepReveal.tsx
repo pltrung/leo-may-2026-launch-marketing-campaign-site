@@ -16,8 +16,8 @@ const spring = { type: "spring" as const, stiffness: 280, damping: 26 };
 export default function StepReveal({ onEnter }: StepRevealProps) {
   return (
     <div
-      className="fixed inset-0 z-50 flex min-h-full w-full items-center justify-center overflow-hidden bg-gradient-to-b from-[#e4e9f2] via-[#eef1f7] to-[#f2f5fa]"
-      style={{ top: 0, left: 0, right: 0, bottom: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-gradient-to-b from-[#e4e9f2] via-[#eef1f7] to-[#f2f5fa]"
+      style={{ top: 0, left: 0, right: 0, bottom: 0, width: "100vw", height: "100vh" }}
     >
       <div className="fog-layer fog-dense" />
       <div className="fog-layer fog-billows" />

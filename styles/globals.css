@@ -70,13 +70,19 @@ body {
   overflow-x: hidden;
   min-height: 100%;
   height: 100%;
+  /* Ensure fixed children center in viewport */
+  position: relative;
 }
 
-/* Full viewport so fixed steps center correctly on web */
+/* Full viewport — fixed steps fill and center in viewport */
 main.leo-main {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   min-height: 100%;
-  height: 100%;
-  width: 100%;
+  overflow: hidden;
 }
 
 /* —— Fog (reference: dense at bottom, billows, wisps, grayscale + subtle brand) —— */
