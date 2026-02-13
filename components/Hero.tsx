@@ -11,7 +11,7 @@ export default function Hero() {
         aria-hidden
       >
         <Image
-          src="/logo.svg"
+          src="/logo.png"
           alt=""
           fill
           className="object-contain scale-150"
@@ -22,7 +22,7 @@ export default function Hero() {
         <div className="w-28 h-10 flex items-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/logo.svg"
+            src="/logo.png"
             alt="Leo Mây"
             className="h-8 w-auto object-contain"
           />
