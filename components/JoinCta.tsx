@@ -9,16 +9,28 @@ interface JoinCtaProps {
 
 export default function JoinCta({ onJoin }: JoinCtaProps) {
   const [showCta, setShowCta] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const { scrollY } = useScroll();
-  const opacity = useTransform(scrollY, [350, 550], [0, 1]);
-  const y = useTransform(scrollY, [350, 550], [24, 0]);
+
+  useEffect(() => {
+    const check = () => setIsMobile(typeof window !== "undefined" && window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  const threshold = isMobile ? 280 : 650;
+  const fadeStart = isMobile ? 200 : 550;
+  const fadeEnd = isMobile ? 400 : 750;
+  const opacity = useTransform(scrollY, [fadeStart, fadeEnd], [0, 1]);
+  const y = useTransform(scrollY, [fadeStart, fadeEnd], [24, 0]);
 
   useEffect(() => {
     const unsub = scrollY.on("change", (v) => {
-      setShowCta(v > 400);
+      setShowCta(v > threshold);
     });
     return () => unsub();
-  }, [scrollY]);
+  }, [scrollY, threshold]);
 
   return (
     <motion.div
@@ -30,7 +42,7 @@ export default function JoinCta({ onJoin }: JoinCtaProps) {
         <motion.button
           type="button"
           onClick={onJoin}
-          className="px-10 py-4 rounded-full bg-accent hover:bg-accent/90 text-white font-medium tracking-wider transition-colors shadow-lg"
+          className="px-12 py-5 rounded-full bg-accent hover:bg-accent/90 text-white font-semibold text-lg tracking-wider transition-colors shadow-lg"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}

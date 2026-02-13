@@ -21,9 +21,6 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
     onJoin(cloud);
   };
 
-  const isLightBg =
-    cloud.id === "ho_may" || cloud.id === "cau_vong" || cloud.id === "gio";
-
   return (
     <div
       className="w-full min-w-[140px] max-w-[200px] aspect-[3/4] mx-auto cursor-pointer transition-transform duration-200 hover:scale-105"
@@ -39,45 +36,49 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
       >
         {/* Front */}
         <div
-          className={`absolute inset-0 w-full h-full rounded-2xl shadow-lg flex flex-col items-center justify-center p-6 ${cloud.bgClass}`}
+          className={`absolute inset-0 w-full h-full rounded-2xl flex flex-col items-center justify-center p-6 animate-neon-glow ${cloud.bgClass}`}
           style={{
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
+            ["--neon-color" as string]: cloud.accentHex,
+            borderWidth: "2px",
+            borderStyle: "solid",
+            borderColor: cloud.accentHex,
           }}
         >
-          <div className={`mb-4 ${isLightBg ? "text-storm" : "text-white"}`}>
-            <CloudIconByType cloudId={cloud.id} className="w-14 h-14" />
+          <div className="mb-4 text-white/90">
+            <CloudIconByType cloudId={cloud.id} className="w-16 h-16" />
           </div>
-          <span className={`font-display text-lg font-medium ${cloud.textClass}`}>
+          <span className={`font-display text-xl sm:text-2xl font-medium ${cloud.textClass}`}>
             {cloud.name}
           </span>
-          <span
-            className={`text-sm mt-1 ${isLightBg ? "text-storm/70" : "text-white/70"}`}
-          >
+          <span className="text-base mt-2 text-white/70">
             {cloud.mood}
           </span>
         </div>
 
         {/* Back */}
         <div
-          className={`absolute inset-0 w-full h-full rounded-2xl shadow-lg flex flex-col items-center justify-between p-6 ${cloud.bgClass}`}
+          className={`absolute inset-0 w-full h-full rounded-2xl flex flex-col items-center justify-between p-6 animate-neon-glow ${cloud.bgClass}`}
           style={{
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
             transform: "rotateY(180deg)",
+            ["--neon-color" as string]: cloud.accentHex,
+            borderWidth: "2px",
+            borderStyle: "solid",
+            borderColor: cloud.accentHex,
           }}
         >
           <p
-            className={`text-center text-sm leading-relaxed flex-1 flex items-center justify-center px-2 ${
-              isLightBg ? "text-storm" : "text-white/90"
-            }`}
+            className="text-center text-base sm:text-lg leading-relaxed flex-1 flex items-center justify-center px-2 text-white/90"
           >
             {cloud.story}
           </p>
           <button
             type="button"
             onClick={handleJoinClick}
-            className="w-full py-3.5 rounded-xl text-white font-semibold hover:opacity-90 transition-opacity duration-200 shadow-lg"
+            className="w-full py-4 rounded-xl text-white font-semibold text-base sm:text-lg hover:opacity-90 transition-opacity duration-200 shadow-lg"
             style={{ backgroundColor: cloud.accentHex }}
           >
             {cloud.joinLabel}
