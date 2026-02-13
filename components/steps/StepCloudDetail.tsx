@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { CloudPersonality } from "@/lib/cloudData";
 
 interface StepCloudDetailProps {
@@ -8,23 +9,37 @@ interface StepCloudDetailProps {
   onCtaClick: () => void;
 }
 
+const springModal = { type: "spring" as const, stiffness: 300, damping: 24, mass: 0.8 };
+
 export default function StepCloudDetail({
   personality,
   onClose,
   onCtaClick,
 }: StepCloudDetailProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Dimmed backdrop */}
-      <div
-        className="absolute inset-0 bg-[#1a1d21]/35 backdrop-blur-sm transition-opacity duration-500"
+    <motion.div
+      key="cloudDetail"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+    >
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.25 }}
+        className="absolute inset-0 bg-[#1a1d21]/50 backdrop-blur-md"
         onClick={onClose}
       />
 
-      {/* Expanded cloud / reveal card */}
-      <div
-        className="relative max-w-lg rounded-3xl bg-white/95 p-8 shadow-2xl"
-        style={{ animation: "countUp 0.6s ease-out forwards" }}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.96 }}
+        transition={springModal}
+        className="leo-card leo-card-glow relative max-w-lg rounded-3xl p-8"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -37,22 +52,42 @@ export default function StepCloudDetail({
           </svg>
         </button>
 
-        <h3 className="font-leo text-2xl font-semibold text-[#1a1d21]">{personality.name}</h3>
-        <p className="mt-0.5 text-sm text-[#6b7280]">
+        <motion.h3
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="font-leo text-2xl font-semibold text-[#1a1d21]"
+        >
+          {personality.name}
+        </motion.h3>
+        <motion.p
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="mt-0.5 text-sm text-[#6b7280]"
+        >
           {personality.nameVi} ({personality.mood})
-        </p>
+        </motion.p>
 
-        <p className="mt-6 whitespace-pre-line font-light leading-relaxed text-[#4a4d52]">
+        <motion.p
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.22 }}
+          className="mt-6 whitespace-pre-line font-light leading-relaxed text-[#4a4d52]"
+        >
           {personality.description}
-        </p>
+        </motion.p>
 
-        <button
+        <motion.button
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
           onClick={onCtaClick}
-          className="mt-8 w-full rounded-xl bg-[#0242FF] py-4 font-medium text-white transition-all hover:bg-[#0242FF]/90 hover:shadow-lg hover:shadow-[#0242FF]/25 active:scale-[0.98]"
+          className="leo-btn-primary mt-8 w-full rounded-2xl py-4 text-base"
         >
           {personality.cta}
-        </button>
-      </div>
-    </div>
+        </motion.button>
+      </motion.div>
+    </motion.div>
   );
 }

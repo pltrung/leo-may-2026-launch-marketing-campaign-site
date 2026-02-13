@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { cloudPersonalities, CloudPersonality } from "@/lib/cloudData";
 
 interface StepCloudFieldProps {
@@ -22,10 +23,18 @@ const tintGlow: Record<string, string> = {
   green: "group-hover:shadow-[0_0_40px_rgba(0,203,77,0.2)]",
 };
 
+const spring = { type: "spring" as const, stiffness: 260, damping: 28 };
+
 export default function StepCloudField({ onCloudClick }: StepCloudFieldProps) {
   return (
-    <div className="fixed inset-0 z-40 overflow-hidden bg-gradient-to-b from-[#f0f2f5] via-[#f5f7fa] to-[#e8eaed]">
-      {/* Fog background */}
+    <motion.div
+      key="cloudField"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.4 }}
+      className="fixed inset-0 z-40 overflow-hidden bg-gradient-to-b from-[#f0f2f5] via-[#f5f7fa] to-[#e8eaed]"
+    >
       <div
         className="fog-layer"
         style={{
@@ -38,29 +47,29 @@ export default function StepCloudField({ onCloudClick }: StepCloudFieldProps) {
       />
       <div className="grain-overlay" />
 
-      {/* 6 floating cloud blobs — NO names, only glow on hover */}
       <div className="relative z-10 flex min-h-screen flex-wrap items-center justify-center gap-10 p-6 md:gap-14 md:p-12">
         {cloudPersonalities.map((p, i) => (
-          <button
+          <motion.button
             key={p.id}
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ ...spring, delay: 0.08 * i }}
             onClick={() => onCloudClick(p)}
             className={`
-              group relative cursor-pointer transition-all duration-500
-              hover:scale-110
-              md:h-40 md:w-48
-              h-36 w-44
+              group relative h-36 w-44 cursor-pointer transition-shadow duration-300
+              hover:scale-110 md:h-40 md:w-48
               ${tintGlow[p.tint] || tintGlow.neutral}
             `}
             style={{
               borderRadius: blobShapes[i % blobShapes.length],
               animation: `cloudFloat ${6 + (i % 4)}s ease-in-out infinite`,
               animationDelay: `${i * 0.3}s`,
-              boxShadow: "0 10px 40px rgba(0,0,0,0.08)",
-              background: "rgba(255,255,255,0.94)",
+              boxShadow: "0 0 0 1px rgba(255,255,255,0.8) inset, 0 20px 40px -12px rgba(0,0,0,0.1), 0 0 40px rgba(2,66,255,0.04)",
+              background: "rgba(255,255,255,0.92)",
             }}
           />
         ))}
       </div>
-    </div>
+    </motion.div>
   );
 }

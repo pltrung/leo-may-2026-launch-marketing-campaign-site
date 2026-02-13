@@ -1,15 +1,24 @@
 "use client";
 
 import Image from "next/image";
+import { motion } from "framer-motion";
 
 interface StepRevealProps {
   onEnter: () => void;
 }
 
+const spring = { type: "spring" as const, stiffness: 300, damping: 30 };
+
 export default function StepReveal({ onEnter }: StepRevealProps) {
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#f0f2f5] via-[#f5f7fa] to-[#e8eaed]">
-      {/* Fog layers */}
+    <motion.div
+      key="reveal"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.5 }}
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#f0f2f5] via-[#f5f7fa] to-[#e8eaed]"
+    >
       <div
         className="fog-layer"
         style={{
@@ -30,15 +39,12 @@ export default function StepReveal({ onEnter }: StepRevealProps) {
       />
       <div className="grain-overlay" />
 
-      {/* Logo + tagline — blur to sharp */}
       <div className="relative z-10 flex flex-col items-center px-6 text-center">
-        <div
-          className="flex items-center justify-center transition-all duration-[1500ms] ease-out"
-          style={{
-            opacity: 1,
-            filter: "blur(0)",
-            animation: "logoReveal 1.5s ease-out forwards",
-          }}
+        <motion.div
+          initial={{ opacity: 0, filter: "blur(8px)" }}
+          animate={{ opacity: 1, filter: "blur(0px)" }}
+          transition={{ duration: 1.2, ease: "easeOut" }}
+          className="flex items-center justify-center"
         >
           <div className="relative" style={{ padding: "clamp(2rem, 6vw, 4rem)", maxWidth: "min(280px, 80vw)" }}>
             <Image
@@ -50,31 +56,36 @@ export default function StepReveal({ onEnter }: StepRevealProps) {
               priority
             />
           </div>
-        </div>
-        <h1
-          className="mt-6 font-leo text-3xl font-semibold tracking-tight text-[#1a1d21] opacity-0 md:text-5xl"
-          style={{
-            fontFamily: "var(--font-leo)",
-            animation: "countUp 1s ease-out 0.5s forwards",
-          }}
+        </motion.div>
+
+        <motion.h1
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...spring, delay: 0.5 }}
+          className="mt-6 font-leo text-3xl font-semibold tracking-tight text-[#1a1d21] md:text-5xl"
+          style={{ fontFamily: "var(--font-leo)" }}
         >
           Leo Mây
-        </h1>
-        <p
-          className="mt-2 font-light tracking-wide text-[#4a4d52] opacity-0 md:text-lg"
-          style={{ animation: "countUp 1s ease-out 0.7s forwards" }}
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...spring, delay: 0.7 }}
+          className="mt-2 font-light tracking-wide text-[#4a4d52] md:text-lg"
         >
           Climb the Clouds. Build a Culture.
-        </p>
+        </motion.p>
 
-        <button
+        <motion.button
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...spring, delay: 1.1 }}
           onClick={onEnter}
-          className="mt-12 rounded-full bg-[#0242FF] px-8 py-3 font-medium text-white opacity-0 transition-all hover:bg-[#0242FF]/90 hover:shadow-lg hover:shadow-[#0242FF]/25 active:scale-[0.98]"
-          style={{ animation: "countUp 0.6s ease-out 1.2s forwards" }}
+          className="leo-btn-primary mt-12 rounded-2xl px-10 py-4 text-base"
         >
           Enter
-        </button>
+        </motion.button>
       </div>
-    </div>
+    </motion.div>
   );
 }

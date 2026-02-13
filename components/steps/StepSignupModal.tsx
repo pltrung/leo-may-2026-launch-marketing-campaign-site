@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { CloudType } from "@/lib/cloudData";
 
 interface StepSignupModalProps {
@@ -8,6 +9,8 @@ interface StepSignupModalProps {
   onClose: () => void;
   onSuccess: (position: number) => void;
 }
+
+const springModal = { type: "spring" as const, stiffness: 300, damping: 24, mass: 0.8 };
 
 export default function StepSignupModal({
   cloudType,
@@ -57,14 +60,26 @@ export default function StepSignupModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-[#1a1d21]/40 backdrop-blur-sm"
+    <motion.div
+      key="signupModal"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+    >
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="absolute inset-0 bg-[#1a1d21]/55 backdrop-blur-md"
         onClick={onClose}
       />
-      <div
-        className="relative max-w-md rounded-2xl bg-white p-8 shadow-2xl"
-        style={{ animation: "countUp 0.4s ease-out forwards" }}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.96 }}
+        transition={springModal}
+        className="leo-card leo-card-glow relative max-w-md rounded-3xl p-8"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -77,12 +92,22 @@ export default function StepSignupModal({
           </svg>
         </button>
 
-        <h2 className="font-leo text-xl font-semibold text-[#1a1d21]">
+        <motion.h2
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="font-leo text-xl font-semibold text-[#1a1d21]"
+        >
           Join the Founding Circle
-        </h2>
-        <p className="mt-1 text-sm text-[#6b7280]">
+        </motion.h2>
+        <motion.p
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.14 }}
+          className="mt-1 text-sm text-[#6b7280]"
+        >
           Be among the first when Leo Mây opens in HCMC.
-        </p>
+        </motion.p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
@@ -95,7 +120,7 @@ export default function StepSignupModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="mt-1 w-full rounded-xl border border-[#e5e7eb] bg-white px-4 py-3 text-[#1a1d21] placeholder-[#9ca3af] focus:border-[#0242FF] focus:outline-none focus:ring-1 focus:ring-[#0242FF]"
+              className="leo-input mt-1 w-full px-4 py-3.5 text-[#1a1d21] placeholder-[#6b7280]/70"
               placeholder="Your name"
             />
           </div>
@@ -108,7 +133,7 @@ export default function StepSignupModal({
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-[#e5e7eb] bg-white px-4 py-3 text-[#1a1d21] placeholder-[#9ca3af] focus:border-[#0242FF] focus:outline-none focus:ring-1 focus:ring-[#0242FF]"
+              className="leo-input mt-1 w-full px-4 py-3.5 text-[#1a1d21] placeholder-[#6b7280]/70"
               placeholder="you@example.com"
             />
           </div>
@@ -121,7 +146,7 @@ export default function StepSignupModal({
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-[#e5e7eb] bg-white px-4 py-3 text-[#1a1d21] placeholder-[#9ca3af] focus:border-[#0242FF] focus:outline-none focus:ring-1 focus:ring-[#0242FF]"
+              className="leo-input mt-1 w-full px-4 py-3.5 text-[#1a1d21] placeholder-[#6b7280]/70"
               placeholder="+84 xxx xxx xxx"
             />
           </div>
@@ -134,12 +159,12 @@ export default function StepSignupModal({
           <button
             type="submit"
             disabled={status === "loading"}
-            className="mt-4 w-full rounded-xl bg-[#0242FF] py-4 font-medium text-white transition-all hover:bg-[#0242FF]/90 hover:shadow-lg hover:shadow-[#0242FF]/25 disabled:opacity-70 active:scale-[0.98]"
+            className="leo-btn-primary mt-6 w-full rounded-2xl py-4 text-base disabled:opacity-60 disabled:transform-none disabled:hover:shadow-none"
           >
             {status === "loading" ? "Joining..." : "Join Waitlist"}
           </button>
         </form>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

@@ -1,9 +1,16 @@
 "use client";
 
+import { motion } from "framer-motion";
+
 export default function StepIntro() {
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-gradient-to-b from-[#f0f2f5] via-[#f5f7fa] to-[#e8eaed]">
-      {/* Layered fog gradients with parallax */}
+    <motion.div
+      key="intro"
+      initial={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.4 }}
+      className="fixed inset-0 z-50 overflow-hidden bg-gradient-to-b from-[#f0f2f5] via-[#f5f7fa] to-[#e8eaed]"
+    >
       <div
         className="fog-layer"
         style={{
@@ -34,8 +41,7 @@ export default function StepIntro() {
           animationDelay: "-3s",
         }}
       />
-      {/* Subtle grain */}
       <div className="grain-overlay" />
-    </div>
+    </motion.div>
   );
 }

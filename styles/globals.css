@@ -58,9 +58,11 @@ html {
 
 body {
   font-family: var(--font-leo), 'Leo May', system-ui, sans-serif;
-  background: var(--fog-bg);
+  background: linear-gradient(180deg, #e8ecf4 0%, #f0f3f8 35%, #f5f7fa 70%, #e8eaed 100%);
+  background-attachment: fixed;
   color: var(--text-dark);
   overflow-x: hidden;
+  min-height: 100dvh;
 }
 
 /* Fog gradient layers */
@@ -68,6 +70,57 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+
+/* Immersive floating card — glass + soft blue glow (Leo Mây) */
+.leo-card {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(2, 66, 255, 0.12);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset,
+    0 25px 50px -12px rgba(0, 0, 0, 0.12),
+    0 0 60px rgba(2, 66, 255, 0.06);
+}
+
+.leo-card-glow {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset,
+    0 32px 64px -12px rgba(0, 0, 0, 0.14),
+    0 0 80px rgba(2, 66, 255, 0.12);
+}
+
+/* Primary CTA — immersive, not flat */
+.leo-btn-primary {
+  background: linear-gradient(180deg, #0242FF 0%, #0230cc 100%);
+  color: white;
+  font-weight: 600;
+  box-shadow:
+    0 4px 14px rgba(2, 66, 255, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.leo-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(2, 66, 255, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+}
+.leo-btn-primary:active {
+  transform: translateY(0);
+}
+
+/* Inputs — glassy, not flat gray */
+.leo-input {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(2, 66, 255, 0.15);
+  border-radius: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.leo-input:focus {
+  outline: none;
+  border-color: rgba(2, 66, 255, 0.5);
+  box-shadow: 0 0 0 3px rgba(2, 66, 255, 0.12);
 }
 
 /* Smooth transitions */

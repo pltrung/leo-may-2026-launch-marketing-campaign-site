@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { CloudPersonality } from "@/lib/cloudData";
 import StepIntro from "@/components/steps/StepIntro";
 import StepReveal from "@/components/steps/StepReveal";
@@ -22,7 +23,6 @@ export default function Home() {
   const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
   const [position, setPosition] = useState<number>(0);
 
-  // Step 0: intro (fog only 0-2s) → auto to reveal
   useEffect(() => {
     if (step !== "intro") return;
     const t = setTimeout(() => setStep("reveal"), 2000);
@@ -47,35 +47,30 @@ export default function Home() {
 
   return (
     <main className="min-h-screen">
-      {/* Step 0: intro — fog only */}
-      {step === "intro" && <StepIntro />}
-
-      {/* Step 1: reveal — logo + tagline + Enter */}
-      {step === "reveal" && <StepReveal onEnter={handleEnter} />}
-
-      {/* Step 2: cloudField — 6 floating blobs, names hidden */}
-      {step === "cloudField" && <StepCloudField onCloudClick={handleCloudClick} />}
-
-      {/* Step 3: cloudDetail — expand cloud, reveal personality + CTA */}
-      {step === "cloudDetail" && selectedCloud && (
-        <StepCloudDetail
-          personality={selectedCloud}
-          onClose={handleCloudDetailClose}
-          onCtaClick={handleCtaClick}
-        />
-      )}
-
-      {/* Step 4: signupModal — name, email, phone (no dropdown) */}
-      {step === "signupModal" && selectedCloud && (
-        <StepSignupModal
-          cloudType={selectedCloud.id}
-          onClose={handleSignupClose}
-          onSuccess={handleSignupSuccess}
-        />
-      )}
-
-      {/* Step 5: success — confirmation + waitlist # */}
-      {step === "success" && <StepSuccess position={position} />}
+      <AnimatePresence mode="wait">
+        {step === "intro" && <StepIntro key="intro" />}
+        {step === "reveal" && <StepReveal key="reveal" onEnter={handleEnter} />}
+        {step === "cloudField" && (
+          <StepCloudField key="cloudField" onCloudClick={handleCloudClick} />
+        )}
+        {step === "cloudDetail" && selectedCloud && (
+          <StepCloudDetail
+            key="cloudDetail"
+            personality={selectedCloud}
+            onClose={handleCloudDetailClose}
+            onCtaClick={handleCtaClick}
+          />
+        )}
+        {step === "signupModal" && selectedCloud && (
+          <StepSignupModal
+            key="signupModal"
+            cloudType={selectedCloud.id}
+            onClose={handleSignupClose}
+            onSuccess={handleSignupSuccess}
+          />
+        )}
+        {step === "success" && <StepSuccess key="success" position={position} />}
+      </AnimatePresence>
     </main>
   );
 }
