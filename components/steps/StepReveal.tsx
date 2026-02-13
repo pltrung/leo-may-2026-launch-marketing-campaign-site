@@ -12,8 +12,7 @@ interface StepRevealProps {
 const spring = { type: "spring" as const, stiffness: 280, damping: 26 };
 
 /**
- * Brand reveal — flex-centered content. Parent provides flex flex-col items-center justify-center.
- * No absolute positioning for logo.
+ * Brand reveal — flex-centered, no absolute positioning for logo.
  */
 export default function StepReveal({ guestName, setGuestName, onEnter }: StepRevealProps) {
   return (
@@ -22,7 +21,7 @@ export default function StepReveal({ guestName, setGuestName, onEnter }: StepRev
         initial={{ opacity: 0, filter: "blur(12px)" }}
         animate={{ opacity: 1, filter: "blur(0px)" }}
         transition={{ duration: 1.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-        className="flex justify-center mb-6"
+        className="flex justify-center"
       >
         <div
           className="max-w-[280px] w-[85vw]"
@@ -46,7 +45,7 @@ export default function StepReveal({ guestName, setGuestName, onEnter }: StepRev
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ ...spring, delay: 0.5 }}
-        className="text-white/92 text-xl sm:text-2xl font-light tracking-wide"
+        className="text-white/92 text-xl sm:text-2xl font-light tracking-wide mt-4"
         style={{ fontFamily: "var(--font-leo)" }}
       >
         Climb the Clouds. Build a Culture.
@@ -56,7 +55,7 @@ export default function StepReveal({ guestName, setGuestName, onEnter }: StepRev
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ ...spring, delay: 0.8 }}
-        className="mt-8 p-5 rounded-xl bg-white/5 border border-white/10 w-full max-w-sm"
+        className="mt-6 p-5 rounded-xl bg-white/5 border border-white/10 w-full max-w-sm"
       >
         <label
           htmlFor="leo-guest-name"
@@ -82,15 +81,15 @@ export default function StepReveal({ guestName, setGuestName, onEnter }: StepRev
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ ...spring, delay: 1.1 }}
-        className="mt-8"
+        className="mt-6"
       >
         <button
           type="button"
           onClick={() => {
-            console.log("[Leo] Enter button onClick fired");
+            console.log("ENTER CLICKED");
             onEnter();
           }}
-          className="leo-btn-enter px-12 py-4 text-lg font-semibold text-[#0242FF] cursor-pointer relative z-10"
+          className="leo-btn-enter px-12 py-4 text-lg font-semibold text-[#0242FF] cursor-pointer"
           style={{ fontFamily: "var(--font-leo)" }}
         >
           Enter

@@ -3,7 +3,6 @@
 import { motion } from "framer-motion";
 import { cloudPersonalities, CloudPersonality } from "@/lib/cloudData";
 import { CloudBlob } from "@/components/CloudBlob";
-import FogBackground from "@/components/FogBackground";
 
 interface StepCloudDetailProps {
   personality: CloudPersonality;
@@ -33,7 +32,7 @@ export default function StepCloudDetail({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6"
+      className="fixed inset-0 z-20 flex items-center justify-center p-4 sm:p-6"
       style={{ width: "100vw", height: "100vh" }}
       role="dialog"
       aria-modal="true"
@@ -46,9 +45,6 @@ export default function StepCloudDetail({
         onClick={onClose}
         aria-hidden
       />
-      <div className="absolute inset-0 pointer-events-none">
-        <FogBackground variant="deep" />
-      </div>
 
       {/* Content: cloud + text (no card, no borders) */}
       <motion.div

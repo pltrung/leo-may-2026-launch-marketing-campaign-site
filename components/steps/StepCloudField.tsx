@@ -1,9 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
 import { motion } from "framer-motion";
 import { cloudPersonalities, CloudPersonality } from "@/lib/cloudData";
-import FogBackground from "@/components/FogBackground";
 import { CloudBlob } from "@/components/CloudBlob";
 
 interface StepCloudFieldProps {
@@ -20,29 +18,13 @@ const CLOUD_LAYOUT: { x: number; y: number; depth: number }[] = [
 ];
 
 /**
- * Cloud field — relative flex container, clouds absolute inside.
- * Parent provides flex items-center justify-center.
+ * Cloud field — relative w-full h-full flex center, clouds absolute inside.
+ * No FogBackground. No position: fixed.
  */
 export default function StepCloudField({ onCloudClick }: StepCloudFieldProps) {
-  const [mouse, setMouse] = useState({ x: 0, y: 0 });
-  const onMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width - 0.5;
-    const y = (e.clientY - rect.top) / rect.height - 0.5;
-    setMouse({ x: x * 4, y: y * 4 });
-  }, []);
-
   return (
-    <div
-      className="relative flex items-center justify-center w-full h-full"
-      onMouseMove={onMouseMove}
-    >
-      {/* Background fog — absolute within this container */}
-      <div className="absolute inset-0 -z-10">
-        <FogBackground variant="deep" mouse={mouse} />
-      </div>
-
-      {/* Cloud cluster — centered, clouds absolute inside */}
+    <div className="relative w-full h-full flex items-center justify-center">
+      {/* Cloud cluster — clouds position absolute inside */}
       <div
         className="relative"
         style={{

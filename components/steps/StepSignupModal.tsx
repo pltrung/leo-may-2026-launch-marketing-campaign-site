@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { CloudType } from "@/lib/cloudData";
-import FogBackground from "@/components/FogBackground";
 
 interface StepSignupModalProps {
   cloudType: CloudType;
@@ -69,7 +68,7 @@ export default function StepSignupModal({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      className="fixed inset-0 z-20 flex items-center justify-center p-4"
       style={{ width: "100vw", height: "100vh" }}
       role="dialog"
       aria-modal="true"
@@ -81,9 +80,6 @@ export default function StepSignupModal({
         onClick={onClose}
         aria-hidden
       />
-      <div className="absolute inset-0 pointer-events-none">
-        <FogBackground variant="deep" />
-      </div>
 
       {/* Soft cloud panel — no sharp card, organic shape */}
       <motion.div
