@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { CloudType } from "@/lib/cloudData";
 
-interface SignupProps {
+export default function Signup({
+  cloudType,
+  onSuccess,
+}: {
   cloudType: CloudType;
   onSuccess: (position: number) => void;
-}
-
-export default function Signup({ cloudType, onSuccess }: SignupProps) {
+}) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -53,39 +54,35 @@ export default function Signup({ cloudType, onSuccess }: SignupProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col items-center justify-center gap-4 w-full max-w-sm px-4"
+      className="flex flex-col items-center justify-center gap-5 w-full max-w-sm px-6 fade-in"
     >
       <input
         type="text"
         placeholder="Name"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:border-white/40"
-        style={{ fontFamily: "var(--font-leo)" }}
+        className="w-full px-5 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:border-white/25 transition-colors"
       />
       <input
         type="email"
         placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:border-white/40"
-        style={{ fontFamily: "var(--font-leo)" }}
+        className="w-full px-5 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:border-white/25 transition-colors"
       />
       <input
         type="tel"
         placeholder="Phone"
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
-        className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:border-white/40"
-        style={{ fontFamily: "var(--font-leo)" }}
+        className="w-full px-5 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:border-white/25 transition-colors"
       />
-      <p className="text-white/50 text-xs">* Email or phone required</p>
-      {error && <p className="text-red-400 text-sm">{error}</p>}
+      <p className="text-white/40 text-xs">Email or phone required</p>
+      {error && <p className="text-red-400/90 text-sm">{error}</p>}
       <button
         type="submit"
         disabled={loading}
-        className="w-full px-8 py-3 rounded-lg bg-[#0242FF] hover:bg-[#0338dd] disabled:opacity-50 text-white text-sm font-medium transition-colors"
-        style={{ fontFamily: "var(--font-leo)" }}
+        className="w-full py-4 rounded-full bg-[#0242FF] hover:bg-[#0338dd] disabled:opacity-50 text-white text-sm font-medium tracking-wider transition-colors"
       >
         {loading ? "Joining…" : "Join Waitlist"}
       </button>

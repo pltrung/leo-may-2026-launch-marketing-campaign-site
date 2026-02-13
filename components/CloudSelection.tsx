@@ -2,40 +2,40 @@
 
 import { cloudPersonalities, CloudPersonality } from "@/lib/cloudData";
 
-const TINT_COLORS: Record<string, string> = {
+const COLORS: Record<string, string> = {
   neutral: "#94a3b8",
   blue: "#0242FF",
   yellow: "#FDFF52",
   green: "#00CB4D",
 };
 
-interface CloudSelectionProps {
+export default function CloudSelection({
+  onSelect,
+}: {
   onSelect: (cloud: CloudPersonality) => void;
-}
-
-export default function CloudSelection({ onSelect }: CloudSelectionProps) {
+}) {
   const clouds = cloudPersonalities.slice(0, 5);
 
   return (
-    <div className="flex flex-col items-center justify-center gap-12 px-4">
-      <p className="text-white/80 text-lg" style={{ fontFamily: "var(--font-leo)" }}>
+    <div className="flex flex-col items-center justify-center gap-16 px-6 fade-in">
+      <h2 className="text-white/90 text-xl sm:text-2xl font-light tracking-wide text-center max-w-md">
         What type of cloud are you?
-      </p>
-      <div className="flex flex-wrap gap-8 justify-center">
+      </h2>
+      <div className="flex flex-wrap gap-6 sm:gap-10 justify-center">
         {clouds.map((cloud) => (
           <button
             key={cloud.id}
             type="button"
             onClick={() => onSelect(cloud)}
-            className="flex flex-col items-center gap-2 transition-transform hover:scale-110"
+            className="flex flex-col items-center gap-3 group"
           >
             <div
-              className="w-24 h-24 rounded-2xl"
+              className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl transition-transform duration-300 group-hover:scale-105"
               style={{
-                backgroundColor: TINT_COLORS[cloud.tint] ?? TINT_COLORS.neutral,
+                backgroundColor: COLORS[cloud.tint] ?? COLORS.neutral,
               }}
             />
-            <span className="text-white/70 text-sm" style={{ fontFamily: "var(--font-leo)" }}>
+            <span className="text-white/60 text-sm group-hover:text-white/90 transition-colors">
               {cloud.name}
             </span>
           </button>

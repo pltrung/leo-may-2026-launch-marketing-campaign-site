@@ -8,45 +8,31 @@ import CloudDetails from "@/components/CloudDetails";
 import Signup from "@/components/Signup";
 import Success from "@/components/Success";
 
-type Step = "intro" | "clouds" | "details" | "signup" | "success";
+type Step = "intro" | "clouds" | "detail" | "signup" | "success";
 
 export default function Home() {
   const [step, setStep] = useState<Step>("intro");
   const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
   const [position, setPosition] = useState(0);
 
-  if (step === "intro") {
-    return (
-      <div className="w-screen h-screen flex items-center justify-center bg-[#0f172a] text-white">
-        <Intro onEnter={() => setStep("clouds")} />
-      </div>
-    );
-  }
-  if (step === "clouds") {
-    return (
-      <div className="w-screen h-screen flex items-center justify-center bg-[#0f172a] text-white">
+  return (
+    <div className="w-screen h-screen flex items-center justify-center bg-[#0f172a] text-white overflow-hidden">
+      {step === "intro" && <Intro onEnter={() => setStep("clouds")} />}
+      {step === "clouds" && (
         <CloudSelection
           onSelect={(cloud) => {
             setSelectedCloud(cloud);
-            setStep("details");
+            setStep("detail");
           }}
         />
-      </div>
-    );
-  }
-  if (step === "details" && selectedCloud) {
-    return (
-      <div className="w-screen h-screen flex items-center justify-center bg-[#0f172a] text-white">
+      )}
+      {step === "detail" && selectedCloud && (
         <CloudDetails
           cloud={selectedCloud}
           onPick={() => setStep("signup")}
         />
-      </div>
-    );
-  }
-  if (step === "signup" && selectedCloud) {
-    return (
-      <div className="w-screen h-screen flex items-center justify-center bg-[#0f172a] text-white">
+      )}
+      {step === "signup" && selectedCloud && (
         <Signup
           cloudType={selectedCloud.id}
           onSuccess={(pos) => {
@@ -54,20 +40,10 @@ export default function Home() {
             setStep("success");
           }}
         />
-      </div>
-    );
-  }
-  if (step === "success" && selectedCloud) {
-    return (
-      <div className="w-screen h-screen flex items-center justify-center bg-[#0f172a] text-white">
+      )}
+      {step === "success" && selectedCloud && (
         <Success position={position} cloudTint={selectedCloud.tint} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-screen h-screen flex items-center justify-center bg-[#0f172a] text-white">
-      <p>Loading...</p>
+      )}
     </div>
   );
 }

@@ -2,26 +2,22 @@
 
 import Image from "next/image";
 
-interface IntroProps {
-  onEnter: () => void;
-}
-
-export default function Intro({ onEnter }: IntroProps) {
+export default function Intro({ onEnter }: { onEnter: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-8 animate-fade-in">
+    <div className="flex flex-col items-center justify-center gap-16 fade-in">
       <Image
         src="/logo.svg"
-        alt="Leo Mây"
+        alt="Leo May"
         width={280}
         height={124}
-        className="h-auto w-[min(85vw,280px)]"
+        className="w-[min(80vw,300px)] h-auto"
         style={{ filter: "brightness(0) invert(1)" }}
+        priority
       />
       <button
         type="button"
         onClick={onEnter}
-        className="px-8 py-3 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors"
-        style={{ fontFamily: "var(--font-leo)" }}
+        className="text-white/80 hover:text-white text-sm tracking-[0.3em] uppercase transition-colors duration-300"
       >
         Enter
       </button>
