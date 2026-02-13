@@ -30,7 +30,7 @@ export default function StepCloudDetail({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.25 }}
-        className="absolute inset-0 bg-[#1a1d21]/50 backdrop-blur-md"
+        className="absolute inset-0 bg-[#1a1d21]/55 backdrop-blur-xl"
         onClick={onClose}
       />
 
@@ -57,6 +57,7 @@ export default function StepCloudDetail({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="font-leo text-2xl font-semibold text-[#1a1d21]"
+          style={{ fontFamily: "var(--font-leo)" }}
         >
           {personality.name}
         </motion.h3>
@@ -64,7 +65,8 @@ export default function StepCloudDetail({
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="mt-0.5 text-sm text-[#6b7280]"
+          className="font-leo mt-0.5 text-sm text-[#0242FF]/70"
+          style={{ fontFamily: "var(--font-leo)" }}
         >
           {personality.nameVi} ({personality.mood})
         </motion.p>
@@ -73,7 +75,8 @@ export default function StepCloudDetail({
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.22 }}
-          className="mt-6 whitespace-pre-line font-light leading-relaxed text-[#4a4d52]"
+          className="font-leo mt-6 whitespace-pre-line font-light leading-relaxed text-[#4a4d52]"
+          style={{ fontFamily: "var(--font-leo)" }}
         >
           {personality.description}
         </motion.p>
@@ -83,7 +86,8 @@ export default function StepCloudDetail({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
           onClick={onCtaClick}
-          className="leo-btn-primary mt-8 w-full rounded-2xl py-4 text-base"
+          className="font-leo leo-btn-primary mt-8 w-full rounded-2xl py-4 text-base"
+          style={{ fontFamily: "var(--font-leo)" }}
         >
           {personality.cta}
         </motion.button>

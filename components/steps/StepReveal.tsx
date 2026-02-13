@@ -7,7 +7,7 @@ interface StepRevealProps {
   onEnter: () => void;
 }
 
-const spring = { type: "spring" as const, stiffness: 300, damping: 30 };
+const spring = { type: "spring" as const, stiffness: 280, damping: 26 };
 
 export default function StepReveal({ onEnter }: StepRevealProps) {
   return (
@@ -16,15 +16,16 @@ export default function StepReveal({ onEnter }: StepRevealProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.5 }}
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#f0f2f5] via-[#f5f7fa] to-[#e8eaed]"
+      transition={{ duration: 0.6 }}
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#eef1f7] via-[#f2f5fa] to-[#e8eaed]"
     >
       <div
         className="fog-layer"
         style={{
           background: `
-            radial-gradient(ellipse 120% 80% at 20% 30%, rgba(255,255,255,0.9) 0%, transparent 50%),
-            radial-gradient(ellipse 100% 120% at 80% 70%, rgba(230,235,245,0.7) 0%, transparent 45%)
+            radial-gradient(ellipse 120% 80% at 20% 30%, rgba(255,255,255,0.92) 0%, transparent 50%),
+            radial-gradient(ellipse 100% 120% at 80% 70%, rgba(230,238,252,0.6) 0%, transparent 45%),
+            radial-gradient(ellipse 80% 100% at 50% 50%, rgba(2,66,255,0.02) 0%, transparent 55%)
           `,
           animation: "fogDrift 28s ease-in-out infinite",
         }}
@@ -32,7 +33,7 @@ export default function StepReveal({ onEnter }: StepRevealProps) {
       <div
         className="fog-layer"
         style={{
-          background: `radial-gradient(ellipse 110% 90% at 30% 80%, rgba(235,240,250,0.5) 0%, transparent 50%)`,
+          background: `radial-gradient(ellipse 110% 90% at 30% 80%, rgba(235,245,255,0.4) 0%, transparent 50%)`,
           animation: "fogDrift 32s ease-in-out infinite reverse",
           animationDelay: "-6s",
         }}
@@ -40,11 +41,12 @@ export default function StepReveal({ onEnter }: StepRevealProps) {
       <div className="grain-overlay" />
 
       <div className="relative z-10 flex flex-col items-center px-6 text-center">
+        {/* Logo — clear fade-in: blur → sharp + opacity, with brand blue glow */}
         <motion.div
-          initial={{ opacity: 0, filter: "blur(8px)" }}
+          initial={{ opacity: 0, filter: "blur(14px)" }}
           animate={{ opacity: 1, filter: "blur(0px)" }}
-          transition={{ duration: 1.2, ease: "easeOut" }}
-          className="flex items-center justify-center"
+          transition={{ duration: 1.8, ease: [0.25, 0.46, 0.45, 0.94] }}
+          className="logo-glow flex items-center justify-center"
         >
           <div className="relative" style={{ padding: "clamp(2rem, 6vw, 4rem)", maxWidth: "min(280px, 80vw)" }}>
             <Image
@@ -59,10 +61,10 @@ export default function StepReveal({ onEnter }: StepRevealProps) {
         </motion.div>
 
         <motion.h1
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring, delay: 0.5 }}
-          className="mt-6 font-leo text-3xl font-semibold tracking-tight text-[#1a1d21] md:text-5xl"
+          transition={{ ...spring, delay: 0.6 }}
+          className="font-leo mt-6 text-3xl font-semibold tracking-tight text-[#1a1d21] md:text-5xl"
           style={{ fontFamily: "var(--font-leo)" }}
         >
           Leo Mây
@@ -70,8 +72,9 @@ export default function StepReveal({ onEnter }: StepRevealProps) {
         <motion.p
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring, delay: 0.7 }}
-          className="mt-2 font-light tracking-wide text-[#4a4d52] md:text-lg"
+          transition={{ ...spring, delay: 0.8 }}
+          className="font-leo mt-2 font-light tracking-wide text-[#0242FF]/80 md:text-lg"
+          style={{ fontFamily: "var(--font-leo)" }}
         >
           Climb the Clouds. Build a Culture.
         </motion.p>
@@ -79,9 +82,10 @@ export default function StepReveal({ onEnter }: StepRevealProps) {
         <motion.button
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring, delay: 1.1 }}
+          transition={{ ...spring, delay: 1.2 }}
           onClick={onEnter}
-          className="leo-btn-primary mt-12 rounded-2xl px-10 py-4 text-base"
+          className="font-leo leo-btn-primary mt-12 rounded-2xl px-10 py-4 text-base"
+          style={{ fontFamily: "var(--font-leo)" }}
         >
           Enter
         </motion.button>

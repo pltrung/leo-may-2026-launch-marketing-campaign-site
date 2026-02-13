@@ -36,7 +36,11 @@ export default function StepIntro() {
       <div
         className="fog-layer"
         style={{
-          background: `radial-gradient(ellipse 150% 100% at 50% 50%, rgba(255,255,255,0.4) 0%, transparent 60%)`,
+          background: `
+            radial-gradient(ellipse 150% 100% at 50% 50%, rgba(255,255,255,0.4) 0%, transparent 60%),
+            radial-gradient(ellipse 60% 60% at 30% 70%, rgba(2,66,255,0.02) 0%, transparent 50%),
+            radial-gradient(ellipse 50% 50% at 75% 25%, rgba(0,203,77,0.015) 0%, transparent 50%)
+          `,
           animation: "fogDrift 24s ease-in-out infinite",
           animationDelay: "-3s",
         }}

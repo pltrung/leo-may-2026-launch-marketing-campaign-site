@@ -71,7 +71,7 @@ export default function StepSignupModal({
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="absolute inset-0 bg-[#1a1d21]/55 backdrop-blur-md"
+        className="absolute inset-0 bg-[#1a1d21]/60 backdrop-blur-xl"
         onClick={onClose}
       />
       <motion.div
@@ -97,6 +97,7 @@ export default function StepSignupModal({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="font-leo text-xl font-semibold text-[#1a1d21]"
+          style={{ fontFamily: "var(--font-leo)" }}
         >
           Join the Founding Circle
         </motion.h2>
@@ -104,12 +105,13 @@ export default function StepSignupModal({
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.14 }}
-          className="mt-1 text-sm text-[#6b7280]"
+          className="font-leo mt-1 text-sm text-[#0242FF]/75"
+          style={{ fontFamily: "var(--font-leo)" }}
         >
           Be among the first when Leo Mây opens in HCMC.
         </motion.p>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+        <form onSubmit={handleSubmit} className="font-leo mt-6 space-y-4" style={{ fontFamily: "var(--font-leo)" }}>
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-[#4a4d52]">
               Name *
@@ -159,7 +161,8 @@ export default function StepSignupModal({
           <button
             type="submit"
             disabled={status === "loading"}
-            className="leo-btn-primary mt-6 w-full rounded-2xl py-4 text-base disabled:opacity-60 disabled:transform-none disabled:hover:shadow-none"
+            className="font-leo leo-btn-primary mt-6 w-full rounded-2xl py-4 text-base disabled:opacity-60 disabled:transform-none disabled:hover:shadow-none"
+            style={{ fontFamily: "var(--font-leo)" }}
           >
             {status === "loading" ? "Joining..." : "Join Waitlist"}
           </button>
