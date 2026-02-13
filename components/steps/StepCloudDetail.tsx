@@ -9,7 +9,8 @@ interface StepCloudDetailProps {
   onCtaClick: () => void;
 }
 
-const springModal = { type: "spring" as const, stiffness: 300, damping: 24, mass: 0.8 };
+/* In-Dinner ResultsModal style: backdrop blur, spring scale on panel */
+const springPanel = { type: "spring" as const, stiffness: 300, damping: 24, mass: 0.8 };
 
 export default function StepCloudDetail({
   personality,
@@ -22,29 +23,31 @@ export default function StepCloudDetail({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.25 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
     >
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.25 }}
-        className="absolute inset-0 bg-[#1a1d21]/55 backdrop-blur-xl"
+        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
         onClick={onClose}
+        aria-hidden
       />
 
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
+        initial={{ opacity: 0, scale: 0.85 }}
         animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.96 }}
-        transition={springModal}
-        className="leo-card leo-card-glow relative max-w-lg rounded-3xl p-8"
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={springPanel}
+        className="leo-card leo-card-glow relative w-full max-w-lg rounded-2xl p-6 sm:p-8 shadow-[0_0_40px_rgba(2,66,255,0.12),0_25px_50px_-12px_rgba(0,0,0,0.2)]"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 text-[#6b7280] transition-colors hover:text-[#1a1d21]"
+          className="absolute right-4 top-4 text-[#6b7280] transition-colors hover:text-[#1a1d21] rounded-full p-1"
           aria-label="Close"
         >
           <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -55,7 +58,7 @@ export default function StepCloudDetail({
         <motion.h3
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          transition={{ delay: 0.08 }}
           className="font-leo text-2xl font-semibold text-[#1a1d21]"
           style={{ fontFamily: "var(--font-leo)" }}
         >
@@ -64,17 +67,17 @@ export default function StepCloudDetail({
         <motion.p
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="font-leo mt-0.5 text-sm text-[#0242FF]/70"
+          transition={{ delay: 0.12 }}
+          className="font-leo mt-0.5 text-sm text-[#0242FF]/75"
           style={{ fontFamily: "var(--font-leo)" }}
         >
-          {personality.nameVi} ({personality.mood})
+          {personality.nameVi} · {personality.mood}
         </motion.p>
 
         <motion.p
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.22 }}
+          transition={{ delay: 0.18 }}
           className="font-leo mt-6 whitespace-pre-line font-light leading-relaxed text-[#4a4d52]"
           style={{ fontFamily: "var(--font-leo)" }}
         >
@@ -84,7 +87,9 @@ export default function StepCloudDetail({
         <motion.button
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.25 }}
+          whileHover={{ scale: 1.02, y: -1 }}
+          whileTap={{ scale: 0.98 }}
           onClick={onCtaClick}
           className="font-leo leo-btn-primary mt-8 w-full rounded-2xl py-4 text-base"
           style={{ fontFamily: "var(--font-leo)" }}

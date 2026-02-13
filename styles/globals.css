@@ -55,22 +55,79 @@
 
 html {
   scroll-behavior: smooth;
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 body {
+  margin: 0;
+  padding: 0;
   font-family: var(--font-leo), 'Leo May', system-ui, sans-serif;
   background: linear-gradient(180deg, #e4e9f2 0%, #eef1f7 30%, #f2f5fa 60%, #e8eaed 100%);
   background-attachment: fixed;
   color: var(--text-dark);
   overflow-x: hidden;
-  min-height: 100dvh;
+  min-height: 100%;
+  height: 100%;
 }
 
-/* Fog gradient layers */
+/* Full viewport so fixed steps center correctly on web */
+main.leo-main {
+  min-height: 100%;
+  height: 100%;
+  width: 100%;
+}
+
+/* —— Fog (reference: dense at bottom, billows, wisps, grayscale + subtle brand) —— */
 .fog-layer {
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+
+/* Dense ground fog — bright at bottom, fading up (reference image 1) */
+.fog-dense {
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(248, 250, 252, 0.35) 55%,
+    rgba(255, 255, 255, 0.75) 80%,
+    rgba(255, 255, 255, 0.92) 100%
+  );
+  animation: fogDrift 32s ease-in-out infinite;
+}
+
+/* Mid billows — organic, soft (reference: overlapping translucent) */
+.fog-billows {
+  background:
+    radial-gradient(ellipse 120% 70% at 30% 60%, rgba(255, 255, 255, 0.5) 0%, transparent 50%),
+    radial-gradient(ellipse 100% 80% at 70% 50%, rgba(245, 248, 252, 0.4) 0%, transparent 45%),
+    radial-gradient(ellipse 80% 100% at 50% 40%, rgba(250, 252, 255, 0.25) 0%, transparent 55%);
+  animation: fogDrift 28s ease-in-out infinite reverse;
+  animation-delay: -8s;
+}
+
+/* Wisps — ethereal top layer */
+.fog-wisps {
+  background:
+    radial-gradient(ellipse 90% 60% at 20% 30%, rgba(255, 255, 255, 0.2) 0%, transparent 45%),
+    radial-gradient(ellipse 70% 90% at 80% 25%, rgba(240, 245, 255, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse 100% 50% at 50% 20%, rgba(2, 66, 255, 0.03) 0%, transparent 50%);
+  animation: fogDrift 36s ease-in-out infinite;
+  animation-delay: -12s;
+}
+
+@keyframes fogDrift {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 1; }
+  33% { transform: translate(2%, -1%) scale(1.01); opacity: 0.98; }
+  66% { transform: translate(-2%, 1%) scale(0.99); opacity: 1; }
+}
+
+@keyframes cloudFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+  50% { transform: translateY(-10px) rotate(1.5deg) scale(1.02); }
 }
 
 /* Premium glass cards — stronger blur + brand blue glow */
@@ -104,29 +161,62 @@ body {
   filter: drop-shadow(0 0 24px rgba(2, 66, 255, 0.2)) drop-shadow(0 0 48px rgba(2, 66, 255, 0.08));
 }
 
-/* Primary CTA — brand blue, stronger glow; explicit button reset for all browsers */
+/* Primary CTA — brand blue, glow only (no borders/bevels) */
 .leo-btn-primary {
   -webkit-appearance: none;
   appearance: none;
   border: none;
+  outline: none;
   cursor: pointer;
   font-family: var(--font-leo), 'Leo May', system-ui, sans-serif;
   background: linear-gradient(180deg, #0242FF 0%, #0133d4 100%);
   color: white;
   font-weight: 600;
-  box-shadow:
-    0 6px 20px rgba(2, 66, 255, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.2) inset,
-    0 0 40px rgba(2, 66, 255, 0.2);
+  box-shadow: 0 0 40px rgba(2, 66, 255, 0.35), 0 0 80px rgba(2, 66, 255, 0.15);
   transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
 }
 .leo-btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 10px 32px rgba(2, 66, 255, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.25) inset, 0 0 50px rgba(2, 66, 255, 0.25);
+  box-shadow: 0 0 56px rgba(2, 66, 255, 0.45), 0 0 100px rgba(2, 66, 255, 0.2);
   background: linear-gradient(180deg, #0242FF 0%, #0138e0 100%);
 }
 .leo-btn-primary:active:not(:disabled) {
   transform: translateY(0);
+}
+.leo-btn-primary:focus {
+  outline: none;
+}
+
+/* Enter button — cloudy / immersive: soft cloud pill, no hard edges, part of the mist */
+.leo-btn-enter {
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  font-family: var(--font-leo), 'Leo May', system-ui, sans-serif;
+  font-weight: 600;
+  color: #0242FF;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 255, 0.92) 50%, rgba(240, 245, 255, 0.9) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 9999px;
+  box-shadow:
+    0 0 0 0 rgba(255, 255, 255, 0),
+    0 0 48px rgba(2, 66, 255, 0.22),
+    0 0 96px rgba(2, 66, 255, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+.leo-btn-enter:hover {
+  transform: translateY(-2px) scale(1.02);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 252, 255, 0.95) 100%);
+  box-shadow: 0 0 64px rgba(2, 66, 255, 0.3), 0 0 120px rgba(2, 66, 255, 0.12);
+}
+.leo-btn-enter:active {
+  transform: translateY(0) scale(1);
+}
+.leo-btn-enter:focus {
+  outline: none;
 }
 
 /* Inputs — glassy, brand blue focus, green focus ring accent */
@@ -145,22 +235,31 @@ body {
   box-shadow: 0 0 0 3px rgba(2, 66, 255, 0.15), 0 0 20px rgba(0, 203, 77, 0.08);
 }
 
-/* Premium cloud base — floating structure */
+/* Volumetric cloud — reference: soft highlight top-left, shadow bottom-right, organic */
 .leo-cloud {
-  background: linear-gradient(165deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.88) 100%);
+  position: relative;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(255, 255, 255, 0.92) 40%,
+    rgba(248, 250, 255, 0.88) 100%
+  );
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.9) inset,
-    0 24px 48px -12px rgba(0, 0, 0, 0.1),
-    0 0 60px rgba(2, 66, 255, 0.06),
-    0 0 100px rgba(2, 66, 255, 0.03);
-  transition: box-shadow 0.4s ease, transform 0.4s ease;
+    0 0 0 1px rgba(255, 255, 255, 0.95) inset,
+    -8px -8px 24px rgba(255, 255, 255, 0.4) inset,
+    8px 12px 32px -8px rgba(0, 0, 0, 0.12),
+    0 24px 48px -12px rgba(0, 0, 0, 0.08),
+    0 0 60px rgba(2, 66, 255, 0.06);
+  transition: box-shadow 0.35s ease, transform 0.35s ease;
 }
 
 .leo-cloud:hover {
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.95) inset,
-    0 28px 56px -12px rgba(0, 0, 0, 0.12),
-    0 0 80px rgba(2, 66, 255, 0.14),
+    0 0 0 1px rgba(255, 255, 255, 0.98) inset,
+    -10px -10px 28px rgba(255, 255, 255, 0.5) inset,
+    10px 14px 36px -6px rgba(0, 0, 0, 0.1),
+    0 28px 56px -10px rgba(0, 0, 0, 0.08),
+    0 0 80px rgba(2, 66, 255, 0.12),
     0 0 120px rgba(2, 66, 255, 0.06);
 }
 
