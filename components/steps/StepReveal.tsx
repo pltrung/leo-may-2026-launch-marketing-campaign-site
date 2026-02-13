@@ -2,88 +2,100 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
-import FogBackground from "@/components/FogBackground";
 
 interface StepRevealProps {
+  guestName: string;
+  setGuestName: (v: string) => void;
   onEnter: () => void;
 }
 
 const spring = { type: "spring" as const, stiffness: 280, damping: 26 };
 
 /**
- * Logo emerges from fog: blur-to-sharp, slight mask clearing, inside atmosphere.
+ * Brand reveal — flex-centered content. Parent provides flex flex-col items-center justify-center.
+ * No absolute positioning for logo.
  */
-export default function StepReveal({ onEnter }: StepRevealProps) {
+export default function StepReveal({ guestName, setGuestName, onEnter }: StepRevealProps) {
   return (
-    <div
-      className="fixed inset-0 z-50 overflow-hidden"
-      style={{ width: "100vw", height: "100vh", background: "#2a2e36" }}
-    >
-      <FogBackground variant="soft" />
-
-      {/* Bulletproof center: absolute + translate so content is always viewport-centered */}
-      <div
-        className="absolute left-1/2 top-1/2 z-10 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-4 text-center"
-        style={{ maxWidth: "36rem" }}
+    <div className="flex flex-col items-center justify-center text-center px-4 max-w-xl w-full">
+      <motion.div
+        initial={{ opacity: 0, filter: "blur(12px)" }}
+        animate={{ opacity: 1, filter: "blur(0px)" }}
+        transition={{ duration: 1.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+        className="flex justify-center mb-6"
       >
-        {/* Logo: emerge from fog */}
-        <motion.div
-          initial={{ opacity: 0, filter: "blur(20px)", scale: 0.96 }}
-          animate={{ opacity: 1, filter: "blur(0px)", scale: 1 }}
-          transition={{
-            duration: 2.2,
-            ease: [0.25, 0.46, 0.45, 0.94],
+        <div
+          className="max-w-[280px] w-[85vw]"
+          style={{
+            filter: "brightness(0) invert(1) drop-shadow(0 0 24px rgba(255,255,255,0.15))",
           }}
-          className="flex justify-center"
         >
-          <div
-            className="relative inline-flex items-center justify-center"
-            style={{
-              padding: "clamp(2rem, 6vw, 4rem)",
-              maxWidth: "min(300px, 88vw)",
-              filter: "drop-shadow(0 0 40px rgba(255,252,248,0.18)) drop-shadow(0 0 80px rgba(2,66,255,0.1))",
-            }}
-          >
-            <Image
-              src="/logo.svg"
-              alt="Leo Mây — Climbing Gym"
-              width={322}
-              height={143}
-              className="h-auto w-full object-contain"
-              priority
-              unoptimized
-            />
-          </div>
-        </motion.div>
+          <Image
+            src="/logo.svg"
+            alt="Leo Mây — Climbing Gym"
+            width={322}
+            height={143}
+            className="h-auto w-full object-contain"
+            priority
+            unoptimized
+          />
+        </div>
+      </motion.div>
 
-        <motion.p
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring, delay: 1 }}
-          className="font-leo mt-8 text-xl font-light tracking-wide text-white/90 sm:text-2xl md:text-3xl"
+      <motion.p
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ ...spring, delay: 0.5 }}
+        className="text-white/92 text-xl sm:text-2xl font-light tracking-wide"
+        style={{ fontFamily: "var(--font-leo)" }}
+      >
+        Climb the Clouds. Build a Culture.
+      </motion.p>
+
+      <motion.section
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ ...spring, delay: 0.8 }}
+        className="mt-8 p-5 rounded-xl bg-white/5 border border-white/10 w-full max-w-sm"
+      >
+        <label
+          htmlFor="leo-guest-name"
+          className="block text-sm font-semibold text-white/90 mb-2"
           style={{ fontFamily: "var(--font-leo)" }}
         >
-          Climb the Clouds. Build a Culture.
-        </motion.p>
+          Your name (enter first, then continue below)
+        </label>
+        <input
+          id="leo-guest-name"
+          type="text"
+          placeholder="Enter your name"
+          value={guestName}
+          onChange={(e) => setGuestName(e.target.value)}
+          maxLength={80}
+          autoComplete="name"
+          className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-base"
+          style={{ fontFamily: "var(--font-leo)" }}
+        />
+      </motion.section>
 
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring, delay: 1.4 }}
-          className="mt-14 flex justify-center"
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ ...spring, delay: 1.1 }}
+        className="mt-8"
+      >
+        <button
+          type="button"
+          onClick={() => {
+            console.log("[Leo] Enter button onClick fired");
+            onEnter();
+          }}
+          className="leo-btn-enter px-12 py-4 text-lg font-semibold text-[#0242FF] cursor-pointer relative z-10"
+          style={{ fontFamily: "var(--font-leo)" }}
         >
-          <motion.button
-            type="button"
-            onClick={onEnter}
-            whileHover={{ scale: 1.04, y: -3 }}
-            whileTap={{ scale: 0.98 }}
-            className="leo-btn-enter font-leo min-w-[180px] px-12 py-5 text-lg font-semibold text-[#0242FF] sm:text-xl"
-            style={{ fontFamily: "var(--font-leo)" }}
-          >
-            Enter
-          </motion.button>
-        </motion.div>
-      </div>
+          Enter
+        </button>
+      </motion.div>
     </div>
   );
 }

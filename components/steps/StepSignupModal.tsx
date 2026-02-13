@@ -7,6 +7,7 @@ import FogBackground from "@/components/FogBackground";
 
 interface StepSignupModalProps {
   cloudType: CloudType;
+  initialName?: string;
   onClose: () => void;
   onSuccess: (position: number) => void;
 }
@@ -15,10 +16,11 @@ const springPanel = { type: "spring" as const, stiffness: 280, damping: 26 };
 
 export default function StepSignupModal({
   cloudType,
+  initialName = "",
   onClose,
   onSuccess,
 }: StepSignupModalProps) {
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initialName);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");

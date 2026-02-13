@@ -63,25 +63,9 @@ html {
 body {
   margin: 0;
   padding: 0;
-  font-family: var(--font-leo), 'Leo May', system-ui, sans-serif;
-  background: linear-gradient(180deg, #e4e9f2 0%, #eef1f7 30%, #f2f5fa 60%, #e8eaed 100%);
-  background-attachment: fixed;
-  color: var(--text-dark);
-  overflow-x: hidden;
-  min-height: 100%;
   height: 100%;
-  /* Ensure fixed children center in viewport */
-  position: relative;
-}
-
-/* Full viewport — fixed steps fill and center in viewport */
-main.leo-main {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  min-height: 100%;
+  font-family: var(--font-leo), 'Leo May', system-ui, sans-serif;
+  color: var(--text-dark);
   overflow: hidden;
 }
 
@@ -138,7 +122,7 @@ main.leo-main {
 
 /* —— FogBackground: 60s drift, noise, dust —— */
 .fog-root {
-  pointer-events: none; /* allow clicks through to clouds; parallax via parent */
+  pointer-events: none;
 }
 .fog-root > * {
   position: absolute;
@@ -146,6 +130,17 @@ main.leo-main {
 }
 .fog-base {
   background: #22262e;
+}
+/* Reveal variant: mix-blend-mode so fog doesn't wash out logo; 40% opacity */
+.fog-reveal-layer {
+  mix-blend-mode: screen;
+  opacity: 0.4;
+}
+.fog-noise-subtle {
+  opacity: 0.03;
+}
+.fog-reveal .fog-dust {
+  opacity: 0.4;
 }
 .fog-parallax-wrap {
   position: absolute;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { CloudPersonality } from "@/lib/cloudData";
 import StepIntro from "@/components/steps/StepIntro";
 import StepReveal from "@/components/steps/StepReveal";
@@ -8,6 +8,7 @@ import StepCloudField from "@/components/steps/StepCloudField";
 import StepCloudDetail from "@/components/steps/StepCloudDetail";
 import StepSignupModal from "@/components/steps/StepSignupModal";
 import StepSuccess from "@/components/steps/StepSuccess";
+import FogBackground from "@/components/FogBackground";
 
 export type Step =
   | "intro"
@@ -19,6 +20,7 @@ export type Step =
 
 export default function Home() {
   const [step, setStep] = useState<Step>("intro");
+  const [guestName, setGuestName] = useState("");
   const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
   const [position, setPosition] = useState<number>(0);
 
@@ -28,7 +30,10 @@ export default function Home() {
     return () => clearTimeout(t);
   }, [step]);
 
-  const handleEnter = () => setStep("cloudField");
+  const handleEnter = useCallback(() => {
+    console.log("[Leo] Enter clicked, transitioning to cloudField");
+    setStep("cloudField");
+  }, []);
   const handleCloudClick = (p: CloudPersonality) => {
     setSelectedCloud(p);
     setStep("cloudDetail");
@@ -45,13 +50,40 @@ export default function Home() {
   };
 
   return (
-    <main className="leo-main min-h-screen w-full relative">
-      {/* Full-screen steps (entrance → reveal → cloud field → success) */}
-      {step === "intro" && <StepIntro />}
-      {step === "reveal" && <StepReveal onEnter={handleEnter} />}
-      {step === "cloudField" && <StepCloudField onCloudClick={handleCloudClick} />}
-      {step === "success" && <StepSuccess position={position} />}
-      {/* Overlay steps (modal-style, In-Dinner z-[60] pattern) */}
+    <div className="relative w-screen h-screen overflow-hidden">
+      {/* Background — deep navy base + subtle fog. pointer-events: none so clicks pass through. */}
+      <div
+        className="absolute inset-0 -z-10"
+        style={{ backgroundColor: "#0f172a", pointerEvents: "none" }}
+        aria-hidden
+      />
+      {(step === "intro" || step === "reveal") && (
+        <div
+          className="absolute inset-0 -z-[5]"
+          style={{ pointerEvents: "none" }}
+          aria-hidden
+        >
+          <FogBackground variant="reveal" />
+        </div>
+      )}
+
+      {/* Foreground content — flex-centered, receives clicks */}
+      <div className="relative flex flex-col items-center justify-center w-full h-full z-10" style={{ pointerEvents: "auto" }}>
+        {step === "intro" && <StepIntro />}
+        {step === "reveal" && (
+          <StepReveal
+            guestName={guestName}
+            setGuestName={setGuestName}
+            onEnter={handleEnter}
+          />
+        )}
+        {step === "cloudField" && (
+          <StepCloudField onCloudClick={handleCloudClick} />
+        )}
+        {step === "success" && <StepSuccess position={position} />}
+      </div>
+
+      {/* Overlays — modals on top */}
       {step === "cloudDetail" && selectedCloud && (
         <StepCloudDetail
           personality={selectedCloud}
@@ -62,10 +94,11 @@ export default function Home() {
       {step === "signupModal" && selectedCloud && (
         <StepSignupModal
           cloudType={selectedCloud.id}
+          initialName={guestName}
           onClose={handleSignupClose}
           onSuccess={handleSignupSuccess}
         />
       )}
-    </main>
+    </div>
   );
 }

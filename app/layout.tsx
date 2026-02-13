@@ -27,7 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={leoFont.variable}>
-      <body className="font-leo min-h-screen bg-[#f2f5fa] antialiased" style={{ fontFamily: "var(--font-leo)" }}>{children}</body>
+      <body className="font-leo h-full antialiased" style={{ fontFamily: "var(--font-leo)" }}>{children}</body>
     </html>
   );
 }

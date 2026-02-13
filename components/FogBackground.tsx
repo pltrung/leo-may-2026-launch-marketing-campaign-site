@@ -1,7 +1,7 @@
 "use client";
 
 interface FogBackgroundProps {
-  variant?: "soft" | "deep";
+  variant?: "soft" | "deep" | "reveal";
   /** Mouse offset for parallax (-2..2). Parent passes from onMouseMove when needed. */
   mouse?: { x: number; y: number };
   className?: string;
@@ -14,81 +14,90 @@ export default function FogBackground({
   mouse = { x: 0, y: 0 },
   className = "",
 }: FogBackgroundProps) {
+  const isReveal = variant === "reveal";
+
   return (
     <div
-      className={`fog-root ${className}`}
-      style={{ position: "absolute", inset: 0, overflow: "hidden" }}
+      className={`fog-root ${isReveal ? "fog-reveal" : ""} ${className}`}
+      style={{
+        position: "absolute",
+        inset: 0,
+        overflow: "hidden",
+        pointerEvents: "none",
+      }}
       aria-hidden
     >
-      {/* Base: dark blue-grey gradient (depth) */}
-      <div
-        className="fog-base"
-        style={{
-          background:
-            variant === "deep"
-              ? "linear-gradient(180deg, #2a2e38 0%, #1e2228 40%, #181b22 100%)"
-              : "linear-gradient(180deg, #3d4350 0%, #2e333d 50%, #22262e 100%)",
-        }}
-      />
+      {/* Base: only for soft/deep (reveal uses page's deep navy, no base) */}
+      {!isReveal && (
+        <div
+          className="fog-base"
+          style={{
+            background:
+              variant === "deep"
+                ? "linear-gradient(180deg, #2a2e38 0%, #1e2228 40%, #181b22 100%)"
+                : "linear-gradient(180deg, #3d4350 0%, #2e333d 50%, #22262e 100%)",
+          }}
+        />
+      )}
 
-      {/* Layer 1 — large radial, low opacity */}
+      {/* Fog layers — reveal: 40% opacity, mix-blend-mode, avoid logo area (center) */}
       <div
-        className="fog-parallax-wrap"
+        className={`fog-parallax-wrap ${isReveal ? "fog-reveal-layer" : ""}`}
         style={{ transform: `translate(${mouse.x * 0.5}%, ${mouse.y * 0.5}%)` }}
-        aria-hidden
       >
         <div
           className="fog-layer-float"
           style={{
-            background:
-              "radial-gradient(ellipse 120% 100% at 50% 70%, rgba(255,252,248,0.12) 0%, transparent 55%)",
+            background: isReveal
+              ? "radial-gradient(ellipse 80% 60% at 30% 80%, rgba(255,252,248,0.04) 0%, transparent 50%)"
+              : "radial-gradient(ellipse 120% 100% at 50% 70%, rgba(255,252,248,0.12) 0%, transparent 55%)",
           }}
         />
       </div>
-      {/* Layer 2 — mid */}
       <div
-        className="fog-parallax-wrap"
+        className={`fog-parallax-wrap ${isReveal ? "fog-reveal-layer" : ""}`}
         style={{ transform: `translate(${mouse.x * -0.3}%, ${mouse.y * -0.3}%)` }}
       >
         <div
           className="fog-layer-float fog-layer-2"
           style={{
-            background:
-              "radial-gradient(ellipse 90% 80% at 30% 50%, rgba(248,246,242,0.18) 0%, transparent 50%)",
+            background: isReveal
+              ? "radial-gradient(ellipse 70% 70% at 70% 20%, rgba(248,250,255,0.05) 0%, transparent 45%)"
+              : "radial-gradient(ellipse 90% 80% at 30% 50%, rgba(248,246,242,0.18) 0%, transparent 50%)",
           }}
         />
       </div>
-      {/* Layer 3 */}
       <div
-        className="fog-parallax-wrap"
+        className={`fog-parallax-wrap ${isReveal ? "fog-reveal-layer" : ""}`}
         style={{ transform: `translate(${mouse.x * 0.4}%, ${mouse.y * 0.2}%)` }}
       >
         <div
           className="fog-layer-float fog-layer-3"
           style={{
-            background:
-              "radial-gradient(ellipse 80% 100% at 70% 60%, rgba(255,252,248,0.1) 0%, transparent 50%)",
+            background: isReveal
+              ? "radial-gradient(ellipse 60% 80% at 20% 60%, rgba(255,252,248,0.03) 0%, transparent 50%)"
+              : "radial-gradient(ellipse 80% 100% at 70% 60%, rgba(255,252,248,0.1) 0%, transparent 50%)",
           }}
         />
       </div>
-      {/* Layer 4 — subtle brand tint */}
       <div
-        className="fog-parallax-wrap"
+        className={`fog-parallax-wrap ${isReveal ? "fog-reveal-layer" : ""}`}
         style={{ transform: `translate(${mouse.x * -0.2}%, ${mouse.y * -0.2}%)` }}
       >
         <div
           className="fog-layer-float fog-layer-4"
           style={{
-            background:
-              "radial-gradient(ellipse 100% 60% at 50% 30%, rgba(2,66,255,0.03) 0%, transparent 45%)",
+            background: isReveal
+              ? "radial-gradient(ellipse 50% 40% at 80% 70%, rgba(2,66,255,0.02) 0%, transparent 45%)"
+              : "radial-gradient(ellipse 100% 60% at 50% 30%, rgba(2,66,255,0.03) 0%, transparent 45%)",
           }}
         />
       </div>
 
-      {/* Noise texture overlay */}
-      <div className="fog-noise" />
+      {/* Noise — reduced for reveal */}
+      <div className={isReveal ? "fog-noise fog-noise-subtle" : "fog-noise"} />
 
-      {/* Floating dust particles */}
+      {/* Dust — reduced for reveal */}
       <div className="fog-dust-container">
         {Array.from({ length: DUST_COUNT }).map((_, i) => (
           <div
