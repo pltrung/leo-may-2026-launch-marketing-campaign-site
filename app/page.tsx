@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import FogBackground from "@/components/FogBackground";
 import Hero from "@/components/Hero";
 import StorySection from "@/components/StorySection";
@@ -26,16 +27,26 @@ export default function Home() {
 
   return (
     <main className="relative min-h-screen">
-      {!showClouds && <FogBackground />}
-      {!showClouds ? (
-        <>
-          <Hero />
-          <StorySection />
-          <JoinCta onJoin={() => setShowClouds(true)} />
-        </>
-      ) : (
-        <CloudSelector onSelect={setSelectedCloud} />
-      )}
+      <FogBackground />
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={showClouds ? "clouds" : "hero"}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          {!showClouds ? (
+            <>
+              <Hero />
+              <StorySection />
+              <JoinCta onJoin={() => setShowClouds(true)} />
+            </>
+          ) : (
+            <CloudSelector onSelect={setSelectedCloud} />
+          )}
+        </motion.div>
+      </AnimatePresence>
       <Footer />
 
       {selectedCloud && (

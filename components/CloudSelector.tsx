@@ -11,7 +11,8 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
   return (
     <section
       id="clouds"
-      className="w-screen min-h-screen flex flex-col items-center justify-center bg-[#0f172a] text-white px-6 py-12"
+      className="w-screen min-h-screen flex flex-col items-center justify-center text-white px-6 py-12"
+      style={{ backgroundColor: "rgba(15, 23, 42, 0.92)" }}
     >
       <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-light text-center mb-12 md:mb-16">
         What type of cloud are you?

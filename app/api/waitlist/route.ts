@@ -14,8 +14,12 @@ export async function POST(request: NextRequest) {
 
     const { name, email, phone, cloud_type } = parsed.data;
 
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error("Missing Supabase env vars");
+    const hasUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const hasKey = !!(
+      process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY
+    );
+    if (!hasUrl || !hasKey) {
+      console.error("Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL and (SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY)");
       return NextResponse.json(
         { error: "Server misconfigured. Please contact support." },
         { status: 500 }

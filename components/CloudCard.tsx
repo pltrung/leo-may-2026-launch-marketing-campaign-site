@@ -13,7 +13,7 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
   const [isFlipped, setIsFlipped] = useState(false);
 
   const handleCardClick = () => {
-    if (!isFlipped) setIsFlipped(true);
+    setIsFlipped((prev) => !prev);
   };
 
   const handleJoinClick = (e: React.MouseEvent) => {
@@ -77,7 +77,8 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
           <button
             type="button"
             onClick={handleJoinClick}
-            className={`w-full py-3 rounded-xl ${cloud.accentClass} text-white font-medium hover:opacity-90 transition-opacity duration-200`}
+            className="w-full py-3.5 rounded-xl text-white font-semibold hover:opacity-90 transition-opacity duration-200 shadow-lg"
+            style={{ backgroundColor: cloud.accentHex }}
           >
             {cloud.joinLabel}
           </button>
