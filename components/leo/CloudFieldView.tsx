@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { cloudPersonalities, CloudPersonality } from "@/lib/cloudData";
-import { CloudBlob } from "@/components/CloudBlob";
+import { CloudBlob } from "@/components/leo/CloudBlob";
 
 interface CloudFieldViewProps {
   onSelect: (p: CloudPersonality) => void;

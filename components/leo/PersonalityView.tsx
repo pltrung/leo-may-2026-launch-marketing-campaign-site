@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { CloudPersonality } from "@/lib/cloudData";
-import { CloudBlob } from "@/components/CloudBlob";
+import { CloudBlob } from "@/components/leo/CloudBlob";
 
 interface PersonalityViewProps {
   personality: CloudPersonality;

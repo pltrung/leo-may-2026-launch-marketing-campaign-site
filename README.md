@@ -1,11 +1,12 @@
 # Leo Mây — Climb the Clouds. Build a Culture.
 
-Brand immersion experience for Leo Mây Climbing Gym. Ho Chi Minh City · Launch 2026.
+Premium immersive landing experience for Leo Mây Climbing Gym. Ho Chi Minh City · Launch 2026.
 
 ## Stack
 
 - **Framework**: Next.js 14 (App Router)
 - **Styling**: Tailwind CSS
+- **Motion**: Framer Motion
 - **Database**: Supabase (PostgreSQL)
 - **Validation**: Zod
 
@@ -19,14 +20,14 @@ Brand immersion experience for Leo Mây Climbing Gym. Ho Chi Minh City · Launch
 │       └── waitlist/
 │           └── route.ts
 ├── components/
-│   ├── FogIntro.tsx      # First 5s fog + logo reveal
-│   ├── BrandLogo.tsx     # Logo with breathing space
-│   ├── CloudField.tsx    # Cloud grid
-│   ├── CloudShape.tsx    # Single cloud blob
-│   ├── CloudReveal.tsx   # Personality reveal modal
-│   ├── SignupModal.tsx   # Waitlist form
-│   ├── WaitlistConfirmation.tsx
-│   └── Footer.tsx
+│   └── leo/
+│       ├── Atmosphere.tsx    # Dreamlike background
+│       ├── IntroView.tsx     # Logo reveal + Enter
+│       ├── CloudFieldView.tsx # Cloud selection
+│       ├── CloudBlob.tsx     # Organic cloud shape
+│       ├── PersonalityView.tsx # Chosen cloud reveal
+│       ├── SignupView.tsx    # Waitlist form
+│       └── SuccessView.tsx   # Position confirmation
 ├── lib/
 │   ├── supabaseServer.ts
 │   ├── cloudData.ts
@@ -35,11 +36,19 @@ Brand immersion experience for Leo Mây Climbing Gym. Ho Chi Minh City · Launch
 │   └── globals.css
 ├── public/
 │   ├── logo.svg
-│   └── fonts/            # MiSans (Leo May Font)
+│   └── fonts/                # MiSans (Leo May Font)
 └── supabase/
     └── migrations/
         └── 001_create_waitlist.sql
 ```
+
+## Flow
+
+1. **Intro** — Logo and tagline reveal, Enter CTA
+2. **Clouds** — "What type of cloud are you?" — pick one of six personalities
+3. **Personality** — Chosen cloud description + Join the Founding Circle
+4. **Signup** — Name, email or phone
+5. **Success** — Position in the Founding Circle
 
 ## Setup
 
@@ -85,13 +94,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Position Calculation
 
-After each waitlist insert, the API runs:
-
-```sql
-SELECT COUNT(*) FROM waitlist;
-```
-
-The returned count is the new user's position in the Founding Circle. Newest signup = latest row, so count equals total signups = position.
+After each waitlist insert, the API returns the count of all waitlist entries as the user's position in the Founding Circle.
 
 ## Brand
 
