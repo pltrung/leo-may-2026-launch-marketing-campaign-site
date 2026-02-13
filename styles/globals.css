@@ -3,72 +3,22 @@
 @tailwind utilities;
 
 :root {
-  --leo-blue: #0242FF;
-  --leo-green: #00CB4D;
-  --leo-yellow: #FDFF52;
-  --font-leo: "Leo May", system-ui, sans-serif;
+  --cloud: #F5F7FA;
+  --mist: #DDE2E6;
+  --storm: #1E2A38;
+  --sage: #9BAF9D;
+  --accent: #F4A261;
 }
 
-@font-face {
-  font-family: "Leo May";
-  src: url("/fonts/MiSans-Light.ttf") format("truetype");
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Leo May";
-  src: url("/fonts/MiSans-Regular.ttf") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Leo May";
-  src: url("/fonts/MiSans-Medium.ttf") format("truetype");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Leo May";
-  src: url("/fonts/MiSans-Demibold.ttf") format("truetype");
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Leo May";
-  src: url("/fonts/MiSans-Bold.ttf") format("truetype");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  overflow: hidden;
-  font-family: var(--font-leo);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-.fade-in {
-  animation: fadeIn 0.8s ease-out forwards;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
+@layer base {
+  html {
+    scroll-behavior: smooth;
   }
-  to {
-    opacity: 1;
+  body {
+    font-family: var(--font-inter), system-ui, sans-serif;
+    color: var(--storm);
+    background: var(--cloud);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }

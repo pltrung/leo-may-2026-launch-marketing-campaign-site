@@ -1,8 +1,7 @@
 import { z } from "zod";
 
-/** Preprocess: empty string → undefined so optional() works correctly */
-const emptyToUndefined = (val: unknown) =>
-  val === "" || val === undefined ? undefined : val;
+const emptyToUndefined = (v: unknown) =>
+  v === "" || v === undefined ? undefined : v;
 
 export const waitlistSchema = z
   .object({
@@ -18,10 +17,10 @@ export const waitlistSchema = z
     cloud_type: z.string().min(1, "Cloud type required").trim(),
   })
   .refine(
-    (data) => {
-      const hasEmail = data.email && String(data.email).trim().length > 0;
-      const hasPhone = data.phone && String(data.phone).trim().length > 0;
-      return hasEmail || hasPhone;
+    (d) => {
+      const e = d.email && String(d.email).trim().length > 0;
+      const p = d.phone && String(d.phone).trim().length > 0;
+      return e || p;
     },
     { message: "Email or phone is required", path: ["email"] }
   );

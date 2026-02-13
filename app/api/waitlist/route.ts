@@ -13,47 +13,24 @@ export async function POST(request: NextRequest) {
     }
 
     const { name, email, phone, cloud_type } = parsed.data;
-
-    if (!email?.trim() && !phone?.trim()) {
-      return NextResponse.json(
-        { error: "Email or phone is required" },
-        { status: 400 }
-      );
-    }
-
     const supabase = createServerClient();
 
-    const { error: insertError } = await supabase.from("waitlist").insert({
+    const { error } = await supabase.from("waitlist").insert({
       name: name.trim(),
       email: (email?.trim() || null) as string | null,
       phone: (phone?.trim() || null) as string | null,
       cloud_type: cloud_type.trim(),
     });
 
-    if (insertError) {
-      console.error("Waitlist insert error:", insertError);
+    if (error) {
+      console.error("Waitlist insert error:", error);
       return NextResponse.json(
         { error: "Failed to join waitlist. Please try again." },
         { status: 500 }
       );
     }
 
-    const { count, error: countError } = await supabase
-      .from("waitlist")
-      .select("*", { count: "exact", head: true });
-
-    if (countError) {
-      console.error("Waitlist count error:", countError);
-      return NextResponse.json(
-        { success: true, position: 1 },
-        { status: 200 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      position: count ?? 1,
-    });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("Waitlist API error:", err);
     return NextResponse.json(

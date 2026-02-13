@@ -1,27 +1,34 @@
 # Leo Mây — Climb the Clouds. Build a Culture.
 
-Premium launch microsite for Leo Mây Climbing Gym. Ho Chi Minh City · 2026.
+Premium marketing site for Leo Mây Climbing Gym. Mist minimalism, Supabase waitlist.
 
-## Flow
+## Tech
 
-1. **Intro** — Logo + Enter
-2. **Clouds** — Choose your cloud type
-3. **Detail** — Cloud personality + Pick This Cloud
-4. **Signup** — Name, email or phone
-5. **Success** — Waitlist position
+- Next.js 14 (App Router)
+- TypeScript
+- Tailwind CSS
+- Framer Motion
+- Supabase
 
-## Setup
+## Quick Start
 
-1. `npm install`
-2. Create Supabase project, run `supabase/migrations/001_create_waitlist.sql`
-3. Add to `.env.local`:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-4. `npm run dev`
+```bash
+npm install
+cp .env.example .env.local
+# Edit .env.local with your Supabase URL and service_role key
+npm run dev
+```
 
-## Brand
+See **SETUP.md** for Supabase setup, SQL migration, and Vercel deployment.
 
-- Blue: #0242FF
-- Green: #00CB4D
-- Yellow: #FDFF52
-- Font: MiSans (Leo May)
+## Structure
+
+- **Hero** — Full viewport, fog background, headline
+- **Story** — Short emotional section
+- **Cloud selector** — 6 cloud types, 2-col grid
+- **Modal** — Name + email/phone signup
+- **Toast** — Success confirmation
+
+## Replace Logo
+
+Replace `public/logo.svg` with your brand logo.
