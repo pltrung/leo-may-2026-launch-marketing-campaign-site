@@ -1,62 +1,58 @@
 "use client";
 
 import { useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { CloudPersonality } from "@/lib/cloudData";
-import StepReveal from "@/components/steps/StepReveal";
-import StepCloudField from "@/components/steps/StepCloudField";
-import StepCloudDetail from "@/components/steps/StepCloudDetail";
-import StepSignupModal from "@/components/steps/StepSignupModal";
-import StepSuccess from "@/components/steps/StepSuccess";
+import Atmosphere from "@/components/leo/Atmosphere";
+import IntroView from "@/components/leo/IntroView";
+import CloudFieldView from "@/components/leo/CloudFieldView";
+import PersonalityView from "@/components/leo/PersonalityView";
+import SignupView from "@/components/leo/SignupView";
+import SuccessView from "@/components/leo/SuccessView";
 
-type Step = "intro" | "cloudField" | "cloudDetail" | "signup" | "success";
+type Step = "intro" | "clouds" | "personality" | "signup" | "success";
 
 export default function Home() {
   const [step, setStep] = useState<Step>("intro");
-  const [guestName, setGuestName] = useState("");
   const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
-  const [position, setPosition] = useState<number>(0);
+  const [position, setPosition] = useState(0);
 
-  function renderStep() {
+  function renderView() {
     switch (step) {
       case "intro":
         return (
-          <StepReveal
-            guestName={guestName}
-            setGuestName={setGuestName}
-            onEnter={() => {
-              console.log("ENTER CLICKED");
-              setStep("cloudField");
-            }}
-          />
+          <IntroView key="intro" onEnter={() => setStep("clouds")} />
         );
-      case "cloudField":
+      case "clouds":
         return (
-          <StepCloudField
-            onCloudClick={(p) => {
+          <CloudFieldView
+            key="clouds"
+            onSelect={(p) => {
               setSelectedCloud(p);
-              setStep("cloudDetail");
+              setStep("personality");
             }}
           />
         );
-      case "cloudDetail":
+      case "personality":
         if (!selectedCloud) return null;
         return (
-          <StepCloudDetail
+          <PersonalityView
+            key="personality"
             personality={selectedCloud}
             onClose={() => {
               setSelectedCloud(null);
-              setStep("cloudField");
+              setStep("clouds");
             }}
-            onCtaClick={() => setStep("signup")}
+            onJoin={() => setStep("signup")}
           />
         );
       case "signup":
         if (!selectedCloud) return null;
         return (
-          <StepSignupModal
+          <SignupView
+            key="signup"
             cloudType={selectedCloud.id}
-            initialName={guestName}
-            onClose={() => setStep("cloudDetail")}
+            onClose={() => setStep("personality")}
             onSuccess={(pos) => {
               setPosition(pos);
               setStep("success");
@@ -64,21 +60,21 @@ export default function Home() {
           />
         );
       case "success":
-        return <StepSuccess position={position} />;
+        return <SuccessView key="success" position={position} />;
       default:
         return null;
     }
   }
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-[#0f172a]">
-      {/* Layer 1: Background — fog disabled for now; plain color */}
-      <div className="absolute inset-0 pointer-events-none -z-10" aria-hidden />
+    <div className="relative w-screen h-screen overflow-hidden bg-[#050810]">
+      {/* Layer 1: Atmosphere — always present, non-interactive */}
+      <Atmosphere />
 
-      {/* Layer 2: Foreground interaction — ONE step at a time */}
-      <div className="relative z-10 flex items-center justify-center w-full h-full">
-        {renderStep()}
-      </div>
+      {/* Layer 2: Content — one view at a time */}
+      <main className="relative z-10 flex items-center justify-center w-full h-full">
+        <AnimatePresence mode="wait">{renderView()}</AnimatePresence>
+      </main>
     </div>
   );
 }
