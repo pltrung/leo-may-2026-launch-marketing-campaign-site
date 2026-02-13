@@ -21,10 +21,19 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
         </h2>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 sm:gap-10 max-w-4xl w-full mx-auto justify-items-center place-items-center">
-        {clouds.map((cloud) => (
-          <CloudCard key={cloud.id} cloud={cloud} onJoin={onSelect} />
-        ))}
+      <div className="w-full max-w-4xl mx-auto">
+        <div className="flex md:hidden overflow-x-auto overflow-y-visible gap-6 px-4 pb-4 -mx-4 snap-x snap-mandatory scroll-smooth">
+          {clouds.map((cloud) => (
+            <div key={cloud.id} className="flex-shrink-0 w-[180px] snap-center">
+              <CloudCard cloud={cloud} onJoin={onSelect} />
+            </div>
+          ))}
+        </div>
+        <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10 w-full justify-items-center place-items-center">
+          {clouds.map((cloud) => (
+            <CloudCard key={cloud.id} cloud={cloud} onJoin={onSelect} />
+          ))}
+        </div>
       </div>
     </section>
   );
