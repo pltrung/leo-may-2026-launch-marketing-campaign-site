@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { CloudType } from "@/lib/cloudData";
+import FogBackground from "@/components/FogBackground";
 
 interface StepSignupModalProps {
   cloudType: CloudType;
@@ -10,7 +11,7 @@ interface StepSignupModalProps {
   onSuccess: (position: number) => void;
 }
 
-const springPanel = { type: "spring" as const, stiffness: 300, damping: 24, mass: 0.8 };
+const springPanel = { type: "spring" as const, stiffness: 280, damping: 26 };
 
 export default function StepSignupModal({
   cloudType,
@@ -65,41 +66,47 @@ export default function StepSignupModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
+      transition={{ duration: 0.3 }}
       className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      style={{ width: "100vw", height: "100vh" }}
       role="dialog"
       aria-modal="true"
     >
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/40 backdrop-blur-md"
         onClick={onClose}
         aria-hidden
       />
+      <div className="absolute inset-0 pointer-events-none">
+        <FogBackground variant="deep" />
+      </div>
+
+      {/* Soft cloud panel — no sharp card, organic shape */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.85 }}
+        initial={{ opacity: 0, scale: 0.92 }}
         animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
+        exit={{ opacity: 0, scale: 0.96 }}
         transition={springPanel}
-        className="leo-card leo-card-glow relative w-full max-w-md rounded-2xl p-6 sm:p-8 shadow-[0_0_40px_rgba(2,66,255,0.12),0_25px_50px_-12px_rgba(0,0,0,0.2)]"
+        className="leo-signup-panel relative w-full max-w-md p-6 sm:p-8"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 text-[#6b7280] hover:text-[#1a1d21] rounded-full p-1"
+          className="absolute right-4 top-4 text-white/60 hover:text-white/90 rounded-full p-1 transition-colors"
           aria-label="Close"
         >
-          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
 
         <motion.h2
-          initial={{ opacity: 0, y: 6 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.08 }}
-          className="font-leo text-xl font-semibold text-[#1a1d21]"
+          transition={{ delay: 0.1 }}
+          className="font-leo text-xl sm:text-2xl font-semibold text-white/95"
           style={{ fontFamily: "var(--font-leo)" }}
         >
           Join the Founding Circle
@@ -107,8 +114,8 @@ export default function StepSignupModal({
         <motion.p
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.12 }}
-          className="font-leo mt-1 text-sm text-[#0242FF]/80"
+          transition={{ delay: 0.14 }}
+          className="font-leo mt-1 text-sm text-white/70"
           style={{ fontFamily: "var(--font-leo)" }}
         >
           Be among the first when Leo Mây opens in HCMC.
@@ -116,7 +123,7 @@ export default function StepSignupModal({
 
         <form onSubmit={handleSubmit} className="font-leo mt-6 space-y-4" style={{ fontFamily: "var(--font-leo)" }}>
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-[#4a4d52]">
+            <label htmlFor="name" className="block text-sm font-medium text-white/80">
               Name *
             </label>
             <input
@@ -125,12 +132,12 @@ export default function StepSignupModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="leo-input mt-1 w-full px-4 py-3.5 text-[#1a1d21] placeholder-[#6b7280]/70 rounded-xl"
+              className="leo-input-cloud mt-1 w-full px-4 py-3.5 text-white placeholder-white/40"
               placeholder="Your name"
             />
           </div>
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-[#4a4d52]">
+            <label htmlFor="email" className="block text-sm font-medium text-white/80">
               Email
             </label>
             <input
@@ -138,12 +145,12 @@ export default function StepSignupModal({
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="leo-input mt-1 w-full px-4 py-3.5 text-[#1a1d21] placeholder-[#6b7280]/70 rounded-xl"
+              className="leo-input-cloud mt-1 w-full px-4 py-3.5 text-white placeholder-white/40"
               placeholder="you@example.com"
             />
           </div>
           <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-[#4a4d52]">
+            <label htmlFor="phone" className="block text-sm font-medium text-white/80">
               Phone
             </label>
             <input
@@ -151,14 +158,14 @@ export default function StepSignupModal({
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="leo-input mt-1 w-full px-4 py-3.5 text-[#1a1d21] placeholder-[#6b7280]/70 rounded-xl"
+              className="leo-input-cloud mt-1 w-full px-4 py-3.5 text-white placeholder-white/40"
               placeholder="+84 xxx xxx xxx"
             />
           </div>
-          <p className="text-xs text-[#6b7280]">* Email or phone required</p>
+          <p className="text-xs text-white/50">* Email or phone required</p>
 
           {errorMessage && (
-            <p className="text-sm text-red-600">{errorMessage}</p>
+            <p className="text-sm text-amber-200/90">{errorMessage}</p>
           )}
 
           <motion.button
@@ -166,7 +173,7 @@ export default function StepSignupModal({
             disabled={status === "loading"}
             whileHover={status !== "loading" ? { scale: 1.02, y: -1 } : undefined}
             whileTap={status !== "loading" ? { scale: 0.98 } : undefined}
-            className="font-leo leo-btn-primary mt-6 w-full rounded-2xl py-4 text-base disabled:opacity-60 disabled:cursor-not-allowed"
+            className="leo-btn-enter font-leo mt-6 w-full py-4 text-base font-semibold text-[#0242FF] disabled:opacity-60 disabled:cursor-not-allowed"
             style={{ fontFamily: "var(--font-leo)" }}
           >
             {status === "loading" ? "Joining…" : "Join Waitlist"}

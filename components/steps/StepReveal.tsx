@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
+import FogBackground from "@/components/FogBackground";
 
 interface StepRevealProps {
   onEnter: () => void;
@@ -10,34 +11,37 @@ interface StepRevealProps {
 const spring = { type: "spring" as const, stiffness: 280, damping: 26 };
 
 /**
- * In-Dinner style: fixed full-screen, content centered with max-w-2xl.
- * Enter button: motion + whileHover/whileTap so it feels alive.
+ * Logo emerges from fog: blur-to-sharp, slight mask clearing, inside atmosphere.
  */
 export default function StepReveal({ onEnter }: StepRevealProps) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-gradient-to-b from-[#e4e9f2] via-[#eef1f7] to-[#f2f5fa]"
-      style={{ top: 0, left: 0, right: 0, bottom: 0, width: "100vw", height: "100vh" }}
+      className="fixed inset-0 z-50 overflow-hidden"
+      style={{ width: "100vw", height: "100vh", background: "#2a2e36" }}
     >
-      <div className="fog-layer fog-dense" />
-      <div className="fog-layer fog-billows" />
-      <div className="fog-layer fog-wisps" />
-      <div className="grain-overlay" />
+      <FogBackground variant="soft" />
 
-      {/* In-Dinner-style centering: single column, max-w-2xl, padded */}
-      <div className="relative z-10 w-full max-w-2xl mx-auto px-4 sm:px-6 py-20 flex flex-col items-center justify-center text-center">
+      {/* Bulletproof center: absolute + translate so content is always viewport-centered */}
+      <div
+        className="absolute left-1/2 top-1/2 z-10 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-4 text-center"
+        style={{ maxWidth: "36rem" }}
+      >
+        {/* Logo: emerge from fog */}
         <motion.div
-          initial={{ opacity: 0, filter: "blur(14px)" }}
-          animate={{ opacity: 1, filter: "blur(0px)" }}
-          transition={{ duration: 1.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+          initial={{ opacity: 0, filter: "blur(20px)", scale: 0.96 }}
+          animate={{ opacity: 1, filter: "blur(0px)", scale: 1 }}
+          transition={{
+            duration: 2.2,
+            ease: [0.25, 0.46, 0.45, 0.94],
+          }}
           className="flex justify-center"
         >
           <div
             className="relative inline-flex items-center justify-center"
             style={{
               padding: "clamp(2rem, 6vw, 4rem)",
-              maxWidth: "min(280px, 85vw)",
-              filter: "drop-shadow(0 0 32px rgba(2,66,255,0.22)) drop-shadow(0 0 64px rgba(2,66,255,0.1))",
+              maxWidth: "min(300px, 88vw)",
+              filter: "drop-shadow(0 0 40px rgba(255,252,248,0.18)) drop-shadow(0 0 80px rgba(2,66,255,0.1))",
             }}
           >
             <Image
@@ -53,27 +57,27 @@ export default function StepReveal({ onEnter }: StepRevealProps) {
         </motion.div>
 
         <motion.p
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring, delay: 0.6 }}
-          className="font-leo mt-6 text-lg font-light tracking-wide text-[#0242FF]/90 sm:text-xl"
+          transition={{ ...spring, delay: 1 }}
+          className="font-leo mt-8 text-xl font-light tracking-wide text-white/90 sm:text-2xl md:text-3xl"
           style={{ fontFamily: "var(--font-leo)" }}
         >
           Climb the Clouds. Build a Culture.
         </motion.p>
 
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring, delay: 1 }}
-          className="mt-10 flex justify-center"
+          transition={{ ...spring, delay: 1.4 }}
+          className="mt-14 flex justify-center"
         >
           <motion.button
             type="button"
             onClick={onEnter}
-            whileHover={{ scale: 1.03, y: -2 }}
+            whileHover={{ scale: 1.04, y: -3 }}
             whileTap={{ scale: 0.98 }}
-            className="leo-btn-enter font-leo min-w-[160px] px-10 py-4 text-base font-semibold text-[#0242FF] sm:text-lg"
+            className="leo-btn-enter font-leo min-w-[180px] px-12 py-5 text-lg font-semibold text-[#0242FF] sm:text-xl"
             style={{ fontFamily: "var(--font-leo)" }}
           >
             Enter
