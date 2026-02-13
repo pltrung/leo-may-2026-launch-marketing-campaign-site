@@ -11,6 +11,8 @@ interface CloudCardProps {
 
 export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isActive, setIsActive] = useState(false);
 
   const handleCardClick = () => {
     setIsFlipped((prev) => !prev);
@@ -21,11 +23,22 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
     onJoin(cloud);
   };
 
+  const baseCardClass =
+    "absolute inset-0 w-full h-full rounded-2xl flex flex-col items-center justify-center p-6 bg-white/90 shadow-md border border-transparent transition-all duration-200";
+  const hoverBorder = isHovered ? cloud.accentHex : "transparent";
+  const activeShadow = isActive
+    ? `0 4px 20px ${cloud.accentHex}25`
+    : "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)";
+
   return (
     <div
-      className="w-full min-w-[140px] max-w-[200px] aspect-[3/4] mx-auto cursor-pointer transition-transform duration-200 hover:scale-105"
+      className={`w-full min-w-[140px] max-w-[200px] aspect-[3/4] mx-auto cursor-pointer transition-transform duration-200 ${isHovered ? "-translate-y-1" : ""}`}
       style={{ perspective: "1000px" }}
       onClick={handleCardClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onMouseDown={() => setIsActive(true)}
+      onMouseUp={() => setIsActive(false)}
     >
       <div
         className="relative w-full h-full transition-transform duration-500 ease-out"
@@ -36,49 +49,40 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
       >
         {/* Front */}
         <div
-          className={`absolute inset-0 w-full h-full rounded-2xl flex flex-col items-center justify-center p-6 animate-neon-glow ${cloud.bgClass}`}
+          className={baseCardClass}
           style={{
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
-            ["--neon-color" as string]: cloud.accentHex,
-            borderWidth: "2px",
-            borderStyle: "solid",
-            borderColor: cloud.accentHex,
+            borderColor: hoverBorder,
+            boxShadow: activeShadow,
           }}
         >
-          <div className="mb-4 text-white/90">
-            <CloudIconByType cloudId={cloud.id} className="w-16 h-16" />
+          <div className="mb-4 text-storm/80">
+            <CloudIconByType cloudId={cloud.id} className="w-14 h-14 sm:w-16 sm:h-16" />
           </div>
-          <span className={`font-display text-xl sm:text-2xl font-medium ${cloud.textClass}`}>
+          <span className="font-display text-xl sm:text-2xl font-medium text-storm">
             {cloud.name}
-          </span>
-          <span className="text-base mt-2 text-white/70">
-            {cloud.mood}
           </span>
         </div>
 
         {/* Back */}
         <div
-          className={`absolute inset-0 w-full h-full rounded-2xl flex flex-col items-center justify-between p-6 animate-neon-glow ${cloud.bgClass}`}
+          className={`${baseCardClass} justify-between`}
           style={{
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
             transform: "rotateY(180deg)",
-            ["--neon-color" as string]: cloud.accentHex,
-            borderWidth: "2px",
-            borderStyle: "solid",
-            borderColor: cloud.accentHex,
+            borderColor: hoverBorder,
+            boxShadow: activeShadow,
           }}
         >
-          <p
-            className="text-center text-base sm:text-lg leading-relaxed flex-1 flex items-center justify-center px-2 text-white/90"
-          >
+          <p className="text-center text-base sm:text-lg leading-relaxed flex-1 flex items-center justify-center px-2 text-storm/90">
             {cloud.story}
           </p>
           <button
             type="button"
             onClick={handleJoinClick}
-            className="w-full py-4 rounded-xl text-white font-semibold text-base sm:text-lg hover:opacity-90 transition-opacity duration-200 shadow-lg"
+            className="w-full py-4 rounded-xl text-white font-semibold text-base sm:text-lg hover:opacity-90 transition-opacity duration-200 shadow-md"
             style={{ backgroundColor: cloud.accentHex }}
           >
             {cloud.joinLabel}

@@ -10,26 +10,6 @@
   --accent: #F4A261;
 }
 
-@keyframes neonGlow {
-  0%,
-  100% {
-    box-shadow: 0 0 4px var(--neon-color),
-      0 0 8px var(--neon-color),
-      0 0 12px color-mix(in srgb, var(--neon-color) 30%, transparent),
-      inset 0 0 0 1px var(--neon-color);
-  }
-  50% {
-    box-shadow: 0 0 8px var(--neon-color),
-      0 0 20px var(--neon-color),
-      0 0 30px color-mix(in srgb, var(--neon-color) 50%, transparent),
-      inset 0 0 0 2px var(--neon-color);
-  }
-}
-
-.animate-neon-glow {
-  animation: neonGlow 2.5s ease-in-out infinite;
-}
-
 @layer base {
   html {
     scroll-behavior: smooth;

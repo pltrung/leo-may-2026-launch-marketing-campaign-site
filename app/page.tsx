@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import FogBackground from "@/components/FogBackground";
-import Hero from "@/components/Hero";
-import StorySection from "@/components/StorySection";
-import JoinCta from "@/components/JoinCta";
+import HeroSection from "@/components/HeroSection";
+import LocationSection from "@/components/LocationSection";
+import PhilosophySection from "@/components/PhilosophySection";
+import CtaSection from "@/components/CtaSection";
 import CloudSelector from "@/components/CloudSelector";
 import SignupModal from "@/components/SignupModal";
 import Toast from "@/components/Toast";
@@ -27,7 +28,7 @@ export default function Home() {
 
   return (
     <main className="relative min-h-screen">
-      <FogBackground />
+      <FogBackground reducedNoise={showClouds} />
       <AnimatePresence mode="wait">
         <motion.div
           key={showClouds ? "clouds" : "hero"}
@@ -38,9 +39,10 @@ export default function Home() {
         >
           {!showClouds ? (
             <>
-              <Hero />
-              <StorySection />
-              <JoinCta onJoin={() => setShowClouds(true)} />
+              <HeroSection />
+              <LocationSection />
+              <PhilosophySection />
+              <CtaSection onJoin={() => setShowClouds(true)} />
             </>
           ) : (
             <CloudSelector onSelect={setSelectedCloud} />
