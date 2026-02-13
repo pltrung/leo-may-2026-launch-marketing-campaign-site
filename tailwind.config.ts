@@ -37,7 +37,7 @@ const config: Config = {
         },
         cloudFloat: {
           "0%, 100%": { transform: "translateY(0) rotate(0deg)" },
-          "50%": { transform: "translateY(-8px) rotate(1deg)" },
+          "50%": { transform: "translateY(-10px) rotate(1.5deg)" },
         },
         countUp: {
           "0%": { opacity: "0", transform: "translateY(10px)" },

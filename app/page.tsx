@@ -1,64 +1,81 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import FogIntro from "@/components/FogIntro";
-import BrandLogo from "@/components/BrandLogo";
-import CloudField from "@/components/CloudField";
-import Footer from "@/components/Footer";
-import SignupModal from "@/components/SignupModal";
+import { CloudPersonality } from "@/lib/cloudData";
+import StepIntro from "@/components/steps/StepIntro";
+import StepReveal from "@/components/steps/StepReveal";
+import StepCloudField from "@/components/steps/StepCloudField";
+import StepCloudDetail from "@/components/steps/StepCloudDetail";
+import StepSignupModal from "@/components/steps/StepSignupModal";
+import StepSuccess from "@/components/steps/StepSuccess";
+
+export type Step =
+  | "intro"
+  | "reveal"
+  | "cloudField"
+  | "cloudDetail"
+  | "signupModal"
+  | "success";
 
 export default function Home() {
-  const [introDone, setIntroDone] = useState(false);
-  const [showSignup, setShowSignup] = useState(false);
+  const [step, setStep] = useState<Step>("intro");
+  const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
+  const [position, setPosition] = useState<number>(0);
 
+  // Step 0: intro (fog only 0-2s) → auto to reveal
   useEffect(() => {
-    const t = setTimeout(() => setIntroDone(true), 5500);
+    if (step !== "intro") return;
+    const t = setTimeout(() => setStep("reveal"), 2000);
     return () => clearTimeout(t);
-  }, []);
+  }, [step]);
+
+  const handleEnter = () => setStep("cloudField");
+  const handleCloudClick = (p: CloudPersonality) => {
+    setSelectedCloud(p);
+    setStep("cloudDetail");
+  };
+  const handleCloudDetailClose = () => {
+    setSelectedCloud(null);
+    setStep("cloudField");
+  };
+  const handleCtaClick = () => setStep("signupModal");
+  const handleSignupClose = () => setStep("cloudDetail");
+  const handleSignupSuccess = (pos: number) => {
+    setPosition(pos);
+    setStep("success");
+  };
 
   return (
-    <>
-      {/* First 5 seconds: fullscreen fog + logo + headline */}
-      {!introDone && <FogIntro />}
+    <main className="min-h-screen">
+      {/* Step 0: intro — fog only */}
+      {step === "intro" && <StepIntro />}
 
-      {/* Main content - fades in after intro */}
-      <main
-        className={`min-h-screen transition-opacity duration-1000 ${
-          introDone ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-      >
-        {/* Hero - logo + tagline */}
-        <section className="flex min-h-[50vh] flex-col items-center justify-center px-6 py-16">
-          <BrandLogo show withGlow={false} />
-          <h1
-            className="mt-6 font-leo text-3xl font-semibold tracking-tight text-[#1a1d21] md:text-4xl"
-            style={{ fontFamily: "var(--font-leo)" }}
-          >
-            Leo Mây
-          </h1>
-          <p className="mt-2 font-light tracking-wide text-[#4a4d52]">
-            Climb the Clouds. Build a Culture.
-          </p>
-          <p className="mt-8 text-sm font-light text-[#6b7280]">
-            Ho Chi Minh City · 2026
-          </p>
-          <button
-            onClick={() => setShowSignup(true)}
-            className="mt-6 text-sm font-medium text-[#0242FF] transition-colors hover:text-[#0242FF]/80 underline-offset-4 hover:underline"
-          >
-            Join the Founding Circle →
-          </button>
-        </section>
+      {/* Step 1: reveal — logo + tagline + Enter */}
+      {step === "reveal" && <StepReveal onEnter={handleEnter} />}
 
-        {/* Cloud personalities */}
-        <CloudField />
+      {/* Step 2: cloudField — 6 floating blobs, names hidden */}
+      {step === "cloudField" && <StepCloudField onCloudClick={handleCloudClick} />}
 
-        <Footer />
+      {/* Step 3: cloudDetail — expand cloud, reveal personality + CTA */}
+      {step === "cloudDetail" && selectedCloud && (
+        <StepCloudDetail
+          personality={selectedCloud}
+          onClose={handleCloudDetailClose}
+          onCtaClick={handleCtaClick}
+        />
+      )}
 
-        {showSignup && (
-          <SignupModal defaultCloudType={null} onClose={() => setShowSignup(false)} />
-        )}
-      </main>
-    </>
+      {/* Step 4: signupModal — name, email, phone (no dropdown) */}
+      {step === "signupModal" && selectedCloud && (
+        <StepSignupModal
+          cloudType={selectedCloud.id}
+          onClose={handleSignupClose}
+          onSuccess={handleSignupSuccess}
+        />
+      )}
+
+      {/* Step 5: success — confirmation + waitlist # */}
+      {step === "success" && <StepSuccess position={position} />}
+    </main>
   );
 }
