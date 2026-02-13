@@ -1,80 +1,73 @@
 "use client";
 
 import { useState } from "react";
-import { AnimatePresence } from "framer-motion";
 import { CloudPersonality } from "@/lib/cloudData";
-import Atmosphere from "@/components/leo/Atmosphere";
-import IntroView from "@/components/leo/IntroView";
-import CloudFieldView from "@/components/leo/CloudFieldView";
-import PersonalityView from "@/components/leo/PersonalityView";
-import SignupView from "@/components/leo/SignupView";
-import SuccessView from "@/components/leo/SuccessView";
+import Intro from "@/components/Intro";
+import CloudSelection from "@/components/CloudSelection";
+import CloudDetails from "@/components/CloudDetails";
+import Signup from "@/components/Signup";
+import Success from "@/components/Success";
 
-type Step = "intro" | "clouds" | "personality" | "signup" | "success";
+type Step = "intro" | "clouds" | "details" | "signup" | "success";
 
 export default function Home() {
   const [step, setStep] = useState<Step>("intro");
   const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
   const [position, setPosition] = useState(0);
 
-  function renderView() {
-    switch (step) {
-      case "intro":
-        return (
-          <IntroView key="intro" onEnter={() => setStep("clouds")} />
-        );
-      case "clouds":
-        return (
-          <CloudFieldView
-            key="clouds"
-            onSelect={(p) => {
-              setSelectedCloud(p);
-              setStep("personality");
-            }}
-          />
-        );
-      case "personality":
-        if (!selectedCloud) return null;
-        return (
-          <PersonalityView
-            key="personality"
-            personality={selectedCloud}
-            onClose={() => {
-              setSelectedCloud(null);
-              setStep("clouds");
-            }}
-            onJoin={() => setStep("signup")}
-          />
-        );
-      case "signup":
-        if (!selectedCloud) return null;
-        return (
-          <SignupView
-            key="signup"
-            cloudType={selectedCloud.id}
-            onClose={() => setStep("personality")}
-            onSuccess={(pos) => {
-              setPosition(pos);
-              setStep("success");
-            }}
-          />
-        );
-      case "success":
-        return <SuccessView key="success" position={position} />;
-      default:
-        return null;
-    }
+  if (step === "intro") {
+    return (
+      <div className="w-screen h-screen flex items-center justify-center bg-[#0f172a] text-white">
+        <Intro onEnter={() => setStep("clouds")} />
+      </div>
+    );
+  }
+  if (step === "clouds") {
+    return (
+      <div className="w-screen h-screen flex items-center justify-center bg-[#0f172a] text-white">
+        <CloudSelection
+          onSelect={(cloud) => {
+            setSelectedCloud(cloud);
+            setStep("details");
+          }}
+        />
+      </div>
+    );
+  }
+  if (step === "details" && selectedCloud) {
+    return (
+      <div className="w-screen h-screen flex items-center justify-center bg-[#0f172a] text-white">
+        <CloudDetails
+          cloud={selectedCloud}
+          onPick={() => setStep("signup")}
+        />
+      </div>
+    );
+  }
+  if (step === "signup" && selectedCloud) {
+    return (
+      <div className="w-screen h-screen flex items-center justify-center bg-[#0f172a] text-white">
+        <Signup
+          cloudType={selectedCloud.id}
+          onSuccess={(pos) => {
+            setPosition(pos);
+            setStep("success");
+          }}
+        />
+      </div>
+    );
+  }
+  if (step === "success" && selectedCloud) {
+    return (
+      <div className="w-screen h-screen flex items-center justify-center bg-[#0f172a] text-white">
+        <Success position={position} cloudTint={selectedCloud.tint} />
+      </div>
+    );
   }
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-[#050810]">
-      {/* Layer 1: Atmosphere — always present, non-interactive */}
-      <Atmosphere />
-
-      {/* Layer 2: Content — one view at a time */}
-      <main className="relative z-10 flex items-center justify-center w-full h-full">
-        <AnimatePresence mode="wait">{renderView()}</AnimatePresence>
-      </main>
+    <div className="w-screen h-screen flex items-center justify-center bg-[#0f172a] text-white">
+      <p>Loading...</p>
     </div>
   );
 }
