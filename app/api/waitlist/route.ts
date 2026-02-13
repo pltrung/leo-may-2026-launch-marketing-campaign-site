@@ -13,6 +13,15 @@ export async function POST(request: NextRequest) {
     }
 
     const { name, email, phone, cloud_type } = parsed.data;
+
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("Missing Supabase env vars");
+      return NextResponse.json(
+        { error: "Server misconfigured. Please contact support." },
+        { status: 500 }
+      );
+    }
+
     const supabase = createServerClient();
 
     const { error } = await supabase.from("waitlist").insert({
@@ -32,9 +41,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
     console.error("Waitlist API error:", err);
     return NextResponse.json(
-      { error: "Something went wrong. Please try again." },
+      { error: message.includes("env") ? "Server misconfigured." : "Something went wrong. Please try again." },
       { status: 500 }
     );
   }

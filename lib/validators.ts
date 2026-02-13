@@ -12,7 +12,7 @@ export const waitlistSchema = z
     ),
     phone: z.preprocess(
       emptyToUndefined,
-      z.string().max(20).regex(/^[\d\s\-\+\(\)]*$/, "Invalid phone").optional()
+      z.string().max(20).optional()
     ),
     cloud_type: z.string().min(1, "Cloud type required").trim(),
   })

@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 
 export default function StorySection() {
   return (
-    <section className="py-24 px-6">
+    <section className="min-h-[50vh] py-24 px-6 flex items-center justify-center">
       <motion.div
         className="max-w-xl mx-auto text-center"
         initial={{ opacity: 0 }}
