@@ -38,7 +38,7 @@ export default function StepSuccess({ position }: StepSuccessProps) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#eef1f7] via-[#f2f5fa] to-[#e8eaed]"
+      className="fixed inset-0 z-50 flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#eef1f7] via-[#f2f5fa] to-[#e8eaed] px-4"
     >
       <div
         className="fog-layer"
@@ -57,7 +57,7 @@ export default function StepSuccess({ position }: StepSuccessProps) {
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={spring}
-        className="leo-card leo-card-glow relative z-10 flex flex-col items-center rounded-3xl px-8 py-10 text-center max-w-md mx-4"
+        className="leo-card leo-card-glow relative z-10 flex w-full max-w-md flex-col items-center rounded-3xl px-8 py-10 text-center"
       >
         <motion.div
           initial={{ opacity: 0, filter: "blur(8px)" }}

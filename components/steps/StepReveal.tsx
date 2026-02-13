@@ -17,7 +17,7 @@ export default function StepReveal({ onEnter }: StepRevealProps) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.6 }}
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#eef1f7] via-[#f2f5fa] to-[#e8eaed]"
+      className="fixed inset-0 z-50 flex min-h-screen w-full items-center justify-center overflow-hidden bg-gradient-to-b from-[#eef1f7] via-[#f2f5fa] to-[#e8eaed]"
     >
       <div
         className="fog-layer"
@@ -40,55 +40,60 @@ export default function StepReveal({ onEnter }: StepRevealProps) {
       />
       <div className="grain-overlay" />
 
-      <div className="relative z-10 flex flex-col items-center px-6 text-center">
-        {/* Logo — clear fade-in: blur → sharp + opacity, with brand blue glow */}
+      {/* In-Dinner style: max-w-2xl mx-auto, full width flex center (mobile + web) */}
+      <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-col items-center justify-center px-4 py-8 text-center sm:px-6">
+        {/* Logo only — no duplicate "Leo Mây" text; logo is the brand */}
         <motion.div
           initial={{ opacity: 0, filter: "blur(14px)" }}
           animate={{ opacity: 1, filter: "blur(0px)" }}
           transition={{ duration: 1.8, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="logo-glow flex items-center justify-center"
+          className="flex items-center justify-center"
         >
-          <div className="relative" style={{ padding: "clamp(2rem, 6vw, 4rem)", maxWidth: "min(280px, 80vw)" }}>
+          <div
+            className="relative flex items-center justify-center"
+            style={{
+              padding: "clamp(2rem, 6vw, 4rem)",
+              maxWidth: "min(280px, 85vw)",
+              filter: "drop-shadow(0 0 32px rgba(2,66,255,0.22)) drop-shadow(0 0 64px rgba(2,66,255,0.1))",
+            }}
+          >
             <Image
               src="/logo.svg"
-              alt="Leo Mây"
+              alt="Leo Mây — Climbing Gym"
               width={322}
               height={143}
               className="h-auto w-full object-contain"
               priority
+              unoptimized
             />
           </div>
         </motion.div>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring, delay: 0.6 }}
-          className="font-leo mt-6 text-3xl font-semibold tracking-tight text-[#1a1d21] md:text-5xl"
-          style={{ fontFamily: "var(--font-leo)" }}
-        >
-          Leo Mây
-        </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring, delay: 0.8 }}
-          className="font-leo mt-2 font-light tracking-wide text-[#0242FF]/80 md:text-lg"
+          transition={{ ...spring, delay: 0.7 }}
+          className="font-leo mt-6 text-lg font-light tracking-wide text-[#0242FF]/85 sm:text-xl"
           style={{ fontFamily: "var(--font-leo)" }}
         >
           Climb the Clouds. Build a Culture.
         </motion.p>
 
-        <motion.button
+        <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring, delay: 1.2 }}
-          onClick={onEnter}
-          className="font-leo leo-btn-primary mt-12 rounded-2xl px-10 py-4 text-base"
-          style={{ fontFamily: "var(--font-leo)" }}
+          transition={{ ...spring, delay: 1.1 }}
+          className="mt-10 w-full max-w-xs sm:max-w-sm"
         >
-          Enter
-        </motion.button>
+          <button
+            type="button"
+            onClick={() => onEnter()}
+            className="leo-btn-primary font-leo w-full rounded-2xl px-8 py-4 text-base font-semibold text-white sm:py-4 sm:text-lg"
+            style={{ fontFamily: "var(--font-leo)" }}
+          >
+            Enter
+          </button>
+        </motion.div>
       </div>
     </motion.div>
   );

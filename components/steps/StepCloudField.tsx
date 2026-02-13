@@ -16,7 +16,14 @@ const blobShapes = [
   "50% 50% 35% 65% / 58% 42% 58% 42%",
 ];
 
-const cloudAnimations = ["cloudFloat 7s ease-in-out infinite", "cloudFloat 9s ease-in-out infinite", "cloudFloat 5.5s ease-in-out infinite", "cloudFloat 7s ease-in-out infinite", "cloudFloat 8s ease-in-out infinite", "cloudFloat 6s ease-in-out infinite"];
+const cloudAnimations = [
+  "cloudFloat 7s ease-in-out infinite",
+  "cloudFloat 9s ease-in-out infinite",
+  "cloudFloat 5.5s ease-in-out infinite",
+  "cloudFloat 7s ease-in-out infinite",
+  "cloudFloat 8s ease-in-out infinite",
+  "cloudFloat 6s ease-in-out infinite",
+];
 
 const spring = { type: "spring" as const, stiffness: 260, damping: 28 };
 
@@ -27,8 +34,8 @@ export default function StepCloudField({ onCloudClick }: StepCloudFieldProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.5 }}
-      className="fixed inset-0 z-40 overflow-hidden bg-gradient-to-b from-[#eef1f7] via-[#f2f5fa] to-[#e8eaed]"
+      transition={{ duration: 0.4 }}
+      className="fixed inset-0 z-50 flex min-h-screen w-full items-center justify-center overflow-hidden bg-gradient-to-b from-[#eef1f7] via-[#f2f5fa] to-[#e8eaed]"
     >
       <div
         className="fog-layer"
@@ -44,22 +51,23 @@ export default function StepCloudField({ onCloudClick }: StepCloudFieldProps) {
       />
       <div className="grain-overlay" />
 
-      <div className="relative z-10 flex min-h-screen flex-wrap items-center justify-center gap-10 p-6 md:gap-14 md:p-12">
+      {/* Centered cloud grid — works on mobile (stack/wrap) and web */}
+      <div className="relative z-10 flex min-h-full w-full max-w-5xl flex-wrap items-center justify-center gap-8 p-6 sm:gap-10 md:gap-12 md:p-10">
         {cloudPersonalities.map((p, i) => (
           <motion.button
             key={p.id}
+            type="button"
             initial={{ opacity: 0, scale: 0.88, y: 24 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ ...spring, delay: 0.06 * i }}
             onClick={() => onCloudClick(p)}
-            className="leo-cloud group relative h-36 w-44 cursor-pointer md:h-40 md:w-48"
+            className="leo-cloud group relative h-32 w-40 cursor-pointer touch-manipulation sm:h-36 sm:w-44 md:h-40 md:w-48"
             style={{
               borderRadius: blobShapes[i % blobShapes.length],
               animation: cloudAnimations[i % cloudAnimations.length],
               animationDelay: `${i * 0.35}s`,
             }}
           >
-            {/* Per-personality hover glow — brand colors */}
             <span
               className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
               style={{

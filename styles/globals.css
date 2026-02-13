@@ -104,8 +104,12 @@ body {
   filter: drop-shadow(0 0 24px rgba(2, 66, 255, 0.2)) drop-shadow(0 0 48px rgba(2, 66, 255, 0.08));
 }
 
-/* Primary CTA — brand blue, stronger glow, green hover accent */
+/* Primary CTA — brand blue, stronger glow; explicit button reset for all browsers */
 .leo-btn-primary {
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  cursor: pointer;
   font-family: var(--font-leo), 'Leo May', system-ui, sans-serif;
   background: linear-gradient(180deg, #0242FF 0%, #0133d4 100%);
   color: white;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { AnimatePresence } from "framer-motion";
 import { CloudPersonality } from "@/lib/cloudData";
 import StepIntro from "@/components/steps/StepIntro";
@@ -29,24 +29,35 @@ export default function Home() {
     return () => clearTimeout(t);
   }, [step]);
 
-  const handleEnter = () => setStep("cloudField");
-  const handleCloudClick = (p: CloudPersonality) => {
+  const handleEnter = useCallback(() => {
+    setStep("cloudField");
+  }, []);
+
+  const handleCloudClick = useCallback((p: CloudPersonality) => {
     setSelectedCloud(p);
     setStep("cloudDetail");
-  };
-  const handleCloudDetailClose = () => {
+  }, []);
+
+  const handleCloudDetailClose = useCallback(() => {
     setSelectedCloud(null);
     setStep("cloudField");
-  };
-  const handleCtaClick = () => setStep("signupModal");
-  const handleSignupClose = () => setStep("cloudDetail");
-  const handleSignupSuccess = (pos: number) => {
+  }, []);
+
+  const handleCtaClick = useCallback(() => {
+    setStep("signupModal");
+  }, []);
+
+  const handleSignupClose = useCallback(() => {
+    setStep("cloudDetail");
+  }, []);
+
+  const handleSignupSuccess = useCallback((pos: number) => {
     setPosition(pos);
     setStep("success");
-  };
+  }, []);
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen w-full">
       <AnimatePresence mode="wait">
         {step === "intro" && <StepIntro key="intro" />}
         {step === "reveal" && <StepReveal key="reveal" onEnter={handleEnter} />}
