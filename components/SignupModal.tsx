@@ -75,7 +75,8 @@ export default function SignupModal({
           aria-hidden
         />
         <motion.div
-          className="relative w-full max-w-md bg-cloud rounded-2xl shadow-xl p-8"
+          className="relative w-full max-w-md bg-cloud rounded-2xl shadow-xl p-8 border-t-4"
+          style={{ borderTopColor: cloud.accentHex }}
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.98 }}
@@ -146,7 +147,7 @@ export default function SignupModal({
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 rounded-xl bg-accent hover:bg-accent/90 disabled:opacity-50 text-white font-medium transition-colors"
+              className={`w-full py-4 rounded-xl hover:opacity-90 disabled:opacity-50 text-white font-medium transition-colors ${cloud.accentClass}`}
             >
               {loading ? "Joining…" : "Join Waitlist"}
             </button>

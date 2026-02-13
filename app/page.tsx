@@ -26,7 +26,7 @@ export default function Home() {
 
   return (
     <main className="relative min-h-screen">
-      <FogBackground />
+      {!showClouds && <FogBackground />}
       {!showClouds ? (
         <>
           <Hero />
