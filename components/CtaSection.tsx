@@ -8,7 +8,7 @@ interface CtaSectionProps {
 
 export default function CtaSection({ onJoin }: CtaSectionProps) {
   return (
-    <section className="min-h-screen flex flex-col items-center justify-between px-6 py-16">
+    <section className="min-h-[115vh] flex flex-col items-center justify-between px-6 py-16">
       {/* Top: Be among the first... */}
       <motion.div
         className="text-center max-w-lg mx-auto flex flex-col items-center w-full flex-1 flex justify-end"
@@ -22,9 +22,9 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
         </p>
       </motion.div>
 
-      {/* Middle: Join the Movement CTA */}
+      {/* Middle: Ascend CTA - pushed lower */}
       <motion.div
-        className="flex-1 flex items-center justify-center w-full py-8"
+        className="flex-1 flex items-center justify-center w-full py-8 mt-10 md:mt-[60px]"
         initial={{ opacity: 0, y: 16 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2, margin: "-80px" }}
@@ -47,9 +47,9 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
         </button>
       </motion.div>
 
-      {/* Bottom: ip-on-cloud bouncing - last scroll reveal, close to footer */}
+      {/* Bottom: ip-on-cloud - anchored in lower third, above footer */}
       <motion.div
-        className="flex items-center justify-center w-[60%] max-w-[340px] aspect-square mx-auto pb-1"
+        className="flex items-center justify-center w-[60%] max-w-[340px] aspect-square mx-auto pb-8"
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.1, margin: "-80px" }}

@@ -120,7 +120,7 @@ export default function SignupModal({
             className="font-display text-2xl sm:text-3xl font-light mb-4"
             style={{ color: accent }}
           >
-            Welcome to Team {cloud.name}.
+            Welcome to Team {cloud.name} — {cloud.nameEn}.
           </h3>
           <p className="mb-2 text-lg sm:text-xl font-medium" style={{ color: accent }}>
             You are #{confirmation.position} in the waitlist.
@@ -191,7 +191,7 @@ export default function SignupModal({
           className="font-display text-xl sm:text-2xl font-light mb-1"
           style={{ color: accent }}
         >
-          You are about to join Team {cloud.name}.
+          You are about to join Team {cloud.name} — {cloud.nameEn}.
         </h3>
         <p className="text-storm/80 text-sm mb-6">
           Fill in your place with the team.

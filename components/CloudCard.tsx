@@ -61,9 +61,17 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
             <div className="mb-4" style={{ color: accent }}>
               <CloudIconByType cloudId={cloud.id} className="w-14 h-14 sm:w-16 sm:h-16" />
             </div>
-            <span className="font-display text-lg sm:text-xl font-medium text-center" style={{ color: accent }}>
-              {cloud.name}
-            </span>
+            <div className="flex flex-col items-center gap-2">
+              <span className="font-display text-lg sm:text-xl font-medium text-center" style={{ color: accent }}>
+                {cloud.name}
+              </span>
+              <span
+                className="font-display text-sm text-center tracking-[0.5px]"
+                style={{ color: accent, opacity: 0.8 }}
+              >
+                {cloud.nameEn}
+              </span>
+            </div>
           </div>
         </div>
 

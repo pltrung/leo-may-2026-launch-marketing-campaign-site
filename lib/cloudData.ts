@@ -9,6 +9,7 @@ export type CloudType =
 export interface CloudPersonality {
   id: CloudType;
   name: string;
+  nameEn: string;
   mood: string;
   story: string;
   joinLabel: string;
@@ -24,6 +25,7 @@ export const clouds: CloudPersonality[] = [
   {
     id: "may_nhe",
     name: "Mây Nhẹ",
+    nameEn: "The Gentle Explorer",
     mood: "leo mây",
     story:
       "You move with curiosity, not ego. Strength can be soft. You climb for joy, not applause.",
@@ -34,6 +36,7 @@ export const clouds: CloudPersonality[] = [
   {
     id: "suong_mu",
     name: "Sương Mù",
+    nameEn: "The Silent Balance",
     mood: "leo mây",
     story:
       "You are calm under pressure. You move with balance. Precision is your quiet strength.",
@@ -44,6 +47,7 @@ export const clouds: CloudPersonality[] = [
   {
     id: "giong",
     name: "Giông",
+    nameEn: "The Storm Seeker",
     mood: "leo mây",
     story: "You crave intensity. You commit fully. You turn fear into fuel.",
     joinLabel: "Join Giông",
@@ -53,6 +57,7 @@ export const clouds: CloudPersonality[] = [
   {
     id: "ho_may",
     name: "Hố Mây",
+    nameEn: "The Deep Thinker",
     mood: "leo mây",
     story:
       "You see paths others don't. You imagine beyond limits. You thrive upside down.",
@@ -63,6 +68,7 @@ export const clouds: CloudPersonality[] = [
   {
     id: "cau_vong",
     name: "Cầu Vồng",
+    nameEn: "The Joy Bringer",
     mood: "leo mây",
     story: "You bring energy to every climb. You play. You inspire.",
     joinLabel: "Join Cầu Vồng",
@@ -73,6 +79,7 @@ export const clouds: CloudPersonality[] = [
   {
     id: "gio",
     name: "Gió",
+    nameEn: "The Rhythm Mover",
     mood: "leo mây",
     story:
       "You move with rhythm. You breathe through challenge. You train with intention.",
