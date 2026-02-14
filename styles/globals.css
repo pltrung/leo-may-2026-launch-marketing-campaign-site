@@ -10,6 +10,15 @@
   --accent: #F4A261;
 }
 
+@keyframes holdFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-hold-float {
+  animation: holdFloat 8s ease-in-out infinite;
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
@@ -20,5 +29,6 @@
     background: var(--cloud);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
   }
 }

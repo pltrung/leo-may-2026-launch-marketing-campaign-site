@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import HoldButton from "./HoldButton";
 
 interface CtaSectionProps {
   onJoin: () => void;
@@ -22,16 +23,9 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
         <p className="mt-6 text-storm/70 text-lg sm:text-xl">
           Be among the first to climb the clouds.
         </p>
-        <motion.button
-          type="button"
-          onClick={onJoin}
-          className="mt-12 px-12 py-4 rounded-full text-white font-medium tracking-wide transition-colors hover:bg-[#0133cc] shadow-md"
-          style={{ backgroundColor: "#0242FF" }}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          Choose Your Cloud
-        </motion.button>
+        <div className="mt-12 flex justify-center">
+          <HoldButton onClick={onJoin}>Choose Your Cloud</HoldButton>
+        </div>
       </motion.div>
     </section>
   );

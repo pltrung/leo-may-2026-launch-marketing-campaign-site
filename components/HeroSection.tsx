@@ -11,9 +11,9 @@ export default function HeroSection() {
         <Image src="/logo.png" alt="" fill className="object-contain scale-150" />
       </div>
 
-      <nav className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between px-6 py-6">
-        <div className="w-28 h-10 flex items-center">
-          <Logo className="h-8 w-auto object-contain" />
+      <nav className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between pl-8 pt-6 pb-6 pr-6">
+        <div className="flex items-center">
+          <Logo className="h-11 w-auto object-contain" />
         </div>
         <div className="w-28" aria-hidden />
       </nav>
