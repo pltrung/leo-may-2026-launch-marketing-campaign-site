@@ -147,7 +147,8 @@ export default function SignupModal({
             <button
               type="submit"
               disabled={loading}
-              className={`w-full py-4 rounded-xl hover:opacity-90 disabled:opacity-50 text-white font-medium transition-colors ${cloud.accentClass}`}
+              className="w-full py-4 rounded-xl hover:opacity-90 disabled:opacity-50 font-medium transition-colors"
+              style={{ backgroundColor: cloud.accentHex, color: cloud.joinTextHex ?? "#ffffff" }}
             >
               {loading ? "Joining…" : "Join Waitlist"}
             </button>

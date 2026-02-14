@@ -23,16 +23,12 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
     onJoin(cloud);
   };
 
+  const accent = cloud.accentHex;
   const defaultShadow = "0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06)";
-  const glowColor = cloud.glowHex ?? cloud.accentHex;
-  const hoverGlow = isHovered ? `0 0 28px ${glowColor}70, 0 0 45px ${glowColor}40` : "";
-  const activeGlow = isActive
-    ? `0 0 35px ${glowColor}60, 0 0 55px ${glowColor}35`
-    : "";
-  const borderColor = isHovered || isActive ? glowColor : "rgba(255,255,255,0.5)";
+  const hoverGlow = isHovered ? `0 0 28px ${accent}70, 0 0 45px ${accent}40` : "";
+  const activeGlow = isActive ? `0 0 35px ${accent}60, 0 0 55px ${accent}35` : "";
+  const borderColor = isHovered || isActive ? accent : "rgba(255,255,255,0.5)";
   const boxShadow = [defaultShadow, hoverGlow, activeGlow].filter(Boolean).join(", ");
-  const baseCardClass =
-    "absolute inset-0 w-full h-full rounded-2xl flex flex-col items-center justify-center p-6 bg-white/90 border-2 transition-all duration-200";
 
   return (
     <div
@@ -53,7 +49,7 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
       >
         {/* Front */}
         <div
-          className={baseCardClass}
+          className="absolute inset-0 w-full h-full rounded-2xl flex flex-col justify-between p-6 bg-white/90 border-2 transition-all duration-200"
           style={{
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
@@ -61,17 +57,19 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
             boxShadow,
           }}
         >
-          <div className="mb-4 text-storm/80">
-            <CloudIconByType cloudId={cloud.id} className="w-14 h-14 sm:w-16 sm:h-16" />
+          <div className="flex flex-col items-center justify-center flex-1 min-h-0">
+            <div className="mb-4" style={{ color: accent }}>
+              <CloudIconByType cloudId={cloud.id} className="w-14 h-14 sm:w-16 sm:h-16" />
+            </div>
+            <span className="font-display text-lg sm:text-xl font-medium text-center" style={{ color: accent }}>
+              {cloud.name}
+            </span>
           </div>
-          <span className="font-display text-lg sm:text-xl font-medium text-storm">
-            {cloud.name}
-          </span>
         </div>
 
         {/* Back */}
         <div
-          className={`${baseCardClass} justify-between`}
+          className="absolute inset-0 w-full h-full rounded-2xl flex flex-col justify-between p-6 bg-white/90 border-2 transition-all duration-200"
           style={{
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
@@ -80,28 +78,35 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
             boxShadow,
           }}
         >
-          <p className="text-center text-sm sm:text-base leading-relaxed flex-1 flex items-center justify-center px-3 text-storm/90">
+          <p
+            className="text-center text-sm sm:text-base leading-relaxed flex-1 flex items-center justify-center px-3 min-h-[80px] overflow-hidden"
+            style={{ color: cloud.storyHex }}
+          >
             {cloud.story}
           </p>
-          <button
-            type="button"
-            onClick={handleJoinClick}
-            className="relative w-full min-h-[72px] flex items-center justify-center py-3 px-6 hover:opacity-90 transition-opacity duration-200 border-0 cursor-pointer bg-transparent shrink-0"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/brand/cloud-blue.svg"
-              alt=""
-              className="absolute inset-0 w-full h-full object-contain object-center pointer-events-none"
-            />
-            <span
-              className="relative z-10 font-display font-semibold text-sm text-center leading-snug flex flex-col items-center gap-0.5"
-              style={{ color: cloud.joinTextHex ?? cloud.accentHex }}
+          <div className="shrink-0 flex justify-center pt-4 pb-2">
+            <button
+              type="button"
+              onClick={handleJoinClick}
+              className="relative flex items-center justify-center min-w-[140px] min-h-[64px] w-full max-w-[180px] px-6 py-3 hover:opacity-90 transition-opacity duration-200 border-0 cursor-pointer"
+              style={{
+                backgroundColor: accent,
+                maskImage: "url('/brand/cloud-blue.svg')",
+                maskSize: "contain",
+                maskRepeat: "no-repeat",
+                maskPosition: "center",
+                WebkitMaskImage: "url('/brand/cloud-blue.svg')",
+                WebkitMaskSize: "contain",
+                WebkitMaskRepeat: "no-repeat",
+                WebkitMaskPosition: "center",
+              }}
             >
-              <span>Join</span>
-              <span>{cloud.name}</span>
-            </span>
-          </button>
+              <span className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 pointer-events-none" style={{ color: cloud.joinTextHex ?? "#ffffff" }}>
+                <span className="font-display font-semibold text-sm">Join</span>
+                <span className="font-display font-semibold text-sm">{cloud.name}</span>
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

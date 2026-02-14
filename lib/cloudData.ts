@@ -12,18 +12,12 @@ export interface CloudPersonality {
   mood: string;
   story: string;
   joinLabel: string;
-  /** Tailwind bg class for card (subtle tone) */
-  bgClass: string;
-  /** Tailwind text class for front name */
-  textClass: string;
-  /** Tailwind bg class for buttons */
-  accentClass: string;
-  /** Hex for border/accent (e.g. #7eb8e8) */
+  /** Primary accent color - used for glow, border, button, title */
   accentHex: string;
-  /** Brighter hex for neon glow that pops on blue background */
-  glowHex: string;
-  /** Text color for Join button - must contrast with blue cloud */
-  joinTextHex: string;
+  /** Story text = accent at 80% opacity (slightly lighter) */
+  storyHex: string;
+  /** Join button text - dark for light accents (e.g. yellow), white otherwise */
+  joinTextHex?: string;
 }
 
 export const clouds: CloudPersonality[] = [
@@ -34,12 +28,8 @@ export const clouds: CloudPersonality[] = [
     story:
       "You move with curiosity, not ego. Strength can be soft. You climb for joy, not applause.",
     joinLabel: "Join Mây Nhẹ",
-    bgClass: "bg-[#2d3a52]",
-    textClass: "text-[#b8d4f0]",
-    accentClass: "bg-[#7eb8e8]",
-    accentHex: "#7eb8e8",
-    glowHex: "#5eb8ff",
-    joinTextHex: "#ffffff",
+    accentHex: "#4FA3FF",
+    storyHex: "rgba(79, 163, 255, 0.8)",
   },
   {
     id: "suong_mu",
@@ -48,12 +38,8 @@ export const clouds: CloudPersonality[] = [
     story:
       "You are calm under pressure. You move with balance. Precision is your quiet strength.",
     joinLabel: "Join Sương Mù",
-    bgClass: "bg-[#3d4450]",
-    textClass: "text-[#d1d5db]",
-    accentClass: "bg-[#9ba5ad]",
-    accentHex: "#9ba5ad",
-    glowHex: "#c8d4e0",
-    joinTextHex: "#ffffff",
+    accentHex: "#8FA3B8",
+    storyHex: "rgba(143, 163, 184, 0.8)",
   },
   {
     id: "giong",
@@ -61,12 +47,8 @@ export const clouds: CloudPersonality[] = [
     mood: "leo mây",
     story: "You crave intensity. You commit fully. You turn fear into fuel.",
     joinLabel: "Join Giông",
-    bgClass: "bg-[#1e2a44]",
-    textClass: "text-white",
-    accentClass: "bg-[#3b5998]",
-    accentHex: "#3b5998",
-    glowHex: "#8ab4ff",
-    joinTextHex: "#ffffff",
+    accentHex: "#0242FF",
+    storyHex: "rgba(2, 66, 255, 0.8)",
   },
   {
     id: "ho_may",
@@ -75,12 +57,8 @@ export const clouds: CloudPersonality[] = [
     story:
       "You see paths others don't. You imagine beyond limits. You thrive upside down.",
     joinLabel: "Join Hố Mây",
-    bgClass: "bg-[#3d3d3c]",
-    textClass: "text-[#e5e5e4]",
-    accentClass: "bg-[#8b8b8a]",
-    accentHex: "#8b8b8a",
-    glowHex: "#b8a88a",
-    joinTextHex: "#ffffff",
+    accentHex: "#8C7F73",
+    storyHex: "rgba(140, 127, 115, 0.8)",
   },
   {
     id: "cau_vong",
@@ -88,11 +66,8 @@ export const clouds: CloudPersonality[] = [
     mood: "leo mây",
     story: "You bring energy to every climb. You play. You inspire.",
     joinLabel: "Join Cầu Vồng",
-    bgClass: "bg-[#4a4235]",
-    textClass: "text-[#f5e6c8]",
-    accentClass: "bg-[#e6b84a]",
-    accentHex: "#e6b84a",
-    glowHex: "#ffd966",
+    accentHex: "#F2C94C",
+    storyHex: "rgba(242, 201, 76, 0.85)",
     joinTextHex: "#1a1508",
   },
   {
@@ -102,11 +77,7 @@ export const clouds: CloudPersonality[] = [
     story:
       "You move with rhythm. You breathe through challenge. You train with intention.",
     joinLabel: "Join Gió",
-    bgClass: "bg-[#354035]",
-    textClass: "text-[#c5d9c4]",
-    accentClass: "bg-[#6b8c68]",
-    accentHex: "#6b8c68",
-    glowHex: "#88dd88",
-    joinTextHex: "#ffffff",
+    accentHex: "#4CAF78",
+    storyHex: "rgba(76, 175, 120, 0.8)",
   },
 ];

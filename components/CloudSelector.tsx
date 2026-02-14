@@ -55,10 +55,10 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
         </div>
       </div>
 
-      {/* Desktop: grid - equal gaps for alignment */}
-      <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-10 lg:gap-x-10 lg:gap-y-12 max-w-4xl w-full mx-auto justify-items-stretch place-items-center overflow-visible">
+      {/* Desktop: grid - equal height, aligned */}
+      <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-10 lg:gap-x-10 lg:gap-y-12 max-w-4xl w-full mx-auto justify-items-center items-stretch overflow-visible">
         {clouds.map((cloud) => (
-          <div key={cloud.id} className="flex justify-center w-full">
+          <div key={cloud.id} className="flex justify-center items-center w-full max-w-[200px]">
             <CloudCard cloud={cloud} onJoin={onSelect} />
           </div>
         ))}
