@@ -86,7 +86,7 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
           <button
             type="button"
             onClick={handleJoinClick}
-            className="relative w-full min-h-[64px] flex items-center justify-center py-2 px-4 hover:opacity-90 transition-opacity duration-200 border-0 cursor-pointer bg-transparent shrink-0"
+            className="relative w-full min-h-[72px] flex items-center justify-center py-3 px-6 hover:opacity-90 transition-opacity duration-200 border-0 cursor-pointer bg-transparent shrink-0"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -95,10 +95,11 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
               className="absolute inset-0 w-full h-full object-contain object-center pointer-events-none"
             />
             <span
-              className="relative z-10 font-display font-semibold text-sm sm:text-base text-center leading-tight"
+              className="relative z-10 font-display font-semibold text-sm text-center leading-snug flex flex-col items-center gap-0.5"
               style={{ color: cloud.joinTextHex ?? cloud.accentHex }}
             >
-              {cloud.joinLabel}
+              <span>Join</span>
+              <span>{cloud.name}</span>
             </span>
           </button>
         </div>

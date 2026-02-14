@@ -33,7 +33,8 @@ export default function HeroSection() {
           Climb the Clouds.
         </motion.h1>
         <motion.span
-          className="block font-display text-4xl sm:text-5xl md:text-6xl font-light text-white/90 tracking-tight mt-2"
+          className="block font-display text-4xl sm:text-5xl md:text-6xl font-light tracking-tight mt-2"
+          style={{ color: "#00CB4D" }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 1.2 }}

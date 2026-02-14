@@ -12,7 +12,7 @@ export default function PhilosophySection() {
         viewport={{ once: true, margin: "-100px" }}
         transition={{ duration: 0.8, ease: "easeOut" }}
       >
-        <p className="font-display text-white text-xl sm:text-2xl md:text-3xl leading-relaxed">
+        <p className="font-display text-xl sm:text-2xl md:text-3xl leading-relaxed" style={{ color: "#00CB4D" }}>
           Where breath meets movement. Where the mist holds space for what you
           become.
         </p>

@@ -7,6 +7,7 @@ import HeroSection from "@/components/HeroSection";
 import LocationSection from "@/components/LocationSection";
 import IpShowcaseSection from "@/components/IpShowcaseSection";
 import PhilosophySection from "@/components/PhilosophySection";
+import CloudWithEyesSection from "@/components/CloudWithEyesSection";
 import CtaSection from "@/components/CtaSection";
 import CloudSelector from "@/components/CloudSelector";
 import SignupModal from "@/components/SignupModal";
@@ -50,6 +51,7 @@ export default function Home() {
               <LocationSection />
               <IpShowcaseSection pose="front" />
               <PhilosophySection />
+              <CloudWithEyesSection />
               <CtaSection onJoin={() => setShowClouds(true)} />
             </>
           ) : (
