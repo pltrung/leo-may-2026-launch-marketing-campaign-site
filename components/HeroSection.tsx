@@ -23,11 +23,13 @@ export default function HeroSection() {
         <div className="w-28" aria-hidden />
       </nav>
 
+      {/* Center headline in viewport (ignore top padding so it sits at true 50%) */}
       <motion.div
-        className="flex flex-col items-center justify-center text-center max-w-2xl"
+        className="absolute inset-0 flex items-center justify-center px-6"
         initial={false}
         animate={{ opacity: 1 }}
       >
+        <div className="flex flex-col items-center text-center max-w-2xl">
         <motion.h1
           className="font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white tracking-headline leading-tight"
           initial={{ opacity: 0, y: 20 }}
@@ -45,6 +47,7 @@ export default function HeroSection() {
         >
           Build a Culture.
         </motion.span>
+        </div>
       </motion.div>
 
       <motion.div

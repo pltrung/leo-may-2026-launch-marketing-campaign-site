@@ -10,10 +10,10 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
   return (
     <section
       id="final-cta"
-      className="relative min-h-[160vh] flex flex-col px-6 pt-[140px] md:pt-24 pb-32"
+      className="relative min-h-[120vh] flex flex-col px-6 pt-[140px] md:pt-24 pb-24"
     >
-      {/* Top spacer: creates scroll room so CTA only appears when user scrolls to the end */}
-      <div className="min-h-[50vh] flex-shrink-0" aria-hidden />
+      {/* Small top spacer: consistent with section spacing above, CTA still triggers on scroll */}
+      <div className="min-h-[18vh] flex-shrink-0" aria-hidden />
 
       {/* Title + CTA: only fade in when user has scrolled into this section (mobile + PC) */}
       <div className="flex-1 flex flex-col items-center justify-end w-full max-w-lg mx-auto min-h-0 pb-[28%] md:pb-[22%]">
@@ -28,7 +28,7 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
         </motion.h2>
 
         <motion.div
-          className="flex justify-center w-full mt-5 md:mt-6"
+          className="flex justify-center w-full mt-14 md:mt-20"
           initial={{ opacity: 0, y: 14 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.25, margin: "-60px" }}

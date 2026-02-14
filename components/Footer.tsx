@@ -2,7 +2,7 @@
 
 export default function Footer() {
   return (
-    <footer className="pt-3 pb-8 px-6 text-center">
+    <footer className="flex flex-col items-center justify-center py-8 px-6 text-center">
       <p className="font-body text-white/80 text-sm">
         Leo Mây — Climb the Clouds. Build a Culture.
       </p>
