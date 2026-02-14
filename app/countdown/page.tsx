@@ -92,7 +92,7 @@ export default function CountdownPage() {
           />
         </motion.div>
 
-        {/* 2. IP image (ip-on-cloud as fallback; use ip-count-down.svg when added) */}
+        {/* 2. IP image - ip-count-down from brand folder */}
         <motion.div
           className="w-full max-w-[80%] sm:max-w-[420px] mx-auto mb-10"
           initial={{ opacity: 0, y: 12 }}
@@ -101,7 +101,7 @@ export default function CountdownPage() {
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/brand/ip-on-cloud.svg"
+            src="/brand/ip-count-down.svg"
             alt=""
             className="w-full h-auto object-contain mx-auto animate-ip-float"
           />
