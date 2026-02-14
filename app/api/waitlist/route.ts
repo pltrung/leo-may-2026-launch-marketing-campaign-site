@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       console.error("Waitlist insert error:", error);
       if (error.code === "23505") {
         return NextResponse.json(
-          { error: "This email or phone is already on the waitlist." },
+          { error: "You already used this email/phone." },
           { status: 409 }
         );
       }

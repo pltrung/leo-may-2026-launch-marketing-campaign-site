@@ -9,17 +9,21 @@ export async function GET(request: NextRequest) {
     const hasUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
     const hasKey = !!(process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY);
     if (!hasUrl || !hasKey) {
-      return NextResponse.json({ count: 1 });
+      return NextResponse.json({ count: 0 });
     }
 
     const supabase = createServerClient();
-    const { count } = await supabase
+    const { count, error } = await supabase
       .from("waitlist")
-      .select("id", { count: "exact", head: true })
+      .select("*", { count: "exact", head: true })
       .eq("cloud_type", team.trim());
 
-    return NextResponse.json({ count: count ?? 1 });
-  } catch {
-    return NextResponse.json({ count: 1 });
+    if (error) {
+      console.error("Team count error:", team, error);
+    }
+    return NextResponse.json({ count: typeof count === "number" ? count : 0 });
+  } catch (err) {
+    console.error("Team count API error:", err);
+    return NextResponse.json({ count: 0 });
   }
 }

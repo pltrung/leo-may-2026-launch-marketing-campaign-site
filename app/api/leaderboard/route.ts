@@ -12,7 +12,7 @@ export async function GET() {
         name: c.name,
         nameEn: c.nameEn,
         accentHex: c.accentHex,
-        count: 1,
+        count: 0,
       }));
       fallback.sort((a, b) => b.count - a.count);
       return NextResponse.json({ teams: fallback });
@@ -21,28 +21,32 @@ export async function GET() {
     const supabase = createServerClient();
     const teams = await Promise.all(
       clouds.map(async (cloud) => {
-        const { count } = await supabase
+        const { count, error } = await supabase
           .from("waitlist")
-          .select("id", { count: "exact", head: true })
+          .select("*", { count: "exact", head: true })
           .eq("cloud_type", cloud.id);
+        if (error) {
+          console.error("Leaderboard count error for", cloud.id, error);
+        }
         return {
           id: cloud.id,
           name: cloud.name,
           nameEn: cloud.nameEn,
           accentHex: cloud.accentHex,
-          count: count ?? 1,
+          count: typeof count === "number" ? count : 0,
         };
       })
     );
     teams.sort((a, b) => b.count - a.count);
     return NextResponse.json({ teams });
-  } catch {
+  } catch (err) {
+    console.error("Leaderboard API error:", err);
     const fallback = clouds.map((c) => ({
       id: c.id,
       name: c.name,
       nameEn: c.nameEn,
       accentHex: c.accentHex,
-      count: 1,
+      count: 0,
     }));
     fallback.sort((a, b) => b.count - a.count);
     return NextResponse.json({ teams: fallback });

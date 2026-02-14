@@ -30,11 +30,11 @@ function useCountdown() {
 }
 
 function useTeamCount(teamId: CloudType) {
-  const [teamCount, setTeamCount] = useState(1);
+  const [teamCount, setTeamCount] = useState(0);
   useEffect(() => {
     fetch(`/api/team-count?team=${teamId}`)
       .then((r) => r.json())
-      .then((d) => setTeamCount(d.count ?? 1))
+      .then((d) => setTeamCount(typeof d.count === "number" ? d.count : 0))
       .catch(() => {});
   }, [teamId]);
   return teamCount;
@@ -103,7 +103,7 @@ export default function CountdownPage() {
       <button
         type="button"
         onClick={handleLogout}
-        className="absolute top-6 right-6 md:top-8 md:right-10 z-10 px-4 py-2 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors"
+        className="absolute bottom-5 right-4 md:bottom-auto md:top-8 md:right-10 z-10 py-1.5 px-3 md:py-2 md:px-4 rounded-full border border-white/60 text-white/90 text-xs md:text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors"
         aria-label="Log out"
       >
         Log out
@@ -115,7 +115,7 @@ export default function CountdownPage() {
         <img src="/brand/holds.svg" alt="" className="w-full h-full object-cover" />
       </div>
 
-      <div className="flex flex-col items-center w-full max-w-lg mx-auto h-full pt-4 pb-3 overflow-hidden gap-[0.65em] sm:gap-[0.7em]">
+      <div className="flex flex-col items-center w-full max-w-lg mx-auto h-full pt-4 pb-14 md:pb-3 overflow-hidden gap-[0.65em] sm:gap-[0.7em]">
         {/* 1. Cloud card: You joined section */}
         <div
           className="shrink-0 w-[90%] max-w-[420px] text-center rounded-[24px] px-4 sm:px-5 py-4"
@@ -138,29 +138,35 @@ export default function CountdownPage() {
           </div>
         </div>
 
-        {/* 3. Logo: +12% size */}
-        <div className="shrink-0">
+        {/* 3. Logo — maximized for viewport */}
+        <div className="shrink-0 w-[min(90vw,200px)] sm:w-[min(85vw,240px)] md:w-[min(80vw,280px)]">
           <img
             src="/logo-white.svg"
             alt="Leo Mây"
-            className="w-[134px] sm:w-[157px] md:w-[202px] h-auto object-contain"
+            className="w-full h-auto object-contain"
           />
         </div>
 
-        {/* 4. IP countdown: +10% size, reduced margin */}
-        <div className="shrink-0 -mt-0.5">
+        {/* 4. IP countdown — maximized for viewport */}
+        <div className="shrink-0 -mt-0.5 w-[min(95vw,240px)] sm:w-[min(90vw,300px)] md:w-[min(85vw,360px)]">
           <img
             src="/brand/ip-count-down.svg"
             alt=""
-            className="w-[176px] sm:w-[220px] md:w-[264px] h-auto object-contain animate-ip-float"
+            className="w-full h-auto object-contain animate-ip-float"
           />
         </div>
 
-        {/* 5. Trait + Progress */}
-        <div className="shrink-0 w-[80%] sm:w-[60%] flex flex-col items-center gap-2 leading-tight">
+        {/* 5. Trait + Progress — white block for contrast (blue accent teams) */}
+        <div
+          className="shrink-0 w-[85%] sm:w-[70%] max-w-[380px] flex flex-col items-center gap-2 leading-tight rounded-2xl px-4 py-3"
+          style={{
+            backgroundColor: "rgba(255,255,255,0.95)",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+          }}
+        >
           <p
             className="font-caption text-center text-[0.95rem] sm:text-[1rem]"
-            style={{ color: traitUnlocked ? accent : "rgba(255,255,255,0.6)" }}
+            style={{ color: traitUnlocked ? accent : "#1E2A38", opacity: traitUnlocked ? 1 : 0.7 }}
           >
             {traitUnlocked
               ? cloud.traitUnlocked ?? "Your cloud is forming."
@@ -169,8 +175,8 @@ export default function CountdownPage() {
           <div
             className="w-full h-[10px] rounded-full overflow-hidden"
             style={{
-              backgroundColor: "rgba(255,255,255,0.2)",
-              boxShadow: `0 0 12px ${accent}40`,
+              backgroundColor: "rgba(0,0,0,0.1)",
+              boxShadow: `0 0 8px ${accent}50`,
             }}
           >
             <div
@@ -179,16 +185,15 @@ export default function CountdownPage() {
             />
           </div>
           <p
-            className="font-caption text-xs sm:text-[0.85rem] uppercase"
-            style={{ color: accent, opacity: 0.8, letterSpacing: "1px" }}
+            className="font-caption text-xs sm:text-[0.85rem] uppercase font-medium"
+            style={{ color: "#1E2A38", letterSpacing: "1px" }}
           >
             {traitUnlocked
               ? "100% to unlock cloud trait"
               : `${100 - progressPct}% to unlock cloud trait`}
           </p>
           <p
-            className="font-caption text-[10px] sm:text-[11px] text-white/50 tracking-wide"
-            style={{ opacity: 0.85 }}
+            className="font-caption text-[10px] sm:text-[11px] text-storm/70 tracking-wide"
           >
             100% reveals your team&apos;s defining energy.
           </p>
@@ -207,33 +212,7 @@ export default function CountdownPage() {
           Share your cloud
         </button>
 
-        {/* 7. Countdown - +20% font */}
-        <div className="flex items-center justify-center gap-1 sm:gap-2 shrink-0 mt-0">
-          {[
-            { v: pad(days), l: "D" },
-            { v: pad(hours), l: "H" },
-            { v: pad(minutes), l: "M" },
-            { v: pad(seconds), l: "S" },
-          ].map((b, i) => (
-            <div key={b.l} className="flex items-center gap-1 sm:gap-2">
-              <div
-                className="rounded-xl flex flex-col items-center justify-center min-w-[64px] min-h-[64px] sm:min-w-[74px] sm:min-h-[74px] md:min-w-[88px] md:min-h-[88px] px-2 py-2"
-                style={{
-                  backgroundColor: "rgba(255,255,255,0.12)",
-                  boxShadow: "0 0 20px rgba(255,255,255,0.15)",
-                }}
-              >
-                <span className="font-headline font-bold text-[1.875rem] sm:text-[2.25rem] md:text-[3rem] text-white tabular-nums tracking-headline">
-                  {b.v}
-                </span>
-                <span className="font-caption text-white/60 text-[10px] sm:text-xs mt-0.5">{b.l}</span>
-              </div>
-              {i < 3 && <span className="font-headline text-white/40 text-lg sm:text-xl -mb-6">:</span>}
-            </div>
-          ))}
-        </div>
-
-        {/* 8. Leaderboard — block-based, with shimmer background */}
+        {/* 7. Leaderboard — block-based, with shimmer background */}
         <div className="shrink-0 flex flex-col items-center w-full max-w-[320px] relative mt-0">
           <div className="absolute inset-0 rounded-2xl leaderboard-shimmer pointer-events-none -z-10" aria-hidden />
           <p className="font-medium text-white/70 text-[0.75rem] sm:text-[0.8rem] tracking-wide mb-1.5">
@@ -322,6 +301,32 @@ export default function CountdownPage() {
               );
             })()
           )}
+        </div>
+
+        {/* 8. Countdown — maximized for viewport */}
+        <div className="flex items-center justify-center gap-1 sm:gap-2 shrink-0 mt-0">
+          {[
+            { v: pad(days), l: "D" },
+            { v: pad(hours), l: "H" },
+            { v: pad(minutes), l: "M" },
+            { v: pad(seconds), l: "S" },
+          ].map((b, i) => (
+            <div key={b.l} className="flex items-center gap-1 sm:gap-2">
+              <div
+                className="rounded-xl flex flex-col items-center justify-center min-w-[clamp(56px,18vw,96px)] min-h-[clamp(56px,18vw,96px)] sm:min-w-[clamp(72px,20vw,110px)] sm:min-h-[clamp(72px,20vw,110px)] md:min-w-[clamp(88px,22vw,128px)] md:min-h-[clamp(88px,22vw,128px)] px-2 py-2"
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.12)",
+                  boxShadow: "0 0 20px rgba(255,255,255,0.15)",
+                }}
+              >
+                <span className="font-headline font-bold text-[clamp(1.5rem,5vw,2.5rem)] sm:text-[clamp(1.75rem,5.5vw,3rem)] md:text-[clamp(2rem,6vw,3.5rem)] text-white tabular-nums tracking-headline">
+                  {b.v}
+                </span>
+                <span className="font-caption text-white/60 text-[10px] sm:text-xs mt-0.5">{b.l}</span>
+              </div>
+              {i < 3 && <span className="font-headline text-white/40 text-lg sm:text-xl -mb-6">:</span>}
+            </div>
+          ))}
         </div>
 
         {/* 9. Ethos */}
