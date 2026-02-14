@@ -24,7 +24,9 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
           Be among the first to climb the clouds.
         </p>
         <div className="mt-12 flex justify-center">
-          <HoldButton onClick={onJoin}>Choose Your Cloud</HoldButton>
+          <HoldButton variant="primary" accent="blue" onClick={onJoin}>
+            Join the Movement
+          </HoldButton>
         </div>
       </motion.div>
     </section>
