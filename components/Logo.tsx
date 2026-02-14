@@ -17,7 +17,7 @@ export default function Logo({ className = "h-8 w-auto object-contain" }: LogoPr
       aria-label="Leo Mây — scroll to top"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo.png" alt="Leo Mây" className={className} />
+      <img src="/logo-white.svg" alt="Leo Mây" className={className} />
     </button>
   );
 }

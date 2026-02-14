@@ -2,19 +2,11 @@
 
 import { useState } from "react";
 import { CloudPersonality } from "@/lib/cloudData";
-import Image from "next/image";
+import CloudIconByType from "./CloudIcons";
 
 interface CloudCardProps {
   cloud: CloudPersonality;
   onJoin: (cloud: CloudPersonality) => void;
-}
-
-/** Use cloud-blue.svg for blue-accent clouds, cloud.svg for others */
-function getCloudSvg(cloud: CloudPersonality): string {
-  const blueClouds: string[] = ["may_nhe", "giong"];
-  return blueClouds.includes(cloud.id)
-    ? "/brand/cloud-blue.svg"
-    : "/brand/cloud.svg";
 }
 
 export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
@@ -65,14 +57,8 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
             boxShadow: activeShadow,
           }}
         >
-          <div className="mb-4 flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16">
-            <Image
-              src={getCloudSvg(cloud)}
-              alt=""
-              width={64}
-              height={64}
-              className="w-full h-full object-contain"
-            />
+          <div className="mb-4 text-storm/80">
+            <CloudIconByType cloudId={cloud.id} className="w-14 h-14 sm:w-16 sm:h-16" />
           </div>
           <span className="font-display text-xl sm:text-2xl font-medium text-storm">
             {cloud.name}
@@ -96,10 +82,17 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
           <button
             type="button"
             onClick={handleJoinClick}
-            className="w-full py-4 rounded-xl text-white font-semibold text-base sm:text-lg hover:opacity-90 transition-opacity duration-200 shadow-md"
-            style={{ backgroundColor: cloud.accentHex }}
+            className="relative w-full min-h-[56px] flex items-center justify-center py-3 px-6 hover:opacity-90 transition-opacity duration-200 border-0 cursor-pointer bg-transparent"
           >
-            {cloud.joinLabel}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/cloud-blue.svg"
+              alt=""
+              className="absolute inset-0 w-full h-full object-contain object-center pointer-events-none"
+            />
+            <span className="relative z-10 font-display font-semibold text-base sm:text-lg text-white">
+              {cloud.joinLabel}
+            </span>
           </button>
         </div>
       </div>

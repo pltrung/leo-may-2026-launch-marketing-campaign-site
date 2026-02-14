@@ -21,7 +21,7 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
       </div>
 
       <div className="relative flex flex-col items-center mb-16 mt-16 py-4 px-6">
-        <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-light text-center text-storm max-w-2xl px-4">
+        <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-light text-center text-white max-w-2xl px-4">
           What type of cloud are you?
         </h2>
       </div>
