@@ -41,6 +41,15 @@ export function getUser(): StoredUser | null {
   }
 }
 
+export function clearUser(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export function findUserByEmailOrPhone(
   email?: string,
   phone?: string

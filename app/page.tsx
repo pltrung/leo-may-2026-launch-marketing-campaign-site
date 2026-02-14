@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import BrandBackground from "@/components/BrandBackground";
 import HeroSection from "@/components/HeroSection";
@@ -21,6 +21,7 @@ import { getUser } from "@/lib/userStorage";
 
 export default function Home() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showClouds, setShowClouds] = useState(false);
   const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
   const [showToast, setShowToast] = useState(false);
@@ -56,9 +57,15 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    const teamParam = searchParams.get("team");
+    const userParam = searchParams.get("user");
+    if (!teamParam && !userParam) return;
     const user = getUser();
-    if (user) router.replace("/countdown");
-  }, [router]);
+    if (!user) return;
+    const teamMatch = !teamParam || user.team === teamParam;
+    const userMatch = !userParam || user.name.trim().toLowerCase().includes((userParam || "").trim().toLowerCase());
+    if (teamMatch && userMatch) router.replace("/countdown");
+  }, [router, searchParams]);
 
   useEffect(() => {
     return () => timersRef.current.forEach(clearTimeout);

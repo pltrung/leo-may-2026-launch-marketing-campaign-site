@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { getUser } from "@/lib/userStorage";
+import { getUser, clearUser } from "@/lib/userStorage";
 import { getCloudById } from "@/lib/cloudData";
 import type { CloudType } from "@/lib/cloudData";
 import CloudIconByType from "@/components/CloudIcons";
@@ -59,6 +59,11 @@ export default function CountdownPage() {
     }
   }, [user, router]);
 
+  const handleLogout = () => {
+    clearUser();
+    router.replace("/");
+  };
+
   if (!user) return null;
 
   const cloud = getCloudById(user.team);
@@ -76,6 +81,14 @@ export default function CountdownPage() {
       className="h-screen min-h-[100dvh] max-h-screen overflow-hidden flex flex-col items-center justify-center px-4 py-4 relative"
       style={{ backgroundColor: "#0242FF" }}
     >
+      <button
+        type="button"
+        onClick={handleLogout}
+        className="absolute top-6 right-6 md:top-8 md:right-10 z-10 px-4 py-2 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors"
+        aria-label="Log out"
+      >
+        Log out
+      </button>
       <div className="absolute inset-0 -z-10 opacity-10 pointer-events-none" aria-hidden>
         <img src="/brand/background.svg" alt="" className="w-full h-full object-cover" />
       </div>
