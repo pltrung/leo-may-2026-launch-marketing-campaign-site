@@ -75,15 +75,6 @@
   animation: ipFloat 4s ease-in-out infinite;
 }
 
-@keyframes swipeArrow {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(10px); }
-}
-
-.animate-swipe-arrow {
-  animation: swipeArrow 1.2s ease-in-out infinite;
-}
-
 @keyframes fartPuff {
   0% { transform: scale(0) translateY(0); opacity: 0; }
   15% { transform: scale(1) translateY(0); opacity: 0.2; }
@@ -116,7 +107,6 @@
 @layer base {
   html {
     scroll-behavior: smooth;
-    scroll-snap-type: y mandatory;
     background: #0242ff;
   }
   body {
@@ -126,9 +116,5 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
-  }
-  section {
-    scroll-snap-align: start;
-    scroll-snap-stop: always;
   }
 }
