@@ -14,6 +14,9 @@ export async function POST(request: NextRequest) {
 
     const { name, email, phone, cloud_type } = parsed.data;
 
+    const emailNormalized = email?.trim() ? email.trim().toLowerCase() : null;
+    const phoneNormalized = phone?.trim() ? phone.trim().replace(/\s/g, "") : null;
+
     const hasUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
     const hasKey = !!(
       process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY
@@ -30,13 +33,19 @@ export async function POST(request: NextRequest) {
 
     const { error } = await supabase.from("waitlist").insert({
       name: name.trim(),
-      email: (email?.trim() || null) as string | null,
-      phone: (phone?.trim() || null) as string | null,
+      email: emailNormalized,
+      phone: phoneNormalized,
       cloud_type: cloud_type.trim(),
     });
 
     if (error) {
       console.error("Waitlist insert error:", error);
+      if (error.code === "23505") {
+        return NextResponse.json(
+          { error: "This email or phone is already on the waitlist." },
+          { status: 409 }
+        );
+      }
       return NextResponse.json(
         { error: "Failed to join waitlist. Please try again." },
         { status: 500 }

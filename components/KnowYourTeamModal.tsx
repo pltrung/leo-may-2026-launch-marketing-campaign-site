@@ -30,7 +30,19 @@ export default function KnowYourTeamModal({ onClose }: KnowYourTeamModalProps) {
 
     setLoading(true);
     try {
-      const user = findUserByEmailOrPhone(eTrim || undefined, pTrim || undefined);
+      let user = findUserByEmailOrPhone(eTrim || undefined, pTrim || undefined);
+      if (!user) {
+        const params = new URLSearchParams();
+        if (eTrim) params.set("email", eTrim);
+        if (pTrim) params.set("phone", pTrim);
+        const res = await fetch(`/api/waitlist/lookup?${params}`);
+        const json = await res.json();
+        if (json?.user) {
+          const { saveUser } = await import("@/lib/userStorage");
+          saveUser(json.user);
+          user = json.user;
+        }
+      }
       if (user) {
         router.push("/countdown");
         onClose();

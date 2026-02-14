@@ -88,14 +88,7 @@ export default function SignupModal({
       });
       setRedirectCount(8);
     } catch (err) {
-      saveUser(userData);
-      setConfirmation({
-        position: 1,
-        teamCount: 1,
-        totalCount: 1,
-        percentage: 100,
-      });
-      setRedirectCount(8);
+      setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
     }
