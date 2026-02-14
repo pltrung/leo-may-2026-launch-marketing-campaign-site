@@ -30,15 +30,18 @@ export default function SignupModal({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [confirmation, setConfirmation] = useState<ConfirmationData | null>(null);
+  const [redirectCount, setRedirectCount] = useState(8);
 
   useEffect(() => {
     if (!confirmation) return;
-    const t = setTimeout(() => {
+    if (redirectCount <= 0) {
       onSuccess();
       router.push("/countdown");
-    }, 4000);
+      return;
+    }
+    const t = setTimeout(() => setRedirectCount((c) => c - 1), 1000);
     return () => clearTimeout(t);
-  }, [confirmation, onSuccess, router]);
+  }, [confirmation, redirectCount, onSuccess, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,6 +79,7 @@ export default function SignupModal({
         totalCount: data.totalCount,
         percentage: data.percentage,
       });
+      setRedirectCount(8);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -118,16 +122,18 @@ export default function SignupModal({
           >
             Welcome to Team {cloud.name}.
           </h3>
-          <p className="text-storm text-lg mb-2">
+          <p className="mb-2 text-lg sm:text-xl font-medium" style={{ color: accent }}>
             You are #{confirmation.position} in the waitlist.
           </p>
-          <p className="text-storm/80 text-base mb-6">
+          <p className="text-base mb-6" style={{ color: accent, opacity: 0.8 }}>
             {confirmation.percentage}% of members chose this cloud.
           </p>
-          <p className="text-mist text-sm">
+          <p className="text-storm/80 text-sm">
             Stay tuned. Something is forming in the clouds.
           </p>
-          <p className="text-mist text-xs mt-4">Redirecting in 4 seconds…</p>
+          <p className="text-sm mt-4" style={{ color: accent, textShadow: `0 0 12px ${accent}60` }}>
+            Redirecting in <span style={{ color: accent, fontWeight: 600 }}>{redirectCount}</span>…
+          </p>
         </motion.div>
       </motion.div>
     );
@@ -270,7 +276,7 @@ export default function SignupModal({
                 className="absolute inset-0 flex items-center justify-center font-display font-semibold text-lg text-white pointer-events-none"
                 style={{ color: cloud.joinTextHex ?? "#ffffff" }}
               >
-                {loading ? "Joining…" : "Join the Movement"}
+                {loading ? "Joining…" : "Ascend"}
               </span>
             </button>
           </div>

@@ -42,7 +42,7 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
             className="absolute inset-0 w-full h-full object-contain object-center pointer-events-none"
           />
           <span className="relative z-10 font-display font-semibold text-lg sm:text-xl md:text-2xl text-storm text-center px-8 whitespace-nowrap">
-            Join the Movement
+            Ascend
           </span>
         </button>
       </motion.div>

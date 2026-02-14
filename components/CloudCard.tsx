@@ -79,7 +79,7 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
           }}
         >
           <p
-            className="text-center text-sm sm:text-base leading-relaxed flex-1 flex items-center justify-center px-3 min-h-[80px] overflow-hidden"
+            className="text-center text-sm sm:text-base leading-relaxed flex-1 px-3 py-2 min-h-0 overflow-y-auto flex items-center justify-center"
             style={{ color: cloud.storyHex }}
           >
             {cloud.story}
@@ -101,9 +101,8 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
                 WebkitMaskPosition: "center",
               }}
             >
-              <span className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 pointer-events-none" style={{ color: cloud.joinTextHex ?? "#ffffff" }}>
-                <span className="font-display font-semibold text-sm">Join</span>
-                <span className="font-display font-semibold text-sm">{cloud.name}</span>
+              <span className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ color: cloud.joinTextHex ?? "#ffffff" }}>
+                <span className="font-display font-semibold text-sm">Ascend</span>
               </span>
             </button>
           </div>
