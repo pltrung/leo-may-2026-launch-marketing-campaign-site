@@ -60,7 +60,7 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
           <div className="mb-4 text-storm/80">
             <CloudIconByType cloudId={cloud.id} className="w-14 h-14 sm:w-16 sm:h-16" />
           </div>
-          <span className="font-display text-xl sm:text-2xl font-medium text-storm">
+          <span className="font-display text-lg sm:text-xl font-medium text-storm">
             {cloud.name}
           </span>
         </div>
@@ -76,13 +76,13 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
             boxShadow: activeShadow,
           }}
         >
-          <p className="text-center text-base sm:text-lg leading-relaxed flex-1 flex items-center justify-center px-2 text-storm/90">
+          <p className="text-center text-sm sm:text-base leading-relaxed flex-1 flex items-center justify-center px-3 text-storm/90">
             {cloud.story}
           </p>
           <button
             type="button"
             onClick={handleJoinClick}
-            className="relative w-full min-h-[56px] flex items-center justify-center py-3 px-6 hover:opacity-90 transition-opacity duration-200 border-0 cursor-pointer bg-transparent"
+            className="relative w-full min-h-[64px] flex items-center justify-center py-2 px-4 hover:opacity-90 transition-opacity duration-200 border-0 cursor-pointer bg-transparent shrink-0"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -90,7 +90,7 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
               alt=""
               className="absolute inset-0 w-full h-full object-contain object-center pointer-events-none"
             />
-            <span className="relative z-10 font-display font-semibold text-base sm:text-lg text-white">
+            <span className="relative z-10 font-display font-semibold text-sm sm:text-base text-white text-center leading-tight">
               {cloud.joinLabel}
             </span>
           </button>

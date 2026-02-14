@@ -48,6 +48,17 @@
   animation: cloudFloat 14s ease-in-out infinite;
 }
 
+@keyframes ipWalk {
+  0% { left: 0; }
+  100% { left: calc(100% - 100px); }
+}
+
+.animate-ip-walk {
+  position: absolute;
+  top: 0;
+  animation: ipWalk 14s ease-in-out infinite;
+}
+
 @keyframes breathe {
   0%, 100% { transform: translate(-50%, -50%) scale(1); }
   50% { transform: translate(-50%, -50%) scale(1.03); }
@@ -55,6 +66,14 @@
 
 .animate-breathe {
   animation: breathe 4s ease-in-out infinite;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
 @layer base {

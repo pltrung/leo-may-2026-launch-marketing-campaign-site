@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import BrandBackground from "@/components/BrandBackground";
 import HeroSection from "@/components/HeroSection";
 import LocationSection from "@/components/LocationSection";
+import IpShowcaseSection from "@/components/IpShowcaseSection";
 import PhilosophySection from "@/components/PhilosophySection";
 import CtaSection from "@/components/CtaSection";
 import CloudSelector from "@/components/CloudSelector";
@@ -41,7 +42,9 @@ export default function Home() {
             <>
               <HeroSection />
               <LocationSection />
+              <IpShowcaseSection pose="front" />
               <PhilosophySection />
+              <IpShowcaseSection pose="back" />
               <CtaSection onJoin={() => setShowClouds(true)} />
             </>
           ) : (

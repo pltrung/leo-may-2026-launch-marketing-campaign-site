@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 
 export default function PhilosophySection() {
   return (
-    <section className="min-h-screen h-screen flex flex-col items-center justify-center px-6">
+    <section className="relative min-h-screen h-screen flex flex-col items-center justify-center px-6 overflow-hidden">
       <motion.div
         className="max-w-2xl mx-auto text-center"
         initial={{ opacity: 0, y: 20 }}

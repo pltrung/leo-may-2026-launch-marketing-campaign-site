@@ -10,7 +10,7 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
   return (
     <section className="min-h-screen h-screen flex flex-col items-center justify-center px-6">
       <motion.div
-        className="text-center max-w-lg mx-auto"
+        className="text-center max-w-lg mx-auto flex flex-col items-center w-full"
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
         viewport={{ once: true, margin: "-100px" }}
@@ -25,7 +25,7 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
         <button
           type="button"
           onClick={onJoin}
-          className="relative mt-12 w-[200px] h-[60px] sm:w-[240px] sm:h-[72px] flex items-center justify-center hover:opacity-90 transition-opacity duration-200 cursor-pointer border-0 bg-transparent animate-cloud-float"
+          className="relative mx-auto mt-12 block w-[280px] h-[84px] sm:w-[340px] sm:h-[100px] flex items-center justify-center hover:opacity-90 transition-opacity duration-200 cursor-pointer border-0 bg-transparent animate-bounce"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -33,7 +33,7 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
             alt=""
             className="absolute inset-0 w-full h-full object-contain object-center pointer-events-none"
           />
-          <span className="relative z-10 font-display font-semibold text-base sm:text-lg text-storm">
+          <span className="relative z-10 font-display font-semibold text-lg sm:text-xl text-storm text-center px-4">
             Join the Movement
           </span>
         </button>
