@@ -29,6 +29,32 @@
   font-display: swap;
 }
 
+/* Mist overlay transition: Ascend → Cloud Selector */
+@keyframes mistEnter {
+  0% { transform: translateY(100%); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes mistExit {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-10%); opacity: 0; }
+}
+.mist-overlay[data-phase="enter"] {
+  animation: mistEnter 800ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.mist-overlay[data-phase="exit"] {
+  animation: mistExit 500ms ease-out both;
+}
+.mist-text {
+  opacity: 0;
+  animation: mistTextFade 400ms ease-out 0ms forwards;
+}
+@keyframes mistTextFade {
+  0% { opacity: 0; }
+  25% { opacity: 0.9; }
+  75% { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+
 /* Mist drift: atmospheric background for philosophy section */
 @keyframes mistDrift {
   0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.06; }
