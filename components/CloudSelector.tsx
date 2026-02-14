@@ -32,8 +32,8 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
       id="clouds"
       className="w-full min-h-screen flex flex-col items-center justify-center px-6 py-16 overflow-x-hidden"
     >
-      <div className="absolute top-0 left-0 pl-8 pt-6 z-20">
-        <Logo className="h-11 w-auto object-contain" />
+      <div className="absolute top-0 left-0 pl-10 pt-8 z-20">
+        <Logo className="w-[140px] md:w-[200px] h-auto object-contain object-left" />
       </div>
 
       <div className="relative flex flex-col items-center mb-16 mt-16 py-4 px-6">

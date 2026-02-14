@@ -1,10 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
+import BrandAnimalWatermark from "./BrandAnimalWatermark";
 
 export default function LocationSection() {
   return (
-    <section className="min-h-screen h-screen flex flex-col items-center justify-center px-6">
+    <section className="relative min-h-screen h-screen flex flex-col items-center justify-center px-6 overflow-hidden">
+      <BrandAnimalWatermark variant="location" />
       <motion.div
         className="text-center max-w-xl mx-auto"
         initial={{ opacity: 0, y: 24 }}

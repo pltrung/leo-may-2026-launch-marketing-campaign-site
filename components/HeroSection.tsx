@@ -3,17 +3,19 @@
 import Image from "next/image";
 import { motion } from "framer-motion";
 import Logo from "./Logo";
+import BrandAnimalWatermark from "./BrandAnimalWatermark";
 
 export default function HeroSection() {
   return (
-    <section className="relative min-h-screen h-screen flex flex-col items-center justify-center px-6">
+    <section className="relative min-h-screen h-screen flex flex-col items-center justify-center px-6 overflow-hidden">
       <div className="absolute inset-0 -z-[1] opacity-[0.04] blur-3xl pointer-events-none" aria-hidden>
         <Image src="/logo.png" alt="" fill className="object-contain scale-150" />
       </div>
+      <BrandAnimalWatermark variant="hero" />
 
-      <nav className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between pl-8 pt-6 pb-6 pr-6">
+      <nav className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between pl-10 pt-8 pb-6 pr-6">
         <div className="flex items-center">
-          <Logo className="h-11 w-auto object-contain" />
+          <Logo className="w-[140px] md:w-[200px] h-auto object-contain object-left" />
         </div>
         <div className="w-28" aria-hidden />
       </nav>
