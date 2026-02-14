@@ -3,6 +3,7 @@
 import { clouds, CloudPersonality } from "@/lib/cloudData";
 import CloudCard from "./CloudCard";
 import Logo from "./Logo";
+import BrandAnimalWatermark from "./BrandAnimalWatermark";
 
 interface CloudSelectorProps {
   onSelect: (cloud: CloudPersonality) => void;
@@ -30,8 +31,9 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
   return (
     <section
       id="clouds"
-      className="w-full min-h-screen flex flex-col items-center justify-center px-6 py-16 overflow-x-hidden"
+      className="relative w-full min-h-screen flex flex-col items-center justify-center px-6 py-16 overflow-x-hidden"
     >
+      <BrandAnimalWatermark variant="cloud" />
       <div className="absolute top-0 left-0 pl-10 pt-8 z-20">
         <Logo className="w-[140px] md:w-[200px] h-auto object-contain object-left" />
       </div>
