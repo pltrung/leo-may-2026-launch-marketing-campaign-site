@@ -18,7 +18,7 @@ export default function HeroSection() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 1 }}
         >
-          <Logo className="w-[88px] md:w-[200px] max-w-[88px] md:max-w-none h-auto object-contain object-left" />
+          <Logo className="w-[110px] md:w-[200px] max-w-[110px] md:max-w-none h-auto object-contain object-left" />
         </motion.div>
         <div className="w-28" aria-hidden />
       </nav>
