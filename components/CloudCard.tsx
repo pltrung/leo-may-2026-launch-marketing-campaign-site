@@ -32,7 +32,7 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
 
   return (
     <div
-      className={`w-full min-w-[140px] max-w-[200px] aspect-[3/4] mx-auto cursor-pointer transition-transform duration-200 ${isHovered ? "-translate-y-1" : ""}`}
+      className={`w-full min-w-[140px] max-w-[200px] lg:max-w-[240px] aspect-[3/4] lg:aspect-auto lg:min-h-[420px] mx-auto cursor-pointer transition-transform duration-200 ${isHovered ? "-translate-y-1" : ""}`}
       style={{ perspective: "1000px" }}
       onClick={handleCardClick}
       onMouseEnter={() => setIsHovered(true)}
@@ -49,7 +49,7 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
       >
         {/* Front */}
         <div
-          className="absolute inset-0 w-full h-full rounded-2xl flex flex-col justify-between p-6 bg-white/90 border-2 transition-all duration-200"
+          className="absolute inset-0 w-full h-full rounded-2xl flex flex-col justify-between p-6 lg:p-10 bg-white/90 border-2 transition-all duration-200"
           style={{
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
@@ -69,7 +69,7 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
 
         {/* Back */}
         <div
-          className="absolute inset-0 w-full h-full rounded-2xl flex flex-col justify-between p-6 bg-white/90 border-2 transition-all duration-200"
+          className="absolute inset-0 w-full h-full rounded-2xl flex flex-col justify-between p-6 lg:p-10 bg-white/90 border-2 transition-all duration-200"
           style={{
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
@@ -79,7 +79,7 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
           }}
         >
           <p
-            className="text-center text-sm sm:text-base leading-relaxed flex-1 px-3 py-2 min-h-0 overflow-y-auto flex items-center justify-center"
+            className="text-center text-sm sm:text-base lg:text-[15px] leading-[1.6] flex-1 px-3 py-2 flex items-center justify-center overflow-visible"
             style={{ color: cloud.storyHex }}
           >
             {cloud.story}
@@ -101,8 +101,9 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
                 WebkitMaskPosition: "center",
               }}
             >
-              <span className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ color: cloud.joinTextHex ?? "#ffffff" }}>
-                <span className="font-display font-semibold text-sm">Ascend</span>
+              <span className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 pointer-events-none" style={{ color: cloud.joinTextHex ?? "#ffffff" }}>
+                <span className="font-display font-semibold text-sm">Join</span>
+                <span className="font-display font-semibold text-sm">{cloud.name}</span>
               </span>
             </button>
           </div>

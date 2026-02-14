@@ -1,14 +1,37 @@
 "use client";
 
+import { useRef } from "react";
 import { motion } from "framer-motion";
 
 interface CtaSectionProps {
   onJoin: () => void;
 }
 
+const SWIPE_THRESHOLD = 80;
+
 export default function CtaSection({ onJoin }: CtaSectionProps) {
+  const touchStartY = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const endY = e.changedTouches[0].clientY;
+    const deltaY = endY - touchStartY.current;
+    if (deltaY > SWIPE_THRESHOLD) {
+      onJoin();
+    }
+    touchStartY.current = null;
+  };
+
   return (
-    <section className="min-h-screen flex flex-col items-center justify-between px-6 py-16">
+    <section
+      className="min-h-screen flex flex-col items-center justify-between px-6 py-16"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Top: Be among the first... */}
       <motion.div
         className="text-center max-w-lg mx-auto flex flex-col items-center w-full flex-1 flex justify-end"
@@ -45,6 +68,15 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
             Ascend
           </span>
         </button>
+        <div className="flex flex-col items-center gap-2 mt-6">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/arrow-up.svg"
+            alt=""
+            className="w-8 h-auto object-contain -rotate-180 animate-swipe-arrow"
+          />
+          <span className="text-white/70 text-sm">Swipe to choose your cloud</span>
+        </div>
       </motion.div>
 
       {/* Bottom: ip-on-cloud bouncing - last scroll reveal, close to footer */}

@@ -24,7 +24,7 @@ export default function Home() {
 
   useEffect(() => {
     if (showClouds) {
-      window.scrollTo({ top: 0, behavior: "auto" });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [showClouds]);
 

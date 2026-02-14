@@ -65,11 +65,11 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
 
       {/* Desktop: grid with scroll hint */}
       <div className="hidden md:block w-full mt-10">
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-10 lg:gap-x-10 lg:gap-y-12 max-w-4xl w-full mx-auto justify-items-center items-stretch overflow-visible">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-12 max-w-4xl w-full mx-auto justify-items-center items-stretch overflow-visible">
           {clouds.map((cloud) => (
             <div
               key={cloud.id}
-              className="flex justify-center items-center w-full max-w-[200px]"
+              className="flex justify-center items-stretch w-full max-w-[200px] lg:max-w-[240px]"
             >
               <CloudCard cloud={cloud} onJoin={onSelect} />
             </div>
