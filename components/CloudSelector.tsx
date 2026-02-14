@@ -1,29 +1,39 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { clouds, CloudPersonality } from "@/lib/cloudData";
 import CloudCard from "./CloudCard";
 import Logo from "./Logo";
-import BrandAnimalWatermark from "./BrandAnimalWatermark";
+import WalkingIpWithPuff from "./WalkingIpWithPuff";
 
 interface CloudSelectorProps {
   onSelect: (cloud: CloudPersonality) => void;
 }
 
 export default function CloudSelector({ onSelect }: CloudSelectorProps) {
+  const [puffKey, setPuffKey] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setPuffKey((k) => k + 1), 3500);
+    return () => clearInterval(t);
+  }, []);
+
   return (
     <section
       id="clouds"
-      className="relative w-full min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 py-16 overflow-x-hidden"
+      className="relative w-full min-h-screen flex flex-col items-start justify-start px-4 sm:px-6 pt-24 pb-16 overflow-x-hidden overflow-y-auto"
     >
-      <div className="absolute top-0 left-0 pl-10 pt-8 z-20">
-        <Logo className="w-[140px] md:w-[200px] h-auto object-contain object-left" />
+      <div className="fixed top-0 left-0 pl-10 pt-8 z-30">
+        <Logo className="w-[160px] md:w-[220px] h-auto object-contain object-left" />
       </div>
 
-      <div className="relative flex flex-col items-center mb-16 mt-16 py-4 px-6 min-h-[140px] w-full">
-        <BrandAnimalWatermark variant="cloud" />
-        <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-light text-center text-white max-w-2xl px-4 mt-4">
+      <div className="relative flex flex-col items-center w-full max-w-2xl mx-auto mb-12">
+        <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-light text-center text-white px-4">
           What type of cloud are you?
         </h2>
+        <div className="relative w-full overflow-hidden mt-8 min-h-[100px] flex items-center justify-center">
+          <WalkingIpWithPuff puffKey={puffKey} />
+        </div>
       </div>
 
       {/* Mobile: horizontal scroll with bounce hint */}

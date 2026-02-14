@@ -49,14 +49,33 @@
 }
 
 @keyframes ipWalk {
-  0% { left: 0; }
-  100% { left: calc(100% - 100px); }
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(0); }
 }
 
 .animate-ip-walk {
-  position: absolute;
-  top: 0;
-  animation: ipWalk 14s ease-in-out infinite;
+  animation: ipWalk 10s linear infinite;
+}
+
+@keyframes ipBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.animate-ip-bounce {
+  animation: ipBounce 1.8s ease-in-out infinite;
+}
+
+@keyframes fartPuff {
+  0% { transform: scale(0) translateY(0); opacity: 0; }
+  15% { transform: scale(1) translateY(0); opacity: 0.2; }
+  85% { transform: scale(1) translateY(-10px); opacity: 0.1; }
+  100% { transform: scale(1) translateY(-14px); opacity: 0; }
+}
+
+.animate-fart-puff {
+  animation: fartPuff 2.5s ease-out forwards;
+  will-change: transform, opacity;
 }
 
 @keyframes breathe {

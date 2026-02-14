@@ -23,12 +23,15 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
     onJoin(cloud);
   };
 
+  const defaultShadow = "0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06)";
+  const hoverGlow = isHovered ? `0 0 25px ${cloud.accentHex}50` : "";
+  const activeGlow = isActive
+    ? `0 0 35px ${cloud.accentHex}40, 0 4px 20px ${cloud.accentHex}30`
+    : "";
+  const borderColor = isHovered || isActive ? cloud.accentHex : "transparent";
+  const boxShadow = [defaultShadow, hoverGlow, activeGlow].filter(Boolean).join(", ");
   const baseCardClass =
-    "absolute inset-0 w-full h-full rounded-2xl flex flex-col items-center justify-center p-6 bg-white/90 shadow-md border border-transparent transition-all duration-200";
-  const hoverBorder = isHovered ? cloud.accentHex : "transparent";
-  const activeShadow = isActive
-    ? `0 4px 20px ${cloud.accentHex}25`
-    : "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)";
+    "absolute inset-0 w-full h-full rounded-2xl flex flex-col items-center justify-center p-6 bg-white/90 border-2 transition-all duration-200";
 
   return (
     <div
@@ -53,8 +56,8 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
           style={{
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
-            borderColor: hoverBorder,
-            boxShadow: activeShadow,
+            borderColor,
+            boxShadow,
           }}
         >
           <div className="mb-4 text-storm/80">
@@ -72,8 +75,8 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
             transform: "rotateY(180deg)",
-            borderColor: hoverBorder,
-            boxShadow: activeShadow,
+            borderColor,
+            boxShadow,
           }}
         >
           <p className="text-center text-sm sm:text-base leading-relaxed flex-1 flex items-center justify-center px-3 text-storm/90">
@@ -90,7 +93,10 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
               alt=""
               className="absolute inset-0 w-full h-full object-contain object-center pointer-events-none"
             />
-            <span className="relative z-10 font-display font-semibold text-sm sm:text-base text-white text-center leading-tight">
+            <span
+              className="relative z-10 font-display font-semibold text-sm sm:text-base text-center leading-tight"
+              style={{ color: cloud.accentHex }}
+            >
               {cloud.joinLabel}
             </span>
           </button>

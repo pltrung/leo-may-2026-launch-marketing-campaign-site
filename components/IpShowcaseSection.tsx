@@ -1,45 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { motion, useInView } from "framer-motion";
 
 interface IpShowcaseSectionProps {
   pose: "front" | "back";
 }
 
+const IMAGE_MAP: Record<string, string> = {
+  front: "/brand/ip-climbing-on-hold.svg",
+  back: "/brand/ip-on-cloud.svg",
+};
+
 export default function IpShowcaseSection({ pose }: IpShowcaseSectionProps) {
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { amount: 0.2, once: false });
 
   if (errored) return null;
 
-  const imgSrc = "/leo-may-ip.png";
-  const bgPos = pose === "front" ? "0% 0%" : "100% 0%";
+  const imgSrc = IMAGE_MAP[pose];
 
   return (
-    <section className="relative min-h-screen h-screen flex items-center justify-center overflow-hidden">
-      <div
-        className="absolute inset-0 flex items-center justify-center pointer-events-none"
-        style={{ zIndex: 0 }}
+    <section
+      ref={ref}
+      className="relative min-h-[70vh] flex items-center justify-center overflow-hidden py-12"
+    >
+      <motion.div
+        className="flex items-center justify-center w-[70%] max-w-[400px] aspect-square pointer-events-none"
+        initial={{ opacity: 0 }}
+        animate={{
+          opacity: isInView && loaded ? 1 : 0,
+          transition: { duration: 0.6 },
+        }}
         aria-hidden
       >
-        <div
-          className="w-[70%] max-w-[400px] aspect-square bg-no-repeat bg-contain bg-center"
-          style={{
-            backgroundImage: `url(${imgSrc})`,
-            backgroundSize: "300% 100%",
-            backgroundPosition: bgPos,
-            opacity: loaded ? 1 : 0,
-          }}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={imgSrc}
+          alt=""
+          className="w-full h-full object-contain animate-ip-bounce"
+          onLoad={() => setLoaded(true)}
+          onError={() => setErrored(true)}
         />
-      </div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={imgSrc}
-        alt=""
-        className="hidden"
-        onLoad={() => setLoaded(true)}
-        onError={() => setErrored(true)}
-      />
+      </motion.div>
     </section>
   );
 }

@@ -22,6 +22,12 @@ export default function Home() {
   const handleSuccess = () => setShowToast(true);
 
   useEffect(() => {
+    if (showClouds) {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+  }, [showClouds]);
+
+  useEffect(() => {
     if (!showToast) return;
     const t = setTimeout(() => setShowToast(false), 5000);
     return () => clearTimeout(t);
