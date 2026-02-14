@@ -11,8 +11,8 @@ export default function BrandBackground() {
         <img
           src="/brand/background.svg"
           alt=""
-          className="w-full h-full object-contain"
-          style={{ objectFit: "contain", width: "100%", height: "100%" }}
+          className="w-full h-full object-cover"
+          style={{ objectFit: "cover", width: "100%", height: "100%" }}
         />
       </div>
       <div
@@ -23,8 +23,8 @@ export default function BrandBackground() {
         <img
           src="/brand/holds.svg"
           alt=""
-          className="w-full h-full object-contain"
-          style={{ objectFit: "contain", width: "100%", height: "100%" }}
+          className="w-full h-full object-cover"
+          style={{ objectFit: "cover", width: "100%", height: "100%" }}
         />
       </div>
     </>

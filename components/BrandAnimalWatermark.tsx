@@ -95,11 +95,12 @@ export default function BrandAnimalWatermark({ variant }: BrandAnimalWatermarkPr
       <div
         className="absolute pointer-events-none overflow-hidden"
         style={{
-          left: "4%",
-          bottom: "12%",
-          width: 130,
-          height: 130,
-          opacity: loaded ? 0.35 : 0,
+          left: "50%",
+          bottom: "8%",
+          transform: "translateX(-50%)",
+          width: 140,
+          height: 140,
+          opacity: loaded ? 1 : 0,
           zIndex: 0,
         }}
         aria-hidden
