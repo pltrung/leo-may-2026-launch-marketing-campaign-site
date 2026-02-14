@@ -21,38 +21,33 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
   return (
     <section
       id="clouds"
-      className="relative w-full min-h-screen flex flex-col items-start justify-start px-4 sm:px-6 pt-24 pb-16 overflow-x-hidden overflow-y-auto"
+      className="relative w-full min-h-screen flex flex-col items-center overflow-x-hidden overflow-y-auto px-4 pb-16 pt-[140px] sm:px-6 md:pt-24"
     >
-      <div className="fixed top-0 left-0 pl-10 pt-8 z-30">
-        <Logo className="w-[160px] md:w-[220px] h-auto object-contain object-left" />
+      {/* Logo: fixed, smaller on mobile */}
+      <div className="fixed top-0 left-0 p-4 z-30 md:pl-10 md:pt-8">
+        <Logo className="w-[120px] md:w-[220px] h-auto object-contain object-left" />
       </div>
 
-      <div className="relative flex flex-col items-center w-full max-w-2xl mx-auto mb-12">
-        <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-light text-center text-white px-4">
+      {/* Heading: 32px mobile, 40px from logo, center */}
+      <div className="relative flex flex-col items-center w-full max-w-2xl mx-auto mt-10 md:mt-0 md:mb-12">
+        <h2 className="font-display text-[32px] leading-[1.2] sm:text-4xl md:text-5xl font-light text-center text-white px-4">
           What type of cloud are you?
         </h2>
+        {/* IP: below heading, 32px gap, center, max 140px mobile, bounce */}
         <div className="relative w-full overflow-hidden mt-8 min-h-[100px] flex items-center justify-center">
-          <WalkingIpWithPuff puffKey={puffKey} />
+          <div className="w-full max-w-[140px] md:max-w-none mx-auto flex justify-center animate-ip-bounce">
+            <WalkingIpWithPuff puffKey={puffKey} />
+          </div>
         </div>
       </div>
 
-      {/* Mobile: horizontal scroll with bounce hint */}
-      <div className="md:hidden w-full px-2 pb-4">
-        <div className="flex gap-6 overflow-x-auto overflow-y-visible pb-4 snap-x snap-mandatory scroll-smooth scrollbar-hide -mx-2 px-2">
-          {clouds.map((cloud) => (
-            <div key={cloud.id} className="flex-shrink-0 w-[200px] snap-center flex justify-center">
-              <CloudCard cloud={cloud} onJoin={onSelect} />
-            </div>
-          ))}
-        </div>
-        <div className="flex justify-center mt-2" aria-hidden>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/brand/arrow-right.svg"
-            alt=""
-            className="w-8 h-auto animate-bounce object-contain"
-          />
-        </div>
+      {/* Mobile: single column, no horizontal scroll, 24px between cards, full width minus padding */}
+      <div className="md:hidden w-full flex flex-col items-center gap-6 mt-10">
+        {clouds.map((cloud) => (
+          <div key={cloud.id} className="w-full flex justify-center px-0">
+            <CloudCard cloud={cloud} onJoin={onSelect} />
+          </div>
+        ))}
       </div>
 
       {/* Desktop: grid - equal height, aligned */}
