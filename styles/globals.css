@@ -2,6 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+/* MiSans brand fonts */
+@font-face {
+  font-family: "MiSans-Bold";
+  src: url("/fonts/MiSans-Bold.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "MiSans-Semibold";
+  src: url("/fonts/MiSans-Semibold.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "MiSans-Regular";
+  src: url("/fonts/MiSans-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "MiSans-Light";
+  src: url("/fonts/MiSans-Light.ttf") format("truetype");
+  font-display: swap;
+}
+
 :root {
   --cloud: #F5F7FA;
   --mist: #DDE2E6;
@@ -110,7 +132,7 @@
     background: #0242ff;
   }
   body {
-    font-family: var(--font-inter), system-ui, sans-serif;
+    font-family: "MiSans-Regular", sans-serif;
     color: var(--storm);
     background: #0242ff;
     -webkit-font-smoothing: antialiased;

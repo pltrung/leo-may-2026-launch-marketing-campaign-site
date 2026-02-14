@@ -17,8 +17,8 @@ export default function Toast({ show }: ToastProps) {
           exit={{ opacity: 0, y: 10 }}
           transition={{ duration: 0.3 }}
         >
-          <p className="font-display text-lg">You&apos;re in the Founding Circle.</p>
-          <p className="text-cloud/80 text-sm mt-1">
+          <p className="font-subheadline text-lg">You&apos;re in the Founding Circle.</p>
+          <p className="font-caption text-cloud/80 text-sm mt-1">
             We&apos;ll reach out when it&apos;s time to climb.
           </p>
         </motion.div>

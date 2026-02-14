@@ -30,7 +30,7 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
 
       {/* Heading: 32px mobile, 40px from logo, center */}
       <div className="relative flex flex-col items-center w-full max-w-2xl mx-auto mt-10 md:mt-0 md:mb-12">
-        <h2 className="font-display text-[32px] leading-[1.2] sm:text-4xl md:text-5xl font-light text-center text-white px-4">
+        <h2 className="font-headline text-[32px] leading-[1.2] sm:text-4xl md:text-5xl text-center text-white tracking-headline px-4">
           What type of cloud are you?
         </h2>
         {/* IP: below heading, 32px gap, center, max 140px mobile, bounce */}

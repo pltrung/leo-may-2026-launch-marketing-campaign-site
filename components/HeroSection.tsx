@@ -25,7 +25,7 @@ export default function HeroSection() {
         transition={{ duration: 0.5 }}
       >
         <motion.h1
-          className="font-display text-4xl sm:text-5xl md:text-6xl font-light text-white tracking-tight leading-tight"
+          className="font-headline text-4xl sm:text-5xl md:text-6xl text-white tracking-headline leading-tight"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.2 }}
@@ -33,7 +33,7 @@ export default function HeroSection() {
           Climb the Clouds.
         </motion.h1>
         <motion.span
-          className="block font-display text-4xl sm:text-5xl md:text-6xl font-light tracking-tight mt-2"
+          className="block font-headline text-4xl sm:text-5xl md:text-6xl tracking-headline mt-2"
           style={{ color: "#00CB4D" }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -50,7 +50,7 @@ export default function HeroSection() {
         transition={{ delay: 2, duration: 0.6 }}
       >
         <div className="flex flex-col items-center gap-2">
-          <span className="text-white/70 text-xs tracking-widest uppercase">Scroll</span>
+          <span className="font-caption text-white/70 text-xs tracking-widest uppercase">Scroll</span>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/brand/arrow-up.svg"

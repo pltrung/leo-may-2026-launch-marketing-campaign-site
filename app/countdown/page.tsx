@@ -130,16 +130,16 @@ export default function CountdownPage() {
                     boxShadow: "0 0 20px rgba(255,255,255,0.15)",
                   }}
                 >
-                  <span className="font-display text-2xl sm:text-3xl md:text-4xl font-semibold text-white tabular-nums">
+                  <span className="font-headline text-2xl sm:text-3xl md:text-4xl text-white tracking-headline tabular-nums">
                     {block.value}
                   </span>
                 </div>
-                <span className="text-white/70 text-xs sm:text-sm">
+                <span className="font-caption text-white/70 text-xs sm:text-sm">
                   {block.label}
                 </span>
               </div>
               {i < 3 && (
-                <span className="font-display text-2xl sm:text-3xl text-white/50 self-center -mb-6">
+                <span className="font-headline text-2xl sm:text-3xl text-white/50 self-center -mb-6 tracking-headline">
                   :
                 </span>
               )}
@@ -149,7 +149,7 @@ export default function CountdownPage() {
 
         {/* 4. Tagline */}
         <motion.p
-          className="mt-12 font-display text-xl sm:text-2xl font-medium text-white"
+          className="mt-12 font-subheadline text-xl sm:text-2xl text-white"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.2 + stagger * 3 }}
@@ -158,7 +158,7 @@ export default function CountdownPage() {
         </motion.p>
 
         <motion.p
-          className="mt-2 text-white/70 text-base sm:text-lg"
+          className="font-body mt-2 text-white/70 text-base sm:text-lg"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.2 + stagger * 3 }}
@@ -168,7 +168,7 @@ export default function CountdownPage() {
 
         {/* 5. Footer line */}
         <motion.p
-          className="mt-8 text-white/40 text-sm"
+          className="font-caption mt-8 text-white/40 text-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.2 + stagger * 4 }}

@@ -117,21 +117,21 @@ export default function SignupModal({
           onClick={(e) => e.stopPropagation()}
         >
           <h3
-            className="font-display text-2xl sm:text-3xl font-light mb-4"
+            className="font-subheadline text-2xl sm:text-3xl mb-4"
             style={{ color: accent }}
           >
             Welcome to Team {cloud.name} — {cloud.nameEn}.
           </h3>
-          <p className="mb-2 text-lg sm:text-xl font-medium" style={{ color: accent }}>
+          <p className="font-subheadline mb-2 text-lg sm:text-xl" style={{ color: accent }}>
             You are #{confirmation.position} in the waitlist.
           </p>
-          <p className="text-base mb-6" style={{ color: accent, opacity: 0.8 }}>
+          <p className="font-body text-base mb-6" style={{ color: accent, opacity: 0.8 }}>
             {confirmation.percentage}% of members chose this cloud.
           </p>
-          <p className="text-storm/80 text-sm">
+          <p className="font-caption text-storm/80 text-sm">
             Stay tuned. Something is forming in the clouds.
           </p>
-          <p className="text-sm mt-4" style={{ color: accent, textShadow: `0 0 12px ${accent}60` }}>
+          <p className="font-caption text-sm mt-4" style={{ color: accent, textShadow: `0 0 12px ${accent}60` }}>
             Redirecting in <span style={{ color: accent, fontWeight: 600 }}>{redirectCount}</span>…
           </p>
         </motion.div>
@@ -188,12 +188,12 @@ export default function SignupModal({
         </button>
 
         <h3
-          className="font-display text-xl sm:text-2xl font-light mb-1"
+          className="font-subheadline text-xl sm:text-2xl mb-1"
           style={{ color: accent }}
         >
           You are about to join Team {cloud.name} — {cloud.nameEn}.
         </h3>
-        <p className="text-storm/80 text-sm mb-6">
+        <p className="font-caption text-storm/80 text-sm mb-6">
           Fill in your place with the team.
         </p>
 
@@ -201,7 +201,7 @@ export default function SignupModal({
           <div>
             <label
               htmlFor="name"
-              className="block text-sm font-medium text-storm mb-1"
+              className="font-caption block text-sm text-storm mb-1"
             >
               Name *
             </label>
@@ -219,7 +219,7 @@ export default function SignupModal({
           <div>
             <label
               htmlFor="email"
-              className="block text-sm font-medium text-storm mb-1"
+              className="font-caption block text-sm text-storm mb-1"
             >
               Email
             </label>
@@ -236,7 +236,7 @@ export default function SignupModal({
           <div>
             <label
               htmlFor="phone"
-              className="block text-sm font-medium text-storm mb-1"
+              className="font-caption block text-sm text-storm mb-1"
             >
               Phone
             </label>
@@ -250,7 +250,7 @@ export default function SignupModal({
               style={{ boxShadow: "0 1px 3px 0 rgb(0 0 0 / 0.06)" }}
             />
           </div>
-          <p className="text-mist text-xs">* Email or phone required</p>
+          <p className="font-caption text-mist text-xs">* Email or phone required</p>
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
 
@@ -273,7 +273,7 @@ export default function SignupModal({
               }}
             >
               <span
-                className="absolute inset-0 flex items-center justify-center font-display font-semibold text-lg text-white pointer-events-none"
+                className="absolute inset-0 flex items-center justify-center font-subheadline text-lg text-white pointer-events-none"
                 style={{ color: cloud.joinTextHex ?? "#ffffff" }}
               >
                 {loading ? "Joining…" : "Ascend"}

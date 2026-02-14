@@ -12,7 +12,7 @@ export default function StorySection() {
         viewport={{ once: true }}
         transition={{ duration: 0.8 }}
       >
-        <p className="font-display text-storm/80 text-xl sm:text-2xl md:text-3xl leading-relaxed">
+        <p className="font-subheadline text-storm/80 text-xl sm:text-2xl md:text-3xl leading-relaxed">
           Where breath meets movement. Where the mist holds space for what you
           become.
         </p>

@@ -1,18 +1,5 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Inter } from "next/font/google";
 import "@/styles/globals.css";
-
-const playfair = Playfair_Display({
-  variable: "--font-playfair",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Leo Mây | Climb the Clouds. Build a Culture.",
@@ -25,8 +12,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${playfair.variable} ${inter.variable}`}>
+    <html lang="en">
       <head>
+        <link rel="preload" href="/fonts/MiSans-Bold.ttf" as="font" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/MiSans-Regular.ttf" as="font" crossOrigin="anonymous" />
         <link rel="preload" href="/brand/ip-climbing-on-hold.svg" as="image" />
         <link rel="preload" href="/brand/ip-on-cloud.svg" as="image" />
         <link rel="preload" href="/brand/cloud-with-eyes.svg" as="image" />

@@ -12,7 +12,7 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
       {/* Grouped: Headline → CTA → IP in one glance */}
       <div className="flex flex-col items-center w-full max-w-lg mx-auto">
         <motion.h2
-          className="text-center text-white/80 text-lg sm:text-xl md:text-2xl font-display"
+          className="font-subheadline text-center text-white/80 text-lg sm:text-xl md:text-2xl"
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2, margin: "-80px" }}
@@ -40,7 +40,7 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
               alt=""
               className="absolute inset-0 w-full h-full object-contain object-center pointer-events-none"
             />
-            <span className="relative z-10 font-display font-semibold text-lg sm:text-xl md:text-2xl text-storm text-center px-8 whitespace-nowrap">
+            <span className="relative z-10 font-subheadline text-lg sm:text-xl md:text-2xl text-storm text-center px-8 whitespace-nowrap">
               Ascend
             </span>
           </button>

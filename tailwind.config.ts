@@ -15,8 +15,15 @@ const config: Config = {
         accent: "#F4A261",
       },
       fontFamily: {
-        display: ["var(--font-playfair)", "Georgia", "serif"],
-        sans: ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
+        headline: ["MiSans-Bold", "sans-serif"],
+        subheadline: ["MiSans-Semibold", "sans-serif"],
+        body: ["MiSans-Regular", "sans-serif"],
+        caption: ["MiSans-Light", "sans-serif"],
+        display: ["MiSans-Bold", "sans-serif"],
+        sans: ["MiSans-Regular", "sans-serif"],
+      },
+      letterSpacing: {
+        headline: "-0.5px",
       },
       animation: {
         fog: "fogDrift 45s ease-in-out infinite",

@@ -62,11 +62,11 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
               <CloudIconByType cloudId={cloud.id} className="w-14 h-14 sm:w-16 sm:h-16" />
             </div>
             <div className="flex flex-col items-center gap-2">
-              <span className="font-display text-lg sm:text-xl font-medium text-center" style={{ color: accent }}>
+              <span className="font-subheadline text-lg sm:text-xl text-center" style={{ color: accent }}>
                 {cloud.name}
               </span>
               <span
-                className="font-display text-sm text-center tracking-[0.5px]"
+                className="font-body text-sm text-center tracking-[0.5px]"
                 style={{ color: accent, opacity: 0.8 }}
               >
                 {cloud.nameEn}
@@ -86,8 +86,8 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
             boxShadow,
           }}
         >
-          <p
-            className="text-center text-sm sm:text-base lg:text-[15px] leading-[1.6] flex-1 px-3 py-2 flex items-center justify-center overflow-visible"
+            <p
+            className="font-body text-center text-sm sm:text-base lg:text-[15px] leading-[1.6] flex-1 px-3 py-2 flex items-center justify-center overflow-visible"
             style={{ color: cloud.storyHex }}
           >
             {cloud.story}
@@ -110,8 +110,8 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
               }}
             >
               <span className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 pointer-events-none" style={{ color: cloud.joinTextHex ?? "#ffffff" }}>
-                <span className="font-display font-semibold text-sm">Join</span>
-                <span className="font-display font-semibold text-sm">{cloud.name}</span>
+                <span className="font-subheadline text-sm">Join</span>
+                <span className="font-subheadline text-sm">{cloud.name}</span>
               </span>
             </button>
           </div>

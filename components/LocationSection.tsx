@@ -12,13 +12,13 @@ export default function LocationSection() {
         viewport={{ once: true, margin: "-100px" }}
         transition={{ duration: 0.8, ease: "easeOut" }}
       >
-        <p className="text-sm sm:text-base tracking-wide uppercase mb-3" style={{ color: "#00CB4D" }}>
+        <p className="font-caption text-sm sm:text-base tracking-wide uppercase mb-3" style={{ color: "#00CB4D" }}>
           Coming to
         </p>
-        <h2 className="font-display text-4xl sm:text-5xl md:text-6xl font-light text-white tracking-tight leading-tight">
+        <h2 className="font-headline text-4xl sm:text-5xl md:text-6xl text-white tracking-headline leading-tight">
           Ho Chi Minh City
         </h2>
-        <p className="mt-4 text-white/80 text-lg sm:text-xl">
+        <p className="font-body mt-4 text-white/80 text-lg sm:text-xl">
           Vietnam · 2026
         </p>
       </motion.div>
