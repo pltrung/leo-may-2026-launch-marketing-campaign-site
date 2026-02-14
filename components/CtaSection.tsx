@@ -8,9 +8,12 @@ interface CtaSectionProps {
 
 export default function CtaSection({ onJoin }: CtaSectionProps) {
   return (
-    <section className="min-h-[100vh] flex flex-col items-center justify-center px-6 py-12 md:py-16 pt-[120px] md:pt-24 pb-20">
-      {/* Grouped: "Climb your way." + Ascend + IP — visible together at bottom scroll */}
-      <div className="flex flex-col items-center w-full max-w-lg mx-auto">
+    <section
+      id="final-cta"
+      className="relative h-screen min-h-[100dvh] flex flex-col px-6 pt-[140px] md:pt-24 pb-24"
+    >
+      {/* Vertically centered block: title + CTA (flex-1 centers in remaining space below logo clearance) */}
+      <div className="flex-1 flex flex-col items-center justify-center w-full max-w-lg mx-auto min-h-0">
         <motion.h2
           className="font-headline text-center text-white text-2xl sm:text-3xl md:text-4xl tracking-headline"
           initial={{ opacity: 0, y: 14 }}
@@ -21,7 +24,6 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
           Climb your way.
         </motion.h2>
 
-        {/* Tight spacing: text visually close to Ascend button */}
         <motion.div
           className="flex justify-center w-full mt-5 md:mt-6"
           initial={{ opacity: 0, y: 14 }}
@@ -45,26 +47,26 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
             </span>
           </button>
         </motion.div>
-
-        {/* IP-on-cloud: lowered for balance, reduced size */}
-        <motion.div
-          className="flex items-center justify-center w-[45%] max-w-[240px] aspect-square mx-auto mt-6 md:mt-8"
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.1, margin: "-80px" }}
-          transition={{ duration: 0.6, delay: 0.15 }}
-          aria-hidden
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/brand/ip-on-cloud.svg"
-            alt=""
-            className="w-full h-full object-contain animate-ip-bounce"
-            loading="eager"
-            fetchPriority="high"
-          />
-        </motion.div>
       </div>
+
+      {/* IP on cloud: anchored near bottom */}
+      <motion.div
+        className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[45%] max-w-[220px] aspect-square flex items-center justify-center pointer-events-none"
+        initial={{ opacity: 0, y: 16 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.1, margin: "-80px" }}
+        transition={{ duration: 0.6, delay: 0.15 }}
+        aria-hidden
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/brand/ip-on-cloud.svg"
+          alt=""
+          className="w-full h-full object-contain animate-ip-bounce"
+          loading="eager"
+          fetchPriority="high"
+        />
+      </motion.div>
     </section>
   );
 }

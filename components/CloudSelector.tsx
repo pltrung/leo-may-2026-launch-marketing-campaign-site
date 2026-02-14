@@ -25,7 +25,7 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
     >
       {/* Logo: fixed, smaller on mobile */}
       <div className="fixed top-0 left-0 p-4 z-30 md:pl-10 md:pt-8">
-        <Logo className="w-[110px] md:w-[220px] max-w-[110px] md:max-w-none h-auto object-contain object-left" />
+        <Logo className="w-[88px] md:w-[220px] max-w-[88px] md:max-w-none h-auto object-contain object-left" />
       </div>
 
       {/* Heading: 32px mobile, 40px from logo, center */}

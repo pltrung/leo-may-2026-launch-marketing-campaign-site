@@ -86,6 +86,13 @@
   animation: cloudFloat 14s ease-in-out infinite;
 }
 
+/* Delay background float until after hero sequence so first paint is static */
+.animate-cloud-float-delayed {
+  animation: cloudFloat 14s ease-in-out infinite;
+  animation-delay: 3s;
+  animation-fill-mode: backwards;
+}
+
 @keyframes ipWalk {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(0); }
