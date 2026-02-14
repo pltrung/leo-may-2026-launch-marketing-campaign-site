@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { CloudPersonality } from "@/lib/cloudData";
 
@@ -10,16 +11,34 @@ interface SignupModalProps {
   onSuccess: () => void;
 }
 
+interface ConfirmationData {
+  position: number;
+  teamCount: number;
+  totalCount: number;
+  percentage: number;
+}
+
 export default function SignupModal({
   cloud,
   onClose,
   onSuccess,
 }: SignupModalProps) {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [confirmation, setConfirmation] = useState<ConfirmationData | null>(null);
+
+  useEffect(() => {
+    if (!confirmation) return;
+    const t = setTimeout(() => {
+      onSuccess();
+      router.push("/countdown");
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [confirmation, onSuccess, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +58,7 @@ export default function SignupModal({
       const res = await fetch("/api/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        body: JSON.stringify({
           name: name.trim(),
           email: email.trim() || undefined,
           phone: phone.trim() || undefined,
@@ -51,8 +70,12 @@ export default function SignupModal({
       if (!res.ok) {
         throw new Error(data.error || "Something went wrong");
       }
-      onSuccess();
-      onClose();
+      setConfirmation({
+        position: data.position,
+        teamCount: data.teamCount,
+        totalCount: data.totalCount,
+        percentage: data.percentage,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -62,98 +85,197 @@ export default function SignupModal({
 
   if (!cloud) return null;
 
-  return (
-    <motion.div
+  const accent = cloud.accentHex;
+
+  // Confirmation screen
+  if (confirmation) {
+    return (
+      <motion.div
         className="fixed inset-0 z-50 flex items-center justify-center p-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        onClick={onClose}
       >
         <div
           className="absolute inset-0 bg-storm/40 backdrop-blur-sm"
           aria-hidden
         />
         <motion.div
-          className="relative w-full max-w-md bg-cloud rounded-2xl shadow-xl p-8 border-t-4"
-          style={{ borderTopColor: cloud.accentHex }}
+          className="relative w-full max-w-md rounded-2xl shadow-2xl p-8 text-center"
+          style={{
+            backgroundColor: "rgba(255,255,255,0.92)",
+            backdropFilter: "blur(12px)",
+          }}
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.98 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-mist hover:text-storm rounded-full transition-colors"
-            aria-label="Close"
+          <h3
+            className="font-display text-2xl sm:text-3xl font-light mb-4"
+            style={{ color: accent }}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+            Welcome to Team {cloud.name}.
+          </h3>
+          <p className="text-storm text-lg mb-2">
+            You are #{confirmation.position} in the waitlist.
+          </p>
+          <p className="text-storm/80 text-base mb-6">
+            {confirmation.percentage}% of members chose this cloud.
+          </p>
+          <p className="text-mist text-sm">
+            Stay tuned. Something is forming in the clouds.
+          </p>
+          <p className="text-mist text-xs mt-4">Redirecting in 4 seconds…</p>
+        </motion.div>
+      </motion.div>
+    );
+  }
 
-          <h3 className="font-display text-xl text-storm mb-1">{cloud.name}</h3>
-          <p className="text-mist text-sm mb-6">{cloud.mood}</p>
+  // Form screen
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <div
+        className="absolute inset-0 bg-storm/40 backdrop-blur-sm"
+        aria-hidden
+      />
+      <motion.div
+        className="relative w-full max-w-md rounded-2xl shadow-2xl p-8"
+        style={{
+          backgroundColor: "rgba(255,255,255,0.92)",
+          backdropFilter: "blur(12px)",
+          borderTop: `4px solid ${accent}`,
+        }}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.98 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full transition-colors hover:opacity-80"
+          style={{ color: accent }}
+          aria-label="Close"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-storm mb-1">
-                Name *
-              </label>
-              <input
-                id="name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your name"
-                className="w-full px-4 py-3 rounded-xl border border-mist/60 focus:border-sage focus:outline-none focus:ring-1 focus:ring-sage/30 transition-colors"
-                required
-              />
-            </div>
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-storm mb-1">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full px-4 py-3 rounded-xl border border-mist/60 focus:border-sage focus:outline-none focus:ring-1 focus:ring-sage/30 transition-colors"
-              />
-            </div>
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-storm mb-1">
-                Phone
-              </label>
-              <input
-                id="phone"
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+84 xxx xxx xxx"
-                className="w-full px-4 py-3 rounded-xl border border-mist/60 focus:border-sage focus:outline-none focus:ring-1 focus:ring-sage/30 transition-colors"
-              />
-            </div>
-            <p className="text-mist text-xs">* Email or phone required</p>
+        <h3
+          className="font-display text-xl sm:text-2xl font-light mb-1"
+          style={{ color: accent }}
+        >
+          You are about to join Team {cloud.name}.
+        </h3>
+        <p className="text-storm/80 text-sm mb-6">
+          Fill in your place with the team.
+        </p>
 
-            {error && (
-              <p className="text-red-500 text-sm">{error}</p>
-            )}
+        <form onSubmit={handleSubmit} className="space-y-4" style={{ ["--accent" as string]: accent } as React.CSSProperties}>
+          <div>
+            <label
+              htmlFor="name"
+              className="block text-sm font-medium text-storm mb-1"
+            >
+              Name *
+            </label>
+            <input
+              id="name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Your name"
+              className="w-full px-4 py-3 rounded-xl bg-white border border-mist/40 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-1 focus:border-[var(--accent)] transition-all"
+              style={{ boxShadow: "0 1px 3px 0 rgb(0 0 0 / 0.06)" }}
+              required
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-storm mb-1"
+            >
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="w-full px-4 py-3 rounded-xl bg-white border border-mist/40 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-1 focus:border-[var(--accent)] transition-all"
+              style={{ boxShadow: "0 1px 3px 0 rgb(0 0 0 / 0.06)" }}
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="phone"
+              className="block text-sm font-medium text-storm mb-1"
+            >
+              Phone
+            </label>
+            <input
+              id="phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+84 xxx xxx xxx"
+              className="w-full px-4 py-3 rounded-xl bg-white border border-mist/40 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-1 focus:border-[var(--accent)] transition-all"
+              style={{ boxShadow: "0 1px 3px 0 rgb(0 0 0 / 0.06)" }}
+            />
+          </div>
+          <p className="text-mist text-xs">* Email or phone required</p>
 
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+
+          {/* Cloud-shaped Join button */}
+          <div className="pt-2 flex justify-center">
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 rounded-xl hover:opacity-90 disabled:opacity-50 font-medium transition-colors"
-              style={{ backgroundColor: cloud.accentHex, color: cloud.joinTextHex ?? "#ffffff" }}
+              className="relative flex items-center justify-center min-w-[200px] min-h-[72px] px-8 py-4 hover:-translate-y-0.5 disabled:hover:translate-y-0 disabled:opacity-50 transition-all duration-200 border-0 cursor-pointer"
+              style={{
+                backgroundColor: accent,
+                maskImage: "url('/brand/cloud-blue.svg')",
+                maskSize: "contain",
+                maskRepeat: "no-repeat",
+                maskPosition: "center",
+                WebkitMaskImage: "url('/brand/cloud-blue.svg')",
+                WebkitMaskSize: "contain",
+                WebkitMaskRepeat: "no-repeat",
+                WebkitMaskPosition: "center",
+              }}
             >
-              {loading ? "Joining…" : "Join Waitlist"}
+              <span
+                className="absolute inset-0 flex items-center justify-center font-display font-semibold text-lg text-white pointer-events-none"
+                style={{ color: cloud.joinTextHex ?? "#ffffff" }}
+              >
+                {loading ? "Joining…" : "Join the Movement"}
+              </span>
             </button>
-          </form>
-        </motion.div>
+          </div>
+        </form>
       </motion.div>
+    </motion.div>
   );
 }

@@ -43,7 +43,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ ok: true });
+    // Fetch total count and team count for confirmation
+    const [totalRes, teamRes] = await Promise.all([
+      supabase.from("waitlist").select("id", { count: "exact", head: true }),
+      supabase
+        .from("waitlist")
+        .select("id", { count: "exact", head: true })
+        .eq("cloud_type", cloud_type.trim()),
+    ]);
+
+    const totalCount = totalRes.count ?? 0;
+    const teamCount = teamRes.count ?? 0;
+    const position = totalCount; // New user is last
+    const percentage =
+      totalCount > 0 ? Math.round((teamCount / totalCount) * 100) : 100;
+
+    return NextResponse.json({
+      ok: true,
+      position,
+      teamCount,
+      totalCount,
+      percentage,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("Waitlist API error:", err);

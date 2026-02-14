@@ -41,22 +41,48 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
         </div>
       </div>
 
-      {/* Mobile: single column, no horizontal scroll, 24px between cards, full width minus padding */}
-      <div className="md:hidden w-full flex flex-col items-center gap-6 mt-10">
-        {clouds.map((cloud) => (
-          <div key={cloud.id} className="w-full flex justify-center px-0">
-            <CloudCard cloud={cloud} onJoin={onSelect} />
-          </div>
-        ))}
+      {/* Mobile: horizontal scroll with bounce hint */}
+      <div className="md:hidden w-full px-2 pb-4 mt-10">
+        <div className="flex gap-6 overflow-x-auto overflow-y-visible pb-4 snap-x snap-mandatory scroll-smooth scrollbar-hide -mx-2 px-2">
+          {clouds.map((cloud) => (
+            <div
+              key={cloud.id}
+              className="flex-shrink-0 w-[200px] snap-center flex justify-center"
+            >
+              <CloudCard cloud={cloud} onJoin={onSelect} />
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-center mt-2" aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/arrow-right.svg"
+            alt=""
+            className="w-8 h-auto animate-bounce object-contain"
+          />
+        </div>
       </div>
 
-      {/* Desktop: grid - equal height, aligned */}
-      <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-10 lg:gap-x-10 lg:gap-y-12 max-w-4xl w-full mx-auto justify-items-center items-stretch overflow-visible">
-        {clouds.map((cloud) => (
-          <div key={cloud.id} className="flex justify-center items-center w-full max-w-[200px]">
-            <CloudCard cloud={cloud} onJoin={onSelect} />
-          </div>
-        ))}
+      {/* Desktop: grid with scroll hint */}
+      <div className="hidden md:block w-full mt-10">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-10 lg:gap-x-10 lg:gap-y-12 max-w-4xl w-full mx-auto justify-items-center items-stretch overflow-visible">
+          {clouds.map((cloud) => (
+            <div
+              key={cloud.id}
+              className="flex justify-center items-center w-full max-w-[200px]"
+            >
+              <CloudCard cloud={cloud} onJoin={onSelect} />
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-center mt-6" aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/arrow-right.svg"
+            alt=""
+            className="w-8 h-auto animate-bounce object-contain"
+          />
+        </div>
       </div>
     </section>
   );
