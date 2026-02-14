@@ -50,7 +50,6 @@ export default function Home() {
               <LocationSection />
               <IpShowcaseSection pose="front" />
               <PhilosophySection />
-              <IpShowcaseSection pose="back" />
               <CtaSection onJoin={() => setShowClouds(true)} />
             </>
           ) : (

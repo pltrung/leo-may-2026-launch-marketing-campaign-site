@@ -26,6 +26,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${playfair.variable} ${inter.variable}`}>
+      <head>
+        <link rel="preload" href="/brand/ip-climbing-on-hold.svg" as="image" />
+        <link rel="preload" href="/brand/ip-on-cloud.svg" as="image" />
+        <link rel="preload" href="/brand/cloud-with-eyes.svg" as="image" />
+        <link rel="preload" href="/leo-may-ip.png" as="image" />
+      </head>
       <body className="min-h-screen antialiased overflow-x-hidden">{children}</body>
     </html>
   );

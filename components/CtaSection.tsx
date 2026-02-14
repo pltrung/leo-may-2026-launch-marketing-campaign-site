@@ -1,19 +1,42 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useInView } from "framer-motion";
+import { useRef, useState, useEffect } from "react";
 
 interface CtaSectionProps {
   onJoin: () => void;
 }
 
 export default function CtaSection({ onJoin }: CtaSectionProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { amount: 0.1, margin: "0px 0px 80px 0px" });
+  const [loaded, setLoaded] = useState(false);
+  const [fallbackInView, setFallbackInView] = useState(false);
+
+  useEffect(() => {
+    if (isInView) return;
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!ref.current) return;
+        const rect = ref.current.getBoundingClientRect();
+        const inView = rect.top < window.innerHeight * 0.85 && rect.bottom > -50;
+        if (inView) setFallbackInView(true);
+      });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [isInView]);
+
+  const visible = isInView || fallbackInView;
+
   return (
-    <section className="min-h-screen h-screen flex flex-col items-center justify-center px-6">
+    <section
+      ref={ref}
+      className="min-h-screen flex flex-col items-center justify-between px-6 py-16"
+    >
       <motion.div
-        className="text-center max-w-lg mx-auto flex flex-col items-center w-full"
+        className="text-center max-w-lg mx-auto flex flex-col items-center w-full flex-1 flex justify-center"
         initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true, margin: "-100px" }}
+        animate={{ opacity: visible ? 1 : 0 }}
         transition={{ duration: 0.7 }}
       >
         <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-light text-white tracking-tight">
@@ -37,6 +60,25 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
             Join the Movement
           </span>
         </button>
+      </motion.div>
+
+      {/* Cloud with eyes - bottom, above footer */}
+      <motion.div
+        className="flex items-center justify-center w-full max-w-[520px] sm:max-w-[580px] mx-auto pb-8 animate-ip-bounce"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: visible && loaded ? 1 : 0 }}
+        transition={{ duration: 0.6, delay: 0.2 }}
+        aria-hidden
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/brand/cloud-with-eyes.svg"
+          alt=""
+          className="w-full h-auto object-contain"
+          loading="eager"
+          fetchPriority="high"
+          onLoad={() => setLoaded(true)}
+        />
       </motion.div>
     </section>
   );

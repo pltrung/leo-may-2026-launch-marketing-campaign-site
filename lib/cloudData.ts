@@ -20,6 +20,10 @@ export interface CloudPersonality {
   accentClass: string;
   /** Hex for border/accent (e.g. #7eb8e8) */
   accentHex: string;
+  /** Brighter hex for neon glow that pops on blue background */
+  glowHex: string;
+  /** Text color for Join button - must contrast with blue cloud */
+  joinTextHex: string;
 }
 
 export const clouds: CloudPersonality[] = [
@@ -34,6 +38,8 @@ export const clouds: CloudPersonality[] = [
     textClass: "text-[#b8d4f0]",
     accentClass: "bg-[#7eb8e8]",
     accentHex: "#7eb8e8",
+    glowHex: "#5eb8ff",
+    joinTextHex: "#ffffff",
   },
   {
     id: "suong_mu",
@@ -46,6 +52,8 @@ export const clouds: CloudPersonality[] = [
     textClass: "text-[#d1d5db]",
     accentClass: "bg-[#9ba5ad]",
     accentHex: "#9ba5ad",
+    glowHex: "#c8d4e0",
+    joinTextHex: "#ffffff",
   },
   {
     id: "giong",
@@ -57,6 +65,8 @@ export const clouds: CloudPersonality[] = [
     textClass: "text-white",
     accentClass: "bg-[#3b5998]",
     accentHex: "#3b5998",
+    glowHex: "#8ab4ff",
+    joinTextHex: "#ffffff",
   },
   {
     id: "ho_may",
@@ -69,6 +79,8 @@ export const clouds: CloudPersonality[] = [
     textClass: "text-[#e5e5e4]",
     accentClass: "bg-[#8b8b8a]",
     accentHex: "#8b8b8a",
+    glowHex: "#b8a88a",
+    joinTextHex: "#ffffff",
   },
   {
     id: "cau_vong",
@@ -80,6 +92,8 @@ export const clouds: CloudPersonality[] = [
     textClass: "text-[#f5e6c8]",
     accentClass: "bg-[#e6b84a]",
     accentHex: "#e6b84a",
+    glowHex: "#ffd966",
+    joinTextHex: "#1a1508",
   },
   {
     id: "gio",
@@ -92,5 +106,7 @@ export const clouds: CloudPersonality[] = [
     textClass: "text-[#c5d9c4]",
     accentClass: "bg-[#6b8c68]",
     accentHex: "#6b8c68",
+    glowHex: "#88dd88",
+    joinTextHex: "#ffffff",
   },
 ];

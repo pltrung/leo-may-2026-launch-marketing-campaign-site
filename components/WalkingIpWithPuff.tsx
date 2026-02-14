@@ -58,6 +58,8 @@ export default function WalkingIpWithPuff({ puffKey }: WalkingIpWithPuffProps) {
         src={imgSrc}
         alt=""
         className="hidden"
+        loading="eager"
+        fetchPriority="high"
         onLoad={() => setLoaded(true)}
         onError={() => setErrored(true)}
       />

@@ -24,11 +24,12 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
   };
 
   const defaultShadow = "0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06)";
-  const hoverGlow = isHovered ? `0 0 25px ${cloud.accentHex}50` : "";
+  const glowColor = cloud.glowHex ?? cloud.accentHex;
+  const hoverGlow = isHovered ? `0 0 28px ${glowColor}70, 0 0 45px ${glowColor}40` : "";
   const activeGlow = isActive
-    ? `0 0 35px ${cloud.accentHex}40, 0 4px 20px ${cloud.accentHex}30`
+    ? `0 0 35px ${glowColor}60, 0 0 55px ${glowColor}35`
     : "";
-  const borderColor = isHovered || isActive ? cloud.accentHex : "transparent";
+  const borderColor = isHovered || isActive ? glowColor : "rgba(255,255,255,0.5)";
   const boxShadow = [defaultShadow, hoverGlow, activeGlow].filter(Boolean).join(", ");
   const baseCardClass =
     "absolute inset-0 w-full h-full rounded-2xl flex flex-col items-center justify-center p-6 bg-white/90 border-2 transition-all duration-200";
@@ -95,7 +96,7 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
             />
             <span
               className="relative z-10 font-display font-semibold text-sm sm:text-base text-center leading-tight"
-              style={{ color: cloud.accentHex }}
+              style={{ color: cloud.joinTextHex ?? cloud.accentHex }}
             >
               {cloud.joinLabel}
             </span>
