@@ -13,7 +13,6 @@ const IMAGE_MAP: Record<string, string> = {
 };
 
 export default function IpShowcaseSection({ pose }: IpShowcaseSectionProps) {
-  const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
 
   if (errored) return null;
@@ -25,7 +24,7 @@ export default function IpShowcaseSection({ pose }: IpShowcaseSectionProps) {
       <motion.div
         className="flex items-center justify-center w-[70%] max-w-[400px] aspect-square pointer-events-none"
         initial={{ opacity: 0, y: 16 }}
-        whileInView={{ opacity: loaded ? 1 : 0, y: 0 }}
+        whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: false, amount: 0.1, margin: "-80px" }}
         transition={{ duration: 0.6 }}
         aria-hidden
@@ -37,7 +36,6 @@ export default function IpShowcaseSection({ pose }: IpShowcaseSectionProps) {
           className="w-full h-full object-contain animate-ip-bounce"
           loading="eager"
           fetchPriority="high"
-          onLoad={() => setLoaded(true)}
           onError={() => setErrored(true)}
         />
       </motion.div>

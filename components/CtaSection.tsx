@@ -36,9 +36,9 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
         </button>
       </motion.div>
 
-      {/* ip-on-cloud bouncing - last scroll reveal */}
+      {/* ip-on-cloud bouncing - last scroll reveal, close to footer */}
       <motion.div
-        className="flex items-center justify-center w-[60%] max-w-[340px] aspect-square mx-auto pb-8"
+        className="flex items-center justify-center w-[60%] max-w-[340px] aspect-square mx-auto pb-1"
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.1, margin: "-80px" }}
