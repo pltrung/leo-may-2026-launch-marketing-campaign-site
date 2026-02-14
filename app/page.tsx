@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import FogBackground from "@/components/FogBackground";
-import ClimbingHoldsBackground from "@/components/ClimbingHoldsBackground";
+import BrandBackground from "@/components/BrandBackground";
 import HeroSection from "@/components/HeroSection";
 import LocationSection from "@/components/LocationSection";
 import PhilosophySection from "@/components/PhilosophySection";
@@ -29,8 +28,7 @@ export default function Home() {
 
   return (
     <main className="relative min-h-screen z-10">
-      <FogBackground reducedNoise={showClouds} />
-      <ClimbingHoldsBackground />
+      <BrandBackground />
       <AnimatePresence mode="wait">
         <motion.div
           key={showClouds ? "clouds" : "hero"}

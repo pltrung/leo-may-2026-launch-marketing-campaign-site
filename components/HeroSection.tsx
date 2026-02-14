@@ -52,7 +52,12 @@ export default function HeroSection() {
       >
         <div className="flex flex-col items-center gap-2">
           <span className="text-mist/60 text-xs tracking-widest uppercase">Scroll</span>
-          <div className="w-px h-8 bg-mist/40 rounded-full animate-pulse" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/arrow-up.svg"
+            alt=""
+            className="w-8 h-auto animate-bounce object-contain"
+          />
         </div>
       </motion.div>
     </section>

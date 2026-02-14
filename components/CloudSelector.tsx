@@ -9,24 +9,6 @@ interface CloudSelectorProps {
   onSelect: (cloud: CloudPersonality) => void;
 }
 
-function DecorativeHold({ x, y, delay, className }: { x: string; y: string; delay: number; className?: string }) {
-  return (
-    <div
-      className={`absolute w-6 h-6 opacity-50 animate-hold-float pointer-events-none ${className ?? ""}`}
-      style={{
-        left: x,
-        top: y,
-        animationDelay: `-${delay}s`,
-        animationDuration: `${6 + delay}s`,
-      }}
-    >
-      <svg viewBox="0 0 24 24" fill="currentColor" className="text-storm/50">
-        <ellipse cx="12" cy="12" rx="8" ry="6" />
-      </svg>
-    </div>
-  );
-}
-
 export default function CloudSelector({ onSelect }: CloudSelectorProps) {
   return (
     <section
@@ -39,12 +21,7 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
       </div>
 
       <div className="relative flex flex-col items-center mb-16 mt-16 py-4 px-6">
-        <DecorativeHold x="-12px" y="-8px" delay={0} />
-        <DecorativeHold x="calc(100% + 8px)" y="-4px" delay={1} />
-        <DecorativeHold x="-8px" y="calc(100% + 4px)" delay={2} />
-        <DecorativeHold x="calc(100% + 12px)" y="calc(100% + 8px)" delay={0.5} />
-        <DecorativeHold x="50%" y="-16px" delay={1.5} className="-translate-x-1/2" />
-        <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-light text-center mt-8 text-storm max-w-2xl px-4">
+        <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-light text-center text-storm max-w-2xl px-4">
           What type of cloud are you?
         </h2>
       </div>

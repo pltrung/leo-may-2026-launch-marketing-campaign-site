@@ -2,11 +2,19 @@
 
 import { useState } from "react";
 import { CloudPersonality } from "@/lib/cloudData";
-import CloudIconByType from "./CloudIcons";
+import Image from "next/image";
 
 interface CloudCardProps {
   cloud: CloudPersonality;
   onJoin: (cloud: CloudPersonality) => void;
+}
+
+/** Use cloud-blue.svg for blue-accent clouds, cloud.svg for others */
+function getCloudSvg(cloud: CloudPersonality): string {
+  const blueClouds: string[] = ["may_nhe", "giong"];
+  return blueClouds.includes(cloud.id)
+    ? "/brand/cloud-blue.svg"
+    : "/brand/cloud.svg";
 }
 
 export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
@@ -57,8 +65,14 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
             boxShadow: activeShadow,
           }}
         >
-          <div className="mb-4 text-storm/80">
-            <CloudIconByType cloudId={cloud.id} className="w-14 h-14 sm:w-16 sm:h-16" />
+          <div className="mb-4 flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16">
+            <Image
+              src={getCloudSvg(cloud)}
+              alt=""
+              width={64}
+              height={64}
+              className="w-full h-full object-contain"
+            />
           </div>
           <span className="font-display text-xl sm:text-2xl font-medium text-storm">
             {cloud.name}

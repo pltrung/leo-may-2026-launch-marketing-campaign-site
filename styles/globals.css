@@ -28,6 +28,15 @@
   animation: holdFloatSubtle 10s ease-in-out infinite;
 }
 
+@keyframes holdsLayerFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.animate-holds-layer {
+  animation: holdsLayerFloat 12s ease-in-out infinite;
+}
+
 @keyframes breathe {
   0%, 100% { transform: translate(-50%, -50%) scale(1); }
   50% { transform: translate(-50%, -50%) scale(1.03); }
