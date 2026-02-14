@@ -83,117 +83,122 @@ export default function CountdownPage() {
         <img src="/brand/holds.svg" alt="" className="w-full h-full object-cover" />
       </div>
 
-      <div className="flex flex-col items-center justify-between w-full max-w-md mx-auto h-full py-1 sm:py-2 overflow-hidden gap-0.5 sm:gap-1">
-        {/* 1. Hi [Name] + Team */}
-        <div className="text-center shrink-0">
-          <p className="font-body text-white/90 text-sm sm:text-base">
+      <div className="flex flex-col items-center w-full max-w-lg mx-auto h-full pt-6 pb-5 overflow-hidden gap-5 sm:gap-6">
+        {/* 1. Greeting + 2. Team identity + icon (attached) */}
+        <div className="shrink-0 text-center">
+          <p className="font-body text-white/90 text-[1rem] sm:text-[1.1rem]">
             Hi {firstName},
           </p>
-          <p className="font-subheadline text-white text-sm sm:text-base">
-            You joined: <span style={{ color: accent }}>Team {cloud.name} — {cloud.nameEn}</span>
+          <p className="font-headline text-white text-[1.2rem] sm:text-[1.4rem] tracking-headline mt-1">
+            You joined: <span style={{ color: accent }}>Team {cloud.name}</span>
           </p>
+          <p className="font-medium text-white/90 text-[0.95rem] sm:text-[1rem] mt-0.5" style={{ borderBottom: `2px solid ${accent}`, display: "inline-block", paddingBottom: 2 }}>
+            {cloud.nameEn}
+          </p>
+          {/* Team icon: 12px below headline, 28–36px */}
           <div
-            className="h-0.5 w-12 mx-auto mt-1 rounded-full"
-            style={{ backgroundColor: accent, opacity: 0.8 }}
-          />
+            className="mt-3 flex justify-center animate-pulse"
+            style={{ color: accent }}
+          >
+            <CloudIconByType cloudId={cloud.id} className="w-[28px] h-[28px] sm:w-[36px] sm:h-[36px]" />
+          </div>
         </div>
 
-        {/* 2. Team icon (minimal animation) */}
-        <div
-          className="shrink-0 w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center animate-pulse"
-          style={{ color: accent }}
-        >
-          <CloudIconByType cloudId={cloud.id} className="w-full h-full" />
-        </div>
-
-        {/* 3. Logo */}
+        {/* 3. Logo: 160–200px desktop, 120–140px mobile */}
         <div className="shrink-0">
           <img
             src="/logo-white.svg"
             alt="Leo Mây"
-            className="w-[70px] sm:w-[90px] h-auto object-contain"
+            className="w-[120px] sm:w-[140px] md:w-[180px] h-auto object-contain"
           />
         </div>
 
-        {/* 4. IP countdown */}
-        <div className="shrink-0 w-[32%] sm:w-[36%] max-w-[140px]">
+        {/* 4. IP countdown: 220–260px desktop, 160–200px mobile, dominant */}
+        <div className="shrink-0">
           <img
             src="/brand/ip-count-down.svg"
             alt=""
-            className="w-full h-auto object-contain animate-ip-float"
+            className="w-[160px] sm:w-[200px] md:w-[240px] h-auto object-contain animate-ip-float"
           />
         </div>
 
-        {/* 5. Trait (locked/unlocked) */}
-        <div className="shrink-0 text-center px-2">
+        {/* 5. Trait + Progress */}
+        <div className="shrink-0 w-[80%] sm:w-[60%] flex flex-col items-center gap-3">
           <p
-            className="font-caption text-xs sm:text-sm"
+            className="font-caption text-center text-sm"
             style={{ color: traitUnlocked ? accent : "rgba(255,255,255,0.6)" }}
           >
             {traitUnlocked
               ? cloud.traitUnlocked ?? "Your cloud is forming."
               : "Your cloud is forming…"}
           </p>
-        </div>
-
-        {/* 6. Progress bar */}
-        <div className="shrink-0 w-full max-w-[180px]">
-          <div className="h-1.5 rounded-full bg-white/20 overflow-hidden">
+          <div
+            className="w-full h-2 rounded-full overflow-hidden"
+            style={{
+              backgroundColor: "rgba(255,255,255,0.2)",
+              boxShadow: `0 0 12px ${accent}40`,
+            }}
+          >
             <div
               className="h-full rounded-full transition-all duration-500"
               style={{ width: `${progressPct}%`, backgroundColor: accent }}
             />
           </div>
-          <p className="font-caption text-white/70 text-[10px] sm:text-xs text-center mt-0.5">
-            {teamCount} member{teamCount !== 1 ? "s" : ""} · {progressPct}%
+          <p
+            className="font-caption text-[10px] sm:text-xs tracking-widest uppercase"
+            style={{ color: accent, opacity: 0.8 }}
+          >
+            {traitUnlocked
+              ? "100% to unlock cloud trait"
+              : `${100 - progressPct}% to unlock trait`}
           </p>
         </div>
 
-        {/* 7. Share button */}
+        {/* 6. Share button - 16px below progress */}
         <button
           type="button"
           onClick={() => {
             const url = `${typeof window !== "undefined" ? window.location.origin : ""}/?team=${cloud.id}`;
             navigator.clipboard?.writeText(url).then(() => {});
           }}
-          className="shrink-0 px-4 py-2 rounded-full font-subheadline text-xs sm:text-sm border-2 transition-colors hover:opacity-90"
+          className="shrink-0 px-5 py-2.5 rounded-full font-subheadline text-sm border-2 transition-colors hover:opacity-90 -mt-1"
           style={{ borderColor: accent, color: accent }}
         >
           Share your cloud
         </button>
 
-        {/* 8. Countdown */}
-        <div className="flex items-center justify-center gap-0.5 sm:gap-1 shrink-0">
+        {/* 7. Countdown - 24px below share, larger boxes */}
+        <div className="flex items-center justify-center gap-1 sm:gap-2 shrink-0 mt-1">
           {[
             { v: pad(days), l: "D" },
             { v: pad(hours), l: "H" },
             { v: pad(minutes), l: "M" },
             { v: pad(seconds), l: "S" },
           ].map((b, i) => (
-            <div key={b.l} className="flex items-center gap-1">
+            <div key={b.l} className="flex items-center gap-1 sm:gap-2">
               <div
-                className="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg min-w-[38px] sm:min-w-[46px] flex flex-col items-center"
+                className="rounded-xl flex flex-col items-center justify-center min-w-[60px] min-h-[60px] sm:min-w-[70px] sm:min-h-[70px] md:min-w-[84px] md:min-h-[84px]"
                 style={{
                   backgroundColor: "rgba(255,255,255,0.12)",
-                  boxShadow: "0 0 12px rgba(255,255,255,0.1)",
+                  boxShadow: "0 0 20px rgba(255,255,255,0.15)",
                 }}
               >
-                <span className="font-headline text-base sm:text-lg text-white tabular-nums tracking-headline">
+                <span className="font-headline text-2xl sm:text-3xl md:text-4xl text-white tabular-nums tracking-headline">
                   {b.v}
                 </span>
-                <span className="font-caption text-white/60 text-[10px] sm:text-xs">{b.l}</span>
+                <span className="font-caption text-white/60 text-[10px] sm:text-xs mt-0.5">{b.l}</span>
               </div>
-              {i < 3 && <span className="font-headline text-white/40 text-sm -mb-4">:</span>}
+              {i < 3 && <span className="font-headline text-white/40 text-lg sm:text-xl -mb-6">:</span>}
             </div>
           ))}
         </div>
 
-        {/* 9. Ethos */}
-        <div className="shrink-0 text-center">
-          <p className="font-subheadline text-white text-xs sm:text-sm">
+        {/* 8. Ethos */}
+        <div className="shrink-0 text-center mt-auto">
+          <p className="font-subheadline text-white text-sm sm:text-base">
             Climb the Clouds. Build a Culture.
           </p>
-          <p className="font-caption text-white/60 text-[10px] sm:text-xs mt-0.5">Ho Chi Minh City — 2026</p>
+          <p className="font-caption text-white/60 text-xs mt-1">Ho Chi Minh City — 2026</p>
         </div>
       </div>
     </main>
