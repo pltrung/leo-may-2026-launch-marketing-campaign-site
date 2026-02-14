@@ -18,6 +18,7 @@ const config: Config = {
         headline: ["MiSans-Bold", "sans-serif"],
         subheadline: ["MiSans-Semibold", "sans-serif"],
         body: ["MiSans-Regular", "sans-serif"],
+        medium: ["MiSans-Medium", "sans-serif"],
         caption: ["MiSans-Light", "sans-serif"],
         display: ["MiSans-Bold", "sans-serif"],
         sans: ["MiSans-Regular", "sans-serif"],

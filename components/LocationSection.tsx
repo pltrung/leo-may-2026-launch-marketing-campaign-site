@@ -5,23 +5,15 @@ import { motion } from "framer-motion";
 export default function LocationSection() {
   return (
     <section className="relative min-h-screen h-screen flex flex-col items-center justify-center px-6 overflow-hidden pt-[120px] md:pt-24">
-      <motion.div
-        className="text-center max-w-xl mx-auto"
-        initial={{ opacity: 0, y: 24 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-100px" }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
+      <motion.p
+        className="font-subheadline text-center text-2xl sm:text-3xl md:text-4xl text-white/95 max-w-xl mx-auto leading-relaxed"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, margin: "-80px", amount: 0.3 }}
+        transition={{ duration: 0.7, ease: "easeOut" }}
       >
-        <p className="font-caption text-sm sm:text-base tracking-wide uppercase mb-3" style={{ color: "#00CB4D" }}>
-          Coming to
-        </p>
-        <h2 className="font-headline text-4xl sm:text-5xl md:text-6xl text-white tracking-headline leading-tight">
-          Ho Chi Minh City
-        </h2>
-        <p className="font-body mt-4 text-white/80 text-lg sm:text-xl">
-          Vietnam · 2026
-        </p>
-      </motion.div>
+        Coming to Ho Chi Minh City — 2026.
+      </motion.p>
     </section>
   );
 }

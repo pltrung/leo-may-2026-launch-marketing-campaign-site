@@ -8,31 +8,31 @@ interface CtaSectionProps {
 
 export default function CtaSection({ onJoin }: CtaSectionProps) {
   return (
-    <section className="min-h-[115vh] flex flex-col items-center justify-center px-6 py-16 pt-[120px] md:pt-24">
-      {/* Grouped: Headline → CTA → IP in one glance */}
+    <section className="min-h-[100vh] flex flex-col items-center justify-center px-6 py-12 md:py-16 pt-[120px] md:pt-24 pb-20">
+      {/* Grouped: "Climb your way." + Ascend + IP — visible together at bottom scroll */}
       <div className="flex flex-col items-center w-full max-w-lg mx-auto">
         <motion.h2
-          className="font-subheadline text-center text-white/80 text-lg sm:text-xl md:text-2xl"
-          initial={{ opacity: 0, y: 16 }}
+          className="font-headline text-center text-white text-2xl sm:text-3xl md:text-4xl tracking-headline"
+          initial={{ opacity: 0, y: 14 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2, margin: "-80px" }}
-          transition={{ duration: 0.7 }}
+          transition={{ duration: 0.6 }}
         >
-          Be among the first to climb the clouds.
+          Climb your way.
         </motion.h2>
 
-        {/* 24px spacing (desktop), 16px (mobile) */}
+        {/* Tight spacing: text visually close to Ascend button */}
         <motion.div
-          className="flex justify-center w-full mt-4 md:mt-6"
-          initial={{ opacity: 0, y: 16 }}
+          className="flex justify-center w-full mt-5 md:mt-6"
+          initial={{ opacity: 0, y: 14 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2, margin: "-80px" }}
-          transition={{ duration: 0.7, delay: 0.1 }}
+          transition={{ duration: 0.6, delay: 0.08 }}
         >
           <button
             type="button"
             onClick={onJoin}
-            className="relative flex items-center justify-center min-w-[360px] min-h-[110px] sm:min-w-[460px] sm:min-h-[130px] px-12 py-7 hover:opacity-90 transition-opacity duration-200 cursor-pointer border-0 bg-transparent animate-bounce"
+            className="relative flex items-center justify-center min-w-[320px] min-h-[100px] sm:min-w-[420px] sm:min-h-[120px] md:min-w-[460px] md:min-h-[130px] px-12 py-7 hover:opacity-90 transition-opacity duration-200 cursor-pointer border-0 bg-transparent animate-bounce"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -46,13 +46,13 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
           </button>
         </motion.div>
 
-        {/* 40px spacing (desktop), 24px (mobile) */}
+        {/* IP-on-cloud: lowered for balance, reduced size */}
         <motion.div
-          className="flex items-center justify-center w-[60%] max-w-[340px] aspect-square mx-auto mt-6 md:mt-10 pb-8"
-          initial={{ opacity: 0, y: 20 }}
+          className="flex items-center justify-center w-[45%] max-w-[240px] aspect-square mx-auto mt-6 md:mt-8"
+          initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.1, margin: "-80px" }}
-          transition={{ duration: 0.6, delay: 0.2 }}
+          transition={{ duration: 0.6, delay: 0.15 }}
           aria-hidden
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
