@@ -49,7 +49,7 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
       >
         {/* Front */}
         <div
-          className="absolute inset-0 w-full h-full rounded-2xl flex flex-col justify-between p-6 lg:p-10 bg-white/90 border-2 transition-all duration-200"
+          className="absolute inset-0 w-full h-full rounded-2xl flex flex-col justify-between p-5 lg:p-8 bg-white/90 border-2 transition-all duration-200 overflow-hidden"
           style={{
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
@@ -58,18 +58,18 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
           }}
         >
           <div className="flex flex-col items-center justify-center flex-1 min-h-0">
-            <div className="mb-4" style={{ color: accent }}>
-              <CloudIconByType cloudId={cloud.id} className="w-14 h-14 sm:w-16 sm:h-16" />
+            <div className="mb-3" style={{ color: accent }}>
+              <CloudIconByType cloudId={cloud.id} className="w-12 h-12 sm:w-14 sm:h-14" />
             </div>
-            <div className="flex flex-col items-center gap-2">
-              <span className="font-subheadline text-lg sm:text-xl text-center" style={{ color: accent }}>
+            <div className="flex flex-col items-center gap-1">
+              <span className="font-subheadline text-base sm:text-lg text-center leading-tight" style={{ color: accent }}>
                 {cloud.name}
               </span>
               <span
-                className="font-body text-sm text-center tracking-[0.5px]"
-                style={{ color: accent, opacity: 0.8 }}
+                className="font-body text-xs sm:text-sm text-center tracking-[0.5px]"
+                style={{ color: accent, opacity: 0.85 }}
               >
-                {cloud.nameEn}
+                {cloud.shortNameEn ?? cloud.nameEn}
               </span>
             </div>
           </div>
@@ -77,7 +77,7 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
 
         {/* Back */}
         <div
-          className="absolute inset-0 w-full h-full rounded-2xl flex flex-col justify-between p-6 lg:p-10 bg-white/90 border-2 transition-all duration-200"
+          className="absolute inset-0 w-full h-full rounded-2xl flex flex-col justify-between p-5 lg:p-8 bg-white/90 border-2 transition-all duration-200 overflow-hidden"
           style={{
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
@@ -87,7 +87,7 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
           }}
         >
             <p
-            className="font-body text-center text-sm sm:text-base lg:text-[15px] leading-[1.6] flex-1 px-3 py-2 flex items-center justify-center overflow-visible"
+            className="font-body text-center text-xs sm:text-sm leading-[1.5] flex-1 px-2 py-1 flex items-center justify-center overflow-hidden"
             style={{ color: cloud.storyHex }}
           >
             {cloud.story}

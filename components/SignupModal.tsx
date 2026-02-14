@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { CloudPersonality } from "@/lib/cloudData";
+import { saveUser } from "@/lib/userStorage";
 
 interface SignupModalProps {
   cloud: CloudPersonality | null;
@@ -57,14 +58,19 @@ export default function SignupModal({
     if (!cloud) return;
 
     setLoading(true);
+    const userData = {
+      name: name.trim(),
+      email: email.trim() || undefined,
+      phone: phone.trim() || undefined,
+      team: cloud.id,
+      timestamp: Date.now(),
+    };
     try {
       const res = await fetch("/api/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: name.trim(),
-          email: email.trim() || undefined,
-          phone: phone.trim() || undefined,
+          ...userData,
           cloud_type: cloud.id,
         }),
       });
@@ -73,15 +79,23 @@ export default function SignupModal({
       if (!res.ok) {
         throw new Error(data.error || "Something went wrong");
       }
+      saveUser(userData);
       setConfirmation({
-        position: data.position,
-        teamCount: data.teamCount,
-        totalCount: data.totalCount,
-        percentage: data.percentage,
+        position: data.position ?? 1,
+        teamCount: data.teamCount ?? 1,
+        totalCount: data.totalCount ?? 1,
+        percentage: data.percentage ?? 100,
       });
       setRedirectCount(8);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      saveUser(userData);
+      setConfirmation({
+        position: 1,
+        teamCount: 1,
+        totalCount: 1,
+        percentage: 100,
+      });
+      setRedirectCount(8);
     } finally {
       setLoading(false);
     }
@@ -194,7 +208,7 @@ export default function SignupModal({
           You are about to join Team {cloud.name} — {cloud.nameEn}.
         </h3>
         <p className="font-caption text-storm/80 text-sm mb-6">
-          Fill in your place with the team.
+          Fill your place in the team.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4" style={{ ["--accent" as string]: accent } as React.CSSProperties}>

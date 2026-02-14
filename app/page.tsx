@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import BrandBackground from "@/components/BrandBackground";
 import HeroSection from "@/components/HeroSection";
@@ -13,14 +14,22 @@ import CloudSelector from "@/components/CloudSelector";
 import SignupModal from "@/components/SignupModal";
 import Toast from "@/components/Toast";
 import Footer from "@/components/Footer";
+import KnowYourTeamButton from "@/components/KnowYourTeamButton";
 import { CloudPersonality } from "@/lib/cloudData";
+import { getUser } from "@/lib/userStorage";
 
 export default function Home() {
+  const router = useRouter();
   const [showClouds, setShowClouds] = useState(false);
   const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
   const [showToast, setShowToast] = useState(false);
 
   const handleSuccess = () => setShowToast(true);
+
+  useEffect(() => {
+    const user = getUser();
+    if (user) router.replace("/countdown");
+  }, [router]);
 
   useEffect(() => {
     if (showClouds) {
@@ -37,6 +46,7 @@ export default function Home() {
   return (
     <main className="relative min-h-screen z-10">
       <BrandBackground />
+      <KnowYourTeamButton show />
       <AnimatePresence mode="wait">
         <motion.div
           key={showClouds ? "clouds" : "hero"}
