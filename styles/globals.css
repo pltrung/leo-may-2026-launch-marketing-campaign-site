@@ -167,6 +167,16 @@
   animation: breathe 4s ease-in-out infinite;
 }
 
+/* Leaderboard: subtle pulse for user's team in top 3 */
+@keyframes leaderboardGlow {
+  0%, 100% { box-shadow: 0 0 6px var(--glow-color, rgba(255,255,255,0.5)); opacity: 0.95; }
+  50% { box-shadow: 0 0 14px var(--glow-color, rgba(255,255,255,0.5)); opacity: 1; }
+}
+
+.animate-leaderboard-glow {
+  animation: leaderboardGlow 3s ease-in-out infinite;
+}
+
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;

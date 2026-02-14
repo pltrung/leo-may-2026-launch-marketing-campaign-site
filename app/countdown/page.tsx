@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { getUser, clearUser } from "@/lib/userStorage";
 import { getCloudById } from "@/lib/cloudData";
 import type { CloudType } from "@/lib/cloudData";
@@ -41,10 +40,30 @@ function useTeamCount(teamId: CloudType) {
   return teamCount;
 }
 
+interface LeaderboardEntry {
+  id: string;
+  name: string;
+  nameEn: string;
+  accentHex: string;
+  count: number;
+}
+
+function useLeaderboard() {
+  const [teams, setTeams] = useState<LeaderboardEntry[]>([]);
+  useEffect(() => {
+    fetch("/api/leaderboard")
+      .then((r) => r.json())
+      .then((d) => setTeams(d.teams ?? []))
+      .catch(() => {});
+  }, []);
+  return teams;
+}
+
 export default function CountdownPage() {
   const router = useRouter();
   const [user, setUser] = useState<ReturnType<typeof getUser>>(null);
   const teamCount = useTeamCount((user?.team ?? "may_nhe") as CloudType);
+  const leaderboard = useLeaderboard();
   const { days, hours, minutes, seconds } = useCountdown();
 
   useEffect(() => {
@@ -96,16 +115,16 @@ export default function CountdownPage() {
         <img src="/brand/holds.svg" alt="" className="w-full h-full object-cover" />
       </div>
 
-      <div className="flex flex-col items-center w-full max-w-lg mx-auto h-full pt-6 pb-5 overflow-hidden gap-5 sm:gap-6">
+      <div className="flex flex-col items-center w-full max-w-lg mx-auto h-full pt-5 pb-4 overflow-hidden gap-[0.85em] sm:gap-[0.9em]">
         {/* 1. Greeting + 2. Team identity + icon (attached) */}
         <div className="shrink-0 text-center">
-          <p className="font-body text-white/90 text-[1rem] sm:text-[1.1rem]">
+          <p className="font-body text-white/90 text-[1.05rem] sm:text-[1.16rem]">
             Hi {firstName},
           </p>
-          <p className="font-headline text-white text-[1.2rem] sm:text-[1.4rem] tracking-headline mt-1">
+          <p className="font-headline font-bold text-white text-[1.26rem] sm:text-[1.47rem] tracking-headline mt-1">
             You joined: <span style={{ color: accent }}>Team {cloud.name}</span>
           </p>
-          <p className="font-medium text-white/90 text-[0.95rem] sm:text-[1rem] mt-0.5" style={{ borderBottom: `2px solid ${accent}`, display: "inline-block", paddingBottom: 2 }}>
+          <p className="font-medium text-white/90 text-[1rem] sm:text-[1.05rem] mt-0.5" style={{ borderBottom: `2px solid ${accent}`, display: "inline-block", paddingBottom: 2 }}>
             {cloud.nameEn}
           </p>
           {/* Team icon: 12px below headline, 28–36px */}
@@ -117,28 +136,28 @@ export default function CountdownPage() {
           </div>
         </div>
 
-        {/* 3. Logo: 160–200px desktop, 120–140px mobile */}
+        {/* 3. Logo: +12% size */}
         <div className="shrink-0">
           <img
             src="/logo-white.svg"
             alt="Leo Mây"
-            className="w-[120px] sm:w-[140px] md:w-[180px] h-auto object-contain"
+            className="w-[134px] sm:w-[157px] md:w-[202px] h-auto object-contain"
           />
         </div>
 
-        {/* 4. IP countdown: 220–260px desktop, 160–200px mobile, dominant */}
+        {/* 4. IP countdown: +10% size */}
         <div className="shrink-0">
           <img
             src="/brand/ip-count-down.svg"
             alt=""
-            className="w-[160px] sm:w-[200px] md:w-[240px] h-auto object-contain animate-ip-float"
+            className="w-[176px] sm:w-[220px] md:w-[264px] h-auto object-contain animate-ip-float"
           />
         </div>
 
         {/* 5. Trait + Progress */}
-        <div className="shrink-0 w-[80%] sm:w-[60%] flex flex-col items-center gap-3">
+        <div className="shrink-0 w-[80%] sm:w-[60%] flex flex-col items-center gap-2.5">
           <p
-            className="font-caption text-center text-sm"
+            className="font-caption text-center text-[0.95rem] sm:text-[1rem]"
             style={{ color: traitUnlocked ? accent : "rgba(255,255,255,0.6)" }}
           >
             {traitUnlocked
@@ -146,7 +165,7 @@ export default function CountdownPage() {
               : "Your cloud is forming…"}
           </p>
           <div
-            className="w-full h-2 rounded-full overflow-hidden"
+            className="w-full h-[10px] rounded-full overflow-hidden"
             style={{
               backgroundColor: "rgba(255,255,255,0.2)",
               boxShadow: `0 0 12px ${accent}40`,
@@ -158,16 +177,22 @@ export default function CountdownPage() {
             />
           </div>
           <p
-            className="font-caption text-[10px] sm:text-xs tracking-widest uppercase"
-            style={{ color: accent, opacity: 0.8 }}
+            className="font-caption text-xs sm:text-[0.85rem] uppercase"
+            style={{ color: accent, opacity: 0.8, letterSpacing: "1px" }}
           >
             {traitUnlocked
               ? "100% to unlock cloud trait"
-              : `${100 - progressPct}% to unlock trait`}
+              : `${100 - progressPct}% to unlock cloud trait`}
+          </p>
+          <p
+            className="font-caption text-[10px] sm:text-[11px] text-white/50 tracking-wide"
+            style={{ opacity: 0.85 }}
+          >
+            100% reveals your team&apos;s defining energy.
           </p>
         </div>
 
-        {/* 6. Share button - 16px below progress */}
+        {/* 6. Share button */}
         <button
           type="button"
           onClick={() => {
@@ -180,8 +205,8 @@ export default function CountdownPage() {
           Share your cloud
         </button>
 
-        {/* 7. Countdown - 24px below share, larger boxes */}
-        <div className="flex items-center justify-center gap-1 sm:gap-2 shrink-0 mt-1">
+        {/* 7. Countdown - +20% font, slightly larger boxes */}
+        <div className="flex items-center justify-center gap-1 sm:gap-2 shrink-0 mt-0.5">
           {[
             { v: pad(days), l: "D" },
             { v: pad(hours), l: "H" },
@@ -190,13 +215,13 @@ export default function CountdownPage() {
           ].map((b, i) => (
             <div key={b.l} className="flex items-center gap-1 sm:gap-2">
               <div
-                className="rounded-xl flex flex-col items-center justify-center min-w-[60px] min-h-[60px] sm:min-w-[70px] sm:min-h-[70px] md:min-w-[84px] md:min-h-[84px]"
+                className="rounded-xl flex flex-col items-center justify-center min-w-[64px] min-h-[64px] sm:min-w-[74px] sm:min-h-[74px] md:min-w-[88px] md:min-h-[88px] px-2 py-2"
                 style={{
                   backgroundColor: "rgba(255,255,255,0.12)",
                   boxShadow: "0 0 20px rgba(255,255,255,0.15)",
                 }}
               >
-                <span className="font-headline text-2xl sm:text-3xl md:text-4xl text-white tabular-nums tracking-headline">
+                <span className="font-headline font-bold text-[1.875rem] sm:text-[2.25rem] md:text-[3rem] text-white tabular-nums tracking-headline">
                   {b.v}
                 </span>
                 <span className="font-caption text-white/60 text-[10px] sm:text-xs mt-0.5">{b.l}</span>
@@ -206,12 +231,57 @@ export default function CountdownPage() {
           ))}
         </div>
 
-        {/* 8. Ethos */}
+        {/* 8. Leaderboard */}
+        <div className="shrink-0 flex flex-col items-center gap-1.5 w-full max-w-[280px]">
+          <p className="font-medium text-white/70 text-xs sm:text-[0.85rem] tracking-wide">
+            Top Clouds Right Now
+          </p>
+          <div className="flex flex-col gap-0.5 w-full">
+            {leaderboard.slice(0, 3).map((entry, idx) => {
+              const isUserTeam = entry.id === cloud.id;
+              return (
+                <div
+                  key={entry.id}
+                  className={`font-medium text-white/90 text-[0.8rem] sm:text-[0.9rem] leading-tight py-0.5 px-2 rounded transition-colors ${isUserTeam ? "font-bold animate-leaderboard-glow" : ""}`}
+                  style={isUserTeam ? { color: entry.accentHex, ["--glow-color" as string]: entry.accentHex } : {}}
+                >
+                  {idx + 1}. Team {entry.name} — {entry.count} member{entry.count !== 1 ? "s" : ""}
+                </div>
+              );
+            })}
+          </div>
+          {leaderboard.length > 0 && !leaderboard.slice(0, 3).some((e) => e.id === cloud.id) && (
+            <div className="mt-1 pt-1 border-t border-white/20 w-full">
+              <p className="font-medium text-white/70 text-[0.75rem] sm:text-[0.8rem]">Your Team:</p>
+              {(() => {
+                const idx = leaderboard.findIndex((e) => e.id === cloud.id);
+                const rank = idx >= 0 ? idx + 1 : leaderboard.length + 1;
+                const thirdCount = leaderboard[2]?.count ?? teamCount;
+                const diff = Math.max(1, thirdCount - teamCount);
+                return (
+                  <p
+                    className="font-medium text-[0.8rem] sm:text-[0.85rem] mt-0.5"
+                    style={{ color: accent }}
+                  >
+                    #{rank} Team {cloud.name} — {teamCount} member{teamCount !== 1 ? "s" : ""}
+                    {rank > 3 && diff > 0 && (
+                      <span className="text-white/60 text-[0.7rem] block mt-0.5">
+                        +{diff} to reach #3
+                      </span>
+                    )}
+                  </p>
+                );
+              })()}
+            </div>
+          )}
+        </div>
+
+        {/* 9. Ethos */}
         <div className="shrink-0 text-center mt-auto">
-          <p className="font-subheadline text-white text-sm sm:text-base">
+          <p className="font-subheadline font-bold text-white text-[0.95rem] sm:text-[1.05rem]">
             Climb the Clouds. Build a Culture.
           </p>
-          <p className="font-caption text-white/60 text-xs mt-1">Ho Chi Minh City — 2026</p>
+          <p className="font-caption text-white/60 text-[0.7rem] sm:text-xs mt-1">Ho Chi Minh City — 2026</p>
         </div>
       </div>
     </main>
