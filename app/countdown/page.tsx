@@ -29,13 +29,20 @@ function useCountdown() {
   return diff;
 }
 
+const POLL_INTERVAL_MS = 20000;
+
 function useTeamCount(teamId: CloudType) {
   const [teamCount, setTeamCount] = useState(0);
   useEffect(() => {
-    fetch(`/api/team-count?team=${teamId}`)
-      .then((r) => r.json())
-      .then((d) => setTeamCount(typeof d.count === "number" ? d.count : 0))
-      .catch(() => {});
+    const fetchCount = () => {
+      fetch(`/api/team-count?team=${teamId}`)
+        .then((r) => r.json())
+        .then((d) => setTeamCount(typeof d.count === "number" ? d.count : 0))
+        .catch(() => {});
+    };
+    fetchCount();
+    const id = setInterval(fetchCount, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
   }, [teamId]);
   return teamCount;
 }
@@ -51,10 +58,15 @@ interface LeaderboardEntry {
 function useLeaderboard() {
   const [teams, setTeams] = useState<LeaderboardEntry[]>([]);
   useEffect(() => {
-    fetch("/api/leaderboard")
-      .then((r) => r.json())
-      .then((d) => setTeams(d.teams ?? []))
-      .catch(() => {});
+    const fetchLeaderboard = () => {
+      fetch("/api/leaderboard")
+        .then((r) => r.json())
+        .then((d) => setTeams(d.teams ?? []))
+        .catch(() => {});
+    };
+    fetchLeaderboard();
+    const id = setInterval(fetchLeaderboard, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
   }, []);
   return teams;
 }

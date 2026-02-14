@@ -15,7 +15,9 @@ export async function GET() {
         count: 0,
       }));
       fallback.sort((a, b) => b.count - a.count);
-      return NextResponse.json({ teams: fallback });
+      return NextResponse.json({ teams: fallback }, {
+        headers: { "Cache-Control": "no-store, max-age=0" },
+      });
     }
 
     const supabase = createServerClient();
@@ -38,7 +40,9 @@ export async function GET() {
       })
     );
     teams.sort((a, b) => b.count - a.count);
-    return NextResponse.json({ teams });
+    return NextResponse.json({ teams }, {
+      headers: { "Cache-Control": "no-store, max-age=0" },
+    });
   } catch (err) {
     console.error("Leaderboard API error:", err);
     const fallback = clouds.map((c) => ({
@@ -49,6 +53,8 @@ export async function GET() {
       count: 0,
     }));
     fallback.sort((a, b) => b.count - a.count);
-    return NextResponse.json({ teams: fallback });
+    return NextResponse.json({ teams: fallback }, {
+      headers: { "Cache-Control": "no-store, max-age=0" },
+    });
   }
 }
