@@ -10,15 +10,18 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
   return (
     <section
       id="final-cta"
-      className="relative h-screen min-h-[100dvh] flex flex-col px-6 pt-[140px] md:pt-24 pb-24"
+      className="relative min-h-[160vh] flex flex-col px-6 pt-[140px] md:pt-24 pb-32"
     >
-      {/* Title + CTA: lower in section; only fade in when user has scrolled to the end of the page */}
-      <div className="flex-1 flex flex-col items-center justify-end w-full max-w-lg mx-auto min-h-0 pb-[22%] md:pb-[18%]">
+      {/* Top spacer: creates scroll room so CTA only appears when user scrolls to the end */}
+      <div className="min-h-[50vh] flex-shrink-0" aria-hidden />
+
+      {/* Title + CTA: only fade in when user has scrolled into this section (mobile + PC) */}
+      <div className="flex-1 flex flex-col items-center justify-end w-full max-w-lg mx-auto min-h-0 pb-[28%] md:pb-[22%]">
         <motion.h2
           className="font-headline text-center text-white text-2xl sm:text-3xl md:text-4xl tracking-headline"
           initial={{ opacity: 0, y: 14 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.9, margin: "-80px" }}
+          viewport={{ once: true, amount: 0.25, margin: "-60px" }}
           transition={{ duration: 0.6 }}
         >
           Climb <span className="font-headline text-3xl sm:text-4xl md:text-5xl" style={{ color: "#00CB4D" }}>YOUR</span> way.
@@ -28,7 +31,7 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
           className="flex justify-center w-full mt-5 md:mt-6"
           initial={{ opacity: 0, y: 14 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.9, margin: "-80px" }}
+          viewport={{ once: true, amount: 0.25, margin: "-60px" }}
           transition={{ duration: 0.6, delay: 0.08 }}
         >
           <button
@@ -49,12 +52,12 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
         </motion.div>
       </div>
 
-      {/* IP on cloud: anchored near bottom, horizontally centered */}
+      {/* IP on cloud: at bottom of section with room below */}
       <motion.div
-        className="absolute bottom-6 left-0 right-0 flex items-center justify-center pointer-events-none"
+        className="absolute bottom-8 left-0 right-0 flex items-center justify-center pointer-events-none"
         initial={{ opacity: 0, y: 16 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.1, margin: "-80px" }}
+        viewport={{ once: true, amount: 0.15, margin: "-60px" }}
         transition={{ duration: 0.6, delay: 0.15 }}
         aria-hidden
       >
