@@ -97,7 +97,7 @@ export default function CountdownPage() {
 
   return (
     <main
-      className="h-screen min-h-[100dvh] max-h-screen overflow-hidden flex flex-col items-center justify-center px-4 py-4 relative"
+      className="min-h-[100dvh] md:min-h-0 md:h-screen md:max-h-screen overflow-y-auto md:overflow-hidden flex flex-col items-center justify-center px-4 py-4 relative"
       style={{ backgroundColor: "#0242FF" }}
     >
       <button
@@ -115,7 +115,7 @@ export default function CountdownPage() {
         <img src="/brand/holds.svg" alt="" className="w-full h-full object-cover" />
       </div>
 
-      <div className="flex flex-col items-center w-full max-w-lg mx-auto h-full pt-4 pb-14 md:pb-3 overflow-hidden gap-[0.65em] sm:gap-[0.7em]">
+      <div className="flex flex-col items-center w-full max-w-lg mx-auto min-h-full md:h-full pt-4 pb-14 md:pb-3 overflow-visible md:overflow-hidden gap-[0.65em] sm:gap-[0.7em]">
         {/* 1. Cloud card: You joined section */}
         <div
           className="shrink-0 w-[90%] max-w-[420px] text-center rounded-[24px] px-4 sm:px-5 py-4"
@@ -173,15 +173,15 @@ export default function CountdownPage() {
               : "Your cloud is forming…"}
           </p>
           <div
-            className="w-full h-[10px] rounded-full overflow-hidden"
+            className="w-full h-[10px] min-h-[10px] rounded-full overflow-hidden flex-shrink-0"
             style={{
               backgroundColor: "rgba(0,0,0,0.1)",
               boxShadow: `0 0 8px ${accent}50`,
             }}
           >
             <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${progressPct}%`, backgroundColor: accent }}
+              className="h-full min-w-0 rounded-full transition-all duration-500 flex-shrink-0"
+              style={{ width: `${Math.min(100, Math.max(0, progressPct))}%`, backgroundColor: accent }}
             />
           </div>
           <p
@@ -303,23 +303,23 @@ export default function CountdownPage() {
           )}
         </div>
 
-        {/* 8. Countdown — maximized for viewport */}
-        <div className="flex items-center justify-center gap-1 sm:gap-2 shrink-0 mt-0">
+        {/* 8. Countdown — fits viewport, spacing from leaderboard */}
+        <div className="flex items-center justify-center gap-0.5 sm:gap-1 md:gap-2 shrink-0 mt-4 md:mt-3 w-full max-w-full px-1">
           {[
             { v: pad(days), l: "D" },
             { v: pad(hours), l: "H" },
             { v: pad(minutes), l: "M" },
             { v: pad(seconds), l: "S" },
           ].map((b, i) => (
-            <div key={b.l} className="flex items-center gap-1 sm:gap-2">
+            <div key={b.l} className="flex items-center gap-0.5 sm:gap-1 md:gap-2">
               <div
-                className="rounded-xl flex flex-col items-center justify-center min-w-[clamp(56px,18vw,96px)] min-h-[clamp(56px,18vw,96px)] sm:min-w-[clamp(72px,20vw,110px)] sm:min-h-[clamp(72px,20vw,110px)] md:min-w-[clamp(88px,22vw,128px)] md:min-h-[clamp(88px,22vw,128px)] px-2 py-2"
+                className="rounded-xl flex flex-col items-center justify-center w-[52px] min-w-[52px] h-[52px] sm:w-[60px] sm:min-w-[60px] sm:h-[60px] md:w-[72px] md:min-w-[72px] md:h-[72px] lg:w-[84px] lg:min-w-[84px] lg:h-[84px] px-1 sm:px-2 py-2 shrink-0"
                 style={{
                   backgroundColor: "rgba(255,255,255,0.12)",
                   boxShadow: "0 0 20px rgba(255,255,255,0.15)",
                 }}
               >
-                <span className="font-headline font-bold text-[clamp(1.5rem,5vw,2.5rem)] sm:text-[clamp(1.75rem,5.5vw,3rem)] md:text-[clamp(2rem,6vw,3.5rem)] text-white tabular-nums tracking-headline">
+                <span className="font-headline font-bold text-[1.25rem] sm:text-[1.5rem] md:text-[2rem] lg:text-[2.5rem] text-white tabular-nums tracking-headline">
                   {b.v}
                 </span>
                 <span className="font-caption text-white/60 text-[10px] sm:text-xs mt-0.5">{b.l}</span>
