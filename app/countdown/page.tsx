@@ -89,6 +89,8 @@ export default function CountdownPage() {
   if (!cloud) return null;
 
   const accent = cloud.accentHex;
+  const isGiong = cloud.id === "giong";
+  const accentContrast = isGiong ? "#ffffff" : accent;
   const firstName = user.name.trim().split(/\s+/)[0] || "there";
   const pad = (n: number) => String(n).padStart(2, "0");
   const threshold = cloud.traitThreshold ?? TRAIT_THRESHOLD;
@@ -199,7 +201,7 @@ export default function CountdownPage() {
           </p>
         </div>
 
-        {/* 6. Share button */}
+        {/* 6. Share button — white for Giông (blue accent on blue bg) */}
         <button
           type="button"
           onClick={() => {
@@ -207,7 +209,7 @@ export default function CountdownPage() {
             navigator.clipboard?.writeText(url).then(() => {});
           }}
           className="shrink-0 px-5 py-2.5 rounded-full font-subheadline text-sm border-2 transition-colors hover:opacity-90 -mt-0.5"
-          style={{ borderColor: accent, color: accent }}
+          style={{ borderColor: accentContrast, color: accentContrast }}
         >
           Share your cloud
         </button>
@@ -221,6 +223,9 @@ export default function CountdownPage() {
           <div className="flex flex-col gap-2 w-full">
             {leaderboard.slice(0, 3).map((entry, idx) => {
               const isUserTeam = entry.id === cloud.id;
+              const entryIsGiong = entry.id === "giong";
+              const highlightColor = isUserTeam && entryIsGiong ? "#ffffff" : (isUserTeam ? entry.accentHex : "rgba(255,255,255,0.95)");
+              const glowColor = isUserTeam && entryIsGiong ? "rgba(255,255,255,0.8)" : (isUserTeam ? entry.accentHex : "rgba(255,255,255,0.5)");
               const medals = ["🥇", "🥈", "🥉"];
               const rankGradients = [
                 "linear-gradient(135deg, #F2C94C 0%, #E8B828 100%)",
@@ -234,7 +239,7 @@ export default function CountdownPage() {
                   style={{
                     backgroundColor: "rgba(255,255,255,0.08)",
                     backdropFilter: "blur(8px)",
-                    ...(isUserTeam ? { ["--glow-color" as string]: entry.accentHex, color: entry.accentHex } : { color: "rgba(255,255,255,0.95)" }),
+                    ...(isUserTeam ? { ["--glow-color" as string]: glowColor, color: highlightColor } : { color: "rgba(255,255,255,0.95)" }),
                   }}
                 >
                   <div
@@ -272,14 +277,14 @@ export default function CountdownPage() {
                   style={{
                     backgroundColor: "rgba(255,255,255,0.1)",
                     backdropFilter: "blur(8px)",
-                    border: `2px solid ${accent}`,
-                    ["--glow-color" as string]: accent,
-                    boxShadow: `0 0 16px ${accent}40`,
+                    border: `2px solid ${accentContrast}`,
+                    ["--glow-color" as string]: accentContrast,
+                    boxShadow: `0 0 16px ${isGiong ? "rgba(255,255,255,0.4)" : `${accent}40`}`,
                   }}
                 >
                   <p className="font-medium text-white/60 text-[0.7rem] uppercase tracking-wider mb-1">Your Team Rank</p>
                   <div className="flex flex-row items-center gap-3">
-                    <div className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm" style={{ backgroundColor: accent, color: cloud.joinTextHex ?? "#1E2A38" }}>
+                    <div className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm" style={{ backgroundColor: accentContrast, color: isGiong ? "#0242FF" : (cloud.joinTextHex ?? "#1E2A38") }}>
                       #{rank}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -290,7 +295,7 @@ export default function CountdownPage() {
                           <span className="block mt-0.5">
                             +{diff} to reach #3
                             {isCloseToNext && (
-                              <span className="inline-block ml-1" style={{ color: accent }} aria-hidden>↑</span>
+                              <span className="inline-block ml-1" style={{ color: accentContrast }} aria-hidden>↑</span>
                             )}
                           </span>
                         )}
