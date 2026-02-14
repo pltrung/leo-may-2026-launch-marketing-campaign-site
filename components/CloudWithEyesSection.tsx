@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 
 export default function CloudWithEyesSection() {
   return (
-    <section className="relative min-h-[50vh] flex items-center justify-center py-12 overflow-hidden">
+    <section className="relative min-h-[50vh] flex items-center justify-center py-12 overflow-hidden pt-[120px] md:pt-24">
       <motion.div
         className="flex items-center justify-center w-full max-w-[280px] sm:max-w-[320px] mx-auto"
         initial={{ opacity: 0, y: 12 }}

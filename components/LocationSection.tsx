@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 
 export default function LocationSection() {
   return (
-    <section className="relative min-h-screen h-screen flex flex-col items-center justify-center px-6 overflow-hidden">
+    <section className="relative min-h-screen h-screen flex flex-col items-center justify-center px-6 overflow-hidden pt-[120px] md:pt-24">
       <motion.div
         className="text-center max-w-xl mx-auto"
         initial={{ opacity: 0, y: 24 }}

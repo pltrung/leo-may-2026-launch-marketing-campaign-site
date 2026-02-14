@@ -20,7 +20,7 @@ export default function IpShowcaseSection({ pose }: IpShowcaseSectionProps) {
   const imgSrc = IMAGE_MAP[pose];
 
   return (
-    <section className="relative min-h-[70vh] flex items-center justify-center overflow-hidden py-12">
+    <section className="relative min-h-[70vh] flex items-center justify-center overflow-hidden py-12 pt-[120px] md:pt-24">
       <motion.div
         className="flex items-center justify-center w-[70%] max-w-[400px] aspect-square pointer-events-none"
         initial={{ opacity: 0, y: 16 }}

@@ -6,14 +6,14 @@ import Logo from "./Logo";
 
 export default function HeroSection() {
   return (
-    <section className="relative min-h-screen h-screen flex flex-col items-center justify-center px-6 overflow-hidden">
+    <section className="relative min-h-screen h-screen flex flex-col items-center justify-center px-6 overflow-hidden pt-[120px] md:pt-24">
       <div className="absolute inset-0 -z-[1] opacity-[0.04] blur-3xl pointer-events-none" aria-hidden>
         <Image src="/logo-white.svg" alt="" fill className="object-contain scale-150" />
       </div>
 
       <nav className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between pl-10 pt-8 pb-6 pr-6">
         <div className="flex items-center">
-          <Logo className="w-[140px] md:w-[200px] h-auto object-contain object-left" />
+          <Logo className="w-[110px] md:w-[200px] max-w-[110px] md:max-w-none h-auto object-contain object-left" />
         </div>
         <div className="w-28" aria-hidden />
       </nav>
