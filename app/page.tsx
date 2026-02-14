@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import BrandBackground from "@/components/BrandBackground";
@@ -19,7 +19,7 @@ import MistOverlay from "@/components/MistOverlay";
 import { CloudPersonality } from "@/lib/cloudData";
 import { getUser } from "@/lib/userStorage";
 
-export default function Home() {
+function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showClouds, setShowClouds] = useState(false);
@@ -118,5 +118,13 @@ export default function Home() {
 
       <Toast show={showToast} />
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
   );
 }
