@@ -25,7 +25,7 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
         <button
           type="button"
           onClick={onJoin}
-          className="relative mt-12 w-[200px] h-[60px] sm:w-[240px] sm:h-[72px] flex items-center justify-center hover:opacity-90 transition-opacity duration-200 cursor-pointer border-0 bg-transparent animate-bounce"
+          className="relative mt-12 w-[200px] h-[60px] sm:w-[240px] sm:h-[72px] flex items-center justify-center hover:opacity-90 transition-opacity duration-200 cursor-pointer border-0 bg-transparent animate-cloud-float"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
