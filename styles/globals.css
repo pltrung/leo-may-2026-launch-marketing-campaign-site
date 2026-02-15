@@ -893,7 +893,7 @@ body.hero-ready .hero-scroll {
     overscroll-behavior: none;
     touch-action: pan-x;
   }
-  /* Reserve bottom space for footer; 100dvh + safe-area for iOS Safari */
+  /* Reserve bottom space for footer; z-index above footer; iOS Safari safe-area */
   .cloud-selection-screen {
     position: fixed;
     inset: 0;
@@ -901,7 +901,8 @@ body.hero-ready .hero-scroll {
     height: 100vh;
     height: 100dvh;
     overflow: hidden;
-    padding: 96px 24px calc(110px + env(safe-area-inset-bottom, 0px));
+    z-index: 15;
+    padding: 96px 24px calc(140px + env(safe-area-inset-bottom, 0px));
   }
 
   .cloud-selection-container {
@@ -1062,17 +1063,17 @@ body.hero-ready .hero-scroll {
     100% { opacity: 1; transform: scale(1); }
   }
 
-  /* Swipe guide: between header and cards, not overlapping footer */
+  /* Swipe guide: between header and cards, clearly visible */
   .swipe-guide {
     position: fixed;
-    top: 24vh;
+    top: 28vh;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 8px;
-    opacity: 0.6;
+    opacity: 0.9;
     pointer-events: none;
     z-index: 20;
     transition: opacity 500ms ease;
@@ -1105,7 +1106,7 @@ body.hero-ready .hero-scroll {
 
   .swipe-text {
     font-size: 14px;
-    color: rgba(255, 255, 255, 0.6);
+    color: rgba(255, 255, 255, 0.85);
     letter-spacing: 0.12em;
   }
 }

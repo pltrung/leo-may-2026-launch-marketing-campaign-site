@@ -25,7 +25,7 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
 
       {/* Header: below logo, fades when card selected */}
       <div className="cloud-selection-header relative flex flex-col items-center w-full max-w-2xl mx-auto mt-2 md:mt-0 md:mb-8 z-10 transition-opacity duration-400">
-        <h2 className="cloud-selection-title font-headline text-[28px] md:text-[32px] leading-[1.2] sm:text-4xl md:text-5xl text-center text-white tracking-headline pl-20 pr-20 md:px-4">
+        <h2 className="cloud-selection-title font-headline text-[22px] sm:text-[26px] md:text-[32px] leading-[1.2] md:text-5xl text-center text-white tracking-headline pl-20 pr-20 md:px-4">
           What type of cloud are you?
         </h2>
       </div>
