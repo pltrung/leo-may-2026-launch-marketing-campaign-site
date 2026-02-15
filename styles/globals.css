@@ -384,6 +384,7 @@
 .countdown-ip {
   width: 340px;
   max-width: 40vw;
+  animation: ipFloatCountdown 5s ease-in-out infinite;
 }
 @media (max-width: 768px) {
   .countdown-ip {
@@ -391,42 +392,9 @@
     max-width: 420px;
   }
 }
-
-/* Countdown IP: float intensity increases with referral milestones */
-.float-level-0 {
-  animation: float0 6s ease-in-out infinite;
-}
-.float-level-1 {
-  animation: float1 5.5s ease-in-out infinite;
-}
-.float-level-2 {
-  animation: float2 5s ease-in-out infinite;
-}
-.float-level-3 {
-  animation: float3 4.5s ease-in-out infinite;
-}
-.float-level-4 {
-  animation: float4 4s ease-in-out infinite;
-}
-@keyframes float0 {
-  0%, 100% { transform: translateY(0px) scale(1); }
-  50% { transform: translateY(-6px) scale(1.01); }
-}
-@keyframes float1 {
-  0%, 100% { transform: translateY(0px) scale(1); }
-  50% { transform: translateY(-10px) scale(1.02); }
-}
-@keyframes float2 {
-  0%, 100% { transform: translateY(0px) scale(1); }
-  50% { transform: translateY(-14px) scale(1.03); }
-}
-@keyframes float3 {
-  0%, 100% { transform: translateY(0px) scale(1); }
-  50% { transform: translateY(-16px) scale(1.035); }
-}
-@keyframes float4 {
-  0%, 100% { transform: translateY(0px) scale(1); }
-  50% { transform: translateY(-18px) scale(1.04); }
+@keyframes ipFloatCountdown {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
 }
 
 /* Countdown page: leaderboard header — alive */

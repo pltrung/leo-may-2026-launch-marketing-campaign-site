@@ -11,22 +11,6 @@ import CloudFooter from "@/components/CloudFooter";
 const TARGET = new Date("2026-01-01T00:00:00+07:00");
 const REFERRAL_UNLOCK = 10;
 
-function getCountdownIPImage(referralCount: number): string {
-  if (referralCount >= 10) return "/brand/referral-unlock-10.svg";
-  if (referralCount >= 8) return "/brand/referral-unlock-8.svg";
-  if (referralCount >= 5) return "/brand/referral-unlock-5.svg";
-  if (referralCount >= 2) return "/brand/referral-unlock-2.svg";
-  return "/brand/ip-count-down.svg";
-}
-
-function getFloatLevel(referralCount: number): string {
-  if (referralCount >= 10) return "float-level-4";
-  if (referralCount >= 8) return "float-level-3";
-  if (referralCount >= 5) return "float-level-2";
-  if (referralCount >= 2) return "float-level-1";
-  return "float-level-0";
-}
-
 function useCountdown() {
   const [diff, setDiff] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   useEffect(() => {
@@ -222,11 +206,11 @@ export default function CountdownPage() {
           />
         </div>
 
-        {/* 3. IP — milestone-based image, float intensity by referral count */}
-        <div className={`shrink-0 countdown-ip countdown-spacing-after-ip ${getFloatLevel(referralCount)}`}>
+        {/* 3. IP — primary visual focus */}
+        <div className="shrink-0 countdown-ip countdown-spacing-after-ip">
           <img
-            src={getCountdownIPImage(referralCount)}
-            alt="Cloud character"
+            src="/brand/ip-count-down.svg"
+            alt=""
             className="w-full h-auto object-contain"
           />
         </div>
