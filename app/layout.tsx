@@ -64,7 +64,6 @@ export default function RootLayout({
             async function startApp() {
               const loading = document.getElementById("loading-screen");
               const site = document.getElementById("site-root");
-              const hero = document.getElementById("hero-page");
               if (!loading || !site) return;
               const MIN_DURATION = 1800;
               const start = performance.now();
@@ -82,18 +81,14 @@ export default function RootLayout({
                 loading.remove();
                 site.style.opacity = "1";
                 site.style.transition = "opacity 1.2s cubic-bezier(.16,1,.3,1)";
-                if (hero) {
-                  hero.classList.remove("hero-hidden");
-                  hero.classList.add("hero-visible");
-                  var logo = document.querySelector(".hero-logo");
-                  var title = document.querySelector(".hero-title");
-                  var btn = document.querySelector(".know-cloud-btn");
-                  var scrollEl = document.querySelector(".hero-scroll");
-                  setTimeout(function(){ if(logo) logo.classList.add("animate"); }, 200);
-                  setTimeout(function(){ if(title) title.classList.add("animate"); }, 400);
-                  setTimeout(function(){ if(btn) btn.classList.add("animate"); }, 600);
-                  setTimeout(function(){ if(scrollEl) scrollEl.classList.add("animate"); }, 800);
-                }
+                var logo = document.querySelector(".hero-logo");
+                var title = document.querySelector(".hero-title");
+                var btn = document.querySelector(".know-cloud-btn");
+                var scrollEl = document.querySelector(".hero-scroll");
+                setTimeout(function(){ if(logo) logo.classList.add("animate"); }, 200);
+                setTimeout(function(){ if(title) title.classList.add("animate"); }, 400);
+                setTimeout(function(){ if(btn) btn.classList.add("animate"); }, 600);
+                setTimeout(function(){ if(scrollEl) scrollEl.classList.add("animate"); }, 800);
               }, 800);
             }
             startApp();
