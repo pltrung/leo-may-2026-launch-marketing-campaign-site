@@ -168,10 +168,11 @@ export default function CountdownPage() {
   const progressPct = Math.min(100, Math.round((referralCount / REFERRAL_UNLOCK) * 100));
 
   return (
-    <main
-      className="min-h-[100dvh] md:min-h-0 md:h-screen md:max-h-screen overflow-y-auto md:overflow-hidden flex flex-col items-center justify-center px-4 py-4 relative"
+    <div
+      className="min-h-[100dvh] md:min-h-[100svh] flex flex-col w-full"
       style={{ backgroundColor: "#0242FF" }}
     >
+      <main className="flex-1 flex flex-col items-center justify-center px-4 py-4 relative overflow-y-auto overflow-x-hidden min-h-0">
       <button
         type="button"
         onClick={handleLogout}
@@ -180,30 +181,27 @@ export default function CountdownPage() {
       >
         Log out
       </button>
-      <div className="absolute inset-0 -z-10 opacity-10 pointer-events-none" aria-hidden>
+      <div className="fixed inset-0 -z-10 opacity-10 pointer-events-none" aria-hidden>
         <img src="/brand/background.svg" alt="" className="w-full h-full object-cover" />
       </div>
-      <div className="absolute inset-0 -z-10 opacity-[0.08] pointer-events-none" aria-hidden>
+      <div className="fixed inset-0 -z-10 opacity-[0.08] pointer-events-none" aria-hidden>
         <img src="/brand/holds.svg" alt="" className="w-full h-full object-cover" />
       </div>
 
-      <div className="flex flex-col items-center w-full max-w-lg mx-auto min-h-full md:h-full pt-4 pb-14 md:pb-3 overflow-visible md:overflow-hidden gap-[0.65em] sm:gap-[0.7em]">
-        {/* 1. Cloud card: You joined section — confirmation badge, not main focus */}
-        <div className="joined-card shrink-0">
-          <p className="hi-text">Hi {firstName},</p>
-          <p className="team-line">
-            You joined: <span className="font-bold" style={{ color: accent, textShadow: `0 0 12px ${accent}60` }}>Team {cloud.name}</span>
+      <div className="flex flex-col items-center w-full max-w-lg mx-auto flex-1 pt-4 pb-14 md:pb-3">
+        {/* 1. Cloud card: You joined — max 2 lines + icon */}
+        <div className="joined-card shrink-0 countdown-spacing-after-card">
+          <p className="greeting">Hi {firstName},</p>
+          <p className="team-name">
+            You joined <span style={{ color: accent, textShadow: `0 0 12px ${accent}60` }}>Team {cloud.name}</span>
           </p>
-          <p className="team-subtitle" style={{ borderBottom: `2px solid ${accent}`, display: "inline-block", paddingBottom: 2 }}>
-            {cloud.nameEn}
-          </p>
-          <div className="mt-2 flex justify-center animate-pulse" style={{ color: accent }}>
-            <CloudIconByType cloudId={cloud.id} className="w-[24px] h-[24px] sm:w-[28px] sm:h-[28px]" />
+          <div className="mt-1.5 flex justify-center" style={{ color: accent }}>
+            <CloudIconByType cloudId={cloud.id} className="w-[20px] h-[20px]" />
           </div>
         </div>
 
-        {/* 3. Logo — maximized for viewport */}
-        <div className="shrink-0 w-[min(90vw,200px)] sm:w-[min(85vw,240px)] md:w-[min(80vw,280px)]">
+        {/* 2. Logo */}
+        <div className="shrink-0 w-[min(90vw,200px)] sm:w-[min(85vw,240px)] md:w-[min(80vw,280px)] countdown-spacing-after-logo">
           <img
             src="/logo-white.svg"
             alt="Leo Mây"
@@ -211,8 +209,8 @@ export default function CountdownPage() {
           />
         </div>
 
-        {/* 4. IP countdown — emotional anchor, larger */}
-        <div className="shrink-0 -mt-0.5 ip-countdown">
+        {/* 3. IP — primary visual focus, dominant */}
+        <div className="shrink-0 countdown-ip countdown-spacing-after-ip">
           <img
             src="/brand/ip-count-down.svg"
             alt=""
@@ -220,9 +218,9 @@ export default function CountdownPage() {
           />
         </div>
 
-        {/* 5. Cloud progress — immersive referral copy */}
+        {/* 4. Cloud progress — immersive referral copy */}
         <div
-          className="cloud-progress shrink-0 w-[85%] sm:w-[70%] max-w-[380px] flex flex-col items-center gap-2 leading-tight rounded-2xl px-4 py-3"
+          className="cloud-progress shrink-0 w-[85%] sm:w-[70%] max-w-[380px] flex flex-col items-center gap-2 leading-tight rounded-2xl px-4 py-3 countdown-spacing-after-progress"
           style={{
             backgroundColor: "rgba(255,255,255,0.95)",
             boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
@@ -243,17 +241,13 @@ export default function CountdownPage() {
               style={{ width: `${Math.min(100, Math.max(0, progressPct))}%`, backgroundColor: accent }}
             />
           </div>
-          {!traitUnlocked && (
-            <div className="progress-sub font-caption text-xs sm:text-[0.85rem]" style={{ color: "#1E2A38", opacity: 0.7 }}>
-              Invite others to strengthen your cloud
-            </div>
-          )}
           <div className="progress-count font-caption text-xs sm:text-[0.85rem] font-medium" style={{ color: "#1E2A38", letterSpacing: "0.5px" }}>
-            {referralCount} / 10 climbers joined your cloud
+            <span className="referral-current">{referralCount}</span>
+            <span className="referral-total"> / 10</span> climbers joined your cloud
           </div>
           {!traitUnlocked && (
-            <div className="progress-unlock font-caption text-[10px] sm:text-[11px] text-storm/70 tracking-wide">
-              At 10, your cloud reveals its true form
+            <div className="progress-sub font-caption text-[10px] sm:text-[11px] text-storm/70 tracking-wide">
+              Invite others to awaken its true form
             </div>
           )}
         </div>
@@ -272,7 +266,7 @@ export default function CountdownPage() {
               setTimeout(() => setShareToast(false), 2000);
             });
           }}
-          className="shrink-0 px-5 py-2.5 rounded-full font-subheadline text-sm border-2 transition-colors hover:opacity-90 -mt-0.5"
+          className="shrink-0 px-5 py-2.5 rounded-full font-subheadline text-sm border-2 transition-colors hover:opacity-90 countdown-spacing-after-share"
           style={{ borderColor: accentContrast, color: accentContrast }}
         >
           Share your cloud
@@ -329,7 +323,7 @@ export default function CountdownPage() {
                       Team {entry.name}
                     </p>
                     <p className="font-caption text-white/60 text-[0.7rem] mt-0.5">
-                      {entry.count} member{entry.count !== 1 ? "s" : ""}
+                      {entry.count} climber{entry.count !== 1 ? "s" : ""}
                     </p>
                   </div>
                 </div>
@@ -362,7 +356,7 @@ export default function CountdownPage() {
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-white text-[0.9rem] sm:text-[1rem]">Team {cloud.name}</p>
                       <p className="font-caption text-white/70 text-[0.75rem] mt-0.5">
-                        {teamCount} member{teamCount !== 1 ? "s" : ""}
+                        {teamCount} climber{teamCount !== 1 ? "s" : ""}
                         {diff > 0 && (
                           <span className="block mt-0.5">
                             +{diff} to reach #3
@@ -382,7 +376,7 @@ export default function CountdownPage() {
 
         {/* Winner message */}
         <p className="shrink-0 text-center text-white/60 text-[0.7rem] sm:text-[0.75rem] max-w-[280px] mt-3 leading-tight">
-          The team with the most members when the countdown ends will receive a special prize.
+          The team with the most climbers when the countdown ends will receive a special prize.
         </p>
 
         {/* 8. Countdown — fits viewport, spacing from leaderboard */}
@@ -411,11 +405,11 @@ export default function CountdownPage() {
           ))}
         </div>
 
-        {/* 9. Footer — global CloudFooter */}
-        <div className="shrink-0 mt-auto pt-1">
-          <CloudFooter />
-        </div>
       </div>
-    </main>
+      </main>
+      <footer className="flex-shrink-0 relative z-10">
+        <CloudFooter />
+      </footer>
+    </div>
   );
 }

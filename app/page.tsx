@@ -92,8 +92,8 @@ function HomeContent() {
   }, [showToast]);
 
   return (
-    <div className="page-container relative min-h-screen flex flex-col">
-      <main className="relative flex-1 z-10">
+    <div className="page-container relative min-h-[100dvh] flex flex-col">
+      <main className="relative flex-1 min-h-0 z-10">
       <BrandBackground />
       <KnowYourTeamButton show />
       {skyVisible && (
@@ -130,7 +130,9 @@ function HomeContent() {
         </motion.div>
       </AnimatePresence>
       </main>
-      <CloudFooter />
+      <div className="flex-shrink-0 relative z-10">
+        <CloudFooter />
+      </div>
 
       {selectedCloud && (
         <SignupModal
