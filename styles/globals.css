@@ -498,8 +498,17 @@
   font-size: clamp(12px, 1.1vw, 14px);
   color: rgba(255,255,255,0.55);
 }
-.footer-copyright {
+.footer-copyright-image {
   margin-top: 6px;
+  opacity: 0.8;
+}
+.footer-copyright-image img {
+  height: 18px;
+  width: auto;
+  display: block;
+}
+.footer-copyright-text {
+  margin-top: 4px;
   font-family: "MiSans-Regular", sans-serif;
   font-size: clamp(10px, 1vw, 12px);
   color: rgba(255,255,255,0.5);
