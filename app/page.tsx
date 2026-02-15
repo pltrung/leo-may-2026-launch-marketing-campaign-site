@@ -107,12 +107,6 @@ function HomeContent() {
           }}
         />
       </motion.div>
-      {(skyVisible || skyTransitionForCountdown) && (
-        <SkyTransition
-          variant={skyTransitionForCountdown ? "return" : "discovery"}
-          onComplete={skyTransitionForCountdown ? handleCountdownTransitionComplete : handleCloudTransitionComplete}
-        />
-      )}
       <AnimatePresence mode="wait">
         <motion.div
           key={showClouds ? "clouds" : "hero"}
@@ -158,6 +152,13 @@ function HomeContent() {
           onSuccess={handleSuccess}
           onRedirectToCountdown={() => setSkyTransitionForCountdown(true)}
           referredBy={searchParams.get("ref") ?? undefined}
+        />
+      )}
+
+      {(skyVisible || skyTransitionForCountdown) && (
+        <SkyTransition
+          variant={skyTransitionForCountdown ? "return" : "discovery"}
+          onComplete={skyTransitionForCountdown ? handleCountdownTransitionComplete : handleCloudTransitionComplete}
         />
       )}
 

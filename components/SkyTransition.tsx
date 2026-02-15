@@ -7,13 +7,13 @@ export type SkyTransitionVariant = "discovery" | "return";
 
 interface SkyTransitionProps {
   onComplete?: () => void;
-  /** discovery = "THE MIST CLEARS", return = "YOUR CLOUD RETURNS" */
+  /** discovery = "THE MIST CLEARS", return = "YOUR CLOUD FORMS" */
   variant?: SkyTransitionVariant;
 }
 
 const LINES = {
   discovery: ["THE", "MIST", "CLEARS"],
-  return: ["YOUR", "CLOUD", "RETURNS"],
+  return: ["YOUR", "CLOUD", "FORMS"],
 } as const;
 
 export default function SkyTransition({ onComplete, variant = "discovery" }: SkyTransitionProps) {
