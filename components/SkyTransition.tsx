@@ -2,11 +2,15 @@
 
 import { useEffect, useRef } from "react";
 
+export type SkyTransitionVariant = "discovery" | "return";
+
 interface SkyTransitionProps {
   onComplete?: () => void;
+  /** discovery = "THE SKY OPENS", return = "YOUR CLOUD RETURNS" */
+  variant?: SkyTransitionVariant;
 }
 
-export default function SkyTransition({ onComplete }: SkyTransitionProps) {
+export default function SkyTransition({ onComplete, variant = "discovery" }: SkyTransitionProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -46,7 +50,7 @@ export default function SkyTransition({ onComplete }: SkyTransitionProps) {
       <div className="mist-layer mist-back" />
       <div className="mist-layer mist-mid" />
       <div className="mist-layer mist-front" />
-      <div className="mist-transition-text">THE SKY OPENS</div>
+      <div className="mist-transition-text">{variant === "return" ? "YOUR CLOUD RETURNS" : "THE SKY OPENS"}</div>
     </div>
   );
 }

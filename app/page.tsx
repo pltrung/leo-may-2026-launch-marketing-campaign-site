@@ -100,6 +100,7 @@ function HomeContent() {
       />
       {(skyVisible || skyTransitionForCountdown) && (
         <SkyTransition
+          variant={skyTransitionForCountdown ? "return" : "discovery"}
           onComplete={skyTransitionForCountdown ? handleCountdownTransitionComplete : handleCloudTransitionComplete}
         />
       )}
@@ -109,7 +110,7 @@ function HomeContent() {
           initial={{ opacity: 0 }}
           animate={{ opacity: showClouds ? 1 : heroOpacity }}
           exit={{ opacity: 0 }}
-          transition={{ duration: skyVisible ? 0.8 : 0.3 }}
+          transition={{ duration: showClouds ? 0.4 : skyVisible ? 0.8 : 0.3, ease: "easeOut" }}
         >
           {!showClouds ? (
             <>

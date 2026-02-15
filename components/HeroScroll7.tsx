@@ -25,7 +25,7 @@ export default function HeroScroll7({ onJoin }: HeroScroll7Props) {
           viewport={{ once: true, amount: 0.25, margin: "-60px" }}
           transition={{ duration: 0.6 }}
         >
-          <span className="neon-white">CLIMB</span> your way
+          Climb <span className="neon-your">YOUR</span> way
         </motion.h2>
 
         <motion.div

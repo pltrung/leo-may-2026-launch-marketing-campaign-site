@@ -380,6 +380,19 @@ body.hero-ready .hero-scroll {
     0 0 28px rgba(255,255,255,.2);
 }
 
+/* Final hero emphasis: YOUR — identity focus + subtle glow reflection beneath */
+.neon-your {
+  font-family: inherit;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #00F0FF;
+  text-shadow:
+    0 0 6px rgba(0,240,255,.6),
+    0 0 14px rgba(0,240,255,.4),
+    0 0 28px rgba(0,240,255,.2),
+    0 6px 20px rgba(0,240,255,.18);
+}
+
 @keyframes fadeInUp {
   from {
     opacity: 0;

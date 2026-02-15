@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { motion } from "framer-motion";
 import { clouds, CloudPersonality } from "@/lib/cloudData";
 import CloudIconByType from "./CloudIcons";
 
@@ -179,9 +180,10 @@ export default function CloudStackMobile({ onSelect, onDetailsOpenChange }: Clou
 
           const isActive = positionClass === "active";
           const handleCardClick = isActive ? handleActiveTap : (positionClass === "next" || positionClass === "far") ? goNext : goPrev;
+          const slotIndex = offset + 1; // 0, 1, 2, 3 for stagger
           return (
             <div
-              key={cloud.id}
+              key={`slot-${offset}`}
               className={`cloud-card ${positionClass}`}
               data-team={cloud.id}
               onClick={handleCardClick}
@@ -193,7 +195,18 @@ export default function CloudStackMobile({ onSelect, onDetailsOpenChange }: Clou
               tabIndex={0}
               aria-label={isActive ? `Select ${cloud.name}` : (positionClass === "next" || positionClass === "far") ? "Next cloud" : "Previous cloud"}
             >
-              <CloudCardInner cloud={cloud} isActive={isActive} />
+              <motion.div
+                className="h-full w-full"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{
+                  delay: 0.9 + slotIndex * 0.08,
+                  duration: 0.55,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+              >
+                <CloudCardInner cloud={cloud} isActive={isActive} />
+              </motion.div>
             </div>
           );
         })}
