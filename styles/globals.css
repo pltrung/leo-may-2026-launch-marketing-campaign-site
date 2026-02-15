@@ -853,6 +853,15 @@ body.hero-ready .hero-scroll {
   50% { transform: translateY(-8px); }
 }
 
+/* About Us button — gentle breathe to match countdown flow */
+.about-btn-breathe {
+  animation: aboutBtnBreathe 4s ease-in-out infinite;
+}
+@keyframes aboutBtnBreathe {
+  0%, 100% { opacity: 0.92; box-shadow: 0 0 0 rgba(255,255,255,0); }
+  50% { opacity: 1; box-shadow: 0 0 12px rgba(255,255,255,0.15); }
+}
+
 /* Countdown page: leaderboard header — alive */
 .sky-header {
   font-size: 22px;

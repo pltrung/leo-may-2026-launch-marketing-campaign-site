@@ -8,6 +8,7 @@ import { getCloudById } from "@/lib/cloudData";
 import type { CloudType } from "@/lib/cloudData";
 import CloudIconByType from "@/components/CloudIcons";
 import CloudFooter from "@/components/CloudFooter";
+import AboutUsModal from "@/components/AboutUsModal";
 import { useCountdownHeroEntrance, CONTENT_STAGGER_MS, EASE_APPLE_IN_OUT, EASE_APPLE_SETTLE, EASE_MICRO_SETTLE } from "@/lib/enterCountdownHero";
 
 /** Background + holds fade to blue (ms); hero entrance starts after this. */
@@ -116,6 +117,7 @@ export default function CountdownPage() {
   const [user, setUser] = useState<ReturnType<typeof getUser>>(null);
   const [verified, setVerified] = useState<boolean | null>(null);
   const [shareToast, setShareToast] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const { phase } = useCountdownHeroEntrance({ startDelay: COUNTDOWN_BG_FADE_MS });
   const teamCount = useTeamCount((user?.team ?? "may_nhe") as CloudType);
   const leaderboard = useLeaderboard();
@@ -179,6 +181,18 @@ export default function CountdownPage() {
       style={{ backgroundColor: "#0242FF" }}
     >
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-4 relative overflow-y-auto overflow-x-hidden min-h-0">
+      {/* Desktop: About Us top left */}
+      <motion.button
+        type="button"
+        onClick={() => setAboutOpen(true)}
+        className="about-btn-breathe hidden md:flex absolute top-8 left-10 z-10 py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 hover:scale-[1.02] transition-all duration-300 items-center justify-center"
+        aria-label="About Us"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: phase === "content" ? 1 : 0 }}
+        transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+      >
+        About Us
+      </motion.button>
       <motion.button
         type="button"
         onClick={handleLogout}
@@ -529,13 +543,21 @@ export default function CountdownPage() {
           )}
         </motion.div>
 
-        {/* Mobile logout — bottom center above footer */}
+        {/* Mobile: About Us then Log out — above footer */}
         <motion.div
-          className="logout-mobile md:hidden"
+          className="flex flex-col items-center gap-3 md:hidden mt-6 mb-2"
           initial={{ opacity: 0 }}
           animate={{ opacity: phase === "content" ? 1 : 0 }}
           transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
+          <button
+            type="button"
+            onClick={() => setAboutOpen(true)}
+            className="about-btn-breathe logout-mobile-btn w-full max-w-[200px]"
+            aria-label="About Us"
+          >
+            About Us
+          </button>
           <button
             type="button"
             onClick={handleLogout}
@@ -559,6 +581,10 @@ export default function CountdownPage() {
       >
         <CloudFooter />
       </motion.footer>
+
+      <AnimatePresence>
+        {aboutOpen && <AboutUsModal onClose={() => setAboutOpen(false)} />}
+      </AnimatePresence>
     </div>
   );
 }
