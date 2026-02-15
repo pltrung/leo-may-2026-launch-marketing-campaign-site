@@ -316,10 +316,10 @@
   animation: breathe 4s ease-in-out infinite;
 }
 
-/* Countdown page: joined card — max 2 lines, simplified */
+/* Countdown page: joined card — max 2 lines, no icon, smaller */
 .joined-card {
-  max-width: 420px;
-  padding: 14px 22px;
+  max-width: 380px;
+  padding: 12px 20px;
   border-radius: 16px;
   background: rgba(255,255,255,0.92);
   backdrop-filter: blur(12px);
@@ -337,11 +337,33 @@
 }
 
 /* Countdown page: spacing hierarchy */
-.countdown-spacing-after-card { margin-bottom: 18px; }
-.countdown-spacing-after-logo { margin-bottom: 18px; }
-.countdown-spacing-after-ip { margin-bottom: 18px; }
-.countdown-spacing-after-progress { margin-bottom: 14px; }
+.countdown-spacing-after-card { margin-bottom: 12px; }
+.countdown-spacing-after-logo { margin-bottom: 8px; }
+.countdown-spacing-after-ip { margin-bottom: 16px; }
+.countdown-spacing-after-progress { margin-bottom: 12px; }
 .countdown-spacing-after-share { margin-bottom: 18px; }
+.countdown-spacing-after-timer { margin-bottom: 18px; }
+.countdown-spacing-after-leaderboard { margin-bottom: 20px; }
+
+/* Countdown page: mobile logout */
+.logout-mobile {
+  text-align: center;
+  margin-top: 30px;
+  margin-bottom: 10px;
+}
+.logout-mobile-btn {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.25);
+  color: rgba(255,255,255,0.7);
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.logout-mobile-btn:hover {
+  opacity: 0.9;
+}
 
 /* Countdown page: referral progress — green current count */
 .referral-current {
@@ -352,10 +374,17 @@
   opacity: 0.6;
 }
 
-/* Countdown page: IP — primary visual focus, dominant */
+/* Countdown page: IP — primary visual focus, large on mobile */
 .countdown-ip {
-  width: clamp(200px, 33vw, 380px);
+  width: 340px;
+  max-width: 40vw;
   animation: ipFloatCountdown 5s ease-in-out infinite;
+}
+@media (max-width: 768px) {
+  .countdown-ip {
+    width: 78vw;
+    max-width: 420px;
+  }
 }
 @keyframes ipFloatCountdown {
   0% { transform: translateY(0px); }
@@ -408,6 +437,13 @@
   box-shadow:
     0 0 24px rgba(255,220,120,0.5),
     0 6px 20px rgba(0,0,0,0.2),
+    inset 0 1px 0 rgba(255,255,255,0.18);
+}
+/* Countdown page: user's team highlight glow */
+.leaderboard-card-highlight {
+  box-shadow:
+    0 0 20px rgba(255,255,255,0.25),
+    0 6px 20px rgba(0,0,0,0.15),
     inset 0 1px 0 rgba(255,255,255,0.18);
 }
 

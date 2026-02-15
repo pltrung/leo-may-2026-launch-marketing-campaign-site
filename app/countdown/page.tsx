@@ -176,7 +176,7 @@ export default function CountdownPage() {
       <button
         type="button"
         onClick={handleLogout}
-        className="absolute bottom-5 right-4 md:bottom-auto md:top-8 md:right-10 z-10 py-1.5 px-3 md:py-2 md:px-4 rounded-full border border-white/60 text-white/90 text-xs md:text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors"
+        className="hidden md:flex absolute top-8 right-10 z-10 py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors items-center justify-center"
         aria-label="Log out"
       >
         Log out
@@ -189,15 +189,12 @@ export default function CountdownPage() {
       </div>
 
       <div className="flex flex-col items-center w-full max-w-lg mx-auto flex-1 pt-4 pb-14 md:pb-3">
-        {/* 1. Cloud card: You joined — max 2 lines + icon */}
+        {/* 1. Cloud card: You joined — max 2 lines, no icon */}
         <div className="joined-card shrink-0 countdown-spacing-after-card">
           <p className="greeting">Hi {firstName},</p>
           <p className="team-name">
             You joined <span style={{ color: accent, textShadow: `0 0 12px ${accent}60` }}>Team {cloud.name}</span>
           </p>
-          <div className="mt-1.5 flex justify-center" style={{ color: accent }}>
-            <CloudIconByType cloudId={cloud.id} className="w-[20px] h-[20px]" />
-          </div>
         </div>
 
         {/* 2. Logo */}
@@ -271,6 +268,38 @@ export default function CountdownPage() {
         >
           Share your cloud
         </button>
+
+        {/* Countdown timer + winner message — directly below Share */}
+        <div className="countdown-timer-block shrink-0 w-full flex flex-col items-center countdown-spacing-after-timer">
+          <div className="flex items-center justify-center gap-0.5 sm:gap-1 md:gap-2 w-full max-w-full px-1">
+            {[
+              { v: pad(days), l: "D" },
+              { v: pad(hours), l: "H" },
+              { v: pad(minutes), l: "M" },
+              { v: pad(seconds), l: "S" },
+            ].map((b, i) => (
+              <div key={b.l} className="flex items-center gap-0.5 sm:gap-1 md:gap-2">
+                <div
+                  className="rounded-xl flex flex-col items-center justify-center w-[52px] min-w-[52px] h-[52px] sm:w-[60px] sm:min-w-[60px] sm:h-[60px] md:w-[72px] md:min-w-[72px] md:h-[72px] lg:w-[84px] lg:min-w-[84px] lg:h-[84px] px-1 sm:px-2 py-2 shrink-0"
+                  style={{
+                    backgroundColor: "rgba(255,255,255,0.12)",
+                    boxShadow: "0 0 20px rgba(255,255,255,0.15)",
+                  }}
+                >
+                  <span className="font-headline font-bold text-[1.25rem] sm:text-[1.5rem] md:text-[2rem] lg:text-[2.5rem] text-white tabular-nums tracking-headline">
+                    {b.v}
+                  </span>
+                  <span className="font-caption text-white/60 text-[10px] sm:text-xs mt-0.5">{b.l}</span>
+                </div>
+                {i < 3 && <span className="font-headline text-white/40 text-lg sm:text-xl -mb-6">:</span>}
+              </div>
+            ))}
+          </div>
+          <p className="countdown-winner-text text-center text-white/60 text-[0.7rem] sm:text-[0.75rem] max-w-[280px] mt-3 leading-tight">
+            The team with the most climbers when the countdown ends will receive a special prize.
+          </p>
+        </div>
+
         {shareToast && (
           <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
             <div className="px-6 py-4 rounded-xl bg-white/95 shadow-lg text-storm font-medium animate-fade-out-2s">
@@ -279,8 +308,8 @@ export default function CountdownPage() {
           </div>
         )}
 
-        {/* 7. Leaderboard — block-based, with shimmer background */}
-        <div className="shrink-0 flex flex-col items-center w-full max-w-[320px] relative mt-0">
+        {/* Leaderboard — after countdown */}
+        <div className="shrink-0 flex flex-col items-center w-full max-w-[320px] relative countdown-spacing-after-leaderboard">
           <div className="absolute inset-0 rounded-2xl leaderboard-shimmer pointer-events-none -z-10" aria-hidden />
           <p className="sky-header font-medium text-white text-center">
             The Sky is Shifting
@@ -303,11 +332,17 @@ export default function CountdownPage() {
               return (
                 <div
                   key={entry.id}
-                  className={`leaderboard-card flex flex-row items-center gap-3 transition-all duration-300 ${idx === 0 ? "rank-1" : ""} ${isUserTeam ? "animate-leaderboard-glow scale-[1.02]" : ""}`}
+                  className={`leaderboard-card flex flex-row items-center gap-3 transition-all duration-300 ${idx === 0 ? "rank-1" : ""} ${isUserTeam ? "leaderboard-card-highlight animate-leaderboard-glow scale-[1.02]" : ""}`}
                   style={{
                     ...(isUserTeam ? { ["--glow-color" as string]: glowColor, color: highlightColor } : { color: "rgba(255,255,255,0.95)" }),
                   }}
                 >
+                  <div
+                    className="shrink-0 team-icon flex items-center justify-center"
+                    style={{ color: isUserTeam ? highlightColor : "rgba(255,255,255,0.9)" }}
+                  >
+                    <CloudIconByType cloudId={entry.id as CloudType} className="w-8 h-8 sm:w-9 sm:h-9" />
+                  </div>
                   <div
                     className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-lg animate-rank-badge-pulse"
                     style={{
@@ -319,10 +354,10 @@ export default function CountdownPage() {
                     {medals[idx]}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`font-medium text-[0.8rem] sm:text-[0.9rem] leading-tight ${isUserTeam ? "font-bold" : ""}`}>
+                    <p className={`team-name font-medium text-[0.8rem] sm:text-[0.9rem] leading-tight ${isUserTeam ? "font-bold" : ""}`}>
                       Team {entry.name}
                     </p>
-                    <p className="font-caption text-white/60 text-[0.7rem] mt-0.5">
+                    <p className="team-count font-caption text-white/60 text-[0.7rem] mt-0.5">
                       {entry.count} climber{entry.count !== 1 ? "s" : ""}
                     </p>
                   </div>
@@ -350,6 +385,9 @@ export default function CountdownPage() {
                 >
                   <p className="font-medium text-white/60 text-[0.7rem] uppercase tracking-wider mb-1">Your Team Rank</p>
                   <div className="flex flex-row items-center gap-3">
+                    <div className="shrink-0 team-icon flex items-center justify-center" style={{ color: accentContrast }}>
+                      <CloudIconByType cloudId={cloud.id} className="w-8 h-8" />
+                    </div>
                     <div className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm" style={{ backgroundColor: accentContrast, color: isGiong ? "#0242FF" : (cloud.joinTextHex ?? "#1E2A38") }}>
                       #{rank}
                     </div>
@@ -374,37 +412,17 @@ export default function CountdownPage() {
           )}
         </div>
 
-        {/* Winner message */}
-        <p className="shrink-0 text-center text-white/60 text-[0.7rem] sm:text-[0.75rem] max-w-[280px] mt-3 leading-tight">
-          The team with the most climbers when the countdown ends will receive a special prize.
-        </p>
-
-        {/* 8. Countdown — fits viewport, spacing from leaderboard */}
-        <div className="flex items-center justify-center gap-0.5 sm:gap-1 md:gap-2 shrink-0 mt-4 md:mt-3 w-full max-w-full px-1">
-          {[
-            { v: pad(days), l: "D" },
-            { v: pad(hours), l: "H" },
-            { v: pad(minutes), l: "M" },
-            { v: pad(seconds), l: "S" },
-          ].map((b, i) => (
-            <div key={b.l} className="flex items-center gap-0.5 sm:gap-1 md:gap-2">
-              <div
-                className="rounded-xl flex flex-col items-center justify-center w-[52px] min-w-[52px] h-[52px] sm:w-[60px] sm:min-w-[60px] sm:h-[60px] md:w-[72px] md:min-w-[72px] md:h-[72px] lg:w-[84px] lg:min-w-[84px] lg:h-[84px] px-1 sm:px-2 py-2 shrink-0"
-                style={{
-                  backgroundColor: "rgba(255,255,255,0.12)",
-                  boxShadow: "0 0 20px rgba(255,255,255,0.15)",
-                }}
-              >
-                <span className="font-headline font-bold text-[1.25rem] sm:text-[1.5rem] md:text-[2rem] lg:text-[2.5rem] text-white tabular-nums tracking-headline">
-                  {b.v}
-                </span>
-                <span className="font-caption text-white/60 text-[10px] sm:text-xs mt-0.5">{b.l}</span>
-              </div>
-              {i < 3 && <span className="font-headline text-white/40 text-lg sm:text-xl -mb-6">:</span>}
-            </div>
-          ))}
+        {/* Mobile logout — bottom center above footer */}
+        <div className="logout-mobile md:hidden">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="logout-mobile-btn"
+            aria-label="Log out"
+          >
+            Log out
+          </button>
         </div>
-
       </div>
       </main>
       <footer className="flex-shrink-0 relative z-10">
