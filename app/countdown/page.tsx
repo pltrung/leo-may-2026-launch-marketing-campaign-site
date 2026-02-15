@@ -11,6 +11,22 @@ import CloudFooter from "@/components/CloudFooter";
 const TARGET = new Date("2026-01-01T00:00:00+07:00");
 const REFERRAL_UNLOCK = 10;
 
+function getCountdownIPImage(referralCount: number): string {
+  if (referralCount >= 10) return "/brand/referral-unlock-10.svg";
+  if (referralCount >= 8) return "/brand/referral-unlock-8.svg";
+  if (referralCount >= 5) return "/brand/referral-unlock-5.svg";
+  if (referralCount >= 2) return "/brand/referral-unlock-2.svg";
+  return "/brand/ip-count-down.svg";
+}
+
+function getFloatLevel(referralCount: number): string {
+  if (referralCount >= 10) return "float-level-4";
+  if (referralCount >= 8) return "float-level-3";
+  if (referralCount >= 5) return "float-level-2";
+  if (referralCount >= 2) return "float-level-1";
+  return "float-level-0";
+}
+
 function useCountdown() {
   const [diff, setDiff] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   useEffect(() => {
@@ -206,11 +222,11 @@ export default function CountdownPage() {
           />
         </div>
 
-        {/* 3. IP — primary visual focus, dominant */}
-        <div className="shrink-0 countdown-ip countdown-spacing-after-ip">
+        {/* 3. IP — milestone-based image, float intensity by referral count */}
+        <div className={`shrink-0 countdown-ip countdown-spacing-after-ip ${getFloatLevel(referralCount)}`}>
           <img
-            src="/brand/ip-count-down.svg"
-            alt=""
+            src={getCountdownIPImage(referralCount)}
+            alt="Cloud character"
             className="w-full h-auto object-contain"
           />
         </div>
@@ -332,34 +348,36 @@ export default function CountdownPage() {
               return (
                 <div
                   key={entry.id}
-                  className={`leaderboard-card flex flex-row items-center gap-3 transition-all duration-300 ${idx === 0 ? "rank-1" : ""} ${isUserTeam ? "leaderboard-card-highlight animate-leaderboard-glow scale-[1.02]" : ""}`}
+                  className={`leaderboard-card flex flex-row items-center justify-between transition-all duration-300 ${idx === 0 ? "rank-1" : ""} ${isUserTeam ? "leaderboard-card-highlight animate-leaderboard-glow scale-[1.02]" : ""}`}
                   style={{
                     ...(isUserTeam ? { ["--glow-color" as string]: glowColor, color: highlightColor } : { color: "rgba(255,255,255,0.95)" }),
                   }}
                 >
-                  <div
-                    className="shrink-0 team-icon flex items-center justify-center"
-                    style={{ color: isUserTeam ? highlightColor : "rgba(255,255,255,0.9)" }}
-                  >
-                    <CloudIconByType cloudId={entry.id as CloudType} className="w-8 h-8 sm:w-9 sm:h-9" />
+                  <div className="flex flex-row items-center gap-3 flex-1 min-w-0">
+                    <div
+                      className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-lg animate-rank-badge-pulse"
+                      style={{
+                        background: rankGradients[idx],
+                        boxShadow: "0 0 12px rgba(255,255,255,0.3)",
+                        border: "1px solid rgba(255,255,255,0.4)",
+                      }}
+                    >
+                      {medals[idx]}
+                    </div>
+                    <div className="leaderboard-text flex flex-col min-w-0">
+                      <p className={`team-name font-medium text-[0.8rem] sm:text-[0.9rem] leading-tight ${isUserTeam ? "font-bold" : ""}`}>
+                        Team {entry.name}
+                      </p>
+                      <p className="team-count font-caption text-white/60 text-[0.7rem] mt-0.5">
+                        {entry.count} climber{entry.count !== 1 ? "s" : ""}
+                      </p>
+                    </div>
                   </div>
                   <div
-                    className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-lg animate-rank-badge-pulse"
-                    style={{
-                      background: rankGradients[idx],
-                      boxShadow: "0 0 12px rgba(255,255,255,0.3)",
-                      border: "1px solid rgba(255,255,255,0.4)",
-                    }}
+                    className="team-icon-right shrink-0 flex items-center justify-center"
+                    style={{ color: entry.accentHex }}
                   >
-                    {medals[idx]}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`team-name font-medium text-[0.8rem] sm:text-[0.9rem] leading-tight ${isUserTeam ? "font-bold" : ""}`}>
-                      Team {entry.name}
-                    </p>
-                    <p className="team-count font-caption text-white/60 text-[0.7rem] mt-0.5">
-                      {entry.count} climber{entry.count !== 1 ? "s" : ""}
-                    </p>
+                    <CloudIconByType cloudId={entry.id as CloudType} className="w-[42px] h-[42px]" />
                   </div>
                 </div>
               );
@@ -384,26 +402,31 @@ export default function CountdownPage() {
                   }}
                 >
                   <p className="font-medium text-white/60 text-[0.7rem] uppercase tracking-wider mb-1">Your Team Rank</p>
-                  <div className="flex flex-row items-center gap-3">
-                    <div className="shrink-0 team-icon flex items-center justify-center" style={{ color: accentContrast }}>
-                      <CloudIconByType cloudId={cloud.id} className="w-8 h-8" />
+                  <div className="flex flex-row items-center justify-between gap-3">
+                    <div className="flex flex-row items-center gap-3 flex-1 min-w-0">
+                      <div className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm" style={{ backgroundColor: accentContrast, color: isGiong ? "#0242FF" : (cloud.joinTextHex ?? "#1E2A38") }}>
+                        #{rank}
+                      </div>
+                      <div className="leaderboard-text flex flex-col min-w-0">
+                        <p className="font-bold text-white text-[0.9rem] sm:text-[1rem]">Team {cloud.name}</p>
+                        <p className="font-caption text-white/70 text-[0.75rem] mt-0.5">
+                          {teamCount} climber{teamCount !== 1 ? "s" : ""}
+                          {diff > 0 && (
+                            <span className="block mt-0.5">
+                              +{diff} to reach #3
+                              {isCloseToNext && (
+                                <span className="inline-block ml-1" style={{ color: accentContrast }} aria-hidden>↑</span>
+                              )}
+                            </span>
+                          )}
+                        </p>
+                      </div>
                     </div>
-                    <div className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm" style={{ backgroundColor: accentContrast, color: isGiong ? "#0242FF" : (cloud.joinTextHex ?? "#1E2A38") }}>
-                      #{rank}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-white text-[0.9rem] sm:text-[1rem]">Team {cloud.name}</p>
-                      <p className="font-caption text-white/70 text-[0.75rem] mt-0.5">
-                        {teamCount} climber{teamCount !== 1 ? "s" : ""}
-                        {diff > 0 && (
-                          <span className="block mt-0.5">
-                            +{diff} to reach #3
-                            {isCloseToNext && (
-                              <span className="inline-block ml-1" style={{ color: accentContrast }} aria-hidden>↑</span>
-                            )}
-                          </span>
-                        )}
-                      </p>
+                    <div
+                      className="team-icon-right shrink-0 flex items-center justify-center"
+                      style={{ color: accentContrast }}
+                    >
+                      <CloudIconByType cloudId={cloud.id} className="w-[42px] h-[42px]" />
                     </div>
                   </div>
                 </div>

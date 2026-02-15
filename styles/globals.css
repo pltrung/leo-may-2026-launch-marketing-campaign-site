@@ -218,6 +218,12 @@
 :root {
   --cloud: #F5F7FA;
   --mist: #DDE2E6;
+  --team-suong-mu: #8FA3B8;
+  --team-ho-may: #FFD580;
+  --team-giong: #0242FF;
+  --team-cau-vong: #FF8CF0;
+  --team-may-nhe: #A4FFD0;
+  --team-gio: #7CE0FF;
   --storm: #1E2A38;
   --sage: #9BAF9D;
   --accent: #F4A261;
@@ -378,7 +384,6 @@
 .countdown-ip {
   width: 340px;
   max-width: 40vw;
-  animation: ipFloatCountdown 5s ease-in-out infinite;
 }
 @media (max-width: 768px) {
   .countdown-ip {
@@ -386,10 +391,42 @@
     max-width: 420px;
   }
 }
-@keyframes ipFloatCountdown {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-8px); }
-  100% { transform: translateY(0px); }
+
+/* Countdown IP: float intensity increases with referral milestones */
+.float-level-0 {
+  animation: float0 6s ease-in-out infinite;
+}
+.float-level-1 {
+  animation: float1 5.5s ease-in-out infinite;
+}
+.float-level-2 {
+  animation: float2 5s ease-in-out infinite;
+}
+.float-level-3 {
+  animation: float3 4.5s ease-in-out infinite;
+}
+.float-level-4 {
+  animation: float4 4s ease-in-out infinite;
+}
+@keyframes float0 {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-6px) scale(1.01); }
+}
+@keyframes float1 {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-10px) scale(1.02); }
+}
+@keyframes float2 {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-14px) scale(1.03); }
+}
+@keyframes float3 {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-16px) scale(1.035); }
+}
+@keyframes float4 {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-18px) scale(1.04); }
 }
 
 /* Countdown page: leaderboard header — alive */
@@ -416,6 +453,9 @@
 
 /* Countdown page: leaderboard cards — physical floating blocks */
 .leaderboard-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 14px 18px;
   border-radius: 18px;
   background: linear-gradient(
@@ -430,6 +470,29 @@
 }
 .leaderboard-card:hover {
   transform: translateY(-4px);
+}
+.leaderboard-text {
+  display: flex;
+  flex-direction: column;
+}
+.team-icon-right {
+  width: 42px;
+  height: 42px;
+  margin-left: 12px;
+  filter:
+    drop-shadow(0 0 6px currentColor)
+    drop-shadow(0 0 12px currentColor);
+  animation: teamIconSparkle 3.5s ease-in-out infinite;
+}
+@keyframes teamIconSparkle {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 12px currentColor);
+  }
+  50% {
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 16px currentColor) drop-shadow(0 0 24px currentColor);
+  }
 }
 
 /* Countdown page: #1 cloud — special glow */
