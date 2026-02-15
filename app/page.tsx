@@ -28,7 +28,7 @@ function HomeContent() {
   const [showClouds, setShowClouds] = useState(false);
   const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
   const [skyVisible, setSkyVisible] = useState(false);
-  const [skyTransitionForCountdown, setSkyTransitionForCountdown] = useState(false);
+  const [skyTransitionForCountdown, setSkyTransitionForCountdown] = useState<false | "return" | "forms">(false);
   const [heroOpacity, setHeroOpacity] = useState(1);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -43,6 +43,8 @@ function HomeContent() {
     setSelectedCloud(null);
     router.push("/countdown");
   }, [router]);
+
+  const isCountdownTransition = skyTransitionForCountdown !== false;
 
   const handleAscendClick = useCallback(() => {
     timersRef.current.forEach(clearTimeout);
@@ -73,7 +75,7 @@ function HomeContent() {
     return () => document.documentElement.classList.remove("cloud-selection-view");
   }, [showClouds]);
 
-  const transitionActive = skyVisible || skyTransitionForCountdown;
+  const transitionActive = skyVisible || isCountdownTransition;
   const heroContentOpacity = showClouds ? 1 : (transitionActive ? 0 : heroOpacity);
 
   return (
@@ -92,7 +94,7 @@ function HomeContent() {
         <KnowYourTeamButton
           show
           onFoundTeam={() => {
-            setSkyTransitionForCountdown(true);
+            setSkyTransitionForCountdown("return");
           }}
         />
       </motion.div>
@@ -139,15 +141,15 @@ function HomeContent() {
           cloud={selectedCloud}
           onClose={() => setSelectedCloud(null)}
           onSuccess={() => {}}
-          onRedirectToCountdown={() => setSkyTransitionForCountdown(true)}
+          onRedirectToCountdown={() => setSkyTransitionForCountdown("forms")}
           referredBy={searchParams.get("ref") ?? undefined}
         />
       )}
 
-      {(skyVisible || skyTransitionForCountdown) && (
+      {(skyVisible || isCountdownTransition) && (
         <SkyTransition
-          variant={skyTransitionForCountdown ? "return" : "discovery"}
-          onComplete={skyTransitionForCountdown ? handleCountdownTransitionComplete : handleCloudTransitionComplete}
+          variant={isCountdownTransition ? skyTransitionForCountdown : "discovery"}
+          onComplete={isCountdownTransition ? handleCountdownTransitionComplete : handleCloudTransitionComplete}
         />
       )}
     </div>

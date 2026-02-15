@@ -3,17 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 
-export type SkyTransitionVariant = "discovery" | "return";
+export type SkyTransitionVariant = "discovery" | "return" | "forms";
 
 interface SkyTransitionProps {
   onComplete?: () => void;
-  /** discovery = "THE MIST CLEARS", return = "YOUR CLOUD FORMS" */
+  /** discovery = "THE MIST CLEARS", return = "YOUR CLOUD RETURNS", forms = "YOUR CLOUD FORMS" */
   variant?: SkyTransitionVariant;
 }
 
 const LINES = {
   discovery: ["THE", "MIST", "CLEARS"],
-  return: ["YOUR", "CLOUD", "FORMS"],
+  return: ["YOUR", "CLOUD", "RETURNS"],
+  forms: ["YOUR", "CLOUD", "FORMS"],
 } as const;
 
 export default function SkyTransition({ onComplete, variant = "discovery" }: SkyTransitionProps) {
