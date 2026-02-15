@@ -6,12 +6,19 @@ import KnowYourTeamModal from "./KnowYourTeamModal";
 interface KnowYourTeamButtonProps {
   /** Hide on countdown page */
   show?: boolean;
+  /** Called when user finds their team — triggers Sky transition then redirect to countdown */
+  onFoundTeam?: () => void;
 }
 
-export default function KnowYourTeamButton({ show = true }: KnowYourTeamButtonProps) {
+export default function KnowYourTeamButton({ show = true, onFoundTeam }: KnowYourTeamButtonProps) {
   const [open, setOpen] = useState(false);
 
   if (!show) return null;
+
+  const handleFoundTeam = () => {
+    setOpen(false);
+    onFoundTeam?.();
+  };
 
   return (
     <>
@@ -24,7 +31,7 @@ export default function KnowYourTeamButton({ show = true }: KnowYourTeamButtonPr
         Know your cloud?
       </button>
       {open && (
-        <KnowYourTeamModal onClose={() => setOpen(false)} />
+        <KnowYourTeamModal onClose={() => setOpen(false)} onFoundTeam={onFoundTeam ? handleFoundTeam : undefined} />
       )}
     </>
   );

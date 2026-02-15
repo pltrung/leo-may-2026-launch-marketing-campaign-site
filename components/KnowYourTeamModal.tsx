@@ -7,9 +7,11 @@ import { findUserByEmailOrPhone } from "@/lib/userStorage";
 
 interface KnowYourTeamModalProps {
   onClose: () => void;
+  /** When provided, called instead of router.push — triggers Sky transition then countdown */
+  onFoundTeam?: () => void;
 }
 
-export default function KnowYourTeamModal({ onClose }: KnowYourTeamModalProps) {
+export default function KnowYourTeamModal({ onClose, onFoundTeam }: KnowYourTeamModalProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -44,8 +46,12 @@ export default function KnowYourTeamModal({ onClose }: KnowYourTeamModalProps) {
         }
       }
       if (user) {
-        router.push("/countdown");
-        onClose();
+        if (onFoundTeam) {
+          onFoundTeam();
+        } else {
+          router.push("/countdown");
+          onClose();
+        }
       } else {
         setNotFound(true);
       }

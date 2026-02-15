@@ -28,6 +28,7 @@ function HomeContent() {
   const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [skyVisible, setSkyVisible] = useState(false);
+  const [skyTransitionForCountdown, setSkyTransitionForCountdown] = useState(false);
   const [heroOpacity, setHeroOpacity] = useState(1);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -38,6 +39,13 @@ function HomeContent() {
     window.scrollTo({ top: 0, behavior: "auto" });
     setSkyVisible(false);
   }, []);
+
+  const handleCountdownTransitionComplete = useCallback(() => {
+    setSkyTransitionForCountdown(false);
+    setSelectedCloud(null);
+    handleSuccess();
+    router.push("/countdown");
+  }, [router]);
 
   const handleAscendClick = useCallback(() => {
     timersRef.current.forEach(clearTimeout);
@@ -83,8 +91,17 @@ function HomeContent() {
       <main className="relative flex-1 min-h-0 z-10">
       <BrandBackground />
       <HeroScrollObserver />
-      <KnowYourTeamButton show />
-      {skyVisible && <SkyTransition onComplete={handleCloudTransitionComplete} />}
+      <KnowYourTeamButton
+        show
+        onFoundTeam={() => {
+          setSkyTransitionForCountdown(true);
+        }}
+      />
+      {(skyVisible || skyTransitionForCountdown) && (
+        <SkyTransition
+          onComplete={skyTransitionForCountdown ? handleCountdownTransitionComplete : handleCloudTransitionComplete}
+        />
+      )}
       <AnimatePresence mode="wait">
         <motion.div
           key={showClouds ? "clouds" : "hero"}
@@ -118,6 +135,7 @@ function HomeContent() {
           cloud={selectedCloud}
           onClose={() => setSelectedCloud(null)}
           onSuccess={handleSuccess}
+          onRedirectToCountdown={() => setSkyTransitionForCountdown(true)}
           referredBy={searchParams.get("ref") ?? undefined}
         />
       )}

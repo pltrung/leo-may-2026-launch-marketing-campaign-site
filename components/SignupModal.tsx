@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { CloudPersonality } from "@/lib/cloudData";
@@ -11,6 +11,8 @@ interface SignupModalProps {
   cloud: CloudPersonality | null;
   onClose: () => void;
   onSuccess: () => void;
+  /** When provided, triggers Sky transition before redirect to countdown */
+  onRedirectToCountdown?: () => void;
   referredBy?: string;
 }
 
@@ -25,9 +27,11 @@ export default function SignupModal({
   cloud,
   onClose,
   onSuccess,
+  onRedirectToCountdown,
   referredBy,
 }: SignupModalProps) {
   const router = useRouter();
+  const redirectTriggeredRef = useRef(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -39,13 +43,20 @@ export default function SignupModal({
   useEffect(() => {
     if (!confirmation) return;
     if (redirectCount <= 0) {
-      onSuccess();
-      router.push("/countdown");
+      if (onRedirectToCountdown && !redirectTriggeredRef.current) {
+        redirectTriggeredRef.current = true;
+        onRedirectToCountdown();
+        return;
+      }
+      if (!onRedirectToCountdown) {
+        onSuccess();
+        router.push("/countdown");
+      }
       return;
     }
     const t = setTimeout(() => setRedirectCount((c) => c - 1), 1000);
     return () => clearTimeout(t);
-  }, [confirmation, redirectCount, onSuccess, router]);
+  }, [confirmation, redirectCount, onSuccess, onRedirectToCountdown, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

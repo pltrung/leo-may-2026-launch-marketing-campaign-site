@@ -226,9 +226,12 @@ body.hero-ready .hero-scroll {
   font-weight: 600;
   font-family: var(--font-bold), "MiSans-Bold", sans-serif;
   letter-spacing: 0.15em;
-  color: white;
+  color: #0242FF;
   opacity: 0;
-  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  text-shadow:
+    0 0 20px rgba(2, 66, 255, 0.4),
+    0 0 40px rgba(2, 66, 255, 0.25),
+    0 4px 24px rgba(0, 0, 0, 0.08);
   will-change: opacity;
 }
 
@@ -318,6 +321,17 @@ body.hero-ready .hero-scroll {
   text-shadow:
     0 0 8px rgba(250,204,21,0.35),
     0 0 16px rgba(250,204,21,0.2);
+}
+
+.emphasis-red {
+  color: #ff1744;
+  font-family: "MiSans-Bold", sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 12px rgba(255,23,68,0.5),
+    0 0 24px rgba(255,23,68,0.35),
+    0 0 40px rgba(255,23,68,0.2);
 }
 
 @keyframes fadeInUp {
@@ -1035,10 +1049,10 @@ body.hero-ready .hero-scroll {
     100% { opacity: 1; transform: scale(1); }
   }
 
-  /* Swipe guide: floating cloud, calm, cinematic */
+  /* Swipe guide: between header and cards, not overlapping footer */
   .swipe-guide {
     position: fixed;
-    bottom: 40px;
+    top: 24vh;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
