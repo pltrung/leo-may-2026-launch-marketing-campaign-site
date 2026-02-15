@@ -36,9 +36,9 @@ export default function MistAscent() {
   }, [updateProgress]);
 
   // Opacity curves: top=almost invisible, middle=slight, near CTA=most visible
-  const topOpacity = Math.min(0.06, progress * 0.08);
-  const midOpacity = progress < 0.25 ? 0 : Math.min(0.07, (progress - 0.25) * 0.2);
-  const upperOpacity = progress < 0.5 ? 0 : Math.min(0.09, (progress - 0.5) * 0.25);
+  const topOpacity = 0.02 + Math.min(0.1, progress * 0.12);
+  const midOpacity = progress < 0.2 ? 0 : Math.min(0.12, (progress - 0.2) * 0.35);
+  const upperOpacity = progress < 0.45 ? 0 : Math.min(0.15, (progress - 0.45) * 0.4);
 
   return (
     <div

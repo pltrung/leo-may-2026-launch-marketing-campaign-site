@@ -616,31 +616,31 @@ body.hero-ready .hero-scroll {
 .mist-ascent-top {
   background: radial-gradient(
     ellipse 80% 60% at 50% 40%,
-    rgba(255, 255, 255, 0.12) 0%,
-    rgba(200, 230, 255, 0.06) 40%,
+    rgba(255, 255, 255, 0.25) 0%,
+    rgba(200, 230, 255, 0.12) 40%,
     transparent 70%
   );
-  filter: blur(28px);
+  filter: blur(32px);
   animation: mistAscentDrift1 24s ease-in-out infinite;
 }
 .mist-ascent-mid {
   background: radial-gradient(
     ellipse 70% 80% at 60% 50%,
-    rgba(230, 248, 255, 0.1) 0%,
-    rgba(180, 220, 255, 0.05) 35%,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(200, 235, 255, 0.1) 35%,
     transparent 65%
   );
-  filter: blur(32px);
+  filter: blur(36px);
   animation: mistAscentDrift2 28s ease-in-out infinite 2s;
 }
 .mist-ascent-upper {
   background: radial-gradient(
     ellipse 60% 70% at 40% 55%,
-    rgba(255, 255, 255, 0.14) 0%,
-    rgba(200, 245, 255, 0.07) 30%,
+    rgba(255, 255, 255, 0.3) 0%,
+    rgba(220, 248, 255, 0.12) 30%,
     transparent 60%
   );
-  filter: blur(24px);
+  filter: blur(40px);
   animation: mistAscentDrift3 26s ease-in-out infinite 4s;
 }
 @keyframes mistAscentDrift1 {
