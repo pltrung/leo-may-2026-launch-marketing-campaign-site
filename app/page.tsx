@@ -15,7 +15,7 @@ import SignupModal from "@/components/SignupModal";
 import Toast from "@/components/Toast";
 import Footer from "@/components/Footer";
 import KnowYourTeamButton from "@/components/KnowYourTeamButton";
-import MistOverlay from "@/components/MistOverlay";
+import SkyTransition from "@/components/SkyTransition";
 import { CloudPersonality } from "@/lib/cloudData";
 import { getUser } from "@/lib/userStorage";
 
@@ -25,9 +25,14 @@ function HomeContent() {
   const [showClouds, setShowClouds] = useState(false);
   const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
   const [showToast, setShowToast] = useState(false);
-  const [mistVisible, setMistVisible] = useState(false);
-  const [mistPhase, setMistPhase] = useState<"enter" | "exit">("enter");
-  const [mistShowText, setMistShowText] = useState(false);
+  const [skyVisible, setSkyVisible] = useState(false);
+  const [skyMistActive, setSkyMistActive] = useState(false);
+  const [skyCloudLeftEnter, setSkyCloudLeftEnter] = useState(false);
+  const [skyCloudRightEnter, setSkyCloudRightEnter] = useState(false);
+  const [skyTextEnter, setSkyTextEnter] = useState(false);
+  const [skyCloudLeftExit, setSkyCloudLeftExit] = useState(false);
+  const [skyCloudRightExit, setSkyCloudRightExit] = useState(false);
+  const [skyMistExit, setSkyMistExit] = useState(false);
   const [heroOpacity, setHeroOpacity] = useState(1);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -36,24 +41,33 @@ function HomeContent() {
   const handleAscendClick = useCallback(() => {
     timersRef.current.forEach(clearTimeout);
     timersRef.current = [];
-    setMistVisible(true);
-    setMistPhase("enter");
-    setMistShowText(false);
+    setSkyVisible(true);
+    setSkyMistActive(false);
+    setSkyCloudLeftEnter(false);
+    setSkyCloudRightEnter(false);
+    setSkyTextEnter(false);
+    setSkyCloudLeftExit(false);
+    setSkyCloudRightExit(false);
+    setSkyMistExit(false);
     setHeroOpacity(1);
 
     const add = (fn: () => void, ms: number) => {
       timersRef.current.push(setTimeout(fn, ms));
     };
 
-    add(() => setMistShowText(true), 600);
+    add(() => setSkyMistActive(true), 0);
+    add(() => setSkyCloudLeftEnter(true), 100);
+    add(() => setSkyCloudRightEnter(true), 200);
+    add(() => setSkyTextEnter(true), 400);
     add(() => setHeroOpacity(0), 700);
     add(() => {
       setShowClouds(true);
       window.scrollTo({ top: 0, behavior: "auto" });
-      setMistPhase("exit");
-      setMistShowText(false);
-    }, 1000);
-    add(() => setMistVisible(false), 1500);
+      setSkyCloudLeftExit(true);
+      setSkyCloudRightExit(true);
+    }, 1400);
+    add(() => setSkyMistExit(true), 1600);
+    add(() => setSkyVisible(false), 1800);
   }, []);
 
   useEffect(() => {
@@ -81,8 +95,16 @@ function HomeContent() {
     <main className="relative min-h-screen z-10">
       <BrandBackground />
       <KnowYourTeamButton show />
-      {mistVisible && (
-        <MistOverlay phase={mistPhase} showText={mistShowText} />
+      {skyVisible && (
+        <SkyTransition
+          mistActive={skyMistActive}
+          cloudLeftEnter={skyCloudLeftEnter}
+          cloudRightEnter={skyCloudRightEnter}
+          skyTextEnter={skyTextEnter}
+          cloudLeftExit={skyCloudLeftExit}
+          cloudRightExit={skyCloudRightExit}
+          mistExit={skyMistExit}
+        />
       )}
       <AnimatePresence mode="wait">
         <motion.div
