@@ -14,7 +14,7 @@ export default function HeroScroll4() {
           Where your <span className="neon-green">SHAPE</span> is never <span className="neon-yellow">QUESTIONED</span>.
         </div>
       </div>
-      <div className="flex items-center justify-center w-[55%] max-w-[260px] aspect-square mx-auto pointer-events-none">
+      <div className="flex items-center justify-center w-[63%] max-w-[300px] sm:w-[55%] sm:max-w-[260px] aspect-square mx-auto pointer-events-none">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/brand/ip-flying.svg"
@@ -24,7 +24,7 @@ export default function HeroScroll4() {
           fetchPriority="high"
         />
       </div>
-      <div className="hero-text philosophy-text hero-line-secondary-wrapper">
+      <div className="hero-text philosophy-text hero-line-secondary-wrapper mt-12 sm:mt-8">
         <div className="hero-line-secondary">
           Only <span className="neon-cyan">EXPERIENCED</span>.
         </div>

@@ -17,7 +17,7 @@ export default function HeroScroll7({ onJoin }: HeroScroll7Props) {
       <div className="min-h-[18vh] flex-shrink-0" aria-hidden />
 
       {/* Title + CTA: only fade in when user has scrolled into this section (mobile + PC) */}
-      <div className="flex-1 flex flex-col items-center justify-end w-full max-w-lg mx-auto min-h-0 pb-[28%] md:pb-[22%]">
+      <div className="flex-1 flex flex-col items-center justify-end w-full max-w-lg mx-auto min-h-0 pb-[42%] sm:pb-[32%] md:pb-[22%]">
         <motion.h2
           className="font-headline text-center text-white text-2xl sm:text-3xl md:text-4xl tracking-headline"
           initial={{ opacity: 0, y: 14 }}
@@ -53,9 +53,9 @@ export default function HeroScroll7({ onJoin }: HeroScroll7Props) {
         </motion.div>
       </div>
 
-      {/* IP on cloud: at bottom of section with room below */}
+      {/* IP on cloud: at bottom of section; on mobile very close to footer for gap from CTA */}
       <motion.div
-        className="absolute bottom-8 left-0 right-0 flex items-center justify-center pointer-events-none"
+        className="absolute bottom-2 sm:bottom-6 md:bottom-8 left-0 right-0 flex items-center justify-center pointer-events-none"
         initial={{ opacity: 0, y: 16 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.15, margin: "-60px" }}
