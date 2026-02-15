@@ -12,7 +12,7 @@ export default function HeroScrollObserver() {
           }
         });
       },
-      { threshold: 0.45 }
+      { threshold: 0.35, rootMargin: "0px 0px -20% 0px" }
     );
     document.querySelectorAll(".hero-section-scroll").forEach((section) => {
       observer.observe(section);
