@@ -2,14 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Apple-level cinematic loading screen */
+/* Loading screen: shown first, then removed. BrandBackground appears in site-root after. */
 #loading-screen {
   position: fixed;
   inset: 0;
-  background:
-    radial-gradient(circle at 30% 20%, rgba(255,255,255,0.08), transparent 40%),
-    radial-gradient(circle at 70% 80%, rgba(255,255,255,0.06), transparent 40%),
-    #1D4ED8;
+  background: var(--cloud);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -868,18 +865,16 @@
 @layer base {
   html {
     scroll-behavior: smooth;
-    background: #1D4ED8;
+    background: var(--cloud);
   }
   body {
     font-family: "MiSans-Regular", sans-serif;
     color: var(--storm);
-    background: #1D4ED8;
+    background: var(--cloud);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
   }
 }
 
-#site-root {
-  background: #1D4ED8;
-}
+/* BrandBackground lives in layout — always visible (background.svg + holds.svg) */

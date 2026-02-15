@@ -24,6 +24,8 @@ export default function RootLayout({
         <link rel="preload" href="/logo-white.svg" as="image" />
         <link rel="preload" href="/brand/cloud-copyright.svg" as="image" />
         <link rel="preload" href="/brand/big-cloud-transition.svg" as="image" />
+        <link rel="preload" href="/brand/background.svg" as="image" />
+        <link rel="preload" href="/brand/holds.svg" as="image" />
       </head>
       <body className="min-h-screen antialiased overflow-x-hidden">
         <div id="loading-screen">
@@ -42,47 +44,15 @@ export default function RootLayout({
         </div>
         <Script id="load-controller" strategy="afterInteractive">
           {`
-            async function waitForImages() {
-              var images = Array.from(document.images);
-              await Promise.all(
-                images.map(function(img) {
-                  if (img.complete) return Promise.resolve();
-                  return new Promise(function(resolve) {
-                    img.onload = img.onerror = resolve;
-                  });
-                })
-              );
-            }
-            async function waitForFonts() {
-              if (document.fonts && document.fonts.ready) {
-                await document.fonts.ready;
-              }
-            }
-            async function waitForNextFrame() {
-              return new Promise(function(resolve) { requestAnimationFrame(resolve); });
-            }
-            async function startApp() {
+            setTimeout(function() {
               var loading = document.getElementById("loading-screen");
               var site = document.getElementById("site-root");
               if (!loading || !site) return;
-              var MIN_DURATION = 1800;
-              var start = performance.now();
-              await Promise.all([
-                waitForFonts(),
-                waitForImages(),
-                waitForNextFrame()
-              ]);
-              var elapsed = performance.now() - start;
-              if (elapsed < MIN_DURATION) {
-                await new Promise(function(r) { setTimeout(r, MIN_DURATION - elapsed); });
-              }
               loading.classList.add("fade-out");
               setTimeout(function() {
                 loading.remove();
                 site.style.opacity = "1";
-                site.style.transition = "opacity 1.2s cubic-bezier(.16,1,.3,1)";
-                document.documentElement.dataset.leomayLoadComplete = "1";
-                document.dispatchEvent(new CustomEvent("leomay-load-complete"));
+                site.style.transition = "opacity 0.8s ease";
                 var logo = document.querySelector(".hero-logo");
                 var title = document.querySelector(".hero-title");
                 var btn = document.querySelector(".know-cloud-btn");
@@ -91,9 +61,8 @@ export default function RootLayout({
                 setTimeout(function(){ if(title) title.classList.add("animate"); }, 400);
                 setTimeout(function(){ if(btn) btn.classList.add("animate"); }, 600);
                 setTimeout(function(){ if(scrollEl) scrollEl.classList.add("animate"); }, 800);
-              }, 800);
-            }
-            startApp();
+              }, 600);
+            }, 2000);
           `}
         </Script>
       </body>

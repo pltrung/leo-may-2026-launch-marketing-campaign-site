@@ -28,17 +28,7 @@ function HomeContent() {
   const [showToast, setShowToast] = useState(false);
   const [skyVisible, setSkyVisible] = useState(false);
   const [heroOpacity, setHeroOpacity] = useState(1);
-  const [loadComplete, setLoadComplete] = useState(false);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-  useEffect(() => {
-    if (document.documentElement.dataset.leomayLoadComplete === "1") {
-      setLoadComplete(true);
-    }
-    const handler = () => setLoadComplete(true);
-    document.addEventListener("leomay-load-complete", handler);
-    return () => document.removeEventListener("leomay-load-complete", handler);
-  }, []);
 
   const handleSuccess = () => setShowToast(true);
 
@@ -85,10 +75,7 @@ function HomeContent() {
   return (
     <>
       <BrandBackground />
-      <div
-        id="hero-page"
-        className={"page-container relative min-h-[100dvh] flex flex-col " + (loadComplete ? "hero-visible" : "hero-hidden")}
-      >
+      <div id="hero-page" className="page-container hero-visible relative min-h-[100dvh] flex flex-col">
       <main className="relative flex-1 min-h-0 z-10">
       <HeroScrollObserver />
       <KnowYourTeamButton show />
@@ -135,13 +122,9 @@ function HomeContent() {
   );
 }
 
-function LoadFallback() {
-  return <div className="min-h-screen w-full" style={{ background: "#1D4ED8" }} aria-hidden />;
-}
-
 export default function Home() {
   return (
-    <Suspense fallback={<LoadFallback />}>
+    <Suspense fallback={null}>
       <HomeContent />
     </Suspense>
   );
