@@ -14,7 +14,7 @@ import { useCountdownHeroEntrance, CONTENT_STAGGER_MS, EASE_APPLE_IN_OUT, EASE_A
 /** Background + holds fade to blue (ms); hero entrance starts after this. */
 const COUNTDOWN_BG_FADE_MS = 1000;
 
-const TARGET = new Date("2026-01-01T00:00:00+07:00");
+const TARGET = new Date("2026-12-01T00:00:00+07:00");
 const REFERRAL_UNLOCK = 10;
 
 function useCountdown() {
