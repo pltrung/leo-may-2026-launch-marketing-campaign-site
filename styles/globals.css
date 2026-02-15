@@ -875,6 +875,15 @@ body.hero-ready .hero-scroll {
   display: none;
 }
 
+/* Cloud selection page: neon headline */
+.cloud-selection-title {
+  text-shadow:
+    0 0 8px rgba(255, 255, 255, 0.6),
+    0 0 20px rgba(255, 255, 255, 0.4),
+    0 0 40px rgba(2, 66, 255, 0.35),
+    0 0 60px rgba(2, 66, 255, 0.2);
+}
+
 /* Mobile-only (max-width: 768px): fixed viewport, no scroll, immersive cloud stack */
 @media (max-width: 768px) {
   html.cloud-selection-view,
