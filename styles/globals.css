@@ -29,6 +29,44 @@
   font-display: swap;
 }
 
+/* Hero fade-in: staggered reveal on load */
+@keyframes heroFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes heroFadeInScroll {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 30px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+.hero-logo {
+  opacity: 0;
+  animation: heroFadeIn 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
+}
+.hero-title {
+  opacity: 0;
+  animation: heroFadeIn 1.4s cubic-bezier(0.22, 1, 0.36, 1) 0.4s forwards;
+}
+.know-cloud-btn {
+  opacity: 0;
+  animation: heroFadeIn 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.6s forwards;
+}
+.hero-scroll {
+  opacity: 0;
+  animation: heroFadeInScroll 1s cubic-bezier(0.22, 1, 0.36, 1) 0.8s forwards;
+}
+
 /* Mist overlay transition: Ascend → Cloud Selector (legacy, kept for reference) */
 @keyframes mistEnter {
   0% { transform: translateY(100%); opacity: 0; }
