@@ -867,13 +867,14 @@ body.hero-ready .hero-scroll {
     overscroll-behavior: none;
     touch-action: pan-x;
   }
+  /* Reserve bottom space for footer so card stack doesn't overlap */
   .cloud-selection-screen {
     position: fixed;
     inset: 0;
     width: 100vw;
     height: 100vh;
     overflow: hidden;
-    padding: 96px 24px 0;
+    padding: 96px 24px 110px;
   }
 
   .cloud-selection-container {
@@ -911,25 +912,21 @@ body.hero-ready .hero-scroll {
     -webkit-backdrop-filter: blur(12px);
     border-radius: 24px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-    transition:
-      transform 400ms cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 400ms ease,
-      box-shadow 400ms ease;
+    transition: all 450ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
+  /* Card size reduced: 84vw × 180px — tighter stack fits above footer */
   .cloud-card {
     position: absolute;
     left: 50%;
-    width: 86vw;
-    max-width: 420px;
-    height: 220px;
+    width: 84vw;
+    max-width: 380px;
+    height: 180px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition:
-      transform 600ms cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 400ms ease;
+    transition: all 450ms cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform, opacity;
   }
 
@@ -937,39 +934,44 @@ body.hero-ready .hero-scroll {
     width: 100%;
     height: 100%;
     border-radius: 24px;
-    border-width: 1px;
+    border-width: 2px;
   }
 
-  /* Stack depth: opacity + scale only */
+  /* Stack depth: opacity + scale */
   .cloud-card.active {
     transform: translateX(-50%) translateY(0) scale(1);
     opacity: 1;
     z-index: 10;
-    animation: cloudFloat 4s ease-in-out infinite;
+    animation: cloudFloat 5s ease-in-out infinite;
   }
 
   .cloud-card.next {
-    transform: translateX(-50%) translateY(90px) scale(0.96);
-    opacity: 0.7;
+    transform: translateX(-50%) translateY(65px) scale(0.92);
+    opacity: 0.35;
     z-index: 5;
   }
 
   .cloud-card.prev {
-    transform: translateX(-50%) translateY(-90px) scale(0.96);
-    opacity: 0.7;
+    transform: translateX(-50%) translateY(-65px) scale(0.92);
+    opacity: 0.35;
     z-index: 5;
   }
 
   .cloud-card.far {
-    transform: translateX(-50%) translateY(160px) scale(0.88);
-    opacity: 0.25;
+    transform: translateX(-50%) translateY(88px) scale(0.85);
+    opacity: 0.35;
     z-index: 1;
+  }
+
+  /* Active card: stronger border + elevation shadow (team glow via --card-glow) */
+  .cloud-card.active .cloud-card-inner {
+    border-width: 3px;
   }
 
   .cloud-card.active .cloud-card-inner.cloud-card-selected {
     box-shadow:
-      0 0 40px rgba(255, 255, 255, 0.35),
-      0 10px 40px rgba(0, 0, 0, 0.2);
+      0 30px 60px rgba(0, 0, 0, 0.25),
+      0 0 40px var(--card-glow, rgba(100, 100, 100, 0.25));
   }
 
   /* When modal open, fade non-active cards */
@@ -977,7 +979,7 @@ body.hero-ready .hero-scroll {
     opacity: 0;
     transform: translateX(-50%) scale(0.9);
     pointer-events: none;
-    transition: opacity 400ms ease, transform 400ms ease;
+    transition: all 450ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .cloud-stack-wrapper.has-selection .cloud-card.active {
@@ -999,7 +1001,7 @@ body.hero-ready .hero-scroll {
       transform: translateX(-50%) translateY(0) scale(1);
     }
     50% {
-      transform: translateX(-50%) translateY(-6px) scale(1.01);
+      transform: translateX(-50%) translateY(-8px) scale(1);
     }
   }
 

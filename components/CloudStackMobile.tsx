@@ -204,18 +204,22 @@ export default function CloudStackMobile({ onSelect, onDetailsOpenChange }: Clou
 
 function CloudCardInner({ cloud, isActive }: { cloud: CloudPersonality; isActive: boolean }) {
   const accent = cloud.accentHex;
-  const borderStyle = { borderColor: hexToRgba(accent, 0.35) };
+  const glowColor = hexToRgba(accent, 0.25);
+  const cardStyle = {
+    borderColor: hexToRgba(accent, 0.35),
+    ...(isActive && { ["--card-glow" as string]: glowColor }),
+  };
   return (
     <div
       className={`cloud-card-inner cloud-card-base w-full h-full rounded-[24px] flex flex-col justify-center items-center p-6 overflow-hidden ${isActive ? "cloud-card-selected" : ""}`}
-      style={borderStyle}
+      style={cardStyle}
     >
       <div className="flex flex-col items-center justify-center flex-1 min-h-0">
         <div className="mb-3" style={{ color: accent }}>
           <CloudIconByType cloudId={cloud.id} className="w-14 h-14" />
         </div>
         <div className="flex flex-col items-center gap-1">
-          <span className="font-subheadline text-lg text-center leading-tight" style={{ color: accent }}>
+          <span className="font-subheadline text-xl text-center leading-tight" style={{ color: accent }}>
             {cloud.name}
           </span>
           <span
