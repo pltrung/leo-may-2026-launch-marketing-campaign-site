@@ -271,7 +271,10 @@ export default function CountdownPage() {
         {/* 3. IP — primary visual focus (visible when overlay settles in phase4, then floats) */}
         <motion.div
           className={`shrink-0 countdown-ip countdown-spacing-after-ip origin-center ${phase === "content" ? "countdown-ip-float" : ""}`}
-          style={{ transformOrigin: "center center" }}
+          style={{
+            transformOrigin: "center center",
+            visibility: phase === "hidden" || phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" ? "hidden" : "visible",
+          }}
           initial={{ opacity: 0 }}
           animate={{
             opacity: phase === "phase4-rest" || phase === "content" ? 1 : 0,
@@ -281,7 +284,6 @@ export default function CountdownPage() {
             delay: phase === "phase4-rest" ? 0.2 : 0,
             ease: EASE_APPLE_IN_OUT,
           }}
-          style={{ visibility: phase === "hidden" || phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" ? "hidden" : "visible" }}
         >
           <img
             src="/brand/ip-count-down.svg"

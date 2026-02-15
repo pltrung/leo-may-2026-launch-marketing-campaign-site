@@ -8,7 +8,7 @@ export default function HeroScroll6() {
         <div className="hero-line-primary text-white tracking-headline">
           You were never meant to move like
         </div>
-        <div className="hero-line-secondary text-white tracking-headline">
+        <div className="hero-line-anyone-else text-white tracking-headline">
           <span className="neon-green">ANYONE ELSE</span>.
         </div>
       </div>

@@ -478,6 +478,15 @@ body.hero-ready .hero-scroll {
   margin-top: 0.4em;
 }
 
+/* Hero Scroll 6: ANYONE ELSE — 2x primary for emphasis */
+.hero-line-anyone-else {
+  font-family: inherit;
+  font-size: clamp(56px, 8vw, 128px);
+  line-height: 1.1;
+  font-weight: 600;
+  margin-top: 0.25em;
+}
+
 .hero-section-scroll .hero-ip {
   margin-top: 24px;
   z-index: 1;
@@ -558,6 +567,10 @@ body.hero-ready .hero-scroll {
 
   .hero-line-secondary {
     font-size: clamp(18px, 5vw, 28px);
+  }
+
+  .hero-line-anyone-else {
+    font-size: clamp(48px, 14vw, 84px);
   }
 
   .mist-ip-city,

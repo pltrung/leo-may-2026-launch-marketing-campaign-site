@@ -24,8 +24,8 @@ export default function HeroScroll4() {
           fetchPriority="high"
         />
       </div>
-      <div className="hero-text philosophy-text hero-line-secondary-wrapper mt-12 sm:mt-8">
-        <div className="hero-line-secondary">
+      <div className="hero-text philosophy-text hero-line-secondary-wrapper mt-24 sm:mt-16">
+        <div className="hero-line-primary text-white/90">
           Only <span className="neon-cyan">EXPERIENCED</span>.
         </div>
       </div>
