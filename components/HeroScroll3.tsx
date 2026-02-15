@@ -13,10 +13,7 @@ const IMAGE_MAP: Record<string, string> = {
 
 /** Hero page scroll section 3: "Imagine a place where movement feels like breath" */
 export default function HeroScroll3({ pose }: HeroScroll3Props) {
-  const [errored, setErrored] = useState(false);
-
-  if (errored) return null;
-
+  const [imgErrored, setImgErrored] = useState(false);
   const imgSrc = IMAGE_MAP[pose];
 
   return (
@@ -29,15 +26,19 @@ export default function HeroScroll3({ pose }: HeroScroll3Props) {
         </div>
       )}
       <div className="flex items-center justify-center w-[70%] max-w-[400px] aspect-square mx-auto pointer-events-none">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={imgSrc}
-          alt=""
-          className="hero-ip w-full h-full object-contain animate-ip-bounce"
-          loading="eager"
-          fetchPriority="high"
-          onError={() => setErrored(true)}
-        />
+        {!imgErrored && (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imgSrc}
+              alt=""
+              className="hero-ip w-full h-full object-contain animate-ip-bounce"
+              loading="eager"
+              fetchPriority="high"
+              onError={() => setImgErrored(true)}
+            />
+          </>
+        )}
       </div>
     </section>
   );
