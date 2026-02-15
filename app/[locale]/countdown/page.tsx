@@ -190,7 +190,7 @@ export default function CountdownPage() {
     >
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-4 relative overflow-y-auto overflow-x-hidden min-h-0">
       <motion.div
-        className="fixed bottom-6 left-6 md:top-8 md:bottom-auto md:left-auto md:right-6 z-[60]"
+        className="fixed bottom-6 left-6 md:top-8 md:bottom-auto md:left-auto md:right-24 z-[60] scale-90 opacity-80 md:scale-100 md:opacity-100 [&>*]:origin-bottom-left md:[&>*]:origin-top-right"
         initial={{ opacity: 0 }}
         animate={{ opacity: phase === "content" ? 1 : 0 }}
         transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
@@ -211,7 +211,7 @@ export default function CountdownPage() {
       <motion.button
         type="button"
         onClick={handleLogout}
-        className="hidden md:flex absolute top-8 right-24 z-10 py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors items-center justify-center"
+        className="hidden md:flex absolute top-8 right-40 z-10 py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors items-center justify-center"
         aria-label={t.logOut}
         initial={{ opacity: 0 }}
         animate={{ opacity: phase === "content" ? 1 : 0 }}

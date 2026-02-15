@@ -89,7 +89,7 @@ function HomeContent() {
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />
       <motion.div
-        className="fixed bottom-6 left-6 md:top-8 md:bottom-auto md:left-auto md:right-6 z-[60]"
+        className="fixed bottom-6 left-6 md:top-8 md:bottom-auto md:left-auto md:right-24 z-[60] scale-90 opacity-80 md:scale-100 md:opacity-100 [&>*]:origin-bottom-left md:[&>*]:origin-top-right"
         initial={false}
         animate={{ opacity: transitionActive ? 0 : 1 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
@@ -98,7 +98,7 @@ function HomeContent() {
         <LanguageSwitch />
       </motion.div>
       <motion.div
-        className="fixed top-6 right-24 md:top-8 md:right-28 z-[60]"
+        className="fixed top-8 right-6 z-[60]"
         initial={false}
         animate={{ opacity: transitionActive ? 0 : 1 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
