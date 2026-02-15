@@ -18,6 +18,7 @@ import CloudFooter from "@/components/CloudFooter";
 import KnowYourTeamButton from "@/components/KnowYourTeamButton";
 import HeroScrollObserver from "@/components/HeroScrollObserver";
 import SkyTransition from "@/components/SkyTransition";
+import AscentBar from "@/components/AscentBar";
 import { CloudPersonality } from "@/lib/cloudData";
 import { getUser } from "@/lib/userStorage";
 
@@ -112,6 +113,7 @@ function HomeContent() {
         >
           {!showClouds ? (
             <>
+              <AscentBar />
               <HeroScroll1 />
               <HeroScroll2 />
               <HeroScroll3 pose="front" />

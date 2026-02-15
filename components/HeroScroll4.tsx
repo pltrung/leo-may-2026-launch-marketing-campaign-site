@@ -13,9 +13,6 @@ export default function HeroScroll4() {
         <div className="hero-line-primary">
           Where your <span className="neon-green">SHAPE</span> is never <span className="neon-yellow">QUESTIONED</span>.
         </div>
-        <div className="hero-line-secondary">
-          Only <span className="neon-cyan">EXPERIENCED</span>.
-        </div>
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -25,6 +22,11 @@ export default function HeroScroll4() {
         loading="eager"
         fetchPriority="high"
       />
+      <div className="hero-text philosophy-text hero-line-secondary-wrapper">
+        <div className="hero-line-secondary">
+          Only <span className="neon-cyan">EXPERIENCED</span>.
+        </div>
+      </div>
     </section>
   );
 }
