@@ -189,9 +189,9 @@ export default function CountdownPage() {
       style={{ backgroundColor: "#0242FF" }}
     >
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-4 relative overflow-y-auto overflow-x-hidden min-h-0">
-      {/* Mobile: VN/EN fixed bottom-left */}
+      {/* VN/EN fixed bottom-left (mobile + desktop) */}
       <motion.div
-        className="md:hidden fixed bottom-6 left-6 z-[60] scale-90 opacity-80"
+        className="fixed bottom-6 left-6 z-[60] scale-90 opacity-80 md:scale-100 md:opacity-100"
         initial={{ opacity: 0 }}
         animate={{ opacity: phase === "content" ? 1 : 0 }}
         transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
@@ -266,7 +266,7 @@ export default function CountdownPage() {
       </AnimatePresence>
 
       <div className="flex flex-col items-center w-full max-w-lg mx-auto flex-1 pt-4 pb-14 md:pb-3">
-        {/* Desktop: About Us, Log out, VN/EN — all in flow so they scroll with content */}
+        {/* Desktop: About Us, Log out — in flow so they scroll with content; VN/EN is fixed bottom-left */}
         <motion.header
           className="hidden md:flex w-full max-w-4xl mx-auto px-6 md:px-10 justify-between items-center shrink-0 mb-4 -mt-2"
           initial={{ opacity: 0 }}
@@ -282,19 +282,14 @@ export default function CountdownPage() {
           >
             {t.aboutUs}
           </button>
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors"
-              aria-label={t.logOut}
-            >
-              {t.logOut}
-            </button>
-            <div className="scale-100">
-              <LanguageSwitch />
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors"
+            aria-label={t.logOut}
+          >
+            {t.logOut}
+          </button>
         </motion.header>
         <motion.div
           className="joined-card shrink-0 countdown-spacing-after-card"
