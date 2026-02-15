@@ -174,6 +174,7 @@ body.hero-ready .hero-scroll {
   overflow: hidden;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
 }
 
 .mist-layer {
@@ -222,10 +223,11 @@ body.hero-ready .hero-scroll {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: clamp(40px, 8vw, 96px);
+  font-size: clamp(32px, 6vw, 96px);
   font-weight: 600;
   font-family: var(--font-bold), "MiSans-Bold", sans-serif;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
   color: #0242FF;
   opacity: 0;
   text-shadow:
@@ -816,6 +818,7 @@ body.hero-ready .hero-scroll {
   margin-top: 40px;
   margin-bottom: 24px;
   padding: 0 16px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   position: relative;
   z-index: 10;
   animation: footerFade 1.4s ease;
@@ -881,14 +884,15 @@ body.hero-ready .hero-scroll {
     overscroll-behavior: none;
     touch-action: pan-x;
   }
-  /* Reserve bottom space for footer so card stack doesn't overlap */
+  /* Reserve bottom space for footer; 100dvh + safe-area for iOS Safari */
   .cloud-selection-screen {
     position: fixed;
     inset: 0;
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
-    padding: 96px 24px 110px;
+    padding: 96px 24px calc(110px + env(safe-area-inset-bottom, 0px));
   }
 
   .cloud-selection-container {

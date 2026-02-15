@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import LoadingScreen from "@/components/LoadingScreen";
 import "@/styles/globals.css";
@@ -6,6 +6,12 @@ import "@/styles/globals.css";
 export const metadata: Metadata = {
   title: "Leo Mây | Climb the Clouds. Build a Culture.",
   description: "Premium climbing gym — Ho Chi Minh City. Launching soon.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
