@@ -26,13 +26,6 @@ function HomeContent() {
   const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [skyVisible, setSkyVisible] = useState(false);
-  const [skyMistActive, setSkyMistActive] = useState(false);
-  const [skyCloudLeftEnter, setSkyCloudLeftEnter] = useState(false);
-  const [skyCloudRightEnter, setSkyCloudRightEnter] = useState(false);
-  const [skyTextEnter, setSkyTextEnter] = useState(false);
-  const [skyCloudLeftExit, setSkyCloudLeftExit] = useState(false);
-  const [skyCloudRightExit, setSkyCloudRightExit] = useState(false);
-  const [skyMistExit, setSkyMistExit] = useState(false);
   const [heroOpacity, setHeroOpacity] = useState(1);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -42,32 +35,18 @@ function HomeContent() {
     timersRef.current.forEach(clearTimeout);
     timersRef.current = [];
     setSkyVisible(true);
-    setSkyMistActive(false);
-    setSkyCloudLeftEnter(false);
-    setSkyCloudRightEnter(false);
-    setSkyTextEnter(false);
-    setSkyCloudLeftExit(false);
-    setSkyCloudRightExit(false);
-    setSkyMistExit(false);
     setHeroOpacity(1);
 
     const add = (fn: () => void, ms: number) => {
       timersRef.current.push(setTimeout(fn, ms));
     };
 
-    add(() => setSkyMistActive(true), 0);
-    add(() => setSkyCloudLeftEnter(true), 100);
-    add(() => setSkyCloudRightEnter(true), 200);
-    add(() => setSkyTextEnter(true), 400);
-    add(() => setHeroOpacity(0), 700);
+    add(() => setHeroOpacity(0), 200);
     add(() => {
       setShowClouds(true);
       window.scrollTo({ top: 0, behavior: "auto" });
-      setSkyCloudLeftExit(true);
-      setSkyCloudRightExit(true);
-    }, 1400);
-    add(() => setSkyMistExit(true), 1600);
-    add(() => setSkyVisible(false), 1800);
+      setSkyVisible(false);
+    }, 3200);
   }, []);
 
   useEffect(() => {
@@ -96,17 +75,7 @@ function HomeContent() {
       <main className="relative flex-1 min-h-0 z-10">
       <BrandBackground />
       <KnowYourTeamButton show />
-      {skyVisible && (
-        <SkyTransition
-          mistActive={skyMistActive}
-          cloudLeftEnter={skyCloudLeftEnter}
-          cloudRightEnter={skyCloudRightEnter}
-          skyTextEnter={skyTextEnter}
-          cloudLeftExit={skyCloudLeftExit}
-          cloudRightExit={skyCloudRightExit}
-          mistExit={skyMistExit}
-        />
-      )}
+      {skyVisible && <SkyTransition />}
       <AnimatePresence mode="wait">
         <motion.div
           key={showClouds ? "clouds" : "hero"}

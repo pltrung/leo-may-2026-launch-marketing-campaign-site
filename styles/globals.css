@@ -55,110 +55,190 @@
   100% { opacity: 0; }
 }
 
-/* Sky Transition overlay: Ascend → Cloud Selector */
+/* Sky Transition: AAA Cinematic "THE SKY OPENS" — Apple-level premium */
 :root {
   --font-bold: "MiSans-Bold", sans-serif;
 }
 
-.sky-transition-overlay {
+.sky-transition {
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100vw;
   height: 100vh;
-  z-index: 9999;
+  background: linear-gradient(
+    180deg,
+    #1e4fff 0%,
+    #2f5eff 40%,
+    #4a72ff 70%,
+    #7fa3ff 100%
+  );
+  overflow: hidden;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   pointer-events: none;
+  animation: skyTransitionOut 3.2s ease-out forwards;
 }
 
-.sky-transition-overlay .mist-layer {
+@keyframes skyTransitionOut {
+  0%, 87.5% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Sky light illumination */
+.sky-light {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 30% 40%, rgba(255,255,255,0.35), transparent 60%),
-    radial-gradient(circle at 70% 60%, rgba(255,255,255,0.25), transparent 60%),
-    radial-gradient(circle at 50% 50%, rgba(255,255,255,0.18), transparent 70%);
-  backdrop-filter: blur(20px);
+    radial-gradient(circle at center,
+      rgba(255,255,255,0.25) 0%,
+      rgba(255,255,255,0.12) 30%,
+      rgba(255,255,255,0.05) 60%,
+      transparent 75%
+    );
   opacity: 0;
-  transition: opacity 0.6s ease;
+  animation: skyIlluminate 2.6s ease-out forwards;
 }
 
-.sky-transition-overlay .mist-layer.active {
-  opacity: 1;
-}
-
-.sky-transition-overlay .mist-layer.exit {
-  opacity: 0;
-  transition: opacity 0.8s ease;
-}
-
-.sky-transition-overlay .cloud-left {
-  position: absolute;
-  left: -40%;
-  top: 20%;
-  width: 60vw;
-  height: 50vh;
-  background-image: url("/brand/cloud-transition.svg");
-  background-size: 200% 100%;
-  background-position: 0% 50%;
-  background-repeat: no-repeat;
-  opacity: 0;
-  transform: translateX(-200px);
-  will-change: transform, opacity;
-}
-
-.sky-transition-overlay .cloud-left.enter {
-  animation: cloudEnterLeft 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.sky-transition-overlay .cloud-left.exit {
-  animation: cloudExitLeft 0.8s ease forwards;
-}
-
-@keyframes cloudEnterLeft {
-  from {
+@keyframes skyIlluminate {
+  0% {
     opacity: 0;
-    transform: translateX(-200px);
+    transform: scale(0.9);
+  }
+  60% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0.35;
+    transform: scale(1.1);
+  }
+}
+
+/* Clouds with parallax depth */
+.sky-transition .cloud {
+  position: absolute;
+  will-change: transform, opacity;
+  filter: blur(0.3px);
+}
+
+.sky-transition .cloud-top-left {
+  top: -35vh;
+  left: -25vw;
+  width: clamp(220px, 32vw, 600px);
+  height: clamp(120px, 18vw, 320px);
+  opacity: 0;
+  animation:
+    cloudEnterTopLeft 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.4s forwards,
+    cloudFloatSlow 6s ease-in-out 2s infinite;
+}
+
+.sky-transition .cloud-bottom-right {
+  bottom: -35vh;
+  right: -25vw;
+  width: clamp(240px, 36vw, 700px);
+  height: clamp(130px, 20vw, 360px);
+  opacity: 0;
+  animation:
+    cloudEnterBottomRight 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.4s forwards,
+    cloudFloatSlow 7s ease-in-out 2s infinite;
+}
+
+@keyframes cloudEnterTopLeft {
+  from {
+    transform: translate(-300px, -300px) scale(0.92);
+    opacity: 0;
   }
   to {
+    transform: translate(0, 0) scale(1);
     opacity: 1;
-    transform: translateX(0);
   }
 }
 
-@keyframes cloudExitLeft {
-  to {
-    transform: translateX(-150%);
+@keyframes cloudEnterBottomRight {
+  from {
+    transform: translate(300px, 300px) scale(0.92);
     opacity: 0;
   }
+  to {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
 }
 
-.sky-transition-overlay .cloud-right {
+@keyframes cloudFloatSlow {
+  0% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-12px) scale(1); }
+  100% { transform: translateY(0px) scale(1); }
+}
+
+/* Volumetric mist */
+.sky-transition .volumetric-mist {
   position: absolute;
-  right: -20%;
-  bottom: -40%;
-  width: 65vw;
-  height: 55vh;
-  background-image: url("/brand/cloud-transition.svg");
-  background-size: 200% 100%;
-  background-position: 100% 50%;
-  background-repeat: no-repeat;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sky-transition .mist-layer-1 {
+  background:
+    radial-gradient(circle at 40% 40%, rgba(255,255,255,0.22), transparent 60%);
   opacity: 0;
-  transform: translateY(300px);
-  will-change: transform, opacity;
+  animation: mistReveal1 2s ease-out 0.1s forwards;
 }
 
-.sky-transition-overlay .cloud-right.enter {
-  animation: cloudEnterBottom 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.sky-transition .mist-layer-2 {
+  background:
+    radial-gradient(circle at 70% 70%, rgba(255,255,255,0.18), transparent 60%);
+  opacity: 0;
+  animation: mistReveal2 2.2s ease-out 0.2s forwards;
 }
 
-.sky-transition-overlay .cloud-right.exit {
-  animation: cloudExitRight 0.8s ease forwards;
+@keyframes mistReveal1 {
+  0% {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+  30% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0.45;
+    transform: translateX(40px);
+  }
 }
 
-@keyframes cloudEnterBottom {
+@keyframes mistReveal2 {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  30% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 0.4;
+    transform: translateY(30px);
+  }
+}
+
+/* THE SKY OPENS text — Apple-style glow pulse */
+.sky-transition .sky-text {
+  position: relative;
+  font-family: var(--font-bold), "MiSans-Bold", sans-serif;
+  font-size: clamp(44px, 9vw, 110px);
+  color: white;
+  letter-spacing: 0.08em;
+  text-align: center;
+  opacity: 0;
+  animation:
+    skyTextFade 1.2s ease-out 1.3s forwards,
+    skyTextGlow 3s ease-in-out 2.5s infinite;
+}
+
+@keyframes skyTextFade {
   from {
     opacity: 0;
-    transform: translateY(300px);
+    transform: translateY(30px);
   }
   to {
     opacity: 1;
@@ -166,41 +246,17 @@
   }
 }
 
-@keyframes cloudExitRight {
-  to {
-    transform: translateY(150%);
-    opacity: 0;
-  }
-}
-
-.sky-transition-overlay .sky-text {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(0.8);
-  font-family: var(--font-bold);
-  font-size: clamp(48px, 10vw, 120px);
-  letter-spacing: 0.12em;
-  color: white;
-  opacity: 0;
-}
-
-.sky-transition-overlay .sky-text.enter {
-  animation: skyTextReveal 1s ease forwards;
-}
-
-@keyframes skyTextReveal {
+@keyframes skyTextGlow {
   0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.8);
+    text-shadow: 0 0 0px rgba(255,255,255,0);
   }
   50% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.05);
+    text-shadow:
+      0 0 20px rgba(255,255,255,0.45),
+      0 0 40px rgba(255,255,255,0.25);
   }
   100% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    text-shadow: 0 0 0px rgba(255,255,255,0);
   }
 }
 

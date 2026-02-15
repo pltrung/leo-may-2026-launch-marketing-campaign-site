@@ -1,50 +1,34 @@
 "use client";
 
-interface SkyTransitionProps {
-  mistActive: boolean;
-  cloudLeftEnter: boolean;
-  cloudRightEnter: boolean;
-  skyTextEnter: boolean;
-  cloudLeftExit: boolean;
-  cloudRightExit: boolean;
-  mistExit: boolean;
-}
-
-export default function SkyTransition({
-  mistActive,
-  cloudLeftEnter,
-  cloudRightEnter,
-  skyTextEnter,
-  cloudLeftExit,
-  cloudRightExit,
-  mistExit,
-}: SkyTransitionProps) {
+export default function SkyTransition() {
   return (
-    <div
-      id="sky-transition"
-      className="sky-transition-overlay"
-      aria-hidden
-    >
+    <div className="sky-transition" aria-hidden>
+      <div className="sky-light" aria-hidden />
+      {/* Top-left cloud: left half of cloud-transition */}
       <div
-        className={`mist-layer ${mistActive ? "active" : ""} ${mistExit ? "exit" : ""}`}
+        className="cloud cloud-top-left"
+        style={{
+          backgroundImage: "url(/brand/cloud-transition.svg)",
+          backgroundSize: "200% 100%",
+          backgroundPosition: "0% 50%",
+          backgroundRepeat: "no-repeat",
+        }}
         aria-hidden
       />
-      {/* Left cloud: shows left half of cloud-transition.svg via background */}
+      {/* Bottom-right cloud: right half of cloud-transition */}
       <div
-        className={`cloud-left ${cloudLeftEnter ? "enter" : ""} ${cloudLeftExit ? "exit" : ""}`}
+        className="cloud cloud-bottom-right"
+        style={{
+          backgroundImage: "url(/brand/cloud-transition.svg)",
+          backgroundSize: "200% 100%",
+          backgroundPosition: "100% 50%",
+          backgroundRepeat: "no-repeat",
+        }}
         aria-hidden
       />
-      {/* Right cloud: shows right half of cloud-transition.svg via background */}
-      <div
-        className={`cloud-right ${cloudRightEnter ? "enter" : ""} ${cloudRightExit ? "exit" : ""}`}
-        aria-hidden
-      />
-      <div
-        className={`sky-text ${skyTextEnter ? "enter" : ""}`}
-        aria-hidden
-      >
-        THE SKY OPENS
-      </div>
+      <div className="volumetric-mist mist-layer-1" aria-hidden />
+      <div className="volumetric-mist mist-layer-2" aria-hidden />
+      <div className="sky-text">THE SKY OPENS</div>
     </div>
   );
 }
