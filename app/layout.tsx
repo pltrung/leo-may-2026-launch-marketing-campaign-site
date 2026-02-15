@@ -64,6 +64,7 @@ export default function RootLayout({
             async function startApp() {
               const loading = document.getElementById("loading-screen");
               const site = document.getElementById("site-root");
+              const hero = document.getElementById("hero-page");
               if (!loading || !site) return;
               const MIN_DURATION = 1800;
               const start = performance.now();
@@ -81,6 +82,10 @@ export default function RootLayout({
                 loading.remove();
                 site.style.opacity = "1";
                 site.style.transition = "opacity 1.2s cubic-bezier(.16,1,.3,1)";
+                if (hero) {
+                  hero.classList.remove("hero-hidden");
+                  hero.classList.add("hero-visible");
+                }
                 var logo = document.querySelector(".hero-logo");
                 var title = document.querySelector(".hero-title");
                 var btn = document.querySelector(".know-cloud-btn");

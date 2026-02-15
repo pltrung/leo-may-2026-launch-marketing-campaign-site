@@ -73,9 +73,10 @@ function HomeContent() {
   }, [showToast]);
 
   return (
-    <div id="hero-page" className="page-container relative min-h-[100dvh] flex flex-col">
-      <main className="relative flex-1 min-h-0 z-10">
+    <>
       <BrandBackground />
+      <div id="hero-page" className="page-container hero-hidden relative min-h-[100dvh] flex flex-col">
+      <main className="relative flex-1 min-h-0 z-10">
       <HeroScrollObserver />
       <KnowYourTeamButton show />
       {skyVisible && <SkyTransition onComplete={handleCloudTransitionComplete} />}
@@ -117,6 +118,7 @@ function HomeContent() {
 
       <Toast show={showToast} />
     </div>
+    </>
   );
 }
 
