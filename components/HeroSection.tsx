@@ -18,18 +18,16 @@ export default function HeroSection() {
       </nav>
 
       {/* Center headline in viewport (ignore top padding so it sits at true 50%) */}
-      <div className="absolute inset-0 flex items-center justify-center px-6">
-        <div className="hero-title flex flex-col items-center text-center max-w-2xl">
-          <h1 className="font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white tracking-headline leading-tight">
-            Climb the Clouds.
-          </h1>
-          <span
-            className="block font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-headline mt-3 sm:mt-4"
-            style={{ color: "#00CB4D" }}
-          >
-            Build a Culture.
-          </span>
-        </div>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 max-w-2xl mx-auto">
+        <h1 className="hero-climb font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white tracking-headline leading-tight">
+          Climb the Clouds.
+        </h1>
+        <span
+          className="hero-build block font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-headline mt-3 sm:mt-4"
+          style={{ color: "#00CB4D" }}
+        >
+          Build a Culture.
+        </span>
       </div>
 
       <div className="hero-scroll absolute bottom-8 left-1/2 -translate-x-1/2">

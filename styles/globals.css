@@ -63,7 +63,7 @@
   color: rgba(255,255,255,0.8);
 }
 
-/* Hero fade-in — runs only after loading screen is removed (body.loaded) */
+/* Hero fade-in — runs only after loading screen is removed (body.loaded). Sequence: logo → Climb → Build → scroll + know cloud */
 @keyframes heroFadeIn {
   from {
     opacity: 0;
@@ -85,22 +85,27 @@
   }
 }
 .hero-logo,
-.hero-title,
+.hero-climb,
+.hero-build,
 .know-cloud-btn,
 .hero-scroll {
   opacity: 0;
 }
 body.loaded .hero-logo {
-  animation: heroFadeIn 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
+  animation: heroFadeIn 1.8s cubic-bezier(0.22, 1, 0.36, 1) 0s forwards;
 }
-body.loaded .hero-title {
-  animation: heroFadeIn 1.4s cubic-bezier(0.22, 1, 0.36, 1) 0.4s forwards;
+body.loaded .hero-climb {
+  animation: heroFadeIn 1.6s cubic-bezier(0.22, 1, 0.36, 1) 1.5s forwards;
 }
-body.loaded .know-cloud-btn {
-  animation: heroFadeIn 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.6s forwards;
+body.loaded .hero-build {
+  animation: heroFadeIn 1.6s cubic-bezier(0.22, 1, 0.36, 1) 3.5s forwards;
+}
+body.loaded .know-cloud-btn,
+body.loaded .hero-scroll {
+  animation: heroFadeIn 1.4s cubic-bezier(0.22, 1, 0.36, 1) 5.5s forwards;
 }
 body.loaded .hero-scroll {
-  animation: heroFadeInScroll 1s cubic-bezier(0.22, 1, 0.36, 1) 0.8s forwards;
+  animation: heroFadeInScroll 1.4s cubic-bezier(0.22, 1, 0.36, 1) 5.5s forwards;
 }
 
 /* Mist overlay transition: Ascend → Cloud Selector (legacy, kept for reference) */
