@@ -17,46 +17,36 @@ export default function SkyTransition({ onComplete }: SkyTransitionProps) {
       return;
     }
 
-    el.classList.remove("transition-active", "transition-open");
+    el.classList.remove("mist-active", "mist-clearing");
     void el.offsetHeight;
-    el.classList.add("transition-active");
+    el.classList.add("mist-active");
 
+    // Phase 1–2: Mist thickens (~1200ms)
+    // Phase 3: Text fades in (handled by CSS)
+    // Phase 4: Mist clearing starts at 2400ms
     const t1 = setTimeout(() => {
-      el.classList.add("transition-open");
-    }, 1200);
+      el.classList.add("mist-clearing");
+    }, 2400);
 
+    // Phase 5: Next page revealed at 4200ms
     const t2 = setTimeout(() => {
       onComplete?.();
-    }, 3200);
+    }, 4200);
 
     const t3 = setTimeout(() => {
-      el.classList.remove("transition-active", "transition-open");
-    }, 3600);
+      el.classList.remove("mist-active", "mist-clearing");
+    }, 4500);
 
     timersRef.current = [t1, t2, t3];
     return () => timersRef.current.forEach(clearTimeout);
   }, [onComplete]);
 
   return (
-    <div id="cloud-transition" ref={containerRef} aria-hidden="true">
-      <div className="mist-layer" />
-      <div className="cloud-container">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/brand/big-cloud-transition.svg"
-          className="cloud-half cloud-left"
-          alt=""
-          draggable={false}
-        />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/brand/big-cloud-transition.svg"
-          className="cloud-half cloud-right"
-          alt=""
-          draggable={false}
-        />
-      </div>
-      <div className="sky-opens-text">THE SKY OPENS</div>
+    <div id="mist-transition" ref={containerRef} aria-hidden="true">
+      <div className="mist-layer mist-back" />
+      <div className="mist-layer mist-mid" />
+      <div className="mist-layer mist-front" />
+      <div className="mist-transition-text">THE SKY OPENS</div>
     </div>
   );
 }

@@ -26,7 +26,6 @@ export default function RootLayout({
         <link rel="preload" href="/brand/holds.svg" as="image" />
         <link rel="preload" href="/logo-white.svg" as="image" />
         <link rel="preload" href="/brand/cloud-copyright.svg" as="image" />
-        <link rel="preload" href="/brand/big-cloud-transition.svg" as="image" />
       </head>
       <body className="min-h-screen antialiased overflow-x-hidden">
         <LoadingScreen />

@@ -161,56 +161,62 @@ body.hero-ready .hero-scroll {
   100% { opacity: 0; }
 }
 
-/* Cloud Transition: ONE SVG split with clip-path, tear-open the sky */
+/* Mist Transition: pure mist, no cloud SVG — world dissolves, next page emerges */
 :root {
   --font-bold: "MiSans-Bold", sans-serif;
 }
 
-#cloud-transition {
+#mist-transition {
   position: fixed;
   inset: 0;
   z-index: 9999;
   pointer-events: none;
   overflow: hidden;
-  opacity: 1;
+  width: 100vw;
+  height: 100vh;
 }
 
 .mist-layer {
   position: absolute;
-  inset: 0;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.9), transparent 70%);
+  inset: -15%;
+  width: 130%;
+  height: 130%;
+  will-change: opacity, transform;
+  opacity: 0;
+}
+
+.mist-back {
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.6) 40%,
+    rgba(255, 255, 255, 0.2) 70%,
+    transparent 100%
+  );
+  filter: blur(60px);
+}
+
+.mist-mid {
+  background: radial-gradient(
+    circle at 40% 55%,
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(255, 255, 255, 0.4) 35%,
+    transparent 65%
+  );
   filter: blur(80px);
-  opacity: 0;
-  will-change: opacity;
 }
 
-.cloud-container {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+.mist-front {
+  background: radial-gradient(
+    circle at 60% 45%,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 75%
+  );
+  filter: blur(100px);
 }
 
-.cloud-half {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0;
-  filter: blur(20px);
-  will-change: transform, opacity, filter;
-}
-
-.cloud-left {
-  clip-path: inset(0 50% 0 0);
-}
-
-.cloud-right {
-  clip-path: inset(0 0 0 50%);
-}
-
-.sky-opens-text {
+.mist-transition-text {
   position: absolute;
   inset: 0;
   display: flex;
@@ -222,44 +228,65 @@ body.hero-ready .hero-scroll {
   letter-spacing: 0.15em;
   color: white;
   opacity: 0;
-  transform: translateY(20px);
-  text-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-  will-change: opacity, transform;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  will-change: opacity;
 }
 
-/* Formation: mist + cloud appear */
-#cloud-transition.transition-active .mist-layer {
+/* Phase 1–2: Mist fades in, thickens, drifts */
+#mist-transition.mist-active .mist-back {
   opacity: 1;
+  transition: opacity 1400ms ease;
+  animation: mistDriftSlow 18s ease-in-out infinite;
+}
+
+#mist-transition.mist-active .mist-mid {
+  opacity: 1;
+  transition: opacity 1200ms ease 200ms;
+  animation: mistDriftMid 22s ease-in-out infinite 1s;
+}
+
+#mist-transition.mist-active .mist-front {
+  opacity: 1;
+  transition: opacity 1000ms ease 400ms;
+  animation: mistDriftSlow 20s ease-in-out infinite 0.5s;
+}
+
+/* Phase 3: Text fades in slowly */
+#mist-transition.mist-active .mist-transition-text {
+  opacity: 1;
+  transition: opacity 1800ms ease 800ms;
+}
+
+@keyframes mistDriftSlow {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(3%, 2%) scale(1.02); }
+  66% { transform: translate(-2%, -1%) scale(0.98); }
+}
+
+@keyframes mistDriftMid {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-2%, 3%) scale(1.03); }
+}
+
+/* Phase 4: Mist gently clears */
+#mist-transition.mist-clearing .mist-back {
+  opacity: 0;
+  transition: opacity 1400ms ease 200ms;
+}
+
+#mist-transition.mist-clearing .mist-mid {
+  opacity: 0;
   transition: opacity 1200ms ease;
 }
 
-#cloud-transition.transition-active .cloud-half {
-  opacity: 1;
-  transform: scale(1.05);
-  filter: blur(0);
-  transition:
-    opacity 1200ms ease,
-    transform 1600ms ease,
-    filter 1200ms ease;
+#mist-transition.mist-clearing .mist-front {
+  opacity: 0;
+  transition: opacity 1000ms ease 100ms;
 }
 
-/* Split open: cloud halves tear apart, text appears */
-#cloud-transition.transition-open .cloud-left {
-  transform: translateX(-60%);
-  transition: transform 1400ms cubic-bezier(0.65, 0, 0.35, 1);
-}
-
-#cloud-transition.transition-open .cloud-right {
-  transform: translateX(60%);
-  transition: transform 1400ms cubic-bezier(0.65, 0, 0.35, 1);
-}
-
-#cloud-transition.transition-open .sky-opens-text {
-  opacity: 1;
-  transform: translateY(0);
-  transition:
-    opacity 1200ms ease,
-    transform 1200ms ease;
+#mist-transition.mist-clearing .mist-transition-text {
+  opacity: 0;
+  transition: opacity 1200ms ease;
 }
 
 /* Hero scroll: green emphasis, fadeInUp, float animations */
@@ -831,32 +858,116 @@ body.hero-ready .hero-scroll {
   display: none;
 }
 
-/* Mobile-only (max-width: 768px) cinematic cloud stack */
+/* Mobile-only (max-width: 768px): fixed viewport, no scroll, immersive cloud stack */
 @media (max-width: 768px) {
-  .cloud-stack-container {
-    position: relative;
-    min-height: 0;
+  html.cloud-selection-view,
+  html.cloud-selection-view body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: pan-x;
+  }
+  .cloud-selection-screen {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .cloud-selection-container {
     flex: 1;
+    min-height: 0;
     width: 100%;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
   }
 
-  .cloud-stack-card-inner {
-    max-width: min(260px, 88vw) !important;
+  .cloud-stack-wrapper {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
   }
 
-  .cloud-stack-mist {
-    position: fixed;
-    inset: 0;
+  .card-stack {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: pan-y;
+  }
+
+  .cloud-card {
+    position: absolute;
+    left: 50%;
+    width: 86vw;
+    max-width: 420px;
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition:
+      transform 600ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 400ms ease,
+      filter 400ms ease;
+    will-change: transform, opacity, filter;
+  }
+
+  .cloud-card-inner {
+    width: 100%;
+    height: 100%;
+    border-radius: 28px;
+  }
+
+  .cloud-card.active {
+    transform: translateX(-50%) translateY(0) scale(1);
+    opacity: 1;
+    filter: blur(0);
     z-index: 10;
-    pointer-events: none;
-    background:
-      radial-gradient(circle at center, rgba(255,255,255,0.35), rgba(255,255,255,0.08), transparent);
-    backdrop-filter: blur(18px);
-    animation: cloudStackMistFadeOut 1400ms ease forwards;
+    animation: cloudFloat 4s ease-in-out infinite;
+  }
+
+  .cloud-card.next {
+    transform: translateX(-50%) translateY(90px) scale(0.92);
+    opacity: 0.7;
+    filter: blur(2px);
+    z-index: 5;
+  }
+
+  .cloud-card.prev {
+    transform: translateX(-50%) translateY(-90px) scale(0.92);
+    opacity: 0.7;
+    filter: blur(2px);
+    z-index: 5;
+  }
+
+  .cloud-card.far {
+    transform: translateX(-50%) translateY(160px) scale(0.85);
+    opacity: 0.4;
+    filter: blur(4px);
+    z-index: 1;
+  }
+
+  .card-stack.dragging .cloud-card.active {
+    transform: translateX(-50%) translateY(0) scale(1.04);
+    animation: none;
+  }
+
+  @keyframes cloudFloat {
+    0%, 100% {
+      transform: translateX(-50%) translateY(0) scale(1);
+    }
+    50% {
+      transform: translateX(-50%) translateY(-6px) scale(1.01);
+    }
   }
 
   .cloud-stack-bloom {
@@ -866,143 +977,27 @@ body.hero-ready .hero-scroll {
     pointer-events: none;
     background: radial-gradient(
       circle at center,
-      rgba(255,255,255,0.5),
-      rgba(255,255,255,0.15),
+      rgba(255, 255, 255, 0.5),
+      rgba(255, 255, 255, 0.15),
       transparent 70%
     );
     animation: cloudStackBloomOut 450ms ease-out forwards;
   }
 
   @keyframes cloudStackBloomOut {
-    0% {
-      opacity: 0;
-      transform: scale(0.5);
-    }
-    40% {
-      opacity: 1;
-    }
-    100% {
-      opacity: 1;
-      transform: scale(1.5);
-    }
+    0% { opacity: 0; transform: scale(0.5); }
+    40% { opacity: 1; }
+    100% { opacity: 1; transform: scale(1.5); }
   }
 
-  @keyframes cloudStackMistFadeOut {
-    0% { opacity: 1; }
-    100% { opacity: 0; }
-  }
-
-  .cloud-stack {
-    position: relative;
-    height: 58vh;
-    min-height: 280px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    perspective: 1200px;
-    transform-style: preserve-3d;
-  }
-
-  .cloud-stack::before {
-    content: "";
-    position: absolute;
-    inset: -20%;
-    pointer-events: none;
-    background:
-      radial-gradient(circle at 30% 40%, rgba(255,255,255,0.12), transparent 60%),
-      radial-gradient(circle at 70% 60%, rgba(255,255,255,0.10), transparent 60%);
-    filter: blur(40px);
-    animation: cloudStackMistDrift 14s ease-in-out infinite alternate;
-  }
-
-  @keyframes cloudStackMistDrift {
-    0% { transform: translateX(-30px); }
-    100% { transform: translateX(30px); }
-  }
-
-  .cloud-stack-card {
-    position: absolute;
-    left: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    will-change: transform, opacity, filter;
-    opacity: 0;
-    transform: translateX(-50%) translateY(60px);
-    transition:
-      transform 600ms cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 600ms ease,
-      filter 600ms ease;
-  }
-
-  .cloud-stack-card-emerged {
-    opacity: 1;
-  }
-
-  .cloud-stack-card-active {
-    z-index: 3;
-    opacity: 0;
-    transform: translateX(-50%) translateY(0) scale(1) rotateX(0deg);
-    transform-origin: center bottom;
-    filter: drop-shadow(0 40px 80px rgba(0,0,0,0.25));
-    animation: cloudFloatActive 6s ease-in-out infinite;
-    cursor: pointer;
-  }
-
-  .cloud-stack-card-active.cloud-stack-card-emerged {
-    opacity: 1;
-  }
-
-  .cloud-stack-card-second {
-    z-index: 2;
-    opacity: 0;
-    transform: translateX(-50%) translateY(28px) scale(0.95) rotateX(6deg);
-    transform-origin: center bottom;
-    animation: cloudFloatSecondary 7s ease-in-out infinite;
-    cursor: pointer;
-  }
-
-  .cloud-stack-card-second.cloud-stack-card-emerged {
-    opacity: 0.7;
-  }
-
-  .cloud-stack-card-third {
-    z-index: 1;
-    opacity: 0;
-    transform: translateX(-50%) translateY(56px) scale(0.9) rotateX(10deg);
-    transform-origin: center bottom;
-    cursor: pointer;
-  }
-
-  .cloud-stack-card-third.cloud-stack-card-emerged {
-    opacity: 0.45;
-  }
-
-  @keyframes cloudFloatActive {
-    0%, 100% { transform: translateX(-50%) translateY(0) scale(1) rotateX(0deg); }
-    50% { transform: translateX(-50%) translateY(-10px) scale(1) rotateX(0deg); }
-  }
-
-  @keyframes cloudFloatSecondary {
-    0%, 100% { transform: translateX(-50%) translateY(28px) scale(0.95) rotateX(6deg); }
-    50% { transform: translateX(-50%) translateY(22px) scale(0.95) rotateX(6deg); }
-  }
-
-  /* Details modal: card opens big */
   .cloud-details-modal-open {
     animation: cloudDetailsModalOpen 400ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
     transform-origin: center center;
   }
 
   @keyframes cloudDetailsModalOpen {
-    0% {
-      opacity: 0;
-      transform: scale(0.88);
-    }
-    100% {
-      opacity: 1;
-      transform: scale(1);
-    }
+    0% { opacity: 0; transform: scale(0.88); }
+    100% { opacity: 1; transform: scale(1); }
   }
 }
 

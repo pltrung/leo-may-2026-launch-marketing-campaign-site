@@ -73,6 +73,11 @@ function HomeContent() {
     return () => clearTimeout(t);
   }, [showToast]);
 
+  useEffect(() => {
+    if (showClouds) document.documentElement.classList.add("cloud-selection-view");
+    return () => document.documentElement.classList.remove("cloud-selection-view");
+  }, [showClouds]);
+
   return (
     <div id="hero-page" className="page-container relative min-h-[100dvh] flex flex-col">
       <main className="relative flex-1 min-h-0 z-10">
