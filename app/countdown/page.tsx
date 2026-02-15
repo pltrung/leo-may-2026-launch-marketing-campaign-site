@@ -1,12 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { getUser, clearUser } from "@/lib/userStorage";
 import { getCloudById } from "@/lib/cloudData";
 import type { CloudType } from "@/lib/cloudData";
 import CloudIconByType from "@/components/CloudIcons";
 import CloudFooter from "@/components/CloudFooter";
+
+const REVEAL_PHASE_1_MS = 200;
+const REVEAL_EMBLEM_MS = 800;
+const REVEAL_SETTLE_MS = 1200;
+const REVEAL_PULSE_MS = 1500;
+const REVEAL_CONTENT_MS = 2200;
 
 const TARGET = new Date("2026-01-01T00:00:00+07:00");
 const REFERRAL_UNLOCK = 10;
@@ -106,11 +113,15 @@ function useUserProfile(email?: string, phone?: string) {
   return profile;
 }
 
+type RevealPhase = "hidden" | "emblem" | "settle" | "pulse" | "content";
+
 export default function CountdownPage() {
   const router = useRouter();
   const [user, setUser] = useState<ReturnType<typeof getUser>>(null);
   const [verified, setVerified] = useState<boolean | null>(null);
   const [shareToast, setShareToast] = useState(false);
+  const [revealPhase, setRevealPhase] = useState<RevealPhase>("hidden");
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const teamCount = useTeamCount((user?.team ?? "may_nhe") as CloudType);
   const leaderboard = useLeaderboard();
   const profile = useUserProfile(user?.email, user?.phone);
@@ -147,6 +158,17 @@ export default function CountdownPage() {
     }
   }, [verified, router]);
 
+  useEffect(() => {
+    const add = (fn: () => void, ms: number) => {
+      timersRef.current.push(setTimeout(fn, ms));
+    };
+    add(() => setRevealPhase("emblem"), REVEAL_PHASE_1_MS);
+    add(() => setRevealPhase("settle"), REVEAL_EMBLEM_MS);
+    add(() => setRevealPhase("pulse"), REVEAL_SETTLE_MS);
+    add(() => setRevealPhase("content"), REVEAL_PULSE_MS);
+    return () => timersRef.current.forEach(clearTimeout);
+  }, []);
+
   const handleLogout = () => {
     clearUser();
     router.replace("/");
@@ -173,14 +195,17 @@ export default function CountdownPage() {
       style={{ backgroundColor: "#0242FF" }}
     >
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-4 relative overflow-y-auto overflow-x-hidden min-h-0">
-      <button
+      <motion.button
         type="button"
         onClick={handleLogout}
         className="hidden md:flex absolute top-8 right-10 z-10 py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors items-center justify-center"
         aria-label="Log out"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: revealPhase === "content" ? 1 : 0 }}
+        transition={{ duration: 0.4, delay: revealPhase === "content" ? 0.5 : 0, ease: [0.22, 1, 0.36, 1] }}
       >
         Log out
-      </button>
+      </motion.button>
       <div className="fixed inset-0 -z-10 opacity-10 pointer-events-none" aria-hidden>
         <img src="/brand/background.svg" alt="" className="w-full h-full object-cover" />
       </div>
@@ -188,40 +213,124 @@ export default function CountdownPage() {
         <img src="/brand/holds.svg" alt="" className="w-full h-full object-cover" />
       </div>
 
+      {/* Emblem reveal overlay: centered IP then settle + pulse */}
+      <AnimatePresence>
+        {(revealPhase === "emblem" || revealPhase === "settle") && (
+          <motion.div
+            className="fixed inset-0 z-20 flex items-center justify-center pointer-events-none"
+            initial={false}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            aria-hidden
+          >
+            <motion.div
+              className="countdown-ip flex items-center justify-center mx-auto"
+              initial={{ scale: 1.35, opacity: 0.65, filter: "blur(8px)" }}
+              animate={{
+                scale: revealPhase === "settle" ? 0.98 : 1,
+                opacity: revealPhase === "settle" ? 0 : 1,
+                filter: "blur(0px)",
+              }}
+              transition={{
+                duration: revealPhase === "emblem" ? 0.6 : 0.35,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/ip-count-down.svg"
+                alt=""
+                className="w-full h-auto object-contain"
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Light pulse — once when identity locks in (runs then unmounts) */}
+      <AnimatePresence mode="wait">
+        {revealPhase === "pulse" && (
+          <motion.div
+            className="fixed inset-0 z-[18] flex items-center justify-center pointer-events-none"
+            initial={false}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            aria-hidden
+          >
+            <motion.div
+              className="absolute w-[min(80vw,320px)] aspect-square rounded-full"
+              style={{
+                filter: "blur(28px)",
+                background: "radial-gradient(circle, rgba(255,255,255,0.45) 0%, rgba(200,240,255,0.18) 45%, transparent 70%)",
+              }}
+              initial={{ scale: 1, opacity: 0.5 }}
+              animate={{ scale: 1.6, opacity: 0 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="flex flex-col items-center w-full max-w-lg mx-auto flex-1 pt-4 pb-14 md:pb-3">
         {/* 1. Cloud card: You joined — max 2 lines, no icon */}
-        <div className="joined-card shrink-0 countdown-spacing-after-card">
+        <motion.div
+          className="joined-card shrink-0 countdown-spacing-after-card"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: revealPhase === "content" ? 1 : 0 }}
+          transition={{ duration: 0.5, delay: revealPhase === "content" ? 0.08 : 0, ease: [0.22, 1, 0.36, 1] }}
+        >
           <p className="greeting">Hi {firstName},</p>
           <p className="team-name">
             You joined <span style={{ color: accent, textShadow: `0 0 12px ${accent}60` }}>Team {cloud.name}</span>
           </p>
-        </div>
+        </motion.div>
 
         {/* 2. Logo */}
-        <div className="shrink-0 w-[min(90vw,200px)] sm:w-[min(85vw,240px)] md:w-[min(80vw,280px)] countdown-spacing-after-logo">
+        <motion.div
+          className="shrink-0 w-[min(90vw,200px)] sm:w-[min(85vw,240px)] md:w-[min(80vw,280px)] countdown-spacing-after-logo"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: revealPhase === "content" ? 1 : 0 }}
+          transition={{ duration: 0.5, delay: revealPhase === "content" ? 0 : 0, ease: [0.22, 1, 0.36, 1] }}
+        >
           <img
             src="/logo-white.svg"
             alt="Leo Mây"
             className="w-full h-auto object-contain"
           />
-        </div>
+        </motion.div>
 
-        {/* 3. IP — primary visual focus */}
-        <div className="shrink-0 countdown-ip countdown-spacing-after-ip">
+        {/* 3. IP — primary visual focus (layout; visible after overlay settles) */}
+        <motion.div
+          className={`shrink-0 countdown-ip countdown-spacing-after-ip ${revealPhase === "content" ? "countdown-ip-float" : ""}`}
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{
+            opacity: revealPhase === "settle" || revealPhase === "pulse" || revealPhase === "content" ? 1 : 0,
+            scale: revealPhase === "settle" || revealPhase === "pulse" || revealPhase === "content" ? 1 : 0.98,
+          }}
+          transition={{
+            duration: 0.45,
+            delay: revealPhase === "settle" ? 0.12 : 0,
+            ease: [0.22, 1, 0.36, 1],
+          }}
+          style={{ visibility: revealPhase === "hidden" || revealPhase === "emblem" ? "hidden" : "visible" }}
+        >
           <img
             src="/brand/ip-count-down.svg"
             alt=""
             className="w-full h-auto object-contain"
           />
-        </div>
+        </motion.div>
 
         {/* 4. Cloud progress — immersive referral copy */}
-        <div
+        <motion.div
           className="cloud-progress shrink-0 w-[85%] sm:w-[70%] max-w-[380px] flex flex-col items-center gap-2 leading-tight rounded-2xl px-4 py-3 countdown-spacing-after-progress"
           style={{
             backgroundColor: "rgba(255,255,255,0.95)",
             boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
           }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: revealPhase === "content" ? 1 : 0 }}
+          transition={{ duration: 0.5, delay: revealPhase === "content" ? 0.16 : 0, ease: [0.22, 1, 0.36, 1] }}
         >
           <div className="progress-title font-caption text-center" style={{ color: traitUnlocked ? accent : "#1E2A38", opacity: traitUnlocked ? 1 : 0.7 }}>
             {traitUnlocked ? (cloud.traitUnlocked ?? "Your cloud reveals its true form.") : "Your cloud is gathering energy"}
@@ -247,10 +356,10 @@ export default function CountdownPage() {
               Invite others to awaken its true form
             </div>
           )}
-        </div>
+        </motion.div>
 
         {/* 6. Share button — referral link + toast */}
-        <button
+        <motion.button
           type="button"
           onClick={() => {
             const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -265,12 +374,20 @@ export default function CountdownPage() {
           }}
           className="shrink-0 px-5 py-2.5 rounded-full font-subheadline text-sm border-2 transition-colors hover:opacity-90 countdown-spacing-after-share"
           style={{ borderColor: accentContrast, color: accentContrast }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: revealPhase === "content" ? 1 : 0 }}
+          transition={{ duration: 0.5, delay: revealPhase === "content" ? 0.24 : 0, ease: [0.22, 1, 0.36, 1] }}
         >
           Share your cloud
-        </button>
+        </motion.button>
 
         {/* Countdown timer + winner message — directly below Share */}
-        <div className="countdown-timer-block shrink-0 w-full flex flex-col items-center countdown-spacing-after-timer">
+        <motion.div
+          className="countdown-timer-block shrink-0 w-full flex flex-col items-center countdown-spacing-after-timer"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: revealPhase === "content" ? 1 : 0 }}
+          transition={{ duration: 0.5, delay: revealPhase === "content" ? 0.32 : 0, ease: [0.22, 1, 0.36, 1] }}
+        >
           <div className="flex items-center justify-center gap-0.5 sm:gap-1 md:gap-2 w-full max-w-full px-1">
             {[
               { v: pad(days), l: "D" },
@@ -298,7 +415,7 @@ export default function CountdownPage() {
           <p className="countdown-winner-text text-center text-white/60 text-[0.7rem] sm:text-[0.75rem] max-w-[280px] mt-3 leading-tight">
             The team with the most climbers when the countdown ends will receive a special prize.
           </p>
-        </div>
+        </motion.div>
 
         {shareToast && (
           <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
@@ -309,7 +426,12 @@ export default function CountdownPage() {
         )}
 
         {/* Leaderboard — after countdown */}
-        <div className="shrink-0 flex flex-col items-center w-full max-w-[320px] relative countdown-spacing-after-leaderboard">
+        <motion.div
+          className="shrink-0 flex flex-col items-center w-full max-w-[320px] relative countdown-spacing-after-leaderboard"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: revealPhase === "content" ? 1 : 0 }}
+          transition={{ duration: 0.5, delay: revealPhase === "content" ? 0.4 : 0, ease: [0.22, 1, 0.36, 1] }}
+        >
           <div className="absolute inset-0 rounded-2xl leaderboard-shimmer pointer-events-none -z-10" aria-hidden />
           <p className="sky-header font-medium text-white text-center">
             The Sky is Shifting
@@ -417,7 +539,7 @@ export default function CountdownPage() {
               );
             })()
           )}
-        </div>
+        </motion.div>
 
         {/* Mobile logout — bottom center above footer */}
         <div className="logout-mobile md:hidden">
