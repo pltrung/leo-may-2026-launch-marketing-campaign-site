@@ -116,7 +116,7 @@ export default function KnowYourTeamModal({ onClose, onFoundTeam }: KnowYourTeam
               className="w-full px-4 py-3 rounded-xl bg-white border border-mist/60 focus:outline-none focus:ring-2 focus:ring-storm/30 focus:border-storm/50"
             />
           </div>
-          <p className="font-caption text-mist text-xs">* Email or phone required</p>
+          <p className="font-caption text-storm text-xs opacity-100">* Email or phone required</p>
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
           {notFound && (

@@ -276,7 +276,7 @@ export default function SignupModal({
               style={{ boxShadow: "0 1px 3px 0 rgb(0 0 0 / 0.06)" }}
             />
           </div>
-          <p className="font-caption text-mist text-xs">* Email or phone required</p>
+          <p className="font-caption text-storm text-xs opacity-100">* Email or phone required</p>
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
 
