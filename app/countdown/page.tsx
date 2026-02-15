@@ -187,21 +187,13 @@ export default function CountdownPage() {
       </div>
 
       <div className="flex flex-col items-center w-full max-w-lg mx-auto min-h-full md:h-full pt-4 pb-14 md:pb-3 overflow-visible md:overflow-hidden gap-[0.65em] sm:gap-[0.7em]">
-        {/* 1. Cloud card: You joined section */}
-        <div
-          className="shrink-0 w-[90%] max-w-[420px] text-center rounded-[24px] px-4 sm:px-5 py-4"
-          style={{
-            backgroundColor: "rgba(255,255,255,0.95)",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.08), 0 0 1px rgba(255,255,255,0.5)",
-          }}
-        >
-          <p className="font-body text-storm/90 text-[1rem] sm:text-[1.05rem]">
-            Hi {firstName},
-          </p>
-          <p className="font-headline font-bold text-storm text-[1.15rem] sm:text-[1.25rem] tracking-headline mt-0.5">
+        {/* 1. Cloud card: You joined section — confirmation badge, not main focus */}
+        <div className="joined-card shrink-0">
+          <p className="hi-text">Hi {firstName},</p>
+          <p className="team-line">
             You joined: <span className="font-bold" style={{ color: accent, textShadow: `0 0 12px ${accent}60` }}>Team {cloud.name}</span>
           </p>
-          <p className="font-medium text-storm/80 text-[0.9rem] sm:text-[0.95rem] mt-0.5" style={{ borderBottom: `2px solid ${accent}`, display: "inline-block", paddingBottom: 2 }}>
+          <p className="team-subtitle" style={{ borderBottom: `2px solid ${accent}`, display: "inline-block", paddingBottom: 2 }}>
             {cloud.nameEn}
           </p>
           <div className="mt-2 flex justify-center animate-pulse" style={{ color: accent }}>
@@ -218,31 +210,26 @@ export default function CountdownPage() {
           />
         </div>
 
-        {/* 4. IP countdown — maximized for viewport */}
-        <div className="shrink-0 -mt-0.5 w-[min(95vw,240px)] sm:w-[min(90vw,300px)] md:w-[min(85vw,360px)]">
+        {/* 4. IP countdown — emotional anchor, larger */}
+        <div className="shrink-0 -mt-0.5 ip-countdown">
           <img
             src="/brand/ip-count-down.svg"
             alt=""
-            className="w-full h-auto object-contain animate-ip-float"
+            className="w-full h-auto object-contain"
           />
         </div>
 
-        {/* 5. Trait + Progress — white block for contrast (blue accent teams) */}
+        {/* 5. Cloud progress — immersive referral copy */}
         <div
-          className="shrink-0 w-[85%] sm:w-[70%] max-w-[380px] flex flex-col items-center gap-2 leading-tight rounded-2xl px-4 py-3"
+          className="cloud-progress shrink-0 w-[85%] sm:w-[70%] max-w-[380px] flex flex-col items-center gap-2 leading-tight rounded-2xl px-4 py-3"
           style={{
             backgroundColor: "rgba(255,255,255,0.95)",
             boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
           }}
         >
-          <p
-            className="font-caption text-center text-[0.95rem] sm:text-[1rem]"
-            style={{ color: traitUnlocked ? accent : "#1E2A38", opacity: traitUnlocked ? 1 : 0.7 }}
-          >
-            {traitUnlocked
-              ? cloud.traitUnlocked ?? "Your cloud is forming."
-              : "Your cloud is forming…"}
-          </p>
+          <div className="progress-title font-caption text-center" style={{ color: traitUnlocked ? accent : "#1E2A38", opacity: traitUnlocked ? 1 : 0.7 }}>
+            {traitUnlocked ? (cloud.traitUnlocked ?? "Your cloud reveals its true form.") : "Your cloud is gathering energy"}
+          </div>
           <div
             className="w-full h-[10px] min-h-[10px] rounded-full overflow-hidden flex-shrink-0"
             style={{
@@ -255,18 +242,18 @@ export default function CountdownPage() {
               style={{ width: `${Math.min(100, Math.max(0, progressPct))}%`, backgroundColor: accent }}
             />
           </div>
-          <p
-            className="font-caption text-xs sm:text-[0.85rem] uppercase font-medium"
-            style={{ color: "#1E2A38", letterSpacing: "1px" }}
-          >
-            {traitUnlocked
-              ? "Your cloud trait is unlocked"
-              : `${referralCount} of 10 referrals to unlock your cloud trait`}
-          </p>
           {!traitUnlocked && (
-            <p className="font-caption text-[10px] sm:text-[11px] text-storm/70 tracking-wide">
-              10 referrals reveal your team&apos;s defining energy.
-            </p>
+            <div className="progress-sub font-caption text-xs sm:text-[0.85rem]" style={{ color: "#1E2A38", opacity: 0.7 }}>
+              Invite others to strengthen your cloud
+            </div>
+          )}
+          <div className="progress-count font-caption text-xs sm:text-[0.85rem] font-medium" style={{ color: "#1E2A38", letterSpacing: "0.5px" }}>
+            {referralCount} / 10 climbers joined your cloud
+          </div>
+          {!traitUnlocked && (
+            <div className="progress-unlock font-caption text-[10px] sm:text-[11px] text-storm/70 tracking-wide">
+              At 10, your cloud reveals its true form
+            </div>
           )}
         </div>
 
@@ -300,8 +287,11 @@ export default function CountdownPage() {
         {/* 7. Leaderboard — block-based, with shimmer background */}
         <div className="shrink-0 flex flex-col items-center w-full max-w-[320px] relative mt-0">
           <div className="absolute inset-0 rounded-2xl leaderboard-shimmer pointer-events-none -z-10" aria-hidden />
-          <p className="font-medium text-white/70 text-[0.75rem] sm:text-[0.8rem] tracking-wide mb-1.5">
-            Top Clouds Right Now
+          <p className="sky-header font-medium text-white text-center">
+            The Sky is Shifting
+          </p>
+          <p className="sky-sub font-caption text-white/90 text-center">
+            Which cloud will rise?
           </p>
           <div className="flex flex-col gap-2 w-full">
             {leaderboard.slice(0, 3).map((entry, idx) => {
@@ -318,10 +308,8 @@ export default function CountdownPage() {
               return (
                 <div
                   key={entry.id}
-                  className={`flex flex-row items-center gap-3 rounded-2xl px-4 py-3 transition-all duration-300 ${isUserTeam ? "animate-leaderboard-glow scale-[1.02]" : ""}`}
+                  className={`leaderboard-card flex flex-row items-center gap-3 transition-all duration-300 ${idx === 0 ? "rank-1" : ""} ${isUserTeam ? "animate-leaderboard-glow scale-[1.02]" : ""}`}
                   style={{
-                    backgroundColor: "rgba(255,255,255,0.08)",
-                    backdropFilter: "blur(8px)",
                     ...(isUserTeam ? { ["--glow-color" as string]: glowColor, color: highlightColor } : { color: "rgba(255,255,255,0.95)" }),
                   }}
                 >

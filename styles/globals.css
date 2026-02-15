@@ -316,6 +316,89 @@
   animation: breathe 4s ease-in-out infinite;
 }
 
+/* Countdown page: joined card — confirmation badge, refined */
+.joined-card {
+  max-width: 420px;
+  padding: 16px 22px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  margin-bottom: 12px;
+  text-align: center;
+}
+.joined-card .hi-text {
+  font-size: 14px;
+  opacity: 0.7;
+}
+.joined-card .team-line {
+  font-size: 20px;
+  font-weight: 600;
+}
+.joined-card .team-subtitle {
+  font-size: 13px;
+  opacity: 0.6;
+}
+
+/* Countdown page: IP — emotional anchor, larger + float */
+.ip-countdown {
+  width: clamp(180px, 24vw, 280px);
+  animation: ipFloatCountdown 5s ease-in-out infinite;
+}
+@keyframes ipFloatCountdown {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0px); }
+}
+
+/* Countdown page: leaderboard header — alive */
+.sky-header {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin-top: 18px;
+  animation: skyGlow 3s ease-in-out infinite;
+}
+.sky-sub {
+  font-size: 13px;
+  opacity: 0.6;
+  margin-bottom: 14px;
+}
+@keyframes skyGlow {
+  0%, 100% {
+    text-shadow: 0 0 0px rgba(255,255,255,0);
+  }
+  50% {
+    text-shadow: 0 0 14px rgba(255,255,255,0.35);
+  }
+}
+
+/* Countdown page: leaderboard cards — physical floating blocks */
+.leaderboard-card {
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,0.14),
+    rgba(255,255,255,0.05)
+  );
+  backdrop-filter: blur(10px);
+  box-shadow:
+    0 6px 20px rgba(0,0,0,0.15),
+    inset 0 1px 0 rgba(255,255,255,0.18);
+}
+.leaderboard-card:hover {
+  transform: translateY(-4px);
+}
+
+/* Countdown page: #1 cloud — special glow */
+.leaderboard-card.rank-1 {
+  box-shadow:
+    0 0 24px rgba(255,220,120,0.5),
+    0 6px 20px rgba(0,0,0,0.2),
+    inset 0 1px 0 rgba(255,255,255,0.18);
+}
+
 /* Leaderboard: subtle pulse for user's team in top 3 */
 @keyframes leaderboardGlow {
   0%, 100% { box-shadow: 0 0 8px var(--glow-color, rgba(255,255,255,0.5)); opacity: 0.95; }
