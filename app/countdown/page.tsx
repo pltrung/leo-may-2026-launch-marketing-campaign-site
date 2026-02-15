@@ -10,6 +10,9 @@ import CloudIconByType from "@/components/CloudIcons";
 import CloudFooter from "@/components/CloudFooter";
 import { useCountdownHeroEntrance, CONTENT_STAGGER_MS, EASE_APPLE_IN_OUT, EASE_APPLE_SETTLE, EASE_MICRO_SETTLE } from "@/lib/enterCountdownHero";
 
+/** Background + holds fade to blue (ms); hero entrance starts after this. */
+const COUNTDOWN_BG_FADE_MS = 1000;
+
 const TARGET = new Date("2026-01-01T00:00:00+07:00");
 const REFERRAL_UNLOCK = 10;
 
@@ -113,7 +116,7 @@ export default function CountdownPage() {
   const [user, setUser] = useState<ReturnType<typeof getUser>>(null);
   const [verified, setVerified] = useState<boolean | null>(null);
   const [shareToast, setShareToast] = useState(false);
-  const { phase } = useCountdownHeroEntrance();
+  const { phase } = useCountdownHeroEntrance({ startDelay: COUNTDOWN_BG_FADE_MS });
   const teamCount = useTeamCount((user?.team ?? "may_nhe") as CloudType);
   const leaderboard = useLeaderboard();
   const profile = useUserProfile(user?.email, user?.phone);
@@ -191,7 +194,7 @@ export default function CountdownPage() {
         className="fixed inset-0 -z-10 pointer-events-none"
         initial={{ opacity: 0.1 }}
         animate={{ opacity: 0 }}
-        transition={{ duration: 1.2, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: COUNTDOWN_BG_FADE_MS / 1000, delay: 0, ease: [0.22, 1, 0.36, 1] }}
         aria-hidden
       >
         <img src="/brand/background.svg" alt="" className="w-full h-full object-cover" />
@@ -200,7 +203,7 @@ export default function CountdownPage() {
         className="fixed inset-0 -z-10 pointer-events-none"
         initial={{ opacity: 0.08 }}
         animate={{ opacity: 0 }}
-        transition={{ duration: 1.2, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: COUNTDOWN_BG_FADE_MS / 1000, delay: 0, ease: [0.22, 1, 0.36, 1] }}
         aria-hidden
       >
         <img src="/brand/holds.svg" alt="" className="w-full h-full object-cover" />

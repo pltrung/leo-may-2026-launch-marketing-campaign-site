@@ -36,39 +36,60 @@ const CUMULATIVE = {
   phase5Rest: TIMING.hidden + TIMING.phase1Scale + TIMING.phase2Pause + TIMING.phase3Settle + TIMING.phase4MicroSettle + TIMING.phase5Rest,
 } as const;
 
+export interface UseCountdownHeroEntranceOptions {
+  /** Delay (ms) before hero entrance starts. Use after background fade so we land on blue first. */
+  startDelay?: number;
+}
+
 /**
  * Orchestrates the cinematic hero entrance for the countdown page.
  * Both entry flows (Card→Join→Countdown and Know your cloud→Countdown) land on
  * the countdown page; mounting runs enterCountdownHero() automatically.
+ * When startDelay is set (e.g. 1000), phases start after that delay so background can fade to blue first.
  */
-export function useCountdownHeroEntrance() {
+export function useCountdownHeroEntrance(options?: UseCountdownHeroEntranceOptions) {
   const [phase, setPhase] = useState<HeroEntrancePhase>("hidden");
+  const startDelay = options?.startDelay ?? 0;
 
   useEffect(() => {
-    const start = performance.now();
+    const run = () => {
+      const start = performance.now();
 
-    const advance = () => {
-      const elapsed = performance.now() - start;
-      if (elapsed < CUMULATIVE.hidden) setPhase("hidden");
-      else if (elapsed < CUMULATIVE.phase1Scale) setPhase("phase1-scale");
-      else if (elapsed < CUMULATIVE.phase2Pause) setPhase("phase2-pause");
-      else if (elapsed < CUMULATIVE.phase3Settle) setPhase("phase3-settle");
-      else if (elapsed < CUMULATIVE.phase4MicroSettle) setPhase("phase4-micro-settle");
-      else if (elapsed < CUMULATIVE.phase5Rest) setPhase("phase5-rest");
-      else setPhase("content");
+      const advance = () => {
+        const elapsed = performance.now() - start;
+        if (elapsed < CUMULATIVE.hidden) setPhase("hidden");
+        else if (elapsed < CUMULATIVE.phase1Scale) setPhase("phase1-scale");
+        else if (elapsed < CUMULATIVE.phase2Pause) setPhase("phase2-pause");
+        else if (elapsed < CUMULATIVE.phase3Settle) setPhase("phase3-settle");
+        else if (elapsed < CUMULATIVE.phase4MicroSettle) setPhase("phase4-micro-settle");
+        else if (elapsed < CUMULATIVE.phase5Rest) setPhase("phase5-rest");
+        else setPhase("content");
+      };
+
+      advance();
+      const ids: ReturnType<typeof setTimeout>[] = [
+        setTimeout(advance, CUMULATIVE.hidden + 10),
+        setTimeout(advance, CUMULATIVE.phase1Scale + 10),
+        setTimeout(advance, CUMULATIVE.phase2Pause + 10),
+        setTimeout(advance, CUMULATIVE.phase3Settle + 10),
+        setTimeout(advance, CUMULATIVE.phase4MicroSettle + 10),
+        setTimeout(advance, CUMULATIVE.phase5Rest + 10),
+      ];
+      return () => ids.forEach(clearTimeout);
     };
 
-    advance();
-    const ids: ReturnType<typeof setTimeout>[] = [
-      setTimeout(advance, CUMULATIVE.hidden + 10),
-      setTimeout(advance, CUMULATIVE.phase1Scale + 10),
-      setTimeout(advance, CUMULATIVE.phase2Pause + 10),
-      setTimeout(advance, CUMULATIVE.phase3Settle + 10),
-      setTimeout(advance, CUMULATIVE.phase4MicroSettle + 10),
-      setTimeout(advance, CUMULATIVE.phase5Rest + 10),
-    ];
-    return () => ids.forEach(clearTimeout);
-  }, []);
+    if (startDelay > 0) {
+      let cleanup: (() => void) | undefined;
+      const id = setTimeout(() => {
+        cleanup = run();
+      }, startDelay);
+      return () => {
+        clearTimeout(id);
+        cleanup?.();
+      };
+    }
+    return run();
+  }, [startDelay]);
 
   return { phase };
 }
