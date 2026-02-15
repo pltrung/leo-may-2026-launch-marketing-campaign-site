@@ -12,9 +12,9 @@ export default function HeroScroll5() {
       <div className="hero-text cloud-eyes-text">
         <div className="hero-line-primary text-white tracking-headline whitespace-pre-line">
           {forms ? (
-            <>{likeClouds} <span className="neon-emphasis">{forms}</span> {areEverSame}</>
+            <>{likeClouds} <span className="neon-yellow">{forms}</span> {areEverSame}</>
           ) : (
-            <>{likeClouds}{"\n\n"}<span className="neon-emphasis">{areEverSame}</span>.</>
+            <>{likeClouds}{"\n\n"}<span className="neon-yellow">{areEverSame}</span>.</>
           )}
         </div>
       </div>

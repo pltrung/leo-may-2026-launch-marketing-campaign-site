@@ -18,11 +18,11 @@ export default function HeroScroll4() {
         <div className="hero-line-primary">
           {isNever ? (
             <>
-              {whereShape} <span className="neon-emphasis">{shape}</span> {isNever} <span className="neon-emphasis">{questioned}</span>.
+              {whereShape} <span className="neon-green">{shape}</span> {isNever} <span className="neon-yellow">{questioned}</span>.
             </>
           ) : (
             <>
-              {whereShape} <span className="neon-emphasis">{shape}</span>.
+              {whereShape} <span className="neon-green">{shape}</span>.
             </>
           )}
         </div>
@@ -39,7 +39,7 @@ export default function HeroScroll4() {
       </div>
       <div className="hero-text philosophy-text hero-line-secondary-wrapper mt-32 md:mt-20">
         <div className={`hero-line-primary text-white/90 ${!isNever ? "text-lg sm:text-xl md:text-2xl" : ""}`}>
-          {only} <span className="neon-emphasis">{experienced}</span>.
+          {only} <span className="neon-cyan">{experienced}</span>.
         </div>
       </div>
     </section>

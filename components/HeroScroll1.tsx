@@ -34,7 +34,7 @@ export default function HeroScroll1() {
               {hero1Line2}
             </h1>
             <span className="hero-build block font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-headline mt-3 sm:mt-4">
-              <span className="neon-emphasis">{hero1Emphasis}</span>.
+              <span className="neon-green">{hero1Emphasis}</span>.
             </span>
           </>
         ) : (

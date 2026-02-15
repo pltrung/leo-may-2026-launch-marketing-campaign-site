@@ -25,7 +25,7 @@ export default function HeroScroll3({ pose }: HeroScroll3Props) {
       {pose === "front" && (
         <div className="hero-text philosophy-text max-w-2xl mx-auto text-center">
           <div className="hero-line-primary text-white/90 whitespace-pre-line">
-            {imaginePlace} <span className="neon-emphasis">{movement}</span>{feelsLikeBreath ? ` ${feelsLikeBreath}` : ""}.
+            {imaginePlace} <span className="neon-cyan">{movement}</span>{feelsLikeBreath ? ` ${feelsLikeBreath}` : ""}.
           </div>
         </div>
       )}

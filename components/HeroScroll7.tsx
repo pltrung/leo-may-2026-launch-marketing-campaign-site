@@ -30,9 +30,9 @@ export default function HeroScroll7({ onJoin }: HeroScroll7Props) {
           transition={{ duration: 0.6 }}
         >
           {way ? (
-            <>{climbYourWay} <span className="neon-emphasis">{your}</span> {way}</>
+            <>{climbYourWay} <span className="neon-your">{your}</span> {way}</>
           ) : (
-            <><span className="neon-emphasis">{climbYourWay}</span>{"\n"}{your}.</>
+            <><span className="neon-green">{climbYourWay}</span>{"\n"}{your}.</>
           )}
         </motion.h2>
 
