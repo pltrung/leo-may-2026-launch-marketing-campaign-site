@@ -9,6 +9,7 @@ import LocationSection from "@/components/LocationSection";
 import IpShowcaseSection from "@/components/IpShowcaseSection";
 import PhilosophySection from "@/components/PhilosophySection";
 import CloudWithEyesSection from "@/components/CloudWithEyesSection";
+import SoShouldYouSection from "@/components/SoShouldYouSection";
 import CtaSection from "@/components/CtaSection";
 import CloudSelector from "@/components/CloudSelector";
 import SignupModal from "@/components/SignupModal";
@@ -94,6 +95,7 @@ function HomeContent() {
               <IpShowcaseSection pose="front" />
               <PhilosophySection />
               <CloudWithEyesSection />
+              <SoShouldYouSection />
               <CtaSection onJoin={handleAscendClick} />
             </>
           ) : (

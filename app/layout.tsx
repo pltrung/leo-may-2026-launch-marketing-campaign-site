@@ -32,7 +32,7 @@ export default function RootLayout({
         <LoadingScreen />
         {children}
         <Script id="loading-controller" strategy="afterInteractive">
-          {`setTimeout(function(){var e=document.getElementById("loading-screen");e&&e.remove();document.body.classList.add("loaded");},2000);`}
+          {`setTimeout(function(){var e=document.getElementById("loading-screen");e&&e.remove();document.body.classList.add("loaded");setTimeout(function(){document.body.classList.add("hero-ready");},600);},2000);`}
         </Script>
       </body>
     </html>

@@ -40,6 +40,10 @@
   z-index: 999999;
 }
 .loading-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
 }
 .loading-logo {
@@ -63,7 +67,18 @@
   color: rgba(255,255,255,0.8);
 }
 
-/* Hero fade-in — runs only after loading screen is removed (body.loaded). Sequence: logo → Climb → Build → scroll + know cloud */
+/* Brand background fades in first (body.loaded), then hero sequence (body.hero-ready) */
+#hero-page {
+  opacity: 0;
+}
+body.loaded #hero-page {
+  animation: heroPageFadeIn 0.6s ease forwards;
+}
+
+@keyframes heroPageFadeIn {
+  to { opacity: 1; }
+}
+
 @keyframes heroFadeIn {
   from {
     opacity: 0;
@@ -84,6 +99,17 @@
     transform: translate(-50%, 0);
   }
 }
+@keyframes heroBuildMisty {
+  from {
+    opacity: 0;
+    filter: blur(14px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
 .hero-logo,
 .hero-climb,
 .hero-build,
@@ -91,20 +117,21 @@
 .hero-scroll {
   opacity: 0;
 }
-body.loaded .hero-logo {
-  animation: heroFadeIn 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.5s forwards;
+
+body.hero-ready .hero-logo {
+  animation: heroFadeIn 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.5s forwards, floatGentle 5s ease-in-out 1.4s infinite;
 }
-body.loaded .hero-climb {
-  animation: heroFadeIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) 1.2s forwards;
+body.hero-ready .hero-climb {
+  animation: heroFadeIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) 1.2s forwards, floatGentle 5s ease-in-out 2s infinite;
 }
-body.loaded .hero-build {
-  animation: heroFadeIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) 2s forwards;
+body.hero-ready .hero-build {
+  animation: heroBuildMisty 1.2s cubic-bezier(0.22, 1, 0.36, 1) 2s forwards, floatGentle 5s ease-in-out 3.2s infinite;
 }
-body.loaded .know-cloud-btn,
-body.loaded .hero-scroll {
+body.hero-ready .know-cloud-btn,
+body.hero-ready .hero-scroll {
   animation: heroFadeIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 2.9s forwards;
 }
-body.loaded .hero-scroll {
+body.hero-ready .hero-scroll {
   animation: heroFadeInScroll 0.7s cubic-bezier(0.22, 1, 0.36, 1) 2.9s forwards;
 }
 
@@ -430,17 +457,8 @@ body.loaded .hero-scroll {
     floatSlow 6s ease-in-out infinite 1.2s;
 }
 
-.philosophy-text {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.philosophy-line-1 {
+.philosophy-single-line {
   font-size: clamp(22px, 3vw, 36px);
-}
-.philosophy-line-2 {
-  font-size: clamp(16px, 2.2vw, 26px);
-  opacity: 0.9;
 }
 
 .hero-ip-cloud-singing {
