@@ -7,7 +7,7 @@ export default function CloudWithEyesSection() {
     <section className="hero-section hero-cloud-section relative min-h-[60vh] flex flex-col items-center justify-center py-12 overflow-hidden pt-[120px] md:pt-24">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/brand/cloud-singing.png"
+        src="/brand/cloud-singing.svg"
         className="hero-ip-cloud-singing"
         alt="Singing Cloud"
       />

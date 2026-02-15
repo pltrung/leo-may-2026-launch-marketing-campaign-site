@@ -12,7 +12,7 @@ export default function PhilosophySection() {
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/brand/ip-city.png"
+        src="/brand/ip-city.svg"
         className="hero-ip-city"
         alt="Leo Mây City in Clouds"
       />
