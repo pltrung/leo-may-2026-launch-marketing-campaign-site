@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import KnowYourTeamModal from "./KnowYourTeamModal";
+import { useLocale } from "./LocaleProvider";
+import { getMessages } from "@/lib/messages";
 
 interface KnowYourTeamButtonProps {
   /** Hide on countdown page */
@@ -12,6 +14,8 @@ interface KnowYourTeamButtonProps {
 
 export default function KnowYourTeamButton({ show = true, onFoundTeam }: KnowYourTeamButtonProps) {
   const [open, setOpen] = useState(false);
+  const locale = useLocale();
+  const t = getMessages(locale).knowYourCloud;
 
   if (!show) return null;
 
@@ -25,13 +29,13 @@ export default function KnowYourTeamButton({ show = true, onFoundTeam }: KnowYou
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="know-cloud-btn fixed top-14 right-6 md:top-8 md:right-28 z-[60] px-4 py-2 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors"
-        aria-label="Know your cloud?"
+        className="know-cloud-btn fixed top-[4.5rem] right-6 md:top-8 md:right-28 z-[60] px-4 py-2 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors"
+        aria-label={t.button}
       >
-        Know your cloud?
+        {t.button}
       </button>
       {open && (
-        <KnowYourTeamModal onClose={() => setOpen(false)} onFoundTeam={onFoundTeam ? handleFoundTeam : undefined} />
+        <KnowYourTeamModal locale={locale} onClose={() => setOpen(false)} onFoundTeam={onFoundTeam ? handleFoundTeam : undefined} />
       )}
     </>
   );

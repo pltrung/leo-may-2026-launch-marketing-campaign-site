@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { CloudPersonality } from "@/lib/cloudData";
 import CloudIconByType from "./CloudIcons";
+import { useLocale } from "./LocaleProvider";
+import { getMessages } from "@/lib/messages";
+import type { Locale } from "@/lib/i18n";
 
 interface CloudCardProps {
   cloud: CloudPersonality;
@@ -10,6 +13,10 @@ interface CloudCardProps {
 }
 
 export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
+  const locale = useLocale();
+  const t = getMessages(locale).common;
+  const story = locale === "vi" && cloud.storyVi ? cloud.storyVi : cloud.story;
+  const shortName = locale === "vi" && cloud.shortNameVi ? cloud.shortNameVi : (cloud.shortNameEn ?? cloud.nameEn);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isActive, setIsActive] = useState(false);
@@ -76,7 +83,7 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
                 className="font-body text-xs sm:text-sm text-center tracking-[0.5px]"
                 style={{ color: accent, opacity: 0.85 }}
               >
-                {cloud.shortNameEn ?? cloud.nameEn}
+                {shortName}
               </span>
             </div>
           </div>
@@ -96,7 +103,7 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
           }}
         >
           <p className="font-body text-center text-xs sm:text-sm leading-[1.5] flex-1 px-2 py-1 flex items-center justify-center overflow-hidden text-[#1a1a1a]" style={{ opacity: 0.9 }}>
-            {cloud.story}
+            {story}
           </p>
           <div className="shrink-0 flex justify-center pt-4 pb-2">
             <button
@@ -109,7 +116,7 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
                 boxShadow: `0 0 24px ${accent}60, 0 4px 16px rgba(0,0,0,0.15)`,
               }}
             >
-              <span className="font-subheadline text-sm">Join Team {cloud.name}</span>
+              <span className="font-subheadline text-sm">{t.joinTeam} {cloud.name}</span>
             </button>
           </div>
         </div>

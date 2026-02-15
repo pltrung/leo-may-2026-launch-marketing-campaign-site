@@ -9,6 +9,7 @@ import { getCloudById } from "@/lib/cloudData";
 import type { CloudType } from "@/lib/cloudData";
 import CloudIconByType from "@/components/CloudIcons";
 import CloudFooter from "@/components/CloudFooter";
+import LanguageSwitch from "@/components/LanguageSwitch";
 import AboutUsModal from "@/components/AboutUsModal";
 import { useCountdownHeroEntrance, CONTENT_STAGGER_MS, EASE_APPLE_IN_OUT, EASE_APPLE_SETTLE, EASE_MICRO_SETTLE } from "@/lib/enterCountdownHero";
 import { getMessages } from "@/lib/messages";
@@ -188,6 +189,14 @@ export default function CountdownPage() {
       style={{ backgroundColor: "#0242FF" }}
     >
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-4 relative overflow-y-auto overflow-x-hidden min-h-0">
+      <motion.div
+        className="fixed bottom-6 left-6 md:top-8 md:bottom-auto md:left-auto md:right-6 z-[60]"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: phase === "content" ? 1 : 0 }}
+        transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+      >
+        <LanguageSwitch />
+      </motion.div>
       <motion.button
         type="button"
         onClick={() => setAboutOpen(true)}
@@ -338,7 +347,7 @@ export default function CountdownPage() {
           transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[2] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
           <div className="progress-title font-caption text-center" style={{ color: traitUnlocked ? accent : "#1E2A38", opacity: traitUnlocked ? 1 : 0.7 }}>
-            {traitUnlocked ? (cloud.traitUnlocked ?? t.yourCloudReveals) : t.yourCloudGathering}
+            {traitUnlocked ? (locale === "vi" && cloud.traitUnlockedVi ? cloud.traitUnlockedVi : (cloud.traitUnlocked ?? t.yourCloudReveals)) : t.yourCloudGathering}
           </div>
           <div
             className="w-full h-[10px] min-h-[10px] rounded-full overflow-hidden flex-shrink-0"

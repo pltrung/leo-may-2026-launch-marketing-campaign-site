@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 import { CloudPersonality } from "@/lib/cloudData";
 import { saveUser } from "@/lib/userStorage";
 import CloudFooter from "@/components/CloudFooter";
+import { getMessages } from "@/lib/messages";
+import type { Locale } from "@/lib/i18n";
 
 interface SignupModalProps {
   cloud: CloudPersonality | null;
@@ -14,6 +16,7 @@ interface SignupModalProps {
   /** When provided, triggers Sky transition before redirect to countdown */
   onRedirectToCountdown?: () => void;
   referredBy?: string;
+  locale?: Locale;
 }
 
 interface ConfirmationData {
@@ -29,8 +32,10 @@ export default function SignupModal({
   onSuccess,
   onRedirectToCountdown,
   referredBy,
+  locale = "en",
 }: SignupModalProps) {
   const router = useRouter();
+  const t = getMessages(locale).signup;
   const redirectTriggeredRef = useRef(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -50,7 +55,7 @@ export default function SignupModal({
       }
       if (!onRedirectToCountdown) {
         onSuccess();
-        router.push("/countdown");
+        router.push(`/${locale}/countdown`);
       }
       return;
     }
@@ -62,11 +67,11 @@ export default function SignupModal({
     e.preventDefault();
     setError("");
     if (!name.trim()) {
-      setError("Name is required");
+      setError(t.nameRequired);
       return;
     }
     if (!email.trim() && !phone.trim()) {
-      setError("Email or phone is required");
+      setError(t.emailOrPhoneRequiredError);
       return;
     }
     if (!cloud) return;
@@ -92,7 +97,7 @@ export default function SignupModal({
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Something went wrong");
+        throw new Error(data.error || t.somethingWentWrong);
       }
       saveUser({ ...userData, referralCode: data.referralCode });
       setConfirmation({
@@ -103,7 +108,7 @@ export default function SignupModal({
       });
       setRedirectCount(8);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : t.somethingWentWrong);
     } finally {
       setLoading(false);
     }
@@ -143,19 +148,19 @@ export default function SignupModal({
             className="font-subheadline text-2xl sm:text-3xl mb-4"
             style={{ color: accent }}
           >
-            Welcome to Team {cloud.name} — {cloud.nameEn}.
+            {t.welcomeToTeam} {cloud.name} — {cloud.nameEn}.
           </h3>
           <p className="font-subheadline mb-2 text-lg sm:text-xl" style={{ color: accent }}>
-            You are #{confirmation.position} in the waitlist.
+            {t.positionInWaitlist}{confirmation.position}{t.inWaitlist}
           </p>
           <p className="font-body text-base mb-6" style={{ color: accent, opacity: 0.8 }}>
-            {confirmation.percentage}% of members chose this cloud.
+            {confirmation.percentage}% {t.percentChoseCloud}
           </p>
           <p className="font-caption text-storm/80 text-sm">
-            Stay tuned. Something is forming in the clouds.
+            {t.stayTuned}
           </p>
           <p className="font-caption text-sm mt-4" style={{ color: accent, textShadow: `0 0 12px ${accent}60` }}>
-            Redirecting in <span style={{ color: accent, fontWeight: 600 }}>{redirectCount}</span>…
+            {t.redirectingIn} <span style={{ color: accent, fontWeight: 600 }}>{redirectCount}</span>…
           </p>
         </motion.div>
         </div>
@@ -217,10 +222,10 @@ export default function SignupModal({
           className="font-subheadline text-xl sm:text-2xl mb-1"
           style={{ color: accent }}
         >
-          You are about to join Team {cloud.name} — {cloud.nameEn}.
+          {t.joinTeam} {cloud.name} — {cloud.nameEn}.
         </h3>
         <p className="font-caption text-storm/80 text-sm mb-6">
-          Fill your place in the team.
+          {t.fillPlace}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4" style={{ ["--accent" as string]: accent } as React.CSSProperties}>
@@ -229,14 +234,14 @@ export default function SignupModal({
               htmlFor="name"
               className="font-caption block text-sm text-storm mb-1"
             >
-              Name *
+              {t.name}
             </label>
             <input
               id="name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Your name"
+              placeholder={t.namePlaceholder}
               className="w-full px-4 py-3 rounded-xl bg-white border border-mist/40 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-1 focus:border-[var(--accent)] transition-all"
               style={{ boxShadow: "0 1px 3px 0 rgb(0 0 0 / 0.06)" }}
               required
@@ -247,14 +252,14 @@ export default function SignupModal({
               htmlFor="email"
               className="font-caption block text-sm text-storm mb-1"
             >
-              Email
+              {t.email}
             </label>
             <input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder={t.emailPlaceholder}
               className="w-full px-4 py-3 rounded-xl bg-white border border-mist/40 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-1 focus:border-[var(--accent)] transition-all"
               style={{ boxShadow: "0 1px 3px 0 rgb(0 0 0 / 0.06)" }}
             />
@@ -264,19 +269,19 @@ export default function SignupModal({
               htmlFor="phone"
               className="font-caption block text-sm text-storm mb-1"
             >
-              Phone
+              {t.phone}
             </label>
             <input
               id="phone"
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+84 xxx xxx xxx"
+              placeholder={t.phonePlaceholder}
               className="w-full px-4 py-3 rounded-xl bg-white border border-mist/40 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-1 focus:border-[var(--accent)] transition-all"
               style={{ boxShadow: "0 1px 3px 0 rgb(0 0 0 / 0.06)" }}
             />
           </div>
-          <p className="font-caption text-storm text-xs opacity-100">* Email or phone required</p>
+          <p className="font-caption text-storm text-xs opacity-100">{t.emailOrPhoneRequired}</p>
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
 
@@ -302,7 +307,7 @@ export default function SignupModal({
                 className="absolute inset-0 flex items-center justify-center font-subheadline text-lg text-white pointer-events-none"
                 style={{ color: cloud.joinTextHex ?? "#ffffff" }}
               >
-                {loading ? "Joining…" : "Ascend"}
+                {loading ? t.joining : t.ascend}
               </span>
             </button>
           </div>

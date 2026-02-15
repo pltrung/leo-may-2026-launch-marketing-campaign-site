@@ -1,7 +1,12 @@
 "use client";
 
+import { useLocale } from "./LocaleProvider";
+import { getMessages } from "@/lib/messages";
+
 /** Hero page scroll section 4: "Where your SHAPE is never QUESTIONED. Only EXPERIENCED." */
 export default function HeroScroll4() {
+  const locale = useLocale();
+  const { whereShape, shape, isNever, questioned, only, experienced } = getMessages(locale).hero;
   return (
     <section className="hero-section hero-section-scroll hero-mist-section relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
@@ -11,7 +16,7 @@ export default function HeroScroll4() {
       </div>
       <div className="hero-text philosophy-text">
         <div className="hero-line-primary">
-          Where your <span className="neon-green">SHAPE</span> is never <span className="neon-yellow">QUESTIONED</span>.
+          {whereShape} <span className="neon-green">{shape}</span> {isNever} <span className="neon-yellow">{questioned}</span>.
         </div>
       </div>
       <div className="flex items-center justify-center w-[63%] max-w-[300px] sm:w-[55%] sm:max-w-[260px] aspect-square mx-auto pointer-events-none">
@@ -26,7 +31,7 @@ export default function HeroScroll4() {
       </div>
       <div className="hero-text philosophy-text hero-line-secondary-wrapper mt-32 md:mt-20">
         <div className="hero-line-primary text-white/90">
-          Only <span className="neon-cyan">EXPERIENCED</span>.
+          {only} <span className="neon-cyan">{experienced}</span>.
         </div>
       </div>
     </section>

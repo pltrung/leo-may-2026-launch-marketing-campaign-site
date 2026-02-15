@@ -4,11 +4,14 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import { clouds, CloudPersonality } from "@/lib/cloudData";
 import CloudIconByType from "./CloudIcons";
+import { useLocale } from "./LocaleProvider";
+import { getMessages } from "@/lib/messages";
 
 interface CloudDetailsModalProps {
   cloud: CloudPersonality;
   onClose: () => void;
   onJoinTeam: () => void;
+  locale: "en" | "vi";
 }
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -18,8 +21,11 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-function CloudDetailsModal({ cloud, onClose, onJoinTeam }: CloudDetailsModalProps) {
+function CloudDetailsModal({ cloud, onClose, onJoinTeam, locale }: CloudDetailsModalProps) {
   const accent = cloud.accentHex;
+  const t = getMessages(locale).common;
+  const story = locale === "vi" && cloud.storyVi ? cloud.storyVi : cloud.story;
+  const shortName = locale === "vi" && cloud.shortNameVi ? cloud.shortNameVi : (cloud.shortNameEn ?? cloud.nameEn);
   const borderStyle = { borderColor: hexToRgba(accent, 0.35) };
   return (
     <div
@@ -42,14 +48,14 @@ function CloudDetailsModal({ cloud, onClose, onJoinTeam }: CloudDetailsModalProp
             {cloud.name}
           </span>
           <span className="font-body text-sm text-center opacity-80" style={{ color: accent }}>
-            {cloud.shortNameEn ?? cloud.nameEn}
+            {shortName}
           </span>
         </div>
         <p
           className="font-body text-center text-sm leading-relaxed flex-1 text-[#1a1a1a]"
           style={{ opacity: 0.9 }}
         >
-          {cloud.story}
+          {story}
         </p>
         <div className="flex gap-3">
           <button
@@ -57,7 +63,7 @@ function CloudDetailsModal({ cloud, onClose, onJoinTeam }: CloudDetailsModalProp
             onClick={onClose}
             className="flex-1 py-3 rounded-xl font-subheadline text-sm border border-[#ccc] text-[#555] transition-opacity hover:opacity-80"
           >
-            Back
+            {t.back}
           </button>
           <button
             type="button"
@@ -69,7 +75,7 @@ function CloudDetailsModal({ cloud, onClose, onJoinTeam }: CloudDetailsModalProp
               boxShadow: `0 0 24px ${accent}60, 0 4px 16px rgba(0,0,0,0.15)`,
             }}
           >
-            Join Team {cloud.name}
+            {t.joinTeam} {cloud.name}
           </button>
         </div>
       </div>
@@ -83,6 +89,7 @@ interface CloudStackMobileProps {
 }
 
 export default function CloudStackMobile({ onSelect, onDetailsOpenChange }: CloudStackMobileProps) {
+  const locale = useLocale();
   const [activeIndex, setActiveIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isBlooming, setIsBlooming] = useState(false);
@@ -156,11 +163,12 @@ export default function CloudStackMobile({ onSelect, onDetailsOpenChange }: Clou
         aria-hidden
       >
         <img src="/brand/cloud-mini.svg" alt="" className="swipe-cloud" />
-        <div className="swipe-text">Swipe up</div>
+        <div className="swipe-text">{getMessages(locale).cloudSelector.swipeUp}</div>
       </div>
       {detailsCloud && (
         <CloudDetailsModal
           cloud={detailsCloud}
+          locale={locale}
           onClose={() => setDetailsCloud(null)}
           onJoinTeam={handleJoinTeam}
         />

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale } from "./LocaleProvider";
+import { getMessages } from "@/lib/messages";
 
 interface HeroScroll3Props {
   pose: "front" | "back";
@@ -15,13 +17,15 @@ const IMAGE_MAP: Record<string, string> = {
 export default function HeroScroll3({ pose }: HeroScroll3Props) {
   const [imgErrored, setImgErrored] = useState(false);
   const imgSrc = IMAGE_MAP[pose];
+  const locale = useLocale();
+  const { imaginePlace, movement, feelsLikeBreath } = getMessages(locale).hero;
 
   return (
     <section className="hero-section hero-section-scroll relative overflow-hidden px-6">
       {pose === "front" && (
         <div className="hero-text philosophy-text max-w-2xl mx-auto text-center">
           <div className="hero-line-primary text-white/90">
-            Imagine a place where <span className="neon-green">MOVEMENT</span> feels like breath
+            {imaginePlace} <span className="neon-green">{movement}</span> {feelsLikeBreath}
           </div>
         </div>
       )}

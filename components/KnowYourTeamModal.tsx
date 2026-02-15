@@ -4,15 +4,19 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { findUserByEmailOrPhone } from "@/lib/userStorage";
+import { getMessages } from "@/lib/messages";
+import type { Locale } from "@/lib/i18n";
 
 interface KnowYourTeamModalProps {
   onClose: () => void;
   /** When provided, called instead of router.push — triggers Sky transition then countdown */
   onFoundTeam?: () => void;
+  locale?: Locale;
 }
 
-export default function KnowYourTeamModal({ onClose, onFoundTeam }: KnowYourTeamModalProps) {
+export default function KnowYourTeamModal({ onClose, onFoundTeam, locale = "en" }: KnowYourTeamModalProps) {
   const router = useRouter();
+  const t = getMessages(locale).knowYourCloud;
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
@@ -26,7 +30,7 @@ export default function KnowYourTeamModal({ onClose, onFoundTeam }: KnowYourTeam
     const eTrim = email.trim();
     const pTrim = phone.trim();
     if (!eTrim && !pTrim) {
-      setError("Email or phone is required");
+      setError(t.emailOrPhoneRequired.replace("* ", "").replace(/\.$/, ""));
       return;
     }
 
@@ -49,7 +53,7 @@ export default function KnowYourTeamModal({ onClose, onFoundTeam }: KnowYourTeam
         if (onFoundTeam) {
           onFoundTeam();
         } else {
-          router.push("/countdown");
+          router.push(`/${locale}/countdown`);
           onClose();
         }
       } else {
@@ -88,9 +92,9 @@ export default function KnowYourTeamModal({ onClose, onFoundTeam }: KnowYourTeam
           </svg>
         </button>
 
-        <h3 className="font-subheadline text-xl text-storm mb-2">Know your cloud?</h3>
+        <h3 className="font-subheadline text-xl text-storm mb-2">{t.title}</h3>
         <p className="font-caption text-storm/70 text-sm mb-6">
-          Enter your email or phone to see your cloud.
+          {t.enterEmailPhone}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -116,12 +120,12 @@ export default function KnowYourTeamModal({ onClose, onFoundTeam }: KnowYourTeam
               className="w-full px-4 py-3 rounded-xl bg-white border border-mist/60 focus:outline-none focus:ring-2 focus:ring-storm/30 focus:border-storm/50"
             />
           </div>
-          <p className="font-caption text-storm text-xs opacity-100">* Email or phone required</p>
+          <p className="font-caption text-storm text-xs opacity-100">{t.emailOrPhoneRequired}</p>
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
           {notFound && (
             <p className="font-body text-storm/90 text-sm">
-              We couldn&apos;t find your cloud yet.
+              {t.notFound}
             </p>
           )}
 
@@ -130,7 +134,7 @@ export default function KnowYourTeamModal({ onClose, onFoundTeam }: KnowYourTeam
             disabled={loading}
             className="w-full py-3 rounded-xl bg-storm text-white font-subheadline hover:opacity-90 disabled:opacity-50 transition-opacity"
           >
-            {loading ? "Checking…" : "Find my team"}
+            {loading ? t.checking : t.findMyTeam}
           </button>
         </form>
       </motion.div>

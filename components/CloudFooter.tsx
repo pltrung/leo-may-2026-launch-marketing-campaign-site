@@ -1,17 +1,22 @@
 "use client";
 
+import { useLocale } from "./LocaleProvider";
+import { getMessages } from "@/lib/messages";
+
 export default function CloudFooter() {
+  const locale = useLocale();
+  const { ethos, location, copyright } = getMessages(locale).footer;
   return (
     <footer className="cloud-footer" role="contentinfo">
       <div className="footer-inner">
-        <div className="footer-ethos">Climb the Clouds. Build a Culture.</div>
-        <div className="footer-location">Ho Chi Minh City — 2026</div>
+        <div className="footer-ethos">{ethos}</div>
+        <div className="footer-location">{location}</div>
         <div className="footer-copyright-image">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/cloud-copyright.svg" alt="" aria-hidden />
         </div>
         <div className="footer-copyright-text">
-          © Leo Mây Climbing Gym. All rights reserved.
+          {copyright}
         </div>
       </div>
     </footer>

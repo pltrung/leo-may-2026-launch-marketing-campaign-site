@@ -1,6 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useLocale } from "./LocaleProvider";
+import { getMessages } from "@/lib/messages";
 
 interface HeroScroll7Props {
   onJoin: () => void;
@@ -8,6 +10,8 @@ interface HeroScroll7Props {
 
 /** Hero page scroll section 7 (CTA): "CLIMB your way" + Ascend button */
 export default function HeroScroll7({ onJoin }: HeroScroll7Props) {
+  const locale = useLocale();
+  const { climbYourWay, your, way, ascend } = getMessages(locale).hero;
   return (
     <section
       id="final-cta"
@@ -25,7 +29,7 @@ export default function HeroScroll7({ onJoin }: HeroScroll7Props) {
           viewport={{ once: true, amount: 0.25, margin: "-60px" }}
           transition={{ duration: 0.6 }}
         >
-          Climb <span className="neon-your">YOUR</span> way
+          {climbYourWay} <span className="neon-your">{your}</span> {way}
         </motion.h2>
 
         <motion.div
@@ -47,7 +51,7 @@ export default function HeroScroll7({ onJoin }: HeroScroll7Props) {
               className="absolute inset-0 w-full h-full object-contain object-center pointer-events-none"
             />
             <span className="relative z-10 font-subheadline text-lg sm:text-xl md:text-2xl text-storm text-center px-8 whitespace-nowrap">
-              Ascend
+              {ascend}
             </span>
           </button>
         </motion.div>

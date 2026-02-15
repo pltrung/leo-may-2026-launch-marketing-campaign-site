@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { useLocale } from "./LocaleProvider";
+import { getMessages } from "@/lib/messages";
 
 export type SkyTransitionVariant = "discovery" | "return" | "forms";
 
@@ -11,13 +13,9 @@ interface SkyTransitionProps {
   variant?: SkyTransitionVariant;
 }
 
-const LINES = {
-  discovery: ["THE", "MIST", "CLEARS"],
-  return: ["YOUR", "CLOUD", "RETURNS"],
-  forms: ["YOUR", "CLOUD", "FORMS"],
-} as const;
-
 export default function SkyTransition({ onComplete, variant = "discovery" }: SkyTransitionProps) {
+  const locale = useLocale();
+  const lines = getMessages(locale).skyTransition[variant];
   const containerRef = useRef<HTMLDivElement>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [textVisible, setTextVisible] = useState(false);
@@ -53,8 +51,6 @@ export default function SkyTransition({ onComplete, variant = "discovery" }: Sky
     timersRef.current = [t0, t1, t2, t3];
     return () => timersRef.current.forEach(clearTimeout);
   }, [onComplete]);
-
-  const lines = LINES[variant];
 
   return (
     <div id="mist-transition" ref={containerRef} aria-hidden="true">

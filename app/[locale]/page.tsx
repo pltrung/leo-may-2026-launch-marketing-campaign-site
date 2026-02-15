@@ -15,6 +15,7 @@ import CloudSelector from "@/components/CloudSelector";
 import SignupModal from "@/components/SignupModal";
 import CloudFooter from "@/components/CloudFooter";
 import KnowYourTeamButton from "@/components/KnowYourTeamButton";
+import LanguageSwitch from "@/components/LanguageSwitch";
 import HeroScrollObserver from "@/components/HeroScrollObserver";
 import SkyTransition from "@/components/SkyTransition";
 import AscentBar from "@/components/AscentBar";
@@ -88,6 +89,15 @@ function HomeContent() {
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />
       <motion.div
+        className="fixed bottom-6 left-6 md:top-8 md:bottom-auto md:left-auto md:right-6 z-[60]"
+        initial={false}
+        animate={{ opacity: transitionActive ? 0 : 1 }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        style={{ pointerEvents: transitionActive ? "none" : "auto" }}
+      >
+        <LanguageSwitch />
+      </motion.div>
+      <motion.div
         className="fixed top-6 right-24 md:top-8 md:right-28 z-[60]"
         initial={false}
         animate={{ opacity: transitionActive ? 0 : 1 }}
@@ -142,6 +152,7 @@ function HomeContent() {
       {selectedCloud && (
         <SignupModal
           cloud={selectedCloud}
+          locale={locale}
           onClose={() => setSelectedCloud(null)}
           onSuccess={() => {}}
           onRedirectToCountdown={() => setSkyTransitionForCountdown("forms")}
