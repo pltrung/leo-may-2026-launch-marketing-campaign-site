@@ -1,27 +1,16 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { getMessages } from "@/lib/messages";
+import type { Locale } from "@/lib/i18n";
 
 interface AboutUsModalProps {
   onClose: () => void;
+  locale?: Locale;
 }
 
-const ABOUT_CONTENT = [
-  "We are a collective of people brought together by a quiet obsession — climbing.",
-  "Like any meaningful pursuit, climbing speaks a universal language. It transcends background, culture, and form. It reminds us of something simple, yet often forgotten: connection.",
-  "Many of us did not always feel at home in our own bodies.",
-  "We grew up under the weight of expectations — told what the body should look like, how it should move, what it should be. We learned to see ourselves through the lens of judgment, measuring our worth against shapes and standards that were never truly ours.",
-  "But climbing changed that.",
-  "On the wall, there is no perfect body. There is only movement, intention, breath, and presence.",
-  "Clouds exist in infinite forms — soft, heavy, scattered, towering — yet each is made of the same elements. None is more \"correct\" than another. Each simply becomes what it is meant to be.",
-  "We are no different.",
-  "At Leo Mây, we welcome every climber — every shape, every story, every journey. Whether you come seeking strength, peace, joy, or simply curiosity, this is a space where you are free to move as yourself.",
-  "Not to become someone else.",
-  "But to rediscover who you already are.",
-  "We look forward to climbing with you — through every mist, every storm, and every clear sky ahead.",
-];
-
-export default function AboutUsModal({ onClose }: AboutUsModalProps) {
+export default function AboutUsModal({ onClose, locale = "en" }: AboutUsModalProps) {
+  const { title, paragraphs } = getMessages(locale).about;
   return (
     <motion.div
       className="fixed inset-0 z-[55] flex items-center justify-center p-4"
@@ -40,7 +29,7 @@ export default function AboutUsModal({ onClose }: AboutUsModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="shrink-0 flex items-center justify-between px-6 pt-6 pb-3 border-b border-mist/30">
-          <h2 className="font-subheadline text-xl font-bold text-storm">About Us</h2>
+          <h2 className="font-subheadline text-xl font-bold text-storm">{title}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -54,7 +43,7 @@ export default function AboutUsModal({ onClose }: AboutUsModalProps) {
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-5">
           <div className="font-body text-storm text-[15px] leading-relaxed space-y-4">
-            {ABOUT_CONTENT.map((paragraph, i) => (
+            {paragraphs.map((paragraph, i) => (
               <p key={i}>{paragraph}</p>
             ))}
           </div>

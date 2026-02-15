@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState, useEffect, useCallback, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import BrandBackground from "@/components/BrandBackground";
 import HeroScroll1 from "@/components/HeroScroll1";
@@ -21,9 +21,12 @@ import AscentBar from "@/components/AscentBar";
 import MistAscent from "@/components/MistAscent";
 import { CloudPersonality } from "@/lib/cloudData";
 import { getUser } from "@/lib/userStorage";
+import type { Locale } from "@/lib/i18n";
 
 function HomeContent() {
   const router = useRouter();
+  const params = useParams();
+  const locale = (params?.locale as Locale) ?? "en";
   const searchParams = useSearchParams();
   const [showClouds, setShowClouds] = useState(false);
   const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
@@ -41,8 +44,8 @@ function HomeContent() {
   const handleCountdownTransitionComplete = useCallback(() => {
     setSkyTransitionForCountdown(false);
     setSelectedCloud(null);
-    router.push("/countdown");
-  }, [router]);
+    router.push(`/${locale}/countdown`);
+  }, [router, locale]);
 
   const isCountdownTransition = skyTransitionForCountdown !== false;
 
@@ -63,8 +66,8 @@ function HomeContent() {
     if (!user) return;
     const teamMatch = !teamParam || user.team === teamParam;
     const userMatch = !userParam || user.name.trim().toLowerCase().includes((userParam || "").trim().toLowerCase());
-    if (teamMatch && userMatch) router.replace("/countdown");
-  }, [router, searchParams]);
+    if (teamMatch && userMatch) router.replace(`/${locale}/countdown`);
+  }, [router, searchParams, locale]);
 
   useEffect(() => {
     return () => timersRef.current.forEach(clearTimeout);
@@ -85,7 +88,7 @@ function HomeContent() {
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />
       <motion.div
-        className="fixed top-6 right-6 md:top-8 md:right-10 z-[60]"
+        className="fixed top-6 right-24 md:top-8 md:right-28 z-[60]"
         initial={false}
         animate={{ opacity: transitionActive ? 0 : 1 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}

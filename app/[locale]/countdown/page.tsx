@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useRouter, useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { getUser, clearUser } from "@/lib/userStorage";
 import { getCloudById } from "@/lib/cloudData";
@@ -10,6 +11,9 @@ import CloudIconByType from "@/components/CloudIcons";
 import CloudFooter from "@/components/CloudFooter";
 import AboutUsModal from "@/components/AboutUsModal";
 import { useCountdownHeroEntrance, CONTENT_STAGGER_MS, EASE_APPLE_IN_OUT, EASE_APPLE_SETTLE, EASE_MICRO_SETTLE } from "@/lib/enterCountdownHero";
+import { getMessages } from "@/lib/messages";
+import { isValidLocale } from "@/lib/i18n";
+import type { Locale } from "@/lib/i18n";
 
 /** Background + holds fade to blue (ms); hero entrance starts after this. */
 const COUNTDOWN_BG_FADE_MS = 1000;
@@ -114,6 +118,9 @@ function useUserProfile(email?: string, phone?: string) {
 
 export default function CountdownPage() {
   const router = useRouter();
+  const params = useParams();
+  const locale = (params?.locale && isValidLocale(params.locale as string)) ? (params.locale as Locale) : "en";
+  const t = getMessages(locale).countdown;
   const [user, setUser] = useState<ReturnType<typeof getUser>>(null);
   const [verified, setVerified] = useState<boolean | null>(null);
   const [shareToast, setShareToast] = useState(false);
@@ -131,33 +138,33 @@ export default function CountdownPage() {
   useEffect(() => {
     if (user === null) return;
     if (!user) {
-      router.replace("/");
+      router.replace(`/${locale}`);
       return;
     }
-    const params = new URLSearchParams();
-    if (user.email) params.set("email", user.email);
-    else if (user.phone) params.set("phone", user.phone);
+    const searchParams = new URLSearchParams();
+    if (user.email) searchParams.set("email", user.email);
+    else if (user.phone) searchParams.set("phone", user.phone);
     else {
       clearUser();
-      router.replace("/");
+      router.replace(`/${locale}`);
       return;
     }
-    fetch(`/api/waitlist/lookup?${params}`)
+    fetch(`/api/waitlist/lookup?${searchParams}`)
       .then((r) => r.json())
       .then((d) => setVerified(!!d?.user))
       .catch(() => setVerified(false));
-  }, [user, router]);
+  }, [user, router, locale]);
 
   useEffect(() => {
     if (verified === false) {
       clearUser();
-      router.replace("/");
+      router.replace(`/${locale}`);
     }
-  }, [verified, router]);
+  }, [verified, router, locale]);
 
   const handleLogout = () => {
     clearUser();
-    router.replace("/");
+    router.replace(`/${locale}`);
   };
 
   if (!user || verified === false) return null;
@@ -181,28 +188,27 @@ export default function CountdownPage() {
       style={{ backgroundColor: "#0242FF" }}
     >
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-4 relative overflow-y-auto overflow-x-hidden min-h-0">
-      {/* Desktop: About Us top left */}
       <motion.button
         type="button"
         onClick={() => setAboutOpen(true)}
         className="about-btn-breathe hidden md:flex absolute top-8 left-10 z-10 py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 hover:scale-[1.02] transition-all duration-300 items-center justify-center"
-        aria-label="About Us"
+        aria-label={t.aboutUs}
         initial={{ opacity: 0 }}
         animate={{ opacity: phase === "content" ? 1 : 0 }}
         transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
       >
-        About Us
+        {t.aboutUs}
       </motion.button>
       <motion.button
         type="button"
         onClick={handleLogout}
-        className="hidden md:flex absolute top-8 right-10 z-10 py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors items-center justify-center"
-        aria-label="Log out"
+        className="hidden md:flex absolute top-8 right-24 z-10 py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors items-center justify-center"
+        aria-label={t.logOut}
         initial={{ opacity: 0 }}
         animate={{ opacity: phase === "content" ? 1 : 0 }}
         transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
       >
-        Log out
+        {t.logOut}
       </motion.button>
       <motion.div
         className="fixed inset-0 -z-10 pointer-events-none"
@@ -223,7 +229,6 @@ export default function CountdownPage() {
         <img src="/brand/holds.svg" alt="" className="w-full h-full object-cover" />
       </motion.div>
 
-      {/* Hero entrance: scale up → pause → settle (move+scale together) → micro-settle → rest → handoff */}
       <AnimatePresence>
         {(phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" || phase === "phase4-micro-settle" || phase === "phase5-rest") && (
           <motion.div
@@ -272,34 +277,33 @@ export default function CountdownPage() {
       </AnimatePresence>
 
       <div className="flex flex-col items-center w-full max-w-lg mx-auto flex-1 pt-4 pb-14 md:pb-3">
-        {/* 1. Cloud card: You joined — max 2 lines, no icon */}
         <motion.div
           className="joined-card shrink-0 countdown-spacing-after-card"
           initial={{ opacity: 0 }}
           animate={{ opacity: phase === "content" ? 1 : 0 }}
           transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[0] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
-          <p className="greeting">Hi {firstName},</p>
+          <p className="greeting">{t.hi} {firstName},</p>
           <p className="team-name">
-            You joined <span style={{ color: accent, textShadow: `0 0 12px ${accent}60` }}>Team {cloud.name}</span>
+            {t.youJoined} <span style={{ color: accent, textShadow: `0 0 12px ${accent}60` }}>Team {cloud.name}</span>
           </p>
         </motion.div>
 
-        {/* 2. Logo */}
         <motion.div
           className="shrink-0 w-[min(90vw,200px)] sm:w-[min(85vw,240px)] md:w-[min(80vw,280px)] countdown-spacing-after-logo"
           initial={{ opacity: 0 }}
           animate={{ opacity: phase === "content" ? 1 : 0 }}
           transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[1] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
-          <img
-            src="/logo-white.svg"
-            alt="Leo Mây"
-            className="w-full h-auto object-contain"
-          />
+          <Link href={`/${locale}`} className="block w-full h-auto" aria-label="Leo Mây — go to home">
+            <img
+              src="/logo-white.svg"
+              alt="Leo Mây"
+              className="w-full h-auto object-contain"
+            />
+          </Link>
         </motion.div>
 
-        {/* 3. IP — primary visual focus (visible when overlay settles in phase5, then floats) */}
         <motion.div
           className={`shrink-0 countdown-ip countdown-spacing-after-ip origin-center ${phase === "content" ? "countdown-ip-float" : ""}`}
           style={{
@@ -323,7 +327,6 @@ export default function CountdownPage() {
           />
         </motion.div>
 
-        {/* 4. Cloud progress — immersive referral copy */}
         <motion.div
           className="cloud-progress shrink-0 w-[85%] sm:w-[70%] max-w-[380px] flex flex-col items-center gap-2 leading-tight rounded-2xl px-4 py-3 countdown-spacing-after-progress"
           style={{
@@ -335,7 +338,7 @@ export default function CountdownPage() {
           transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[2] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
           <div className="progress-title font-caption text-center" style={{ color: traitUnlocked ? accent : "#1E2A38", opacity: traitUnlocked ? 1 : 0.7 }}>
-            {traitUnlocked ? (cloud.traitUnlocked ?? "Your cloud reveals its true form.") : "Your cloud is gathering energy"}
+            {traitUnlocked ? (cloud.traitUnlocked ?? t.yourCloudReveals) : t.yourCloudGathering}
           </div>
           <div
             className="w-full h-[10px] min-h-[10px] rounded-full overflow-hidden flex-shrink-0"
@@ -351,21 +354,20 @@ export default function CountdownPage() {
           </div>
           <div className="progress-count font-caption text-xs sm:text-[0.85rem] font-medium" style={{ color: "#1E2A38", letterSpacing: "0.5px" }}>
             <span className="referral-current">{referralCount}</span>
-            <span className="referral-total"> / 10</span> climbers joined your cloud
+            <span className="referral-total"> / 10</span> {t.climbersJoined}
           </div>
           {!traitUnlocked && (
             <div className="progress-sub font-caption text-[10px] sm:text-[11px] text-storm/70 tracking-wide">
-              Invite others to awaken its true form
+              {t.inviteOthers}
             </div>
           )}
         </motion.div>
 
-        {/* 6. Share button — referral link + toast */}
         <motion.button
           type="button"
           onClick={() => {
             const origin = typeof window !== "undefined" ? window.location.origin : "";
-            const link = referralCode ? `${origin}/?ref=${referralCode}` : `${origin}/?team=${cloud.id}`;
+            const link = referralCode ? `${origin}/${locale}?ref=${referralCode}` : `${origin}/${locale}?team=${cloud.id}`;
             const msg = referralCode
               ? `Please join my cloud Team ${cloud.name} and be on the countdown with me live for the launch of Leo May Climbing Gym in Ho Chi Minh City, Vietnam — 2026.\n\nJoin here:\n${link}`
               : link;
@@ -380,10 +382,9 @@ export default function CountdownPage() {
           animate={{ opacity: phase === "content" ? 1 : 0 }}
           transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
-          Power your cloud
+          {t.powerYourCloud}
         </motion.button>
 
-        {/* Countdown timer + winner message — directly below Share */}
         <motion.div
           className="countdown-timer-block shrink-0 w-full flex flex-col items-center countdown-spacing-after-timer"
           initial={{ opacity: 0 }}
@@ -415,19 +416,18 @@ export default function CountdownPage() {
             ))}
           </div>
           <p className="countdown-winner-text text-center text-white/60 text-[0.7rem] sm:text-[0.75rem] max-w-[280px] mt-3 leading-tight">
-            The team with the most climbers when the countdown ends will receive a special prize.
+            {t.countdownWinnerText}
           </p>
         </motion.div>
 
         {shareToast && (
           <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
             <div className="px-6 py-4 rounded-xl bg-white/95 shadow-lg text-storm font-medium animate-fade-out-2s">
-              Link copied. Share it to grow your cloud.
+              {t.linkCopied}
             </div>
           </div>
         )}
 
-        {/* Leaderboard — after countdown */}
         <motion.div
           className="shrink-0 flex flex-col items-center w-full max-w-[320px] relative countdown-spacing-after-leaderboard"
           initial={{ opacity: 0 }}
@@ -436,10 +436,10 @@ export default function CountdownPage() {
         >
           <div className="absolute inset-0 rounded-2xl leaderboard-shimmer pointer-events-none -z-10" aria-hidden />
           <p className="sky-header font-medium text-white text-center">
-            The Sky is Shifting
+            {t.skyHeader}
           </p>
           <p className="sky-sub font-caption text-white/90 text-center">
-            Which cloud will rise?
+            {t.skySub}
           </p>
           <div className="flex flex-col gap-2 w-full">
             {leaderboard.slice(0, 3).map((entry, idx) => {
@@ -477,7 +477,7 @@ export default function CountdownPage() {
                         Team {entry.name}
                       </p>
                       <p className="team-count font-caption text-white/60 text-[0.7rem] mt-0.5">
-                        {entry.count} climber{entry.count !== 1 ? "s" : ""}
+                        {entry.count} {entry.count !== 1 ? t.climbers : t.climber}
                       </p>
                     </div>
                   </div>
@@ -509,7 +509,7 @@ export default function CountdownPage() {
                     boxShadow: `0 0 16px ${isGiong ? "rgba(255,255,255,0.4)" : `${accent}40`}`,
                   }}
                 >
-                  <p className="font-medium text-white/60 text-[0.7rem] uppercase tracking-wider mb-1">Your Team Rank</p>
+                  <p className="font-medium text-white/60 text-[0.7rem] uppercase tracking-wider mb-1">{t.yourTeamRank}</p>
                   <div className="flex flex-row items-center justify-between gap-3">
                     <div className="flex flex-row items-center gap-3 flex-1 min-w-0">
                       <div className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm" style={{ backgroundColor: accentContrast, color: isGiong ? "#0242FF" : (cloud.joinTextHex ?? "#1E2A38") }}>
@@ -518,10 +518,10 @@ export default function CountdownPage() {
                       <div className="leaderboard-text flex flex-col min-w-0">
                         <p className="font-bold text-white text-[0.9rem] sm:text-[1rem]">Team {cloud.name}</p>
                         <p className="font-caption text-white/70 text-[0.75rem] mt-0.5">
-                          {teamCount} climber{teamCount !== 1 ? "s" : ""}
+                          {teamCount} {teamCount !== 1 ? t.climbers : t.climber}
                           {diff > 0 && (
                             <span className="block mt-0.5">
-                              +{diff} to reach #3
+                              +{diff} {t.toReach3}
                               {isCloseToNext && (
                                 <span className="inline-block ml-1" style={{ color: accentContrast }} aria-hidden>↑</span>
                               )}
@@ -543,7 +543,6 @@ export default function CountdownPage() {
           )}
         </motion.div>
 
-        {/* Mobile: About Us then Log out — above footer */}
         <motion.div
           className="flex flex-col items-center gap-3 md:hidden mt-6 mb-2"
           initial={{ opacity: 0 }}
@@ -554,17 +553,17 @@ export default function CountdownPage() {
             type="button"
             onClick={() => setAboutOpen(true)}
             className="about-btn-breathe logout-mobile-btn w-full max-w-[200px]"
-            aria-label="About Us"
+            aria-label={t.aboutUs}
           >
-            About Us
+            {t.aboutUs}
           </button>
           <button
             type="button"
             onClick={handleLogout}
             className="logout-mobile-btn"
-            aria-label="Log out"
+            aria-label={t.logOut}
           >
-            Log out
+            {t.logOut}
           </button>
         </motion.div>
       </div>
@@ -583,7 +582,7 @@ export default function CountdownPage() {
       </motion.footer>
 
       <AnimatePresence>
-        {aboutOpen && <AboutUsModal onClose={() => setAboutOpen(false)} />}
+        {aboutOpen && <AboutUsModal onClose={() => setAboutOpen(false)} locale={locale} />}
       </AnimatePresence>
     </div>
   );

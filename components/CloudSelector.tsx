@@ -6,6 +6,8 @@ import { clouds, CloudPersonality } from "@/lib/cloudData";
 import CloudCard from "./CloudCard";
 import CloudStackMobile from "./CloudStackMobile";
 import Logo from "./Logo";
+import { useLocale } from "./LocaleProvider";
+import { getMessages } from "@/lib/messages";
 
 interface CloudSelectorProps {
   onSelect: (cloud: CloudPersonality) => void;
@@ -13,6 +15,8 @@ interface CloudSelectorProps {
 
 export default function CloudSelector({ onSelect }: CloudSelectorProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const locale = useLocale();
+  const { whatTypeOfCloud } = getMessages(locale).cloudSelector;
 
   return (
     <section
@@ -37,7 +41,7 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
         transition={{ delay: 0.7, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
       >
         <h2 className="cloud-selection-title font-headline text-[22px] sm:text-[26px] md:text-[32px] leading-[1.2] md:text-5xl text-center text-white tracking-headline pl-20 pr-20 md:px-4">
-          What type of cloud are you?
+          {whatTypeOfCloud}
         </h2>
       </motion.div>
 

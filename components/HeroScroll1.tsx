@@ -2,9 +2,13 @@
 
 import Image from "next/image";
 import Logo from "./Logo";
+import { useLocale } from "./LocaleProvider";
+import { getMessages } from "@/lib/messages";
 
 /** Hero page scroll section 1: "Climb the Clouds. Build a Culture." */
 export default function HeroScroll1() {
+  const locale = useLocale();
+  const { climbTheClouds, buildACulture, scroll } = getMessages(locale).hero;
   return (
     <section className="relative min-h-screen h-screen flex flex-col items-center justify-center px-6 overflow-hidden pt-[120px] md:pt-24">
       <div className="absolute inset-0 -z-[1] opacity-[0.04] blur-3xl pointer-events-none" aria-hidden>
@@ -21,19 +25,19 @@ export default function HeroScroll1() {
       {/* Center headline in viewport (ignore top padding so it sits at true 50%) */}
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 max-w-4xl mx-auto">
         <h1 className="hero-climb font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white tracking-headline leading-tight whitespace-nowrap">
-          Climb the Clouds.
+          {climbTheClouds}
         </h1>
         <span
           className="hero-build block font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-headline mt-3 sm:mt-4"
           style={{ color: "#00CB4D" }}
         >
-          Build a Culture.
+          {buildACulture}
         </span>
       </div>
 
       <div className="hero-scroll absolute bottom-8 left-1/2 -translate-x-1/2">
         <div className="flex flex-col items-center gap-2">
-          <span className="font-caption text-white/70 text-xs tracking-widest uppercase">Scroll</span>
+          <span className="font-caption text-white/70 text-xs tracking-widest uppercase">{scroll}</span>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/brand/arrow-up.svg"
