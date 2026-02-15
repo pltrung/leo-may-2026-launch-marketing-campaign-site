@@ -265,32 +265,33 @@ export default function CountdownPage() {
         )}
       </AnimatePresence>
 
+      {/* Desktop: About Us top-left, Log out top-right (fixed) */}
+      <motion.button
+        type="button"
+        onClick={() => setAboutOpen(true)}
+        className="about-btn-breathe hidden md:flex absolute top-8 left-10 z-10 py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 hover:scale-[1.02] transition-all duration-300 items-center justify-center"
+        aria-label={t.aboutUs}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: phase === "content" ? 1 : 0 }}
+        transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+        style={{ visibility: phase === "content" ? "visible" : "hidden", pointerEvents: phase === "content" ? "auto" : "none" }}
+      >
+        {t.aboutUs}
+      </motion.button>
+      <motion.button
+        type="button"
+        onClick={handleLogout}
+        className="hidden md:flex absolute top-8 right-10 z-10 py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors items-center justify-center"
+        aria-label={t.logOut}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: phase === "content" ? 1 : 0 }}
+        transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+        style={{ visibility: phase === "content" ? "visible" : "hidden", pointerEvents: phase === "content" ? "auto" : "none" }}
+      >
+        {t.logOut}
+      </motion.button>
+
       <div className="flex flex-col items-center w-full max-w-lg mx-auto flex-1 pt-4 pb-14 md:pb-3">
-        {/* Desktop: About Us, Log out — in flow so they scroll with content; VN/EN is fixed bottom-left */}
-        <motion.header
-          className="hidden md:flex w-full max-w-4xl mx-auto px-6 md:px-10 justify-between items-center shrink-0 mb-4 -mt-2"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: phase === "content" ? 1 : 0 }}
-          transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
-          style={{ visibility: phase === "content" ? "visible" : "hidden", pointerEvents: phase === "content" ? "auto" : "none" }}
-        >
-          <button
-            type="button"
-            onClick={() => setAboutOpen(true)}
-            className="about-btn-breathe py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 hover:scale-[1.02] transition-all duration-300"
-            aria-label={t.aboutUs}
-          >
-            {t.aboutUs}
-          </button>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors"
-            aria-label={t.logOut}
-          >
-            {t.logOut}
-          </button>
-        </motion.header>
         <motion.div
           className="joined-card shrink-0 countdown-spacing-after-card"
           initial={{ opacity: 0 }}
