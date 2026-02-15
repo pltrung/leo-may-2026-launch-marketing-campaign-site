@@ -328,6 +328,16 @@ body.hero-ready .hero-scroll {
     0 0 16px rgba(59,130,246,0.15);
 }
 
+.emphasis-yellow {
+  color: #FACC15;
+  font-family: "MiSans-Bold", sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 8px rgba(250,204,21,0.35),
+    0 0 16px rgba(250,204,21,0.2);
+}
+
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -864,6 +874,152 @@ body.hero-ready .hero-scroll {
 }
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+/* Mobile-only (max-width: 768px) cinematic cloud stack */
+@media (max-width: 768px) {
+  .cloud-stack-container {
+    position: relative;
+    min-height: 72vh;
+  }
+
+  .cloud-stack-mist {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at center, rgba(255,255,255,0.35), rgba(255,255,255,0.08), transparent);
+    backdrop-filter: blur(18px);
+    animation: cloudStackMistFadeOut 1400ms ease forwards;
+  }
+
+  .cloud-stack-bloom {
+    position: fixed;
+    inset: 0;
+    z-index: 11;
+    pointer-events: none;
+    background: radial-gradient(
+      circle at center,
+      rgba(255,255,255,0.5),
+      rgba(255,255,255,0.15),
+      transparent 70%
+    );
+    animation: cloudStackBloomOut 450ms ease-out forwards;
+  }
+
+  @keyframes cloudStackBloomOut {
+    0% {
+      opacity: 0;
+      transform: scale(0.5);
+    }
+    40% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1.5);
+    }
+  }
+
+  @keyframes cloudStackMistFadeOut {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  .cloud-stack {
+    position: relative;
+    height: 72vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    perspective: 1200px;
+    transform-style: preserve-3d;
+  }
+
+  .cloud-stack::before {
+    content: "";
+    position: absolute;
+    inset: -20%;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 30% 40%, rgba(255,255,255,0.12), transparent 60%),
+      radial-gradient(circle at 70% 60%, rgba(255,255,255,0.10), transparent 60%);
+    filter: blur(40px);
+    animation: cloudStackMistDrift 14s ease-in-out infinite alternate;
+  }
+
+  @keyframes cloudStackMistDrift {
+    0% { transform: translateX(-30px); }
+    100% { transform: translateX(30px); }
+  }
+
+  .cloud-stack-card {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    will-change: transform, opacity, filter;
+    opacity: 0;
+    transform: translateY(60px);
+    transition:
+      transform 600ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 600ms ease,
+      filter 600ms ease;
+  }
+
+  .cloud-stack-card-emerged {
+    opacity: 1;
+  }
+
+  .cloud-stack-card-active {
+    z-index: 3;
+    opacity: 0;
+    transform: translateY(0) scale(1) rotateX(0deg);
+    transform-origin: center bottom;
+    filter: drop-shadow(0 40px 80px rgba(0,0,0,0.25));
+    animation: cloudFloatActive 6s ease-in-out infinite;
+    cursor: pointer;
+  }
+
+  .cloud-stack-card-active.cloud-stack-card-emerged {
+    opacity: 1;
+  }
+
+  .cloud-stack-card-second {
+    z-index: 2;
+    opacity: 0;
+    transform: translateY(28px) scale(0.95) rotateX(6deg);
+    transform-origin: center bottom;
+    animation: cloudFloatSecondary 7s ease-in-out infinite;
+    cursor: pointer;
+  }
+
+  .cloud-stack-card-second.cloud-stack-card-emerged {
+    opacity: 0.7;
+  }
+
+  .cloud-stack-card-third {
+    z-index: 1;
+    opacity: 0;
+    transform: translateY(56px) scale(0.9) rotateX(10deg);
+    transform-origin: center bottom;
+    cursor: pointer;
+  }
+
+  .cloud-stack-card-third.cloud-stack-card-emerged {
+    opacity: 0.45;
+  }
+
+  @keyframes cloudFloatActive {
+    0%, 100% { transform: translateY(0) scale(1) rotateX(0deg); }
+    50% { transform: translateY(-10px) scale(1) rotateX(0deg); }
+  }
+
+  @keyframes cloudFloatSecondary {
+    0%, 100% { transform: translateY(28px) scale(0.95) rotateX(6deg); }
+    50% { transform: translateY(22px) scale(0.95) rotateX(6deg); }
+  }
 }
 
 @layer base {

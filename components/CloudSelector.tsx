@@ -2,6 +2,7 @@
 
 import { clouds, CloudPersonality } from "@/lib/cloudData";
 import CloudCard from "./CloudCard";
+import CloudStackMobile from "./CloudStackMobile";
 import Logo from "./Logo";
 
 interface CloudSelectorProps {
@@ -26,26 +27,9 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
         </h2>
       </div>
 
-      {/* Mobile: horizontal scroll with bounce hint */}
-      <div className="md:hidden w-full px-2 pb-4 mt-8">
-        <div className="flex gap-4 overflow-x-auto overflow-y-visible pb-4 snap-x snap-mandatory scroll-smooth scrollbar-hide -mx-2 px-2">
-          {clouds.map((cloud) => (
-            <div
-              key={cloud.id}
-              className="flex-shrink-0 w-[200px] snap-center flex justify-center"
-            >
-              <CloudCard cloud={cloud} onJoin={onSelect} />
-            </div>
-          ))}
-        </div>
-        <div className="flex justify-center mt-2" aria-hidden>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/brand/arrow-right.svg"
-            alt=""
-            className="w-8 h-auto animate-bounce object-contain"
-          />
-        </div>
+      {/* Mobile: cinematic vertical cloud stack */}
+      <div className="md:hidden w-full pb-4 mt-8">
+        <CloudStackMobile onSelect={onSelect} />
       </div>
 
       {/* Desktop: grid with scroll hint */}

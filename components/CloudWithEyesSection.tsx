@@ -5,7 +5,7 @@ export default function CloudWithEyesSection() {
     <section className="hero-section hero-section-scroll hero-cloud-section relative overflow-hidden px-6">
       <div className="hero-text cloud-eyes-text max-w-2xl">
         <p className="cloud-eyes-line-1 font-headline text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-white tracking-headline leading-tight">
-          Where every cloud moves <span className="emphasis-blue">DIFFERENTLY</span>.
+          Where every cloud moves <span className="emphasis-yellow">DIFFERENTLY</span>.
         </p>
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}

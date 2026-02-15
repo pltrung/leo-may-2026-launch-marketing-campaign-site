@@ -9,7 +9,7 @@ export default function PhilosophySection() {
         <div className="absolute bottom-1/3 left-1/2 w-[48%] max-w-[260px] h-[48%] max-h-[260px] rounded-full bg-white/11 animate-mist-drift" style={{ filter: "blur(38px)", animationDelay: "-12s" }} />
       </div>
       <div className="hero-text philosophy-text philosophy-single-line">
-        Where <span className="emphasis">Mist</span> holds <span className="emphasis">Space</span> for what you <span className="emphasis">BECOME</span>.
+        Where your <span className="emphasis-yellow">SHAPE</span> is never questioned.
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
