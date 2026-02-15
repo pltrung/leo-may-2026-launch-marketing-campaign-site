@@ -16,7 +16,7 @@ export default function BrandBackground() {
         />
       </div>
       <div
-        className="fixed inset-0 -z-10 opacity-70 overflow-hidden pointer-events-none animate-cloud-float-delayed"
+        className="fixed inset-0 -z-10 opacity-70 overflow-hidden pointer-events-none animate-holds-layer"
         aria-hidden
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}

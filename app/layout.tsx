@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import BrandBackground from "@/components/BrandBackground";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ export default function RootLayout({
         <link rel="preload" href="/brand/holds.svg" as="image" />
       </head>
       <body className="min-h-screen antialiased overflow-x-hidden">
+        <BrandBackground />
         <div id="loading-screen">
           <div className="loading-inner">
             {/* eslint-disable-next-line @next/next/no-img-element */}
