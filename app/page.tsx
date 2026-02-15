@@ -19,6 +19,7 @@ import KnowYourTeamButton from "@/components/KnowYourTeamButton";
 import HeroScrollObserver from "@/components/HeroScrollObserver";
 import SkyTransition from "@/components/SkyTransition";
 import AscentBar from "@/components/AscentBar";
+import MistAscent from "@/components/MistAscent";
 import { CloudPersonality } from "@/lib/cloudData";
 import { getUser } from "@/lib/userStorage";
 
@@ -91,6 +92,7 @@ function HomeContent() {
     <div id="hero-page" className="page-container relative min-h-[100dvh] flex flex-col">
       <main className="relative flex-1 min-h-0 z-10">
       <BrandBackground />
+      {!showClouds && <MistAscent />}
       <HeroScrollObserver />
       <KnowYourTeamButton
         show
