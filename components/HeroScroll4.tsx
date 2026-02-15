@@ -16,8 +16,8 @@ export default function HeroScroll4() {
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/brand/ip-city.svg"
-        alt="Leo Mây City in Clouds"
+        src="/brand/ip-flying.svg"
+        alt="Leo Mây Flying"
         className="hero-ip hero-ip-city mist-ip-city"
         loading="eager"
         fetchPriority="high"
