@@ -8,7 +8,7 @@ import { getCloudById } from "@/lib/cloudData";
 import type { CloudType } from "@/lib/cloudData";
 import CloudIconByType from "@/components/CloudIcons";
 import CloudFooter from "@/components/CloudFooter";
-import { useCountdownHeroEntrance, CONTENT_STAGGER_MS, EASE_APPLE_IN_OUT, EASE_APPLE_SETTLE } from "@/lib/enterCountdownHero";
+import { useCountdownHeroEntrance, CONTENT_STAGGER_MS, EASE_APPLE_IN_OUT, EASE_APPLE_SETTLE, EASE_MICRO_SETTLE } from "@/lib/enterCountdownHero";
 
 const TARGET = new Date("2026-01-01T00:00:00+07:00");
 const REFERRAL_UNLOCK = 10;
@@ -183,7 +183,7 @@ export default function CountdownPage() {
         aria-label="Log out"
         initial={{ opacity: 0 }}
         animate={{ opacity: phase === "content" ? 1 : 0 }}
-        transition={{ duration: 0.7, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+        transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
       >
         Log out
       </motion.button>
@@ -194,9 +194,9 @@ export default function CountdownPage() {
         <img src="/brand/holds.svg" alt="" className="w-full h-full object-cover" />
       </div>
 
-      {/* Apple-level 5-phase hero entrance: scale up → pause → settle upward → rest → handoff */}
+      {/* Hero entrance: scale up → pause → settle (move+scale together) → micro-settle → rest → handoff */}
       <AnimatePresence>
-        {(phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" || phase === "phase4-rest") && (
+        {(phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" || phase === "phase4-micro-settle" || phase === "phase5-rest") && (
           <motion.div
             className="fixed inset-0 z-20 flex items-center justify-center pointer-events-none"
             initial={false}
@@ -210,24 +210,26 @@ export default function CountdownPage() {
               initial={{ scale: 0.35, opacity: 0, y: "0vh" }}
               animate={{
                 scale:
-                  phase === "phase1-scale" ? 1.08 :
-                  phase === "phase2-pause" ? 1.08 :
+                  phase === "phase1-scale" || phase === "phase2-pause" ? 1.08 :
                   phase === "phase3-settle" ? 1 :
-                  1,
+                  phase === "phase4-micro-settle" || phase === "phase5-rest" ? 0.998 : 1,
                 y:
                   phase === "phase1-scale" || phase === "phase2-pause" ? "0vh" :
-                  phase === "phase3-settle" || phase === "phase4-rest" ? "-6vh" :
-                  "-6vh",
-                opacity: phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" || phase === "phase4-rest" ? 1 : 0,
+                  phase === "phase3-settle" ? "-6vh" :
+                  phase === "phase4-micro-settle" || phase === "phase5-rest" ? "-5.97vh" : "-6vh",
+                opacity: 1,
               }}
-              transition={{
-                duration:
-                  phase === "phase1-scale" ? 0.8 :
-                  phase === "phase2-pause" ? 0 :
-                  phase === "phase3-settle" ? 0.9 :
-                  0,
-                ease: phase === "phase1-scale" ? EASE_APPLE_IN_OUT : phase === "phase3-settle" ? EASE_APPLE_SETTLE : [0, 0, 0, 1],
-              }}
+              transition={
+                phase === "phase1-scale"
+                  ? { duration: 0.8, ease: EASE_APPLE_IN_OUT }
+                  : phase === "phase2-pause"
+                  ? { duration: 0 }
+                  : phase === "phase3-settle"
+                  ? { duration: 0.9, ease: EASE_APPLE_SETTLE }
+                  : phase === "phase4-micro-settle"
+                  ? { duration: 0.12, ease: EASE_MICRO_SETTLE }
+                  : { duration: 0 }
+              }
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -246,7 +248,7 @@ export default function CountdownPage() {
           className="joined-card shrink-0 countdown-spacing-after-card"
           initial={{ opacity: 0 }}
           animate={{ opacity: phase === "content" ? 1 : 0 }}
-          transition={{ duration: 0.7, delay: phase === "content" ? CONTENT_STAGGER_MS[0] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+          transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[0] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
           <p className="greeting">Hi {firstName},</p>
           <p className="team-name">
@@ -259,7 +261,7 @@ export default function CountdownPage() {
           className="shrink-0 w-[min(90vw,200px)] sm:w-[min(85vw,240px)] md:w-[min(80vw,280px)] countdown-spacing-after-logo"
           initial={{ opacity: 0 }}
           animate={{ opacity: phase === "content" ? 1 : 0 }}
-          transition={{ duration: 0.7, delay: phase === "content" ? CONTENT_STAGGER_MS[1] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+          transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[1] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
           <img
             src="/logo-white.svg"
@@ -268,20 +270,20 @@ export default function CountdownPage() {
           />
         </motion.div>
 
-        {/* 3. IP — primary visual focus (visible when overlay settles in phase4, then floats) */}
+        {/* 3. IP — primary visual focus (visible when overlay settles in phase5, then floats) */}
         <motion.div
           className={`shrink-0 countdown-ip countdown-spacing-after-ip origin-center ${phase === "content" ? "countdown-ip-float" : ""}`}
           style={{
             transformOrigin: "center center",
-            visibility: phase === "hidden" || phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" ? "hidden" : "visible",
+            visibility: phase === "hidden" || phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" || phase === "phase4-micro-settle" ? "hidden" : "visible",
           }}
           initial={{ opacity: 0 }}
           animate={{
-            opacity: phase === "phase4-rest" || phase === "content" ? 1 : 0,
+            opacity: phase === "phase5-rest" || phase === "content" ? 1 : 0,
           }}
           transition={{
             duration: 0.5,
-            delay: phase === "phase4-rest" ? 0.2 : 0,
+            delay: phase === "phase5-rest" ? 0.15 : 0,
             ease: EASE_APPLE_IN_OUT,
           }}
         >
@@ -301,7 +303,7 @@ export default function CountdownPage() {
           }}
           initial={{ opacity: 0 }}
           animate={{ opacity: phase === "content" ? 1 : 0 }}
-          transition={{ duration: 0.7, delay: phase === "content" ? CONTENT_STAGGER_MS[2] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+          transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[2] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
           <div className="progress-title font-caption text-center" style={{ color: traitUnlocked ? accent : "#1E2A38", opacity: traitUnlocked ? 1 : 0.7 }}>
             {traitUnlocked ? (cloud.traitUnlocked ?? "Your cloud reveals its true form.") : "Your cloud is gathering energy"}
@@ -347,9 +349,9 @@ export default function CountdownPage() {
           style={{ borderColor: accentContrast, color: accentContrast }}
           initial={{ opacity: 0 }}
           animate={{ opacity: phase === "content" ? 1 : 0 }}
-          transition={{ duration: 0.7, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+          transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
-          Share your cloud
+          Power your cloud
         </motion.button>
 
         {/* Countdown timer + winner message — directly below Share */}
@@ -357,7 +359,7 @@ export default function CountdownPage() {
           className="countdown-timer-block shrink-0 w-full flex flex-col items-center countdown-spacing-after-timer"
           initial={{ opacity: 0 }}
           animate={{ opacity: phase === "content" ? 1 : 0 }}
-          transition={{ duration: 0.7, delay: phase === "content" ? CONTENT_STAGGER_MS[3] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+          transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[3] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
           <div className="flex items-center justify-center gap-0.5 sm:gap-1 md:gap-2 w-full max-w-full px-1">
             {[
@@ -401,7 +403,7 @@ export default function CountdownPage() {
           className="shrink-0 flex flex-col items-center w-full max-w-[320px] relative countdown-spacing-after-leaderboard"
           initial={{ opacity: 0 }}
           animate={{ opacity: phase === "content" ? 1 : 0 }}
-          transition={{ duration: 0.7, delay: phase === "content" ? CONTENT_STAGGER_MS[4] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+          transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[4] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
           <div className="absolute inset-0 rounded-2xl leaderboard-shimmer pointer-events-none -z-10" aria-hidden />
           <p className="sky-header font-medium text-white text-center">
@@ -517,7 +519,7 @@ export default function CountdownPage() {
           className="logout-mobile md:hidden"
           initial={{ opacity: 0 }}
           animate={{ opacity: phase === "content" ? 1 : 0 }}
-          transition={{ duration: 0.7, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+          transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
           <button
             type="button"
@@ -530,9 +532,18 @@ export default function CountdownPage() {
         </motion.div>
       </div>
       </main>
-      <footer className="flex-shrink-0 relative z-10">
+      <motion.footer
+        className="flex-shrink-0 relative z-10"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: phase === "content" ? 1 : 0 }}
+        transition={{
+          duration: 1.1,
+          delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 + 0.25 : 0,
+          ease: EASE_APPLE_IN_OUT,
+        }}
+      >
         <CloudFooter />
-      </footer>
+      </motion.footer>
     </div>
   );
 }

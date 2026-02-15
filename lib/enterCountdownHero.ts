@@ -7,14 +7,15 @@ import { useState, useEffect } from "react";
  * Both entry flows (Card→Join→Countdown and Know your cloud→Countdown) land here;
  * this hook orchestrates the SAME cinematic entrance for every arrival.
  */
-/** Apple-level 5-phase hero entrance */
+/** Apple-level hero entrance: scale up → pause → settle (move+scale together) → micro-settle → rest → content */
 export type HeroEntrancePhase =
-  | "hidden"       // Phase 0: Page loads invisible
-  | "phase1-scale" // Phase 1: Scale up (birth) ~800ms
-  | "phase2-pause" // Phase 2: Micro pause ~180ms
-  | "phase3-settle"// Phase 3: Settle upward + scale down ~900ms
-  | "phase4-rest"  // Phase 4: Rest pause ~200ms
-  | "content";     // Phase 5: UI fades in
+  | "hidden"            // Phase 0: Page loads invisible
+  | "phase1-scale"      // Phase 1: Scale up at center ~800ms
+  | "phase2-pause"      // Phase 2: Brief pause ~180ms
+  | "phase3-settle"     // Phase 3: Move up + scale down together ~900ms, same ease
+  | "phase4-micro-settle" // Phase 4: Subtle stabilization into rest ~120ms
+  | "phase5-rest"       // Phase 5: Rest pause ~200ms
+  | "content";          // Phase 6: UI fades in
 
 /** Apple cinematic timing (ms) */
 const TIMING = {
@@ -22,7 +23,8 @@ const TIMING = {
   phase1Scale: 800,
   phase2Pause: 180,
   phase3Settle: 900,
-  phase4Rest: 200,
+  phase4MicroSettle: 120,
+  phase5Rest: 200,
 } as const;
 
 const CUMULATIVE = {
@@ -30,7 +32,8 @@ const CUMULATIVE = {
   phase1Scale: TIMING.hidden + TIMING.phase1Scale,
   phase2Pause: TIMING.hidden + TIMING.phase1Scale + TIMING.phase2Pause,
   phase3Settle: TIMING.hidden + TIMING.phase1Scale + TIMING.phase2Pause + TIMING.phase3Settle,
-  phase4Rest: TIMING.hidden + TIMING.phase1Scale + TIMING.phase2Pause + TIMING.phase3Settle + TIMING.phase4Rest,
+  phase4MicroSettle: TIMING.hidden + TIMING.phase1Scale + TIMING.phase2Pause + TIMING.phase3Settle + TIMING.phase4MicroSettle,
+  phase5Rest: TIMING.hidden + TIMING.phase1Scale + TIMING.phase2Pause + TIMING.phase3Settle + TIMING.phase4MicroSettle + TIMING.phase5Rest,
 } as const;
 
 /**
@@ -50,7 +53,8 @@ export function useCountdownHeroEntrance() {
       else if (elapsed < CUMULATIVE.phase1Scale) setPhase("phase1-scale");
       else if (elapsed < CUMULATIVE.phase2Pause) setPhase("phase2-pause");
       else if (elapsed < CUMULATIVE.phase3Settle) setPhase("phase3-settle");
-      else if (elapsed < CUMULATIVE.phase4Rest) setPhase("phase4-rest");
+      else if (elapsed < CUMULATIVE.phase4MicroSettle) setPhase("phase4-micro-settle");
+      else if (elapsed < CUMULATIVE.phase5Rest) setPhase("phase5-rest");
       else setPhase("content");
     };
 
@@ -60,7 +64,8 @@ export function useCountdownHeroEntrance() {
       setTimeout(advance, CUMULATIVE.phase1Scale + 10),
       setTimeout(advance, CUMULATIVE.phase2Pause + 10),
       setTimeout(advance, CUMULATIVE.phase3Settle + 10),
-      setTimeout(advance, CUMULATIVE.phase4Rest + 10),
+      setTimeout(advance, CUMULATIVE.phase4MicroSettle + 10),
+      setTimeout(advance, CUMULATIVE.phase5Rest + 10),
     ];
     return () => ids.forEach(clearTimeout);
   }, []);
@@ -70,7 +75,8 @@ export function useCountdownHeroEntrance() {
 
 /** Apple-level easing curves — do NOT use generic ease */
 export const EASE_APPLE_IN_OUT = [0.22, 1, 0.36, 1];       // cubic-bezier(0.22, 1, 0.36, 1)
-export const EASE_APPLE_SETTLE = [0.65, 0, 0.35, 1];       // cubic-bezier(0.65, 0, 0.35, 1)
+export const EASE_APPLE_SETTLE = [0.65, 0, 0.35, 1];       // cubic-bezier(0.65, 0, 0.35, 1) — move + scale together
+export const EASE_MICRO_SETTLE = [0.33, 0, 0.2, 1];       // subtle ease into rest, no bounce
 
-/** Stagger delays (ms) for Phase 5 UI fade-in */
-export const CONTENT_STAGGER_MS = [0, 80, 160, 240, 320, 400];
+/** Stagger delays (ms) for content fade-in — top down, slower pace for ease into page */
+export const CONTENT_STAGGER_MS = [0, 220, 440, 660, 880, 1100];

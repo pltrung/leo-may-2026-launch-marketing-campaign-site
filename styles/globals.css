@@ -478,10 +478,10 @@ body.hero-ready .hero-scroll {
   margin-top: 0.4em;
 }
 
-/* Hero Scroll 6: ANYONE ELSE — 2x primary for emphasis */
+/* Hero Scroll 6: ANYONE ELSE — larger than primary, fits one row */
 .hero-line-anyone-else {
   font-family: inherit;
-  font-size: clamp(56px, 8vw, 128px);
+  font-size: clamp(36px, 5vw, 72px);
   line-height: 1.1;
   font-weight: 600;
   margin-top: 0.25em;
@@ -570,7 +570,7 @@ body.hero-ready .hero-scroll {
   }
 
   .hero-line-anyone-else {
-    font-size: clamp(48px, 14vw, 84px);
+    font-size: clamp(32px, 8vw, 48px);
   }
 
   .mist-ip-city,

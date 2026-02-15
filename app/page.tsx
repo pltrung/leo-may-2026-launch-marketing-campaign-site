@@ -54,12 +54,8 @@ function HomeContent() {
     timersRef.current = [];
     setSkyVisible(true);
     setHeroOpacity(1);
-
-    const add = (fn: () => void, ms: number) => {
-      timersRef.current.push(setTimeout(fn, ms));
-    };
-
-    add(() => setHeroOpacity(0), 0);
+    const t = setTimeout(() => setHeroOpacity(0), 0);
+    timersRef.current.push(t);
   }, []);
 
   useEffect(() => {
@@ -88,18 +84,29 @@ function HomeContent() {
     return () => document.documentElement.classList.remove("cloud-selection-view");
   }, [showClouds]);
 
+  const transitionActive = skyVisible || skyTransitionForCountdown;
+  const heroContentOpacity = showClouds ? 1 : (transitionActive ? 0 : heroOpacity);
+
   return (
     <div id="hero-page" className="page-container relative min-h-[100dvh] flex flex-col">
       <main className="relative flex-1 min-h-0 z-10">
       <BrandBackground />
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />
-      <KnowYourTeamButton
-        show
-        onFoundTeam={() => {
-          setSkyTransitionForCountdown(true);
-        }}
-      />
+      <motion.div
+        className="fixed top-6 right-6 md:top-8 md:right-10 z-[60]"
+        initial={false}
+        animate={{ opacity: transitionActive ? 0 : 1 }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        style={{ pointerEvents: transitionActive ? "none" : "auto" }}
+      >
+        <KnowYourTeamButton
+          show
+          onFoundTeam={() => {
+            setSkyTransitionForCountdown(true);
+          }}
+        />
+      </motion.div>
       {(skyVisible || skyTransitionForCountdown) && (
         <SkyTransition
           variant={skyTransitionForCountdown ? "return" : "discovery"}
@@ -110,9 +117,9 @@ function HomeContent() {
         <motion.div
           key={showClouds ? "clouds" : "hero"}
           initial={{ opacity: 0 }}
-          animate={{ opacity: showClouds ? 1 : heroOpacity }}
+          animate={{ opacity: heroContentOpacity }}
           exit={{ opacity: 0 }}
-          transition={{ duration: showClouds ? 0.4 : skyVisible ? 0.8 : 0.3, ease: "easeOut" }}
+          transition={{ duration: showClouds ? 0.4 : transitionActive ? 0.8 : 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
           {!showClouds ? (
             <>
@@ -131,9 +138,18 @@ function HomeContent() {
         </motion.div>
       </AnimatePresence>
       </main>
-      <div className="flex-shrink-0 relative z-10">
+      <motion.div
+        className="flex-shrink-0 relative z-10"
+        initial={false}
+        animate={{ opacity: transitionActive ? 0 : 1 }}
+        transition={{
+          duration: 0.7,
+          delay: transitionActive ? 0 : 0.4,
+          ease: [0.22, 1, 0.36, 1],
+        }}
+      >
         <CloudFooter />
-      </div>
+      </motion.div>
 
       {selectedCloud && (
         <SignupModal

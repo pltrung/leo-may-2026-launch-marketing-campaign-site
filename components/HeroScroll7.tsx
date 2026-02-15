@@ -19,7 +19,7 @@ export default function HeroScroll7({ onJoin }: HeroScroll7Props) {
       {/* Title + CTA: only fade in when user has scrolled into this section (mobile + PC) */}
       <div className="flex-1 flex flex-col items-center justify-end w-full max-w-lg mx-auto min-h-0 pb-[42%] sm:pb-[32%] md:pb-[22%]">
         <motion.h2
-          className="font-headline text-center text-white text-2xl sm:text-3xl md:text-4xl tracking-headline"
+          className="font-headline text-center text-white text-3xl sm:text-4xl md:text-5xl tracking-headline"
           initial={{ opacity: 0, y: 14 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.25, margin: "-60px" }}
