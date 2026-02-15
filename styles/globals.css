@@ -161,7 +161,7 @@ body.hero-ready .hero-scroll {
   100% { opacity: 0; }
 }
 
-/* Cloud Transition: single big-cloud-transition.svg, cinematic, ~4.5s */
+/* Cloud Transition: ONE SVG split with clip-path, tear-open the sky */
 :root {
   --font-bold: "MiSans-Bold", sans-serif;
 }
@@ -171,42 +171,43 @@ body.hero-ready .hero-scroll {
   inset: 0;
   z-index: 9999;
   pointer-events: none;
-  opacity: 0;
   overflow: hidden;
-}
-
-#cloud-transition::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: rgba(16, 84, 255, 0.18);
-  opacity: 0;
-  transition: opacity 500ms ease;
+  opacity: 1;
 }
 
 .mist-layer {
   position: absolute;
-  inset: -20%;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9), transparent 70%);
+  filter: blur(80px);
   opacity: 0;
-  filter: blur(60px);
-  background:
-    radial-gradient(circle at 40% 50%, rgba(255,255,255,0.55), transparent 60%),
-    radial-gradient(circle at 60% 50%, rgba(255,255,255,0.45), transparent 65%);
-  transform: scale(1.15);
-  will-change: opacity, transform;
+  will-change: opacity;
 }
 
-.transition-cloud {
+.cloud-container {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(0.9);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.cloud-half {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   opacity: 0;
-  filter: blur(30px);
-  width: min(100vw, 100vh * 16/9);
-  height: min(100vh, 100vw * 9/16);
-  object-fit: contain;
+  filter: blur(20px);
   will-change: transform, opacity, filter;
+}
+
+.cloud-left {
+  clip-path: inset(0 50% 0 0);
+}
+
+.cloud-right {
+  clip-path: inset(0 0 0 50%);
 }
 
 .sky-opens-text {
@@ -215,96 +216,50 @@ body.hero-ready .hero-scroll {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: clamp(44px, 9vw, 110px);
-  font-weight: 800;
+  font-size: clamp(40px, 8vw, 96px);
+  font-weight: 600;
   font-family: var(--font-bold), "MiSans-Bold", sans-serif;
   letter-spacing: 0.15em;
   color: white;
   opacity: 0;
   transform: translateY(20px);
-  text-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  text-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
   will-change: opacity, transform;
 }
 
-#cloud-transition.active {
+/* Formation: mist + cloud appear */
+#cloud-transition.transition-active .mist-layer {
   opacity: 1;
+  transition: opacity 1200ms ease;
 }
 
-#cloud-transition.active::before {
+#cloud-transition.transition-active .cloud-half {
   opacity: 1;
+  transform: scale(1.05);
+  filter: blur(0);
+  transition:
+    opacity 1200ms ease,
+    transform 1600ms ease,
+    filter 1200ms ease;
 }
 
-#cloud-transition.active .mist-layer {
-  animation: mistGrow 2000ms ease-out forwards;
+/* Split open: cloud halves tear apart, text appears */
+#cloud-transition.transition-open .cloud-left {
+  transform: translateX(-60%);
+  transition: transform 1400ms cubic-bezier(0.65, 0, 0.35, 1);
 }
 
-#cloud-transition.active .transition-cloud {
-  animation: cloudForm 2800ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+#cloud-transition.transition-open .cloud-right {
+  transform: translateX(60%);
+  transition: transform 1400ms cubic-bezier(0.65, 0, 0.35, 1);
 }
 
-#cloud-transition.active .sky-opens-text {
-  animation: textAppear 3200ms ease forwards;
-}
-
-#cloud-transition.open .transition-cloud {
-  animation: cloudReveal 1800ms ease forwards;
-}
-
-@keyframes mistGrow {
-  0% {
-    opacity: 0;
-    transform: scale(1.2);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes cloudForm {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(1.2);
-    filter: blur(40px);
-  }
-  60% {
-    opacity: 1;
-    filter: blur(5px);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-    filter: blur(0);
-  }
-}
-
-@keyframes textAppear {
-  0% {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  30% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  70% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-}
-
-@keyframes cloudReveal {
-  0% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(1.15);
-  }
+#cloud-transition.transition-open .sky-opens-text {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 1200ms ease,
+    transform 1200ms ease;
 }
 
 /* Hero scroll: green emphasis, fadeInUp, float animations */
@@ -880,7 +835,17 @@ body.hero-ready .hero-scroll {
 @media (max-width: 768px) {
   .cloud-stack-container {
     position: relative;
-    min-height: 72vh;
+    min-height: 0;
+    flex: 1;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cloud-stack-card-inner {
+    max-width: min(260px, 88vw) !important;
   }
 
   .cloud-stack-mist {
@@ -929,7 +894,8 @@ body.hero-ready .hero-scroll {
 
   .cloud-stack {
     position: relative;
-    height: 72vh;
+    height: 58vh;
+    min-height: 280px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -956,12 +922,13 @@ body.hero-ready .hero-scroll {
 
   .cloud-stack-card {
     position: absolute;
+    left: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     will-change: transform, opacity, filter;
     opacity: 0;
-    transform: translateY(60px);
+    transform: translateX(-50%) translateY(60px);
     transition:
       transform 600ms cubic-bezier(0.22, 1, 0.36, 1),
       opacity 600ms ease,
@@ -975,7 +942,7 @@ body.hero-ready .hero-scroll {
   .cloud-stack-card-active {
     z-index: 3;
     opacity: 0;
-    transform: translateY(0) scale(1) rotateX(0deg);
+    transform: translateX(-50%) translateY(0) scale(1) rotateX(0deg);
     transform-origin: center bottom;
     filter: drop-shadow(0 40px 80px rgba(0,0,0,0.25));
     animation: cloudFloatActive 6s ease-in-out infinite;
@@ -989,7 +956,7 @@ body.hero-ready .hero-scroll {
   .cloud-stack-card-second {
     z-index: 2;
     opacity: 0;
-    transform: translateY(28px) scale(0.95) rotateX(6deg);
+    transform: translateX(-50%) translateY(28px) scale(0.95) rotateX(6deg);
     transform-origin: center bottom;
     animation: cloudFloatSecondary 7s ease-in-out infinite;
     cursor: pointer;
@@ -1002,7 +969,7 @@ body.hero-ready .hero-scroll {
   .cloud-stack-card-third {
     z-index: 1;
     opacity: 0;
-    transform: translateY(56px) scale(0.9) rotateX(10deg);
+    transform: translateX(-50%) translateY(56px) scale(0.9) rotateX(10deg);
     transform-origin: center bottom;
     cursor: pointer;
   }
@@ -1012,13 +979,30 @@ body.hero-ready .hero-scroll {
   }
 
   @keyframes cloudFloatActive {
-    0%, 100% { transform: translateY(0) scale(1) rotateX(0deg); }
-    50% { transform: translateY(-10px) scale(1) rotateX(0deg); }
+    0%, 100% { transform: translateX(-50%) translateY(0) scale(1) rotateX(0deg); }
+    50% { transform: translateX(-50%) translateY(-10px) scale(1) rotateX(0deg); }
   }
 
   @keyframes cloudFloatSecondary {
-    0%, 100% { transform: translateY(28px) scale(0.95) rotateX(6deg); }
-    50% { transform: translateY(22px) scale(0.95) rotateX(6deg); }
+    0%, 100% { transform: translateX(-50%) translateY(28px) scale(0.95) rotateX(6deg); }
+    50% { transform: translateX(-50%) translateY(22px) scale(0.95) rotateX(6deg); }
+  }
+
+  /* Details modal: card opens big */
+  .cloud-details-modal-open {
+    animation: cloudDetailsModalOpen 400ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    transform-origin: center center;
+  }
+
+  @keyframes cloudDetailsModalOpen {
+    0% {
+      opacity: 0;
+      transform: scale(0.88);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 }
 

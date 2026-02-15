@@ -13,7 +13,7 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
   return (
     <section
       id="clouds"
-      className="relative w-full min-h-screen flex flex-col items-center overflow-x-hidden overflow-y-auto px-4 pb-16 pt-[120px] sm:px-6 md:pt-24"
+      className="relative w-full h-screen md:min-h-screen md:h-auto flex flex-col items-center overflow-x-hidden overflow-y-hidden md:overflow-y-auto px-4 pb-4 pt-[88px] md:pb-16 md:pt-24 sm:px-6"
     >
       {/* Logo: fixed, smaller on mobile */}
       <div className="fixed top-0 left-0 p-4 z-30 md:pl-10 md:pt-8">
@@ -21,14 +21,14 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
       </div>
 
       {/* Heading — no IP, recenter layout */}
-      <div className="relative flex flex-col items-center w-full max-w-2xl mx-auto mt-10 md:mt-0 md:mb-8">
-        <h2 className="font-headline text-[32px] leading-[1.2] sm:text-4xl md:text-5xl text-center text-white tracking-headline px-4">
+      <div className="relative flex flex-col items-center w-full max-w-2xl mx-auto mt-4 md:mt-0 md:mb-8">
+        <h2 className="font-headline text-[28px] md:text-[32px] leading-[1.2] sm:text-4xl md:text-5xl text-center text-white tracking-headline px-4">
           What type of cloud are you?
         </h2>
       </div>
 
-      {/* Mobile: cinematic vertical cloud stack */}
-      <div className="md:hidden w-full pb-4 mt-8">
+      {/* Mobile: cinematic vertical cloud stack — fits one screen, no scroll */}
+      <div className="md:hidden w-full flex-1 flex flex-col items-center justify-center min-h-0 mt-4">
         <CloudStackMobile onSelect={onSelect} />
       </div>
 
