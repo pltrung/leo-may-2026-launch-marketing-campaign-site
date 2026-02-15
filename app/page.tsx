@@ -113,6 +113,7 @@ function HomeContent() {
           cloud={selectedCloud}
           onClose={() => setSelectedCloud(null)}
           onSuccess={handleSuccess}
+          referredBy={searchParams.get("ref") ?? undefined}
         />
       )}
 

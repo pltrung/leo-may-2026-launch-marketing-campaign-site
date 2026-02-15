@@ -10,6 +10,7 @@ interface SignupModalProps {
   cloud: CloudPersonality | null;
   onClose: () => void;
   onSuccess: () => void;
+  referredBy?: string;
 }
 
 interface ConfirmationData {
@@ -23,6 +24,7 @@ export default function SignupModal({
   cloud,
   onClose,
   onSuccess,
+  referredBy,
 }: SignupModalProps) {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -72,6 +74,7 @@ export default function SignupModal({
         body: JSON.stringify({
           ...userData,
           cloud_type: cloud.id,
+          referred_by: referredBy || undefined,
         }),
       });
       const data = await res.json();
@@ -79,7 +82,7 @@ export default function SignupModal({
       if (!res.ok) {
         throw new Error(data.error || "Something went wrong");
       }
-      saveUser(userData);
+      saveUser({ ...userData, referralCode: data.referralCode });
       setConfirmation({
         position: data.position ?? 1,
         teamCount: data.teamCount ?? 1,

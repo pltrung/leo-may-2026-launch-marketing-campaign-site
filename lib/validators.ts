@@ -15,6 +15,7 @@ export const waitlistSchema = z
       z.string().max(20).optional()
     ),
     cloud_type: z.string().min(1, "Cloud type required").trim(),
+    referred_by: z.string().max(64).optional(),
   })
   .refine(
     (d) => {

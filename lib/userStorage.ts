@@ -6,6 +6,7 @@ export interface StoredUser {
   phone?: string;
   team: CloudType;
   timestamp: number;
+  referralCode?: string;
 }
 
 const STORAGE_KEY = "leo_may_user";

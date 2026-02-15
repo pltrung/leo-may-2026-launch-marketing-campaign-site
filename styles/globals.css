@@ -203,6 +203,15 @@
   50% { opacity: 0.06; background-position: 100% 50%; }
 }
 
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.animate-fade-out-2s {
+  animation: fadeOut 2s ease-out forwards;
+}
+
 .leaderboard-shimmer {
   background: linear-gradient(
     90deg,

@@ -19,9 +19,9 @@ export default function KnowYourTeamButton({ show = true }: KnowYourTeamButtonPr
         type="button"
         onClick={() => setOpen(true)}
         className="fixed top-6 right-6 md:top-8 md:right-10 z-[60] px-4 py-2 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors"
-        aria-label="Know your team?"
+        aria-label="Know your cloud?"
       >
-        Know your team?
+        Know your cloud?
       </button>
       {open && (
         <KnowYourTeamModal onClose={() => setOpen(false)} />

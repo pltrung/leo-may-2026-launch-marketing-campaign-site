@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { waitlistSchema } from "@/lib/validators";
+import { randomUUID } from "crypto";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,10 +13,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    const { name, email, phone, cloud_type } = parsed.data;
+    const { name, email, phone, cloud_type, referred_by } = parsed.data;
 
     const emailNormalized = email?.trim() ? email.trim().toLowerCase() : null;
     const phoneNormalized = phone?.trim() ? phone.trim().replace(/\s/g, "") : null;
+    const referralCode = randomUUID().replace(/-/g, "").slice(0, 12);
 
     const hasUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
     const hasKey = !!(
@@ -31,12 +33,17 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerClient();
 
-    const { error } = await supabase.from("waitlist").insert({
+    const insertPayload: Record<string, unknown> = {
       name: name.trim(),
       email: emailNormalized,
       phone: phoneNormalized,
       cloud_type: cloud_type.trim(),
-    });
+      referral_code: referralCode,
+      referral_count: 0,
+    };
+    if (referred_by?.trim()) insertPayload.referred_by = referred_by.trim();
+
+    const { error } = await supabase.from("waitlist").insert(insertPayload);
 
     if (error) {
       console.error("Waitlist insert error:", error);
@@ -50,6 +57,19 @@ export async function POST(request: NextRequest) {
         { error: "Failed to join waitlist. Please try again." },
         { status: 500 }
       );
+    }
+
+    if (referred_by?.trim()) {
+      const { data: referrer } = await supabase
+        .from("waitlist")
+        .select("referral_count")
+        .eq("referral_code", referred_by.trim())
+        .maybeSingle();
+      const newCount = (referrer?.referral_count ?? 0) + 1;
+      await supabase
+        .from("waitlist")
+        .update({ referral_count: newCount })
+        .eq("referral_code", referred_by.trim());
     }
 
     // Fetch total count and team count for confirmation
@@ -73,6 +93,7 @@ export async function POST(request: NextRequest) {
       teamCount,
       totalCount,
       percentage,
+      referralCode,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

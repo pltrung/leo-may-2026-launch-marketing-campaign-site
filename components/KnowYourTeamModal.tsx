@@ -82,7 +82,7 @@ export default function KnowYourTeamModal({ onClose }: KnowYourTeamModalProps) {
           </svg>
         </button>
 
-        <h3 className="font-subheadline text-xl text-storm mb-2">Know your team?</h3>
+        <h3 className="font-subheadline text-xl text-storm mb-2">Know your cloud?</h3>
         <p className="font-caption text-storm/70 text-sm mb-6">
           Enter your email or phone to see your cloud.
         </p>

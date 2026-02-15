@@ -8,7 +8,7 @@ import type { CloudType } from "@/lib/cloudData";
 import CloudIconByType from "@/components/CloudIcons";
 
 const TARGET = new Date("2026-01-01T00:00:00+07:00");
-const TRAIT_THRESHOLD = 50;
+const REFERRAL_UNLOCK = 10;
 
 function useCountdown() {
   const [diff, setDiff] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -29,7 +29,7 @@ function useCountdown() {
   return diff;
 }
 
-const POLL_INTERVAL_MS = 20000;
+const POLL_INTERVAL_MS = 10000;
 
 function useTeamCount(teamId: CloudType) {
   const [teamCount, setTeamCount] = useState(0);
@@ -71,11 +71,48 @@ function useLeaderboard() {
   return teams;
 }
 
+interface UserProfile {
+  referralCount: number;
+  referralCode: string | null;
+  traitUnlocked: boolean;
+}
+
+function useUserProfile(email?: string, phone?: string) {
+  const [profile, setProfile] = useState<UserProfile>({ referralCount: 0, referralCode: null, traitUnlocked: false });
+  useEffect(() => {
+    if (!email && !phone) return;
+    const fetchProfile = () => {
+      const params = new URLSearchParams();
+      if (email) params.set("email", email);
+      if (phone) params.set("phone", phone);
+      fetch(`/api/user-profile?${params}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.referralCount !== undefined) {
+            setProfile({
+              referralCount: typeof d.referralCount === "number" ? d.referralCount : 0,
+              referralCode: d.referralCode ?? null,
+              traitUnlocked: d.traitUnlocked === true,
+            });
+          }
+        })
+        .catch(() => {});
+    };
+    fetchProfile();
+    const id = setInterval(fetchProfile, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [email, phone]);
+  return profile;
+}
+
 export default function CountdownPage() {
   const router = useRouter();
   const [user, setUser] = useState<ReturnType<typeof getUser>>(null);
+  const [verified, setVerified] = useState<boolean | null>(null);
+  const [shareToast, setShareToast] = useState(false);
   const teamCount = useTeamCount((user?.team ?? "may_nhe") as CloudType);
   const leaderboard = useLeaderboard();
+  const profile = useUserProfile(user?.email, user?.phone);
   const { days, hours, minutes, seconds } = useCountdown();
 
   useEffect(() => {
@@ -88,14 +125,33 @@ export default function CountdownPage() {
       router.replace("/");
       return;
     }
+    const params = new URLSearchParams();
+    if (user.email) params.set("email", user.email);
+    else if (user.phone) params.set("phone", user.phone);
+    else {
+      clearUser();
+      router.replace("/");
+      return;
+    }
+    fetch(`/api/waitlist/lookup?${params}`)
+      .then((r) => r.json())
+      .then((d) => setVerified(!!d?.user))
+      .catch(() => setVerified(false));
   }, [user, router]);
+
+  useEffect(() => {
+    if (verified === false) {
+      clearUser();
+      router.replace("/");
+    }
+  }, [verified, router]);
 
   const handleLogout = () => {
     clearUser();
     router.replace("/");
   };
 
-  if (!user) return null;
+  if (!user || verified === false) return null;
 
   const cloud = getCloudById(user.team);
   if (!cloud) return null;
@@ -105,9 +161,10 @@ export default function CountdownPage() {
   const accentContrast = isGiong ? "#ffffff" : accent;
   const firstName = user.name.trim().split(/\s+/)[0] || "there";
   const pad = (n: number) => String(n).padStart(2, "0");
-  const threshold = cloud.traitThreshold ?? TRAIT_THRESHOLD;
-  const traitUnlocked = teamCount >= threshold;
-  const progressPct = Math.min(100, Math.round((teamCount / threshold) * 100));
+  const referralCount = profile.referralCount;
+  const referralCode = profile.referralCode ?? user.referralCode ?? "";
+  const traitUnlocked = profile.traitUnlocked || referralCount >= REFERRAL_UNLOCK;
+  const progressPct = Math.min(100, Math.round((referralCount / REFERRAL_UNLOCK) * 100));
 
   return (
     <main
@@ -203,28 +260,42 @@ export default function CountdownPage() {
             style={{ color: "#1E2A38", letterSpacing: "1px" }}
           >
             {traitUnlocked
-              ? "100% to unlock cloud trait"
-              : `${100 - progressPct}% to unlock cloud trait`}
+              ? "Your cloud trait is unlocked"
+              : `${referralCount} of 10 referrals to unlock your cloud trait`}
           </p>
-          <p
-            className="font-caption text-[10px] sm:text-[11px] text-storm/70 tracking-wide"
-          >
-            100% reveals your team&apos;s defining energy.
-          </p>
+          {!traitUnlocked && (
+            <p className="font-caption text-[10px] sm:text-[11px] text-storm/70 tracking-wide">
+              10 referrals reveal your team&apos;s defining energy.
+            </p>
+          )}
         </div>
 
-        {/* 6. Share button — white for Giông (blue accent on blue bg) */}
+        {/* 6. Share button — referral link + toast */}
         <button
           type="button"
           onClick={() => {
-            const url = `${typeof window !== "undefined" ? window.location.origin : ""}/?team=${cloud.id}`;
-            navigator.clipboard?.writeText(url).then(() => {});
+            const origin = typeof window !== "undefined" ? window.location.origin : "";
+            const link = referralCode ? `${origin}/?ref=${referralCode}` : `${origin}/?team=${cloud.id}`;
+            const msg = referralCode
+              ? `Please join my cloud Team ${cloud.name} and be on the countdown with me live for the launch of Leo May Climbing Gym in Ho Chi Minh City, Vietnam — 2026.\n\nJoin here:\n${link}`
+              : link;
+            navigator.clipboard?.writeText(msg).then(() => {
+              setShareToast(true);
+              setTimeout(() => setShareToast(false), 2000);
+            });
           }}
           className="shrink-0 px-5 py-2.5 rounded-full font-subheadline text-sm border-2 transition-colors hover:opacity-90 -mt-0.5"
           style={{ borderColor: accentContrast, color: accentContrast }}
         >
           Share your cloud
         </button>
+        {shareToast && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+            <div className="px-6 py-4 rounded-xl bg-white/95 shadow-lg text-storm font-medium animate-fade-out-2s">
+              Link copied. Share it to grow your cloud.
+            </div>
+          </div>
+        )}
 
         {/* 7. Leaderboard — block-based, with shimmer background */}
         <div className="shrink-0 flex flex-col items-center w-full max-w-[320px] relative mt-0">
@@ -319,6 +390,11 @@ export default function CountdownPage() {
             })()
           )}
         </div>
+
+        {/* Winner message */}
+        <p className="shrink-0 text-center text-white/60 text-[0.7rem] sm:text-[0.75rem] max-w-[280px] mt-3 leading-tight">
+          The team with the most members when the countdown ends will receive a special prize.
+        </p>
 
         {/* 8. Countdown — fits viewport, spacing from leaderboard */}
         <div className="flex items-center justify-center gap-0.5 sm:gap-1 md:gap-2 shrink-0 mt-4 md:mt-3 w-full max-w-full px-1">

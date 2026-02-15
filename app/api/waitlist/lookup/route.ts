@@ -20,12 +20,12 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerClient();
 
-    let data: { name: string; email: string | null; phone: string | null; cloud_type: string } | null = null;
+    let data: { name: string; email: string | null; phone: string | null; cloud_type: string; referral_code?: string } | null = null;
 
     if (email) {
       const { data: byEmail, error: errE } = await supabase
         .from("waitlist")
-        .select("name, email, phone, cloud_type")
+        .select("name, email, phone, cloud_type, referral_code")
         .eq("email", email)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     if (!data && phone) {
       const { data: byPhone, error: errP } = await supabase
         .from("waitlist")
-        .select("name, email, phone, cloud_type")
+        .select("name, email, phone, cloud_type, referral_code")
         .eq("phone", phone)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
         phone: data.phone || undefined,
         team: data.cloud_type,
         timestamp: Date.now(),
+        referralCode: (data as { referral_code?: string }).referral_code,
       },
     });
   } catch {
