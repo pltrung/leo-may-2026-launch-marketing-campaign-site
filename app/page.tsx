@@ -3,6 +3,7 @@
 import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
+import BrandBackground from "@/components/BrandBackground";
 import HeroSection from "@/components/HeroSection";
 import LocationSection from "@/components/LocationSection";
 import IpShowcaseSection from "@/components/IpShowcaseSection";
@@ -74,6 +75,7 @@ function HomeContent() {
   return (
     <div id="hero-page" className="page-container relative min-h-[100dvh] flex flex-col">
       <main className="relative flex-1 min-h-0 z-10">
+      <BrandBackground />
       <HeroScrollObserver />
       <KnowYourTeamButton show />
       {skyVisible && <SkyTransition onComplete={handleCloudTransitionComplete} />}

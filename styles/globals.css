@@ -2,50 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Loading: 2s blue screen, then removed. */
-#loading-screen {
-  position: fixed;
-  inset: 0;
-  background: #0242FF;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 999999;
-}
-.loading-inner {
-  text-align: center;
-}
-.loading-logo {
-  width: clamp(140px, 18vw, 240px);
-  animation: floatLogo 4s ease-in-out infinite;
-}
-@keyframes floatLogo {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-12px); }
-}
-.loading-cloud img {
-  width: 60px;
-  margin-top: 12px;
-  opacity: 0.6;
-  animation: breatheCloud 3s ease-in-out infinite;
-}
-@keyframes breatheCloud {
-  0%, 100% { transform: scale(1); opacity: 0.6; }
-  50% { transform: scale(1.12); opacity: 1; }
-}
-.loading-text {
-  margin-top: 20px;
-  font-family: "MiSans-Regular", sans-serif;
-  font-size: 14px;
-  letter-spacing: 0.2em;
-  color: rgba(255,255,255,0.8);
-  animation: textPulse 2s ease-in-out infinite;
-}
-@keyframes textPulse {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
-}
-
 /* MiSans brand fonts */
 @font-face {
   font-family: "MiSans-Bold";
