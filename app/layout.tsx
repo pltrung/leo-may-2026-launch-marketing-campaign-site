@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Script from "next/script";
+import LoadingScreen from "@/components/LoadingScreen";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
@@ -26,7 +28,13 @@ export default function RootLayout({
         <link rel="preload" href="/brand/cloud-copyright.svg" as="image" />
         <link rel="preload" href="/brand/big-cloud-transition.svg" as="image" />
       </head>
-      <body className="min-h-screen antialiased overflow-x-hidden">{children}</body>
+      <body className="min-h-screen antialiased overflow-x-hidden">
+        <LoadingScreen />
+        {children}
+        <Script id="loading-controller" strategy="afterInteractive">
+          {`setTimeout(function(){var e=document.getElementById("loading-screen");e&&e.remove();document.body.classList.add("loaded");},2000);`}
+        </Script>
+      </body>
     </html>
   );
 }

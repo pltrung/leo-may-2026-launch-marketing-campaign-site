@@ -29,7 +29,41 @@
   font-display: swap;
 }
 
-/* Hero fade-in: staggered reveal on load */
+/* Loading screen — separate, blue bg + logo + copyright, removed after 2s */
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  background: #0242FF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999999;
+}
+.loading-inner {
+  text-align: center;
+}
+.loading-logo {
+  width: clamp(140px, 18vw, 240px);
+  animation: floatLogo 4s ease-in-out infinite;
+}
+@keyframes floatLogo {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+.loading-cloud img {
+  width: 60px;
+  margin-top: 12px;
+  opacity: 0.6;
+}
+.loading-text {
+  margin-top: 20px;
+  font-family: "MiSans-Regular", sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.2em;
+  color: rgba(255,255,255,0.8);
+}
+
+/* Hero fade-in — runs only after loading screen is removed (body.loaded) */
 @keyframes heroFadeIn {
   from {
     opacity: 0;
@@ -50,20 +84,22 @@
     transform: translate(-50%, 0);
   }
 }
-.hero-logo {
-  opacity: 0;
-  animation: heroFadeIn 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
-}
-.hero-title {
-  opacity: 0;
-  animation: heroFadeIn 1.4s cubic-bezier(0.22, 1, 0.36, 1) 0.4s forwards;
-}
-.know-cloud-btn {
-  opacity: 0;
-  animation: heroFadeIn 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.6s forwards;
-}
+.hero-logo,
+.hero-title,
+.know-cloud-btn,
 .hero-scroll {
   opacity: 0;
+}
+body.loaded .hero-logo {
+  animation: heroFadeIn 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
+}
+body.loaded .hero-title {
+  animation: heroFadeIn 1.4s cubic-bezier(0.22, 1, 0.36, 1) 0.4s forwards;
+}
+body.loaded .know-cloud-btn {
+  animation: heroFadeIn 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.6s forwards;
+}
+body.loaded .hero-scroll {
   animation: heroFadeInScroll 1s cubic-bezier(0.22, 1, 0.36, 1) 0.8s forwards;
 }
 
