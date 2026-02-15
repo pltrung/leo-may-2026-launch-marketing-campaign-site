@@ -271,6 +271,16 @@
     0 0 16px rgba(34,197,94,0.15);
 }
 
+.emphasis-blue {
+  color: #3b82f6;
+  font-family: "MiSans-Bold", sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 8px rgba(59,130,246,0.25),
+    0 0 16px rgba(59,130,246,0.15);
+}
+
 @keyframes fadeInUp {
   from {
     opacity: 0;
