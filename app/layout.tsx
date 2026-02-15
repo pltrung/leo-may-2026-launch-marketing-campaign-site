@@ -23,6 +23,7 @@ export default function RootLayout({
         <link rel="preload" href="/brand/cloud-singing.svg" as="image" />
         <link rel="preload" href="/logo-white.svg" as="image" />
         <link rel="preload" href="/brand/cloud-copyright.svg" as="image" />
+        <link rel="preload" href="/brand/big-cloud-transition.svg" as="image" />
       </head>
       <body className="min-h-screen antialiased overflow-x-hidden">
         <div id="loading-screen">
@@ -63,6 +64,7 @@ export default function RootLayout({
             async function startApp() {
               const loading = document.getElementById("loading-screen");
               const site = document.getElementById("site-root");
+              const hero = document.getElementById("hero-page");
               if (!loading || !site) return;
               const MIN_DURATION = 1800;
               const start = performance.now();
@@ -75,12 +77,24 @@ export default function RootLayout({
               if (elapsed < MIN_DURATION) {
                 await new Promise(r => setTimeout(r, MIN_DURATION - elapsed));
               }
-              loading.style.opacity = "0";
-              setTimeout(() => {
+              loading.classList.add("fade-out");
+              setTimeout(function() {
                 loading.remove();
                 site.style.opacity = "1";
                 site.style.transition = "opacity 1.2s cubic-bezier(.16,1,.3,1)";
-              }, 900);
+                if (hero) {
+                  hero.classList.remove("hero-hidden");
+                  hero.classList.add("hero-visible");
+                  var logo = document.querySelector(".hero-logo");
+                  var title = document.querySelector(".hero-title");
+                  var btn = document.querySelector(".know-cloud-btn");
+                  var scrollEl = document.querySelector(".hero-scroll");
+                  setTimeout(function(){ if(logo) logo.classList.add("animate"); }, 200);
+                  setTimeout(function(){ if(title) title.classList.add("animate"); }, 400);
+                  setTimeout(function(){ if(btn) btn.classList.add("animate"); }, 600);
+                  setTimeout(function(){ if(scrollEl) scrollEl.classList.add("animate"); }, 800);
+                }
+              }, 800);
             }
             startApp();
           `}

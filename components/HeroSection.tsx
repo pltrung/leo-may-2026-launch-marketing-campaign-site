@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { motion } from "framer-motion";
 import Logo from "./Logo";
 
 export default function HeroSection() {
@@ -12,50 +11,28 @@ export default function HeroSection() {
       </div>
 
       <nav className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between pl-10 pt-8 pb-6 pr-6">
-        <motion.div
-          className="flex items-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 1 }}
-        >
-          <Logo className="w-[110px] md:w-[200px] max-w-[110px] md:max-w-none h-auto object-contain object-left" />
-        </motion.div>
+        <div className="flex items-center">
+          <Logo className="hero-logo w-[110px] md:w-[200px] max-w-[110px] md:max-w-none h-auto object-contain object-left" />
+        </div>
         <div className="w-28" aria-hidden />
       </nav>
 
       {/* Center headline in viewport (ignore top padding so it sits at true 50%) */}
-      <motion.div
-        className="absolute inset-0 flex items-center justify-center px-6"
-        initial={false}
-        animate={{ opacity: 1 }}
-      >
-        <div className="flex flex-col items-center text-center max-w-2xl">
-        <motion.h1
-          className="font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white tracking-headline leading-tight"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 2, ease: [0.25, 0.46, 0.45, 0.94] }}
-        >
-          Climb the Clouds.
-        </motion.h1>
-        <motion.span
-          className="block font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-headline mt-3 sm:mt-4"
-          style={{ color: "#00CB4D" }}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 2.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-        >
-          Build a Culture.
-        </motion.span>
+      <div className="absolute inset-0 flex items-center justify-center px-6">
+        <div className="hero-title flex flex-col items-center text-center max-w-2xl">
+          <h1 className="font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white tracking-headline leading-tight">
+            Climb the Clouds.
+          </h1>
+          <span
+            className="block font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-headline mt-3 sm:mt-4"
+            style={{ color: "#00CB4D" }}
+          >
+            Build a Culture.
+          </span>
         </div>
-      </motion.div>
+      </div>
 
-      <motion.div
-        className="absolute bottom-8 left-1/2 -translate-x-1/2"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 3, duration: 0.5 }}
-      >
+      <div className="hero-scroll absolute bottom-8 left-1/2 -translate-x-1/2 opacity-0">
         <div className="flex flex-col items-center gap-2">
           <span className="font-caption text-white/70 text-xs tracking-widest uppercase">Scroll</span>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -65,7 +42,7 @@ export default function HeroSection() {
             className="w-8 h-auto animate-bounce object-contain"
           />
         </div>
-      </motion.div>
+      </div>
     </section>
   );
 }

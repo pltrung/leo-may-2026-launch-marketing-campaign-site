@@ -1,34 +1,53 @@
 "use client";
 
-export default function SkyTransition() {
+import { useEffect, useRef } from "react";
+
+interface SkyTransitionProps {
+  onComplete?: () => void;
+}
+
+export default function SkyTransition({ onComplete }: SkyTransitionProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    el.classList.add("transition-active");
+
+    const t1 = setTimeout(() => {
+      el.classList.add("transition-open");
+    }, 1800);
+
+    const t2 = setTimeout(() => {
+      onComplete?.();
+      el.classList.remove("transition-active");
+      el.classList.remove("transition-open");
+    }, 3200);
+
+    timersRef.current = [t1, t2];
+    return () => {
+      timersRef.current.forEach(clearTimeout);
+    };
+  }, [onComplete]);
+
   return (
-    <div className="sky-transition" aria-hidden>
-      <div className="sky-light" aria-hidden />
-      {/* Top-left cloud: left half of cloud-transition */}
-      <div
-        className="cloud cloud-top-left"
-        style={{
-          backgroundImage: "url(/brand/cloud-transition.svg)",
-          backgroundSize: "200% 100%",
-          backgroundPosition: "0% 50%",
-          backgroundRepeat: "no-repeat",
-        }}
-        aria-hidden
+    <div id="cloud-transition" ref={containerRef} aria-hidden>
+      <div className="mist-layer" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/brand/big-cloud-transition.svg"
+        alt=""
+        className="cloud cloud-left"
       />
-      {/* Bottom-right cloud: right half of cloud-transition */}
-      <div
-        className="cloud cloud-bottom-right"
-        style={{
-          backgroundImage: "url(/brand/cloud-transition.svg)",
-          backgroundSize: "200% 100%",
-          backgroundPosition: "100% 50%",
-          backgroundRepeat: "no-repeat",
-        }}
-        aria-hidden
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/brand/big-cloud-transition.svg"
+        alt=""
+        className="cloud cloud-right"
       />
-      <div className="volumetric-mist mist-layer-1" aria-hidden />
-      <div className="volumetric-mist mist-layer-2" aria-hidden />
-      <div className="sky-text">THE SKY OPENS</div>
+      <div className="sky-opens-text">THE SKY OPENS</div>
     </div>
   );
 }

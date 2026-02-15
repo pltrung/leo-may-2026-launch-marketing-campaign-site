@@ -15,6 +15,7 @@ import SignupModal from "@/components/SignupModal";
 import Toast from "@/components/Toast";
 import CloudFooter from "@/components/CloudFooter";
 import KnowYourTeamButton from "@/components/KnowYourTeamButton";
+import HeroScrollObserver from "@/components/HeroScrollObserver";
 import SkyTransition from "@/components/SkyTransition";
 import { CloudPersonality } from "@/lib/cloudData";
 import { getUser } from "@/lib/userStorage";
@@ -31,6 +32,12 @@ function HomeContent() {
 
   const handleSuccess = () => setShowToast(true);
 
+  const handleCloudTransitionComplete = useCallback(() => {
+    setShowClouds(true);
+    window.scrollTo({ top: 0, behavior: "auto" });
+    setSkyVisible(false);
+  }, []);
+
   const handleAscendClick = useCallback(() => {
     timersRef.current.forEach(clearTimeout);
     timersRef.current = [];
@@ -42,11 +49,6 @@ function HomeContent() {
     };
 
     add(() => setHeroOpacity(0), 200);
-    add(() => {
-      setShowClouds(true);
-      window.scrollTo({ top: 0, behavior: "auto" });
-      setSkyVisible(false);
-    }, 3200);
   }, []);
 
   useEffect(() => {
@@ -71,11 +73,12 @@ function HomeContent() {
   }, [showToast]);
 
   return (
-    <div className="page-container relative min-h-[100dvh] flex flex-col">
+    <div id="hero-page" className="page-container hero-hidden relative min-h-[100dvh] flex flex-col">
       <main className="relative flex-1 min-h-0 z-10">
       <BrandBackground />
+      <HeroScrollObserver />
       <KnowYourTeamButton show />
-      {skyVisible && <SkyTransition />}
+      {skyVisible && <SkyTransition onComplete={handleCloudTransitionComplete} />}
       <AnimatePresence mode="wait">
         <motion.div
           key={showClouds ? "clouds" : "hero"}
