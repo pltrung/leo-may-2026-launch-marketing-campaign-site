@@ -10,8 +10,12 @@ export default function HeroScroll5() {
   return (
     <section className="hero-section hero-section-scroll hero-cloud-section relative overflow-hidden px-6">
       <div className="hero-text cloud-eyes-text">
-        <div className="hero-line-primary text-white tracking-headline">
-          {likeClouds} <span className="neon-yellow">{forms}</span> {areEverSame}
+        <div className="hero-line-primary text-white tracking-headline whitespace-pre-line">
+          {forms ? (
+            <>{likeClouds} <span className="neon-emphasis">{forms}</span> {areEverSame}</>
+          ) : (
+            <>{likeClouds}{"\n\n"}<span className="neon-emphasis">{areEverSame}</span>.</>
+          )}
         </div>
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}

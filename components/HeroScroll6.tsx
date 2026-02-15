@@ -14,7 +14,7 @@ export default function HeroScroll6() {
           {neverMeantToMove}
         </div>
         <div className="hero-line-anyone-else text-white tracking-headline whitespace-nowrap">
-          <span className="neon-green">{anyoneElse}</span>
+          <span className="neon-emphasis">{anyoneElse}</span>
         </div>
       </div>
     </section>

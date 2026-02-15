@@ -334,6 +334,17 @@ body.hero-ready .hero-scroll {
     0 0 40px rgba(255,23,68,0.2);
 }
 
+.neon-emphasis {
+  font-family: inherit;
+  font-weight: inherit;
+  text-transform: uppercase;
+  color: #00CB4D;
+  text-shadow:
+    0 0 6px rgba(0,203,77,.42),
+    0 0 14px rgba(0,203,77,.28),
+    0 0 28px rgba(0,203,77,.14);
+}
+
 .neon-green {
   font-family: inherit;
   font-weight: inherit;

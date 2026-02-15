@@ -24,8 +24,8 @@ export default function HeroScroll3({ pose }: HeroScroll3Props) {
     <section className="hero-section hero-section-scroll relative overflow-hidden px-6">
       {pose === "front" && (
         <div className="hero-text philosophy-text max-w-2xl mx-auto text-center">
-          <div className="hero-line-primary text-white/90">
-            {imaginePlace} <span className="neon-green">{movement}</span> {feelsLikeBreath}
+          <div className="hero-line-primary text-white/90 whitespace-pre-line">
+            {imaginePlace} <span className="neon-emphasis">{movement}</span>{feelsLikeBreath ? ` ${feelsLikeBreath}` : ""}.
           </div>
         </div>
       )}
