@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { CloudPersonality } from "@/lib/cloudData";
 import { saveUser } from "@/lib/userStorage";
+import CloudFooter from "@/components/CloudFooter";
 
 interface SignupModalProps {
   cloud: CloudPersonality | null;
@@ -105,7 +106,7 @@ export default function SignupModal({
   if (confirmation) {
     return (
       <motion.div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 z-50 flex flex-col"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -114,6 +115,7 @@ export default function SignupModal({
           className="absolute inset-0 bg-storm/40 backdrop-blur-sm"
           aria-hidden
         />
+        <div className="flex-1 flex items-center justify-center p-4 relative">
         <motion.div
           className="relative w-full max-w-md rounded-2xl shadow-2xl p-8 text-center"
           style={{
@@ -145,6 +147,8 @@ export default function SignupModal({
             Redirecting in <span style={{ color: accent, fontWeight: 600 }}>{redirectCount}</span>…
           </p>
         </motion.div>
+        </div>
+        <CloudFooter />
       </motion.div>
     );
   }
@@ -152,7 +156,7 @@ export default function SignupModal({
   // Form screen
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex flex-col"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -162,6 +166,7 @@ export default function SignupModal({
         className="absolute inset-0 bg-storm/40 backdrop-blur-sm"
         aria-hidden
       />
+      <div className="flex-1 flex items-center justify-center p-4 relative">
       <motion.div
         className="relative w-full max-w-md rounded-2xl shadow-2xl p-8"
         style={{
@@ -292,6 +297,8 @@ export default function SignupModal({
           </div>
         </form>
       </motion.div>
+      </div>
+        <CloudFooter />
     </motion.div>
   );
 }

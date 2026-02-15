@@ -6,6 +6,7 @@ import { getUser, clearUser } from "@/lib/userStorage";
 import { getCloudById } from "@/lib/cloudData";
 import type { CloudType } from "@/lib/cloudData";
 import CloudIconByType from "@/components/CloudIcons";
+import CloudFooter from "@/components/CloudFooter";
 
 const TARGET = new Date("2026-01-01T00:00:00+07:00");
 const REFERRAL_UNLOCK = 10;
@@ -410,12 +411,9 @@ export default function CountdownPage() {
           ))}
         </div>
 
-        {/* 9. Ethos */}
-        <div className="shrink-0 text-center mt-auto pt-1">
-          <p className="font-subheadline font-bold text-white text-[0.9rem] sm:text-[1rem] leading-tight">
-            Climb the Clouds. Build a Culture.
-          </p>
-          <p className="font-caption text-white/60 text-[0.65rem] sm:text-[0.7rem] mt-0.5">Ho Chi Minh City — 2026</p>
+        {/* 9. Footer — global CloudFooter */}
+        <div className="shrink-0 mt-auto pt-1">
+          <CloudFooter />
         </div>
       </div>
     </main>

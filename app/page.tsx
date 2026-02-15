@@ -13,7 +13,7 @@ import CtaSection from "@/components/CtaSection";
 import CloudSelector from "@/components/CloudSelector";
 import SignupModal from "@/components/SignupModal";
 import Toast from "@/components/Toast";
-import Footer from "@/components/Footer";
+import CloudFooter from "@/components/CloudFooter";
 import KnowYourTeamButton from "@/components/KnowYourTeamButton";
 import SkyTransition from "@/components/SkyTransition";
 import { CloudPersonality } from "@/lib/cloudData";
@@ -92,7 +92,8 @@ function HomeContent() {
   }, [showToast]);
 
   return (
-    <main className="relative min-h-screen z-10">
+    <div className="page-container relative min-h-screen flex flex-col">
+      <main className="relative flex-1 z-10">
       <BrandBackground />
       <KnowYourTeamButton show />
       {skyVisible && (
@@ -128,7 +129,8 @@ function HomeContent() {
           )}
         </motion.div>
       </AnimatePresence>
-      <Footer />
+      </main>
+      <CloudFooter />
 
       {selectedCloud && (
         <SignupModal
@@ -140,7 +142,7 @@ function HomeContent() {
       )}
 
       <Toast show={showToast} />
-    </main>
+    </div>
   );
 }
 

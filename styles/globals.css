@@ -457,6 +457,50 @@
   animation: leaderboardShimmer 12s ease-in-out infinite;
 }
 
+/* Global Cloud Footer — matches countdown page exactly */
+.cloud-footer {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: 40px;
+  margin-bottom: 24px;
+  animation: footerFade 1.4s ease;
+}
+.footer-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.footer-ethos {
+  font-family: "MiSans-Bold", sans-serif;
+  font-size: clamp(14px, 1.4vw, 18px);
+  color: rgba(255,255,255,0.92);
+  letter-spacing: 0.03em;
+}
+.footer-location {
+  font-family: "MiSans-Regular", sans-serif;
+  font-size: clamp(12px, 1.1vw, 14px);
+  color: rgba(255,255,255,0.55);
+}
+.footer-copyright {
+  margin-top: 6px;
+  opacity: 0.35;
+}
+.footer-copyright img {
+  height: 18px;
+}
+@keyframes footerFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
