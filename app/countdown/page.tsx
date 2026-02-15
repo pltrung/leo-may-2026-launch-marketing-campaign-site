@@ -215,8 +215,8 @@ export default function CountdownPage() {
                   phase === "phase4-micro-settle" || phase === "phase5-rest" ? 0.998 : 1,
                 y:
                   phase === "phase1-scale" || phase === "phase2-pause" ? "0vh" :
-                  phase === "phase3-settle" ? "-6vh" :
-                  phase === "phase4-micro-settle" || phase === "phase5-rest" ? "-5.97vh" : "-6vh",
+                  phase === "phase3-settle" ? "4vh" :
+                  phase === "phase4-micro-settle" || phase === "phase5-rest" ? "4.02vh" : "4vh",
                 opacity: 1,
               }}
               transition={
