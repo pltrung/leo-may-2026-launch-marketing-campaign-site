@@ -8,8 +8,9 @@ export default function PhilosophySection() {
         <div className="absolute top-1/2 right-1/4 w-[45%] max-w-[220px] h-[45%] max-h-[220px] rounded-full bg-white/10 animate-mist-drift" style={{ filter: "blur(40px)", animationDelay: "-6s" }} />
         <div className="absolute bottom-1/3 left-1/2 w-[48%] max-w-[260px] h-[48%] max-h-[260px] rounded-full bg-white/11 animate-mist-drift" style={{ filter: "blur(38px)", animationDelay: "-12s" }} />
       </div>
-      <div className="hero-text">
-        Where the <span className="emphasis">MIST</span> holds space for what you <span className="emphasis">BECOME</span>.
+      <div className="hero-text philosophy-text">
+        <span className="philosophy-line-1">Where the <span className="emphasis">MIST</span> holds space</span>
+        <span className="philosophy-line-2">for what you <span className="emphasis">BECOME</span>.</span>
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img

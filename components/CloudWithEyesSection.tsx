@@ -3,11 +3,11 @@
 export default function CloudWithEyesSection() {
   return (
     <section className="hero-section hero-section-scroll hero-cloud-section relative overflow-hidden px-6">
-      <div className="hero-text max-w-md">
-        <p className="font-medium text-white/90 text-lg sm:text-xl md:text-2xl leading-relaxed">
+      <div className="hero-text cloud-eyes-text max-w-2xl">
+        <p className="cloud-eyes-line-1 font-headline text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-white tracking-headline leading-tight">
           Every cloud moves <span className="emphasis-blue">DIFFERENTLY</span>.
         </p>
-        <p className="font-medium text-white/60 text-base sm:text-lg md:text-xl mt-2 leading-relaxed">
+        <p className="cloud-eyes-line-2 font-headline text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-white/85 tracking-headline leading-tight mt-3">
           So should <span className="emphasis-blue">YOU</span>.
         </p>
       </div>

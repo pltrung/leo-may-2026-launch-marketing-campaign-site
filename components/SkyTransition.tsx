@@ -11,41 +11,41 @@ export default function SkyTransition({ onComplete }: SkyTransitionProps) {
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+    const t = containerRef.current;
+    if (!t) {
+      onComplete?.();
+      return;
+    }
 
-    el.classList.add("transition-active");
+    t.classList.remove("active", "open");
+    void t.offsetHeight;
+    t.classList.add("active");
 
     const t1 = setTimeout(() => {
-      el.classList.add("transition-open");
-    }, 1800);
+      t.classList.add("open");
+    }, 2800);
 
     const t2 = setTimeout(() => {
       onComplete?.();
-      el.classList.remove("transition-active");
-      el.classList.remove("transition-open");
-    }, 3200);
+    }, 3400);
 
-    timersRef.current = [t1, t2];
-    return () => {
-      timersRef.current.forEach(clearTimeout);
-    };
+    const t3 = setTimeout(() => {
+      t.classList.remove("active", "open");
+    }, 4600);
+
+    timersRef.current = [t1, t2, t3];
+    return () => timersRef.current.forEach(clearTimeout);
   }, [onComplete]);
 
   return (
-    <div id="cloud-transition" ref={containerRef} aria-hidden>
+    <div id="cloud-transition" ref={containerRef} aria-hidden="true">
       <div className="mist-layer" />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/brand/big-cloud-transition.svg"
+        className="transition-cloud"
         alt=""
-        className="cloud cloud-left"
-      />
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/brand/big-cloud-transition.svg"
-        alt=""
-        className="cloud cloud-right"
+        draggable={false}
       />
       <div className="sky-opens-text">THE SKY OPENS</div>
     </div>

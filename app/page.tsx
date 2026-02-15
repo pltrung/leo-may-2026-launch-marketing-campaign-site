@@ -48,7 +48,7 @@ function HomeContent() {
       timersRef.current.push(setTimeout(fn, ms));
     };
 
-    add(() => setHeroOpacity(0), 200);
+    add(() => setHeroOpacity(0), 0);
   }, []);
 
   useEffect(() => {
@@ -85,7 +85,7 @@ function HomeContent() {
           initial={{ opacity: 0 }}
           animate={{ opacity: showClouds ? 1 : heroOpacity }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
+          transition={{ duration: skyVisible ? 0.8 : 0.3 }}
         >
           {!showClouds ? (
             <>
