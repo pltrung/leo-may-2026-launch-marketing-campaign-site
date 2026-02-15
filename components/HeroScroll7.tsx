@@ -2,11 +2,12 @@
 
 import { motion } from "framer-motion";
 
-interface CtaSectionProps {
+interface HeroScroll7Props {
   onJoin: () => void;
 }
 
-export default function CtaSection({ onJoin }: CtaSectionProps) {
+/** Hero page scroll section 7 (CTA): "CLIMB your way" + Ascend button */
+export default function HeroScroll7({ onJoin }: HeroScroll7Props) {
   return (
     <section
       id="final-cta"
@@ -24,7 +25,7 @@ export default function CtaSection({ onJoin }: CtaSectionProps) {
           viewport={{ once: true, amount: 0.25, margin: "-60px" }}
           transition={{ duration: 0.6 }}
         >
-          Climb <span className="font-headline text-3xl sm:text-4xl md:text-5xl" style={{ color: "#00CB4D" }}>YOUR</span> way.
+          <span className="neon-white">CLIMB</span> your way
         </motion.h2>
 
         <motion.div

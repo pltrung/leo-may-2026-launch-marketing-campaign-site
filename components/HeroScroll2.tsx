@@ -1,6 +1,7 @@
 "use client";
 
-export default function LocationSection() {
+/** Hero page scroll section 2: "Coming to Ho Chi Minh City" */
+export default function HeroScroll2() {
   return (
     <section className="hero-section hero-section-scroll relative overflow-hidden px-6">
       <div className="hero-text text-center max-w-xl mx-auto">

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-interface IpShowcaseSectionProps {
+interface HeroScroll3Props {
   pose: "front" | "back";
 }
 
@@ -11,7 +11,8 @@ const IMAGE_MAP: Record<string, string> = {
   back: "/brand/ip-on-cloud.svg",
 };
 
-export default function IpShowcaseSection({ pose }: IpShowcaseSectionProps) {
+/** Hero page scroll section 3: "Imagine a place where movement feels like breath" */
+export default function HeroScroll3({ pose }: HeroScroll3Props) {
   const [errored, setErrored] = useState(false);
 
   if (errored) return null;

@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Logo from "./Logo";
 
-export default function HeroSection() {
+/** Hero page scroll section 1: "Climb the Clouds. Build a Culture." */
+export default function HeroScroll1() {
   return (
     <section className="relative min-h-screen h-screen flex flex-col items-center justify-center px-6 overflow-hidden pt-[120px] md:pt-24">
       <div className="absolute inset-0 -z-[1] opacity-[0.04] blur-3xl pointer-events-none" aria-hidden>
