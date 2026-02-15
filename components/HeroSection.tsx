@@ -32,7 +32,7 @@ export default function HeroSection() {
         </div>
       </div>
 
-      <div className="hero-scroll absolute bottom-8 left-1/2 -translate-x-1/2 opacity-0">
+      <div className="hero-scroll absolute bottom-8 left-1/2 -translate-x-1/2">
         <div className="flex flex-col items-center gap-2">
           <span className="font-caption text-white/70 text-xs tracking-widest uppercase">Scroll</span>
           {/* eslint-disable-next-line @next/next/no-img-element */}

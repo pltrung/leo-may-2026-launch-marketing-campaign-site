@@ -2,57 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Loading screen: shown first, then removed. BrandBackground appears in site-root after. */
+/* Loading: 2s blue screen, then removed. */
 #loading-screen {
   position: fixed;
   inset: 0;
-  background: var(--cloud);
+  background: #0242FF;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 999999;
-  transition: opacity 0.8s ease;
-}
-#loading-screen.fade-out {
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* Hero page: staged entrance (after loading) */
-.hero-hidden {
-  opacity: 0;
-  transform: translateY(20px);
-}
-.hero-visible {
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity 1.2s ease, transform 1.2s ease;
-}
-.hero-logo,
-.hero-title,
-.know-cloud-btn,
-.hero-scroll {
-  opacity: 0;
-  transform: translateY(30px);
-}
-.hero-logo.animate,
-.hero-title.animate,
-.know-cloud-btn.animate,
-.hero-scroll.animate {
-  opacity: 1;
-  transform: translateY(0);
-}
-.hero-logo.animate {
-  transition: opacity 1.2s cubic-bezier(.22,1,.36,1), transform 1.2s cubic-bezier(.22,1,.36,1);
-}
-.hero-title.animate {
-  transition: opacity 1.4s cubic-bezier(.22,1,.36,1), transform 1.4s cubic-bezier(.22,1,.36,1);
-}
-.know-cloud-btn.animate {
-  transition: opacity 1.6s cubic-bezier(.22,1,.36,1), transform 1.6s cubic-bezier(.22,1,.36,1);
-}
-.hero-scroll.animate {
-  transition: opacity 1s cubic-bezier(.22,1,.36,1), transform 1s cubic-bezier(.22,1,.36,1);
 }
 .loading-inner {
   text-align: center;
@@ -865,12 +823,12 @@
 @layer base {
   html {
     scroll-behavior: smooth;
-    background: var(--cloud);
+    background: #0242FF;
   }
   body {
     font-family: "MiSans-Regular", sans-serif;
     color: var(--storm);
-    background: var(--cloud);
+    background: #0242FF;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;

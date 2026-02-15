@@ -39,31 +39,9 @@ export default function RootLayout({
             <div className="loading-text">Preparing the sky</div>
           </div>
         </div>
-        <div id="site-root" style={{ opacity: 0 }}>
-          {children}
-        </div>
+        <div id="site-root">{children}</div>
         <Script id="load-controller" strategy="afterInteractive">
-          {`
-            setTimeout(function() {
-              var loading = document.getElementById("loading-screen");
-              var site = document.getElementById("site-root");
-              if (!loading || !site) return;
-              loading.classList.add("fade-out");
-              setTimeout(function() {
-                loading.remove();
-                site.style.opacity = "1";
-                site.style.transition = "opacity 0.8s ease";
-                var logo = document.querySelector(".hero-logo");
-                var title = document.querySelector(".hero-title");
-                var btn = document.querySelector(".know-cloud-btn");
-                var scrollEl = document.querySelector(".hero-scroll");
-                setTimeout(function(){ if(logo) logo.classList.add("animate"); }, 200);
-                setTimeout(function(){ if(title) title.classList.add("animate"); }, 400);
-                setTimeout(function(){ if(btn) btn.classList.add("animate"); }, 600);
-                setTimeout(function(){ if(scrollEl) scrollEl.classList.add("animate"); }, 800);
-              }, 600);
-            }, 2000);
-          `}
+          {`setTimeout(function(){var e=document.getElementById("loading-screen");e&&e.remove();},2000);`}
         </Script>
       </body>
     </html>
