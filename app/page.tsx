@@ -13,7 +13,6 @@ import HeroScroll6 from "@/components/HeroScroll6";
 import HeroScroll7 from "@/components/HeroScroll7";
 import CloudSelector from "@/components/CloudSelector";
 import SignupModal from "@/components/SignupModal";
-import Toast from "@/components/Toast";
 import CloudFooter from "@/components/CloudFooter";
 import KnowYourTeamButton from "@/components/KnowYourTeamButton";
 import HeroScrollObserver from "@/components/HeroScrollObserver";
@@ -28,13 +27,10 @@ function HomeContent() {
   const searchParams = useSearchParams();
   const [showClouds, setShowClouds] = useState(false);
   const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
-  const [showToast, setShowToast] = useState(false);
   const [skyVisible, setSkyVisible] = useState(false);
   const [skyTransitionForCountdown, setSkyTransitionForCountdown] = useState(false);
   const [heroOpacity, setHeroOpacity] = useState(1);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-  const handleSuccess = () => setShowToast(true);
 
   const handleCloudTransitionComplete = useCallback(() => {
     setShowClouds(true);
@@ -45,7 +41,6 @@ function HomeContent() {
   const handleCountdownTransitionComplete = useCallback(() => {
     setSkyTransitionForCountdown(false);
     setSelectedCloud(null);
-    handleSuccess();
     router.push("/countdown");
   }, [router]);
 
@@ -72,12 +67,6 @@ function HomeContent() {
   useEffect(() => {
     return () => timersRef.current.forEach(clearTimeout);
   }, []);
-
-  useEffect(() => {
-    if (!showToast) return;
-    const t = setTimeout(() => setShowToast(false), 5000);
-    return () => clearTimeout(t);
-  }, [showToast]);
 
   useEffect(() => {
     if (showClouds) document.documentElement.classList.add("cloud-selection-view");
@@ -149,7 +138,7 @@ function HomeContent() {
         <SignupModal
           cloud={selectedCloud}
           onClose={() => setSelectedCloud(null)}
-          onSuccess={handleSuccess}
+          onSuccess={() => {}}
           onRedirectToCountdown={() => setSkyTransitionForCountdown(true)}
           referredBy={searchParams.get("ref") ?? undefined}
         />
@@ -161,8 +150,6 @@ function HomeContent() {
           onComplete={skyTransitionForCountdown ? handleCountdownTransitionComplete : handleCloudTransitionComplete}
         />
       )}
-
-      <Toast show={showToast} />
     </div>
   );
 }

@@ -187,12 +187,24 @@ export default function CountdownPage() {
       >
         Log out
       </motion.button>
-      <div className="fixed inset-0 -z-10 opacity-10 pointer-events-none" aria-hidden>
+      <motion.div
+        className="fixed inset-0 -z-10 pointer-events-none"
+        initial={{ opacity: 0.1 }}
+        animate={{ opacity: 0 }}
+        transition={{ duration: 1.2, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        aria-hidden
+      >
         <img src="/brand/background.svg" alt="" className="w-full h-full object-cover" />
-      </div>
-      <div className="fixed inset-0 -z-10 opacity-[0.08] pointer-events-none" aria-hidden>
+      </motion.div>
+      <motion.div
+        className="fixed inset-0 -z-10 pointer-events-none"
+        initial={{ opacity: 0.08 }}
+        animate={{ opacity: 0 }}
+        transition={{ duration: 1.2, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        aria-hidden
+      >
         <img src="/brand/holds.svg" alt="" className="w-full h-full object-cover" />
-      </div>
+      </motion.div>
 
       {/* Hero entrance: scale up → pause → settle (move+scale together) → micro-settle → rest → handoff */}
       <AnimatePresence>
