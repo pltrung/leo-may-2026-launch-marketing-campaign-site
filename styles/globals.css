@@ -904,6 +904,19 @@ body.hero-ready .hero-scroll {
     touch-action: pan-y;
   }
 
+  /* Base card: white, calm, premium */
+  .cloud-card-base {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 24px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    transition:
+      transform 400ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 400ms ease,
+      box-shadow 400ms ease;
+  }
+
   .cloud-card {
     position: absolute;
     left: 50%;
@@ -916,49 +929,69 @@ body.hero-ready .hero-scroll {
     cursor: pointer;
     transition:
       transform 600ms cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 400ms ease,
-      filter 400ms ease;
-    will-change: transform, opacity, filter;
+      opacity 400ms ease;
+    will-change: transform, opacity;
   }
 
   .cloud-card-inner {
     width: 100%;
     height: 100%;
-    border-radius: 28px;
+    border-radius: 24px;
+    border-width: 1px;
   }
 
+  /* Stack depth: opacity + scale only */
   .cloud-card.active {
     transform: translateX(-50%) translateY(0) scale(1);
     opacity: 1;
-    filter: blur(0);
     z-index: 10;
     animation: cloudFloat 4s ease-in-out infinite;
   }
 
   .cloud-card.next {
-    transform: translateX(-50%) translateY(90px) scale(0.92);
+    transform: translateX(-50%) translateY(90px) scale(0.96);
     opacity: 0.7;
-    filter: blur(2px);
     z-index: 5;
   }
 
   .cloud-card.prev {
-    transform: translateX(-50%) translateY(-90px) scale(0.92);
+    transform: translateX(-50%) translateY(-90px) scale(0.96);
     opacity: 0.7;
-    filter: blur(2px);
     z-index: 5;
   }
 
   .cloud-card.far {
-    transform: translateX(-50%) translateY(160px) scale(0.85);
-    opacity: 0.4;
-    filter: blur(4px);
+    transform: translateX(-50%) translateY(160px) scale(0.88);
+    opacity: 0.25;
     z-index: 1;
+  }
+
+  .cloud-card.active .cloud-card-inner.cloud-card-selected {
+    box-shadow:
+      0 0 40px rgba(255, 255, 255, 0.35),
+      0 10px 40px rgba(0, 0, 0, 0.2);
+  }
+
+  /* When modal open, fade non-active cards */
+  .cloud-stack-wrapper.has-selection .cloud-card:not(.active) {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.9);
+    pointer-events: none;
+    transition: opacity 400ms ease, transform 400ms ease;
+  }
+
+  .cloud-stack-wrapper.has-selection .cloud-card.active {
+    opacity: 1;
   }
 
   .card-stack.dragging .cloud-card.active {
     transform: translateX(-50%) translateY(0) scale(1.04);
     animation: none;
+  }
+
+  .cloud-selection-screen.card-selected .cloud-selection-header {
+    opacity: 0;
+    pointer-events: none;
   }
 
   @keyframes cloudFloat {
@@ -998,6 +1031,53 @@ body.hero-ready .hero-scroll {
   @keyframes cloudDetailsModalOpen {
     0% { opacity: 0; transform: scale(0.88); }
     100% { opacity: 1; transform: scale(1); }
+  }
+
+  /* Swipe guide: floating cloud, calm, cinematic */
+  .swipe-guide {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    opacity: 0.6;
+    pointer-events: none;
+    z-index: 20;
+    transition: opacity 500ms ease;
+  }
+
+  .swipe-guide.swipe-guide-hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .swipe-cloud {
+    width: 32px;
+    animation: cloudLift 2.8s ease-in-out infinite;
+  }
+
+  @keyframes cloudLift {
+    0% {
+      transform: translateY(0);
+      opacity: 0.4;
+    }
+    50% {
+      transform: translateY(-16px);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 0.4;
+    }
+  }
+
+  .swipe-text {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.6);
+    letter-spacing: 0.12em;
   }
 }
 

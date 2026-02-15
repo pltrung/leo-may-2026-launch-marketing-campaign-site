@@ -24,10 +24,15 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
   };
 
   const accent = cloud.accentHex;
-  const defaultShadow = "0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06)";
-  const hoverGlow = isHovered ? `0 0 28px ${accent}70, 0 0 45px ${accent}40` : "";
-  const activeGlow = isActive ? `0 0 35px ${accent}60, 0 0 55px ${accent}35` : "";
-  const borderColor = isHovered || isActive ? accent : "rgba(255,255,255,0.5)";
+  const defaultShadow = "0 8px 30px rgba(0,0,0,0.12)";
+  const hoverGlow = isHovered ? `0 0 40px ${accent}80, 0 0 60px ${accent}50` : "";
+  const activeGlow = isActive ? `0 0 40px rgba(255,255,255,0.35), 0 10px 40px rgba(0,0,0,0.2)` : "";
+  const borderColor = (() => {
+    const r = parseInt(accent.slice(1, 3), 16);
+    const g = parseInt(accent.slice(3, 5), 16);
+    const b = parseInt(accent.slice(5, 7), 16);
+    return `rgba(${r},${g},${b},0.35)`;
+  })();
   const boxShadow = [defaultShadow, hoverGlow, activeGlow].filter(Boolean).join(", ");
 
   return (
@@ -49,11 +54,13 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
       >
         {/* Front */}
         <div
-          className="absolute inset-0 w-full h-full rounded-2xl flex flex-col justify-between p-5 lg:p-8 bg-white/90 border-2 transition-all duration-200 overflow-hidden"
+          className="absolute inset-0 w-full h-full rounded-[24px] flex flex-col justify-between p-5 lg:p-8 border backdrop-blur-[12px] transition-all duration-200 overflow-hidden"
           style={{
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
+            backgroundColor: "rgba(255,255,255,0.92)",
             borderColor,
+            borderWidth: "1px",
             boxShadow,
           }}
         >
@@ -77,42 +84,32 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
 
         {/* Back */}
         <div
-          className="absolute inset-0 w-full h-full rounded-2xl flex flex-col justify-between p-5 lg:p-8 bg-white/90 border-2 transition-all duration-200 overflow-hidden"
+          className="absolute inset-0 w-full h-full rounded-[24px] flex flex-col justify-between p-5 lg:p-8 border transition-all duration-200 overflow-hidden backdrop-blur-[12px]"
           style={{
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
             transform: "rotateY(180deg)",
+            backgroundColor: "rgba(255,255,255,0.92)",
             borderColor,
+            borderWidth: "1px",
             boxShadow,
           }}
         >
-            <p
-            className="font-body text-center text-xs sm:text-sm leading-[1.5] flex-1 px-2 py-1 flex items-center justify-center overflow-hidden"
-            style={{ color: cloud.storyHex }}
-          >
+          <p className="font-body text-center text-xs sm:text-sm leading-[1.5] flex-1 px-2 py-1 flex items-center justify-center overflow-hidden text-[#1a1a1a]" style={{ opacity: 0.9 }}>
             {cloud.story}
           </p>
           <div className="shrink-0 flex justify-center pt-4 pb-2">
             <button
               type="button"
               onClick={handleJoinClick}
-              className="relative flex items-center justify-center min-w-[140px] min-h-[64px] w-full max-w-[180px] px-6 py-3 hover:opacity-90 transition-opacity duration-200 border-0 cursor-pointer"
+              className="relative flex items-center justify-center min-w-[140px] min-h-[64px] w-full max-w-[180px] px-6 py-3 hover:opacity-90 transition-all duration-200 border-0 cursor-pointer rounded-2xl"
               style={{
                 backgroundColor: accent,
-                maskImage: "url('/brand/cloud-blue.svg')",
-                maskSize: "contain",
-                maskRepeat: "no-repeat",
-                maskPosition: "center",
-                WebkitMaskImage: "url('/brand/cloud-blue.svg')",
-                WebkitMaskSize: "contain",
-                WebkitMaskRepeat: "no-repeat",
-                WebkitMaskPosition: "center",
+                color: cloud.joinTextHex ?? "#ffffff",
+                boxShadow: `0 0 24px ${accent}60, 0 4px 16px rgba(0,0,0,0.15)`,
               }}
             >
-              <span className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 pointer-events-none" style={{ color: cloud.joinTextHex ?? "#ffffff" }}>
-                <span className="font-subheadline text-sm">Join</span>
-                <span className="font-subheadline text-sm">{cloud.name}</span>
-              </span>
+              <span className="font-subheadline text-sm">Join Team {cloud.name}</span>
             </button>
           </div>
         </div>

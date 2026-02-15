@@ -1,28 +1,36 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { clouds, CloudPersonality } from "@/lib/cloudData";
 import CloudIconByType from "./CloudIcons";
 
 interface CloudDetailsModalProps {
   cloud: CloudPersonality;
   onClose: () => void;
-  onAscend: () => void;
+  onJoinTeam: () => void;
 }
 
-function CloudDetailsModal({ cloud, onClose, onAscend }: CloudDetailsModalProps) {
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function CloudDetailsModal({ cloud, onClose, onJoinTeam }: CloudDetailsModalProps) {
   const accent = cloud.accentHex;
+  const borderStyle = { borderColor: hexToRgba(accent, 0.35) };
   return (
     <div
-      className="fixed inset-0 z-20 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-20 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label={`${cloud.name} details`}
     >
       <div
-        className="cloud-details-modal cloud-details-modal-open w-full max-w-[320px] rounded-2xl p-6 bg-white/95 border-2 flex flex-col gap-4 shadow-xl"
-        style={{ borderColor: accent }}
+        className="cloud-details-modal cloud-details-modal-open w-full max-w-[320px] rounded-[24px] p-6 flex flex-col gap-4 cloud-card-base border backdrop-blur-xl"
+        style={borderStyle}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col items-center gap-2">
@@ -32,13 +40,13 @@ function CloudDetailsModal({ cloud, onClose, onAscend }: CloudDetailsModalProps)
           <span className="font-subheadline text-lg text-center" style={{ color: accent }}>
             {cloud.name}
           </span>
-          <span className="font-body text-sm text-center opacity-85" style={{ color: accent }}>
+          <span className="font-body text-sm text-center opacity-80" style={{ color: accent }}>
             {cloud.shortNameEn ?? cloud.nameEn}
           </span>
         </div>
         <p
-          className="font-body text-center text-sm leading-relaxed flex-1"
-          style={{ color: cloud.storyHex }}
+          className="font-body text-center text-sm leading-relaxed flex-1 text-[#1a1a1a]"
+          style={{ opacity: 0.9 }}
         >
           {cloud.story}
         </p>
@@ -46,18 +54,21 @@ function CloudDetailsModal({ cloud, onClose, onAscend }: CloudDetailsModalProps)
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-3 rounded-xl font-subheadline text-sm border-2 transition-opacity hover:opacity-80"
-            style={{ borderColor: accent, color: accent }}
+            className="flex-1 py-3 rounded-xl font-subheadline text-sm border border-[#ccc] text-[#555] transition-opacity hover:opacity-80"
           >
             Back
           </button>
           <button
             type="button"
-            onClick={onAscend}
-            className="flex-1 py-3 rounded-xl font-subheadline text-sm border-0 transition-opacity hover:opacity-90"
-            style={{ backgroundColor: accent, color: cloud.joinTextHex ?? "#ffffff" }}
+            onClick={onJoinTeam}
+            className="cloud-join-team-btn flex-1 py-3 rounded-xl font-subheadline text-sm border-0 transition-all hover:opacity-90"
+            style={{
+              backgroundColor: accent,
+              color: cloud.joinTextHex ?? "#ffffff",
+              boxShadow: `0 0 24px ${accent}60, 0 4px 16px rgba(0,0,0,0.15)`,
+            }}
           >
-            Ascend
+            Join Team {cloud.name}
           </button>
         </div>
       </div>
@@ -67,14 +78,20 @@ function CloudDetailsModal({ cloud, onClose, onAscend }: CloudDetailsModalProps)
 
 interface CloudStackMobileProps {
   onSelect: (cloud: CloudPersonality) => void;
+  onDetailsOpenChange?: (open: boolean) => void;
 }
 
-export default function CloudStackMobile({ onSelect }: CloudStackMobileProps) {
+export default function CloudStackMobile({ onSelect, onDetailsOpenChange }: CloudStackMobileProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isBlooming, setIsBlooming] = useState(false);
   const [detailsCloud, setDetailsCloud] = useState<CloudPersonality | null>(null);
+  const [swipeGuideVisible, setSwipeGuideVisible] = useState(true);
   const touchStartY = useRef(0);
+
+  useEffect(() => {
+    onDetailsOpenChange?.(detailsCloud !== null);
+  }, [detailsCloud, onDetailsOpenChange]);
 
   const goNext = useCallback(() => {
     setActiveIndex((i) => (i + 1) % clouds.length);
@@ -94,7 +111,7 @@ export default function CloudStackMobile({ onSelect }: CloudStackMobileProps) {
     setDetailsCloud(cloud);
   }, [getCloudAt]);
 
-  const handleAscend = useCallback(() => {
+  const handleJoinTeam = useCallback(() => {
     if (!detailsCloud) return;
     setIsBlooming(true);
     const cloud = detailsCloud;
@@ -105,6 +122,7 @@ export default function CloudStackMobile({ onSelect }: CloudStackMobileProps) {
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
     setIsDragging(true);
+    setSwipeGuideVisible(false);
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -124,14 +142,26 @@ export default function CloudStackMobile({ onSelect }: CloudStackMobileProps) {
     return "hidden";
   };
 
+  const hideSwipeGuide = useCallback(() => setSwipeGuideVisible(false), []);
+
   return (
-    <div className="cloud-stack-wrapper relative w-full flex-1 flex flex-col min-h-0">
+    <div
+      className={`cloud-stack-wrapper relative w-full flex-1 flex flex-col min-h-0 ${detailsCloud ? "has-selection" : ""}`}
+      onMouseDown={hideSwipeGuide}
+    >
       {isBlooming && <div className="cloud-stack-bloom" aria-hidden />}
+      <div
+        className={`swipe-guide md:hidden ${swipeGuideVisible ? "" : "swipe-guide-hidden"}`}
+        aria-hidden
+      >
+        <img src="/brand/cloud-mini.svg" alt="" className="swipe-cloud" />
+        <div className="swipe-text">Swipe up</div>
+      </div>
       {detailsCloud && (
         <CloudDetailsModal
           cloud={detailsCloud}
           onClose={() => setDetailsCloud(null)}
-          onAscend={handleAscend}
+          onJoinTeam={handleJoinTeam}
         />
       )}
 
@@ -153,6 +183,7 @@ export default function CloudStackMobile({ onSelect }: CloudStackMobileProps) {
             <div
               key={cloud.id}
               className={`cloud-card ${positionClass}`}
+              data-team={cloud.id}
               onClick={handleCardClick}
               onKeyDown={(e) => {
                 if (e.key !== "Enter") return;
@@ -162,30 +193,22 @@ export default function CloudStackMobile({ onSelect }: CloudStackMobileProps) {
               tabIndex={0}
               aria-label={isActive ? `Select ${cloud.name}` : (positionClass === "next" || positionClass === "far") ? "Next cloud" : "Previous cloud"}
             >
-              <CloudCardInner cloud={cloud} />
+              <CloudCardInner cloud={cloud} isActive={isActive} />
             </div>
           );
         })}
-
-        <div className="cloud-stack-swipe-hint absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 pointer-events-none z-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/arrow-up.svg" alt="" className="w-8 h-8 opacity-70 animate-bounce" />
-          <span className="font-body text-xs text-white/70 tracking-wide">Swipe to explore</span>
-        </div>
       </div>
     </div>
   );
 }
 
-function CloudCardInner({ cloud }: { cloud: CloudPersonality }) {
+function CloudCardInner({ cloud, isActive }: { cloud: CloudPersonality; isActive: boolean }) {
   const accent = cloud.accentHex;
+  const borderStyle = { borderColor: hexToRgba(accent, 0.35) };
   return (
     <div
-      className="cloud-card-inner w-full h-full rounded-[28px] flex flex-col justify-center items-center p-6 bg-white/92 border-2 overflow-hidden"
-      style={{
-        borderColor: accent,
-        boxShadow: "0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)",
-      }}
+      className={`cloud-card-inner cloud-card-base w-full h-full rounded-[24px] flex flex-col justify-center items-center p-6 overflow-hidden ${isActive ? "cloud-card-selected" : ""}`}
+      style={borderStyle}
     >
       <div className="flex flex-col items-center justify-center flex-1 min-h-0">
         <div className="mb-3" style={{ color: accent }}>
@@ -196,8 +219,8 @@ function CloudCardInner({ cloud }: { cloud: CloudPersonality }) {
             {cloud.name}
           </span>
           <span
-            className="font-body text-sm text-center tracking-[0.5px]"
-            style={{ color: accent, opacity: 0.85 }}
+            className="font-body text-sm text-center tracking-[0.5px] text-[#555]"
+            style={{ opacity: 0.9 }}
           >
             {cloud.shortNameEn ?? cloud.nameEn}
           </span>
