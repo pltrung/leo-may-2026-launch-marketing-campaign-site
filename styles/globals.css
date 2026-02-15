@@ -221,15 +221,21 @@ body.hero-ready .hero-scroll {
   position: absolute;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: clamp(12px, 2.5vw, 28px);
+  z-index: 1;
+  color: #0242FF;
+  pointer-events: none;
+}
+
+.mist-transition-line {
+  display: block;
   font-size: clamp(32px, 6vw, 96px);
   font-weight: 600;
   font-family: var(--font-bold), "MiSans-Bold", sans-serif;
   letter-spacing: 0.12em;
-  white-space: nowrap;
-  color: #0242FF;
-  opacity: 0;
   text-shadow:
     0 0 20px rgba(2, 66, 255, 0.4),
     0 0 40px rgba(2, 66, 255, 0.25),
@@ -256,11 +262,7 @@ body.hero-ready .hero-scroll {
   animation: mistDriftSlow 20s ease-in-out infinite 0.5s;
 }
 
-/* Phase 3: Text fades in slowly */
-#mist-transition.mist-active .mist-transition-text {
-  opacity: 1;
-  transition: opacity 1800ms ease 800ms;
-}
+/* Phase 3: Text fades in per-line (handled by SkyTransition motion) */
 
 @keyframes mistDriftSlow {
   0%, 100% { transform: translate(0, 0) scale(1); }
@@ -289,10 +291,6 @@ body.hero-ready .hero-scroll {
   transition: opacity 1000ms ease 100ms;
 }
 
-#mist-transition.mist-clearing .mist-transition-text {
-  opacity: 0;
-  transition: opacity 1200ms ease;
-}
 
 /* Hero scroll: green emphasis, fadeInUp, float animations */
 .emphasis {

@@ -62,7 +62,7 @@ export default function HeroScroll7({ onJoin }: HeroScroll7Props) {
         transition={{ duration: 0.6, delay: 0.15 }}
         aria-hidden
       >
-        <div className="w-[45%] max-w-[220px] aspect-square flex items-center justify-center">
+        <div className="w-[60%] max-w-[300px] sm:w-[58%] sm:max-w-[320px] aspect-square flex items-center justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/brand/ip-on-cloud.svg"

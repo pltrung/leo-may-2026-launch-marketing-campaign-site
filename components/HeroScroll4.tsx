@@ -14,14 +14,16 @@ export default function HeroScroll4() {
           Where your <span className="neon-green">SHAPE</span> is never <span className="neon-yellow">QUESTIONED</span>.
         </div>
       </div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/brand/ip-flying.svg"
-        alt="Leo Mây Flying"
-        className="hero-ip hero-ip-city mist-ip-city"
-        loading="eager"
-        fetchPriority="high"
-      />
+      <div className="flex items-center justify-center w-[55%] max-w-[260px] aspect-square mx-auto pointer-events-none">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/brand/ip-flying.svg"
+          alt="Leo Mây Flying"
+          className="hero-ip w-full h-full object-contain animate-ip-bounce"
+          loading="eager"
+          fetchPriority="high"
+        />
+      </div>
       <div className="hero-text philosophy-text hero-line-secondary-wrapper">
         <div className="hero-line-secondary">
           Only <span className="neon-cyan">EXPERIENCED</span>.
