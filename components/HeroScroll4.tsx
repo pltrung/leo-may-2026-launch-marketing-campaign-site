@@ -15,7 +15,7 @@ export default function HeroScroll4() {
         <div className="absolute bottom-1/3 left-1/2 w-[48%] max-w-[260px] h-[48%] max-h-[260px] rounded-full bg-white/11 animate-mist-drift" style={{ filter: "blur(38px)", animationDelay: "-12s" }} />
       </div>
       <div className="hero-text philosophy-text">
-        <div className="hero-line-primary">
+        <div className="hero-line-primary whitespace-pre-line">
           {isNever ? (
             <>
               {whereShape} <span className="neon-green">{shape}</span> {isNever} <span className="neon-yellow">{questioned}</span>.
@@ -39,7 +39,7 @@ export default function HeroScroll4() {
       </div>
       <div className="hero-text philosophy-text hero-line-secondary-wrapper hero-experienced-line md:mt-20">
         <div className="hero-line-primary text-white/90">
-          {only} <span className="neon-cyan">{experienced}</span>.
+          {only} <span className={locale === "vi" ? "neon-red" : "neon-cyan"}>{experienced}</span>.
         </div>
       </div>
     </section>
