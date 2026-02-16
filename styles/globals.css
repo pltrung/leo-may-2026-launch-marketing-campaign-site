@@ -1087,10 +1087,17 @@ body.hero-ready .hero-scroll {
 }
 
 /* Mobile-only (max-width: 768px): fixed viewport, no scroll, immersive cloud stack */
+/* iOS WebKit fix: -webkit-fill-available helps Chrome/Safari on some iOS devices with viewport height */
 @media (max-width: 768px) {
-  html.cloud-selection-view,
+  html.cloud-selection-view {
+    height: 100%;
+    height: -webkit-fill-available;
+    overflow: hidden;
+  }
   html.cloud-selection-view body {
     height: 100%;
+    height: -webkit-fill-available;
+    min-height: -webkit-fill-available;
     overflow: hidden;
     overscroll-behavior: none;
     touch-action: pan-x;
@@ -1102,14 +1109,24 @@ body.hero-ready .hero-scroll {
     width: 100vw;
     height: 100vh;
     height: 100dvh;
+    min-height: -webkit-fill-available;
     overflow: hidden;
     z-index: 15;
     padding: 96px 24px calc(140px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+
+  .cloud-selection-header {
+    flex-shrink: 0;
+    flex-grow: 0;
   }
 
   .cloud-selection-container {
-    flex: 1;
+    flex: 1 1 0;
     min-height: 0;
+    -webkit-min-height: 0;
     width: 100%;
     overflow: hidden;
     display: flex;
@@ -1119,8 +1136,9 @@ body.hero-ready .hero-scroll {
   }
 
   .cloud-stack-wrapper {
-    flex: 1;
+    flex: 1 1 0;
     min-height: 0;
+    -webkit-min-height: 0;
     width: 100%;
   }
 

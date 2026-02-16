@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useLocale } from "./LocaleProvider";
 
 interface LogoProps {
@@ -9,9 +10,24 @@ interface LogoProps {
 
 export default function Logo({ className = "h-8 w-auto object-contain" }: LogoProps) {
   const locale = useLocale();
+  const pathname = usePathname();
+  const homePath = `/${locale}`;
+  const isOnHome = pathname === homePath || pathname === `${homePath}/`;
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (document.body.classList.contains("cloud-selection-view")) {
+      e.preventDefault();
+      window.location.href = homePath;
+    } else if (isOnHome) {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
   return (
     <Link
-      href={`/${locale}`}
+      href={homePath}
+      onClick={handleClick}
       className="flex items-center justify-center transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-storm/20 focus:ring-offset-2 rounded"
       aria-label="Leo Mây — go to home"
     >

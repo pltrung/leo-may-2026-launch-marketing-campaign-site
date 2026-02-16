@@ -12,6 +12,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  /** Helps iOS Chrome/Safari with viewport resize when address bar shows/hides */
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({
