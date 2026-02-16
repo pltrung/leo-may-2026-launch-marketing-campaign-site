@@ -8,8 +8,9 @@ import { getMessages } from "@/lib/messages";
 /** Hero page scroll section 1: "Climb the Clouds. Build a Culture." / "Bao hành trình. Bao hình dạng. CÙNG MỘT NHỊP TIM" */
 export default function HeroScroll1() {
   const locale = useLocale();
-  const { climbTheClouds, buildACulture, hero1Line1, hero1Line2, hero1Emphasis, scroll } = getMessages(locale).hero;
-  const useCinematic = hero1Line1 && hero1Line2 && hero1Emphasis;
+  const { climbTheClouds, buildACulture, hero1Line1, hero1Line2, hero1Emphasis, hero1Bao, hero1Row1Right, hero1Row2Right, hero1Row3, scroll } = getMessages(locale).hero;
+  const useBaoLayout = hero1Bao && hero1Row1Right !== undefined && hero1Row2Right !== undefined && hero1Row3;
+  const useCinematic = !useBaoLayout && hero1Line1 && hero1Line2 && hero1Emphasis;
   return (
     <section className="relative min-h-[100dvh] h-[100dvh] flex flex-col items-center justify-center px-6 overflow-hidden pt-[120px] md:pt-24">
       <div className="absolute inset-0 -z-[1] opacity-[0.04] blur-3xl pointer-events-none" aria-hidden>
@@ -25,7 +26,22 @@ export default function HeroScroll1() {
 
       {/* Center headline in viewport (ignore top padding so it sits at true 50%) */}
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 max-w-4xl mx-auto">
-        {useCinematic ? (
+        {useBaoLayout ? (
+          <div className="hero-bao-layout grid grid-cols-[1fr_auto] grid-rows-3 items-center justify-items-center gap-x-6 gap-y-0 text-left w-full max-w-3xl mx-auto">
+            <span className="hero-climb hero-bao-word font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white tracking-headline leading-tight col-start-1 row-span-2 self-center">
+              <span className="neon-green">{hero1Bao}</span>
+            </span>
+            <span className="hero-climb font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white tracking-headline leading-tight col-start-2 row-start-1">
+              {hero1Row1Right}
+            </span>
+            <span className="hero-climb font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white tracking-headline leading-tight col-start-2 row-start-2">
+              {hero1Row2Right}
+            </span>
+            <span className="hero-build block font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-headline col-span-2 row-start-3 justify-self-center mt-3 sm:mt-4">
+              <span className="neon-green">{hero1Row3}</span>
+            </span>
+          </div>
+        ) : useCinematic ? (
           <>
             <h1 className="hero-climb font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white tracking-headline leading-tight">
               {hero1Line1}

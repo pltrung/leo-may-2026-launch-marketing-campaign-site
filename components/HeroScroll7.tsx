@@ -32,7 +32,7 @@ export default function HeroScroll7({ onJoin }: HeroScroll7Props) {
           {way ? (
             <>{climbYourWay} <span className="neon-your">{your}</span> {way}</>
           ) : (
-            <><span className="neon-green">{climbYourWay}</span>{"\n"}{your}.</>
+            <><span className="neon-green">{climbYourWay}</span>{"\n"}<span className="neon-green">{your}</span></>
           )}
         </motion.h2>
 

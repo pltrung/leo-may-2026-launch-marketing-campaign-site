@@ -38,7 +38,7 @@ export default function HeroScroll4() {
         />
       </div>
       <div className="hero-text philosophy-text hero-line-secondary-wrapper hero-experienced-line md:mt-20">
-        <div className={`hero-line-primary text-white/90 ${!isNever ? "text-lg sm:text-xl md:text-2xl" : ""}`}>
+        <div className="hero-line-primary text-white/90">
           {only} <span className="neon-cyan">{experienced}</span>.
         </div>
       </div>

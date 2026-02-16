@@ -3,10 +3,11 @@
 import { useLocale } from "./LocaleProvider";
 import { getMessages } from "@/lib/messages";
 
-/** Hero page scroll section 5: "Like clouds, no two FORMS are ever the same." */
+/** Hero page scroll section 5: "Like clouds, no two FORMS are ever the same." / VI: emphasis below mascot */
 export default function HeroScroll5() {
   const locale = useLocale();
   const { likeClouds, forms, areEverSame } = getMessages(locale).hero;
+  const emphasisBelowMascot = !forms && areEverSame;
   return (
     <section className="hero-section hero-section-scroll hero-cloud-section relative overflow-hidden px-6">
       <div className="hero-text cloud-eyes-text">
@@ -14,7 +15,7 @@ export default function HeroScroll5() {
           {forms ? (
             <>{likeClouds} <span className="neon-yellow">{forms}</span> {areEverSame}</>
           ) : (
-            <>{likeClouds}{"\n\n"}<span className="neon-yellow">{areEverSame}</span>.</>
+            <>{likeClouds}</>
           )}
         </div>
       </div>
@@ -26,6 +27,13 @@ export default function HeroScroll5() {
         loading="eager"
         fetchPriority="high"
       />
+      {emphasisBelowMascot && (
+        <div className="hero-text philosophy-text hero-line-secondary-wrapper mt-4">
+          <div className="hero-line-primary text-white tracking-headline">
+            <span className="neon-yellow">{areEverSame}</span>.
+          </div>
+        </div>
+      )}
     </section>
   );
 }

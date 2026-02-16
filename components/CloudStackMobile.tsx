@@ -131,7 +131,8 @@ const SPRING_DAMPING = 38;
 const SPRING_MASS = 1;
 const SPRING_SETTLE_VELOCITY = 0.02;
 const SPRING_SETTLE_DISPLACEMENT = 0.01;
-const RANDOMIZE_INITIAL_VELOCITY = 14;
+const RANDOMIZE_INITIAL_VELOCITY = 28;
+const RANDOMIZE_CYCLES = 2;
 
 /** Depth mult for scroll inertia per slot */
 const SLOT_DEPTH_MULT: Record<number, number> = { [-1]: 0.6, 0: 1, 1: 0.6, 2: 0.3 };
@@ -255,6 +256,9 @@ const CloudStackMobileInner = (
   const targetIndexRef = useRef(0);
   const stackVelocityRef = useRef(0);
   const lastSpringTimeRef = useRef(0);
+  const isRandomizingRef = useRef(false);
+  const randomizeTargetPositionRef = useRef(0);
+  const randomizeLandingIndexRef = useRef(0);
 
   const [isStackAnimating, setIsStackAnimating] = useState(false);
 
@@ -279,7 +283,7 @@ const CloudStackMobileInner = (
   useCloudCardScrollMotion(cardStackRef, inertiaEnabled, inertiaOffset, onTick);
 
   useMotionValueEvent(stackPosition, "change", (v) => {
-    setSelectedIndex(Math.round(v));
+    setSelectedIndex(((Math.round(v) % n) + n) % n);
   });
 
   useEffect(() => {
@@ -298,13 +302,29 @@ const CloudStackMobileInner = (
       const dampingForce = -SPRING_DAMPING * vel;
       const acceleration = (springForce + dampingForce) / SPRING_MASS;
       const newVel = vel + acceleration * dt;
-      const newPos = Math.max(0, Math.min(n - 1, pos + newVel * dt));
-      stackVelocityRef.current = newVel;
-      stackPosition.set(newPos);
-      const settled =
-        Math.abs(newVel) < SPRING_SETTLE_VELOCITY &&
-        Math.abs(displacement) < SPRING_SETTLE_DISPLACEMENT;
-      if (settled) setIsStackAnimating(false);
+      let newPos = pos + newVel * dt;
+
+      if (isRandomizingRef.current) {
+        if (newPos >= randomizeTargetPositionRef.current - 0.02) {
+          const landing = randomizeLandingIndexRef.current;
+          stackPosition.set(landing);
+          stackVelocityRef.current = 0;
+          targetIndexRef.current = landing;
+          isRandomizingRef.current = false;
+          setIsStackAnimating(false);
+        } else {
+          stackVelocityRef.current = newVel;
+          stackPosition.set(newPos);
+        }
+      } else {
+        newPos = Math.max(0, Math.min(n - 1, newPos));
+        stackVelocityRef.current = newVel;
+        stackPosition.set(newPos);
+        const settled =
+          Math.abs(newVel) < SPRING_SETTLE_VELOCITY &&
+          Math.abs(displacement) < SPRING_SETTLE_DISPLACEMENT;
+        if (settled) setIsStackAnimating(false);
+      }
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
@@ -343,14 +363,14 @@ const CloudStackMobileInner = (
   const goNext = useCallback(() => {
     if (isStackAnimating) return;
     setIsStackAnimating(true);
-    const next = Math.min(n - 1, Math.floor(stackPosition.get()) + 1);
+    const next = (Math.floor(stackPosition.get()) + 1) % n;
     targetIndexRef.current = next;
   }, [isStackAnimating, stackPosition, n]);
 
   const goPrev = useCallback(() => {
     if (isStackAnimating) return;
     setIsStackAnimating(true);
-    const prev = Math.max(0, Math.ceil(stackPosition.get()) - 1);
+    const prev = (Math.ceil(stackPosition.get()) - 1 + n) % n;
     targetIndexRef.current = prev;
   }, [isStackAnimating, stackPosition, n]);
 
@@ -361,12 +381,19 @@ const CloudStackMobileInner = (
         if (isStackAnimating) return;
         setIsStackAnimating(true);
         const finalIndex = Math.floor(Math.random() * n);
-        targetIndexRef.current = finalIndex;
-        const sign = Math.random() > 0.5 ? 1 : -1;
-        stackVelocityRef.current = sign * RANDOMIZE_INITIAL_VELOCITY;
+        const current = stackPosition.get();
+        const currentSlot = ((Math.floor(current) % n) + n) % n;
+        const stepsToFinal = (finalIndex - currentSlot + n) % n;
+        const spinDistance = RANDOMIZE_CYCLES * n + stepsToFinal;
+        const targetPosition = current + spinDistance;
+        randomizeLandingIndexRef.current = finalIndex;
+        randomizeTargetPositionRef.current = targetPosition;
+        isRandomizingRef.current = true;
+        targetIndexRef.current = targetPosition;
+        stackVelocityRef.current = RANDOMIZE_INITIAL_VELOCITY;
       },
     }),
-    [n, isStackAnimating]
+    [n, isStackAnimating, stackPosition]
   );
 
   const slotPrevStyle = useSlotStyle(-1, stackPosition, inertiaOffset);
@@ -420,8 +447,8 @@ const CloudStackMobileInner = (
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     const dy = e.changedTouches[0].clientY - touchStartY.current;
-    if (dy < -22) goNext();
-    else if (dy > 22) goPrev();
+    if (dy < -48) goNext();
+    else if (dy > 48) goPrev();
     setIsDragging(false);
   };
 
