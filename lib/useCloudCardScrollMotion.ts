@@ -119,7 +119,8 @@ export function useCloudCardScrollMotion(
         (targetProgress - smoothedProgress.current) * SMOOTHING;
       const p = smoothedProgress.current;
       if (p >= 0.998) {
-        clearAllCardTransforms();
+        if (!inertiaMotionValue) clearAllCardTransforms();
+        else inertiaMotionValue.set(0);
       } else {
         apply(p);
       }

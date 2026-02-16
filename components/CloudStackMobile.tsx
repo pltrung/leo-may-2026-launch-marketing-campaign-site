@@ -243,20 +243,30 @@ const CloudStackMobileInner = (
     onDetailsOpenChange?.(detailsCloud !== null);
   }, [detailsCloud, onDetailsOpenChange]);
 
+  const visibilityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    const onVisibilityChange = () => {
-      if (document.hidden) return;
+    const syncFromPosition = () => {
       const p = stackPosition.get();
       const i = inertiaOffset.get();
-      stackPosition.set(p + 0.0001);
-      inertiaOffset.set(i + 0.0001);
+      stackPosition.set(p + 0.001);
+      inertiaOffset.set(i + 0.001);
       requestAnimationFrame(() => {
         stackPosition.set(p);
         inertiaOffset.set(i);
       });
     };
+    const onVisibilityChange = () => {
+      if (document.hidden) return;
+      syncFromPosition();
+      requestAnimationFrame(() => requestAnimationFrame(syncFromPosition));
+      if (visibilityTimeoutRef.current) clearTimeout(visibilityTimeoutRef.current);
+      visibilityTimeoutRef.current = setTimeout(syncFromPosition, 120);
+    };
     document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      if (visibilityTimeoutRef.current) clearTimeout(visibilityTimeoutRef.current);
+    };
   }, [stackPosition, inertiaOffset]);
 
   const goNext = useCallback(() => {
