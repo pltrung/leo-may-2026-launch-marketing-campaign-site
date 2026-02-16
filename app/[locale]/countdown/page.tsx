@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { getUser, clearUser } from "@/lib/userStorage";
 import { getCloudById } from "@/lib/cloudData";
@@ -121,6 +121,8 @@ function useUserProfile(email?: string, phone?: string) {
 export default function CountdownPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
+  const fromMist = searchParams.get("fromMist") === "1";
   const locale = (params?.locale && isValidLocale(params.locale as string)) ? (params.locale as Locale) : "en";
   const t = getMessages(locale).countdown;
   const [user, setUser] = useState<ReturnType<typeof getUser>>(null);
@@ -186,9 +188,32 @@ export default function CountdownPage() {
 
   return (
     <div
-      className="min-h-[100dvh] md:min-h-[100svh] flex flex-col w-full"
+      className="min-h-[100dvh] md:min-h-[100svh] flex flex-col w-full relative"
       style={{ backgroundColor: "#0242FF" }}
     >
+      {fromMist && (
+        <motion.div
+          className="countdown-mist-overlay"
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9998,
+            pointerEvents: "none",
+            background: "radial-gradient(ellipse 90% 90% at 50% 50%, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0.7) 35%, rgba(255,255,255,0.25) 65%, transparent 100%)",
+            filter: "blur(40px)",
+          }}
+          aria-hidden
+        />
+      )}
+      <motion.div
+        className="flex flex-col w-full flex-1 min-h-0"
+        initial={{ opacity: fromMist ? 0 : 1 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: fromMist ? 0.7 : 0, ease: [0.22, 1, 0.36, 1] }}
+      >
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-4 relative overflow-y-auto overflow-x-hidden min-h-0">
       {/* VN/EN fixed bottom-left (mobile + desktop) */}
       <motion.div
@@ -601,6 +626,7 @@ export default function CountdownPage() {
       <AnimatePresence>
         {aboutOpen && <AboutUsModal onClose={() => setAboutOpen(false)} locale={locale} />}
       </AnimatePresence>
+      </motion.div>
     </div>
   );
 }

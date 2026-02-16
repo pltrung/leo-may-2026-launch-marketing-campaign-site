@@ -42,10 +42,18 @@ function HomeContent() {
     setSkyVisible(false);
   }, []);
 
+  /** Single entry point for all navigation to countdown. Mist transition controls timing; navigation happens only after mist covers viewport. */
+  const transitionToCountdown = useCallback(
+    (variant: "return" | "forms") => {
+      setSkyTransitionForCountdown(variant);
+    },
+    []
+  );
+
   const handleCountdownTransitionComplete = useCallback(() => {
     setSkyTransitionForCountdown(false);
     setSelectedCloud(null);
-    router.push(`/${locale}/countdown`);
+    router.push(`/${locale}/countdown?fromMist=1`);
   }, [router, locale]);
 
   const isCountdownTransition = skyTransitionForCountdown !== false;
@@ -67,8 +75,8 @@ function HomeContent() {
     if (!user) return;
     const teamMatch = !teamParam || user.team === teamParam;
     const userMatch = !userParam || user.name.trim().toLowerCase().includes((userParam || "").trim().toLowerCase());
-    if (teamMatch && userMatch) router.replace(`/${locale}/countdown`);
-  }, [router, searchParams, locale]);
+    if (teamMatch && userMatch) transitionToCountdown("return");
+  }, [searchParams, locale, transitionToCountdown]);
 
   useEffect(() => {
     return () => timersRef.current.forEach(clearTimeout);
@@ -106,9 +114,7 @@ function HomeContent() {
       >
         <KnowYourTeamButton
           show
-          onFoundTeam={() => {
-            setSkyTransitionForCountdown("return");
-          }}
+          onFoundTeam={() => transitionToCountdown("return")}
         />
       </motion.div>
       <AnimatePresence mode="wait">
@@ -117,7 +123,7 @@ function HomeContent() {
           initial={{ opacity: 0 }}
           animate={{ opacity: heroContentOpacity }}
           exit={{ opacity: 0 }}
-          transition={{ duration: showClouds ? 0.4 : transitionActive ? 0.8 : 0.3, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: showClouds ? 0.4 : transitionActive ? 0.5 : 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
           {!showClouds ? (
             <>
@@ -155,7 +161,7 @@ function HomeContent() {
           locale={locale}
           onClose={() => setSelectedCloud(null)}
           onSuccess={() => {}}
-          onRedirectToCountdown={() => setSkyTransitionForCountdown("forms")}
+          onRedirectToCountdown={() => transitionToCountdown("forms")}
           referredBy={searchParams.get("ref") ?? undefined}
         />
       )}

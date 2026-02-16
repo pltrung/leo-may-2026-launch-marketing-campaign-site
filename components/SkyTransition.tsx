@@ -20,6 +20,8 @@ export default function SkyTransition({ onComplete, variant = "discovery" }: Sky
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [textVisible, setTextVisible] = useState(false);
 
+  const isCountdownVariant = variant === "return" || variant === "forms";
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) {
@@ -33,24 +35,29 @@ export default function SkyTransition({ onComplete, variant = "discovery" }: Sky
 
     const t0 = setTimeout(() => setTextVisible(true), 700);
 
-    // Phase 4: Mist clearing starts at 2400ms — text fades out with mist
-    const t1 = setTimeout(() => {
-      el.classList.add("mist-clearing");
-      setTextVisible(false);
-    }, 2400);
+    if (isCountdownVariant) {
+      // Countdown path: navigate only after mist fully covers viewport (Phase 4).
+      // Mist expansion ~1000–1400ms; wait 1800ms then navigate. No mist-clearing on home.
+      const tNavigate = setTimeout(() => {
+        setTextVisible(false);
+        onComplete?.();
+      }, 1800);
+      timersRef.current = [t0, tNavigate];
+    } else {
+      // Discovery path: full sequence, then mist clears and onComplete
+      const t1 = setTimeout(() => {
+        el.classList.add("mist-clearing");
+        setTextVisible(false);
+      }, 2400);
+      const t2 = setTimeout(() => onComplete?.(), 4200);
+      const t3 = setTimeout(() => {
+        el.classList.remove("mist-active", "mist-clearing");
+      }, 4500);
+      timersRef.current = [t0, t1, t2, t3];
+    }
 
-    // Phase 5: Next page revealed at 4200ms
-    const t2 = setTimeout(() => {
-      onComplete?.();
-    }, 4200);
-
-    const t3 = setTimeout(() => {
-      el.classList.remove("mist-active", "mist-clearing");
-    }, 4500);
-
-    timersRef.current = [t0, t1, t2, t3];
     return () => timersRef.current.forEach(clearTimeout);
-  }, [onComplete]);
+  }, [onComplete, isCountdownVariant]);
 
   return (
     <div id="mist-transition" ref={containerRef} aria-hidden="true">
