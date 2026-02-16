@@ -64,9 +64,11 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
         </h2>
       </motion.div>
 
-      {/* Mobile: cloud stack + Randomize grouped in one container */}
-      <div className="md:hidden cloud-selection-container cloud-selector-container flex-1 w-full min-h-0 flex flex-col items-center justify-center">
-        <CloudStackMobile ref={stackRef} onSelect={onSelect} onDetailsOpenChange={setDetailsOpen} />
+      {/* Mobile/tablet: cloud stack + Randomize (stack shows until lg; desktop grid only at 1024px+) */}
+      <div className="lg:hidden cloud-selection-container cloud-selector-container flex-1 w-full min-h-0 flex flex-col items-center">
+        <div className="flex-1 w-full min-h-0 flex flex-col items-center justify-center">
+          <CloudStackMobile ref={stackRef} onSelect={onSelect} onDetailsOpenChange={setDetailsOpen} />
+        </div>
         <motion.div
           className="randomize-button-spacer"
           initial={{ opacity: 0, y: 8, scale: 0.98, filter: "blur(4px)" }}
@@ -91,7 +93,7 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
               if (randomizePhase !== "breathing") setRandomizePhase("breathing");
               setIsRandomizeTapping(true);
               stackRef.current?.spinToRandom();
-              if (typeof window !== "undefined" && window.innerWidth > 768) {
+              if (typeof window !== "undefined" && window.innerWidth >= 1024) {
                 const randomCloud = clouds[Math.floor(Math.random() * clouds.length)];
                 onSelect(randomCloud);
               }
@@ -114,8 +116,8 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
         </motion.div>
       </div>
 
-      {/* Desktop: grid + Randomize grouped in one container */}
-      <div className="hidden md:block w-full mt-8 cloud-selector-container">
+      {/* Desktop only (1024px+): grid + Randomize */}
+      <div className="hidden lg:block w-full mt-8 cloud-selector-container">
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 max-w-4xl w-full mx-auto justify-items-center items-stretch overflow-visible">
           {clouds.map((cloud, index) => (
             <motion.div
@@ -157,7 +159,7 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
               if (randomizePhase !== "breathing") setRandomizePhase("breathing");
               setIsRandomizeTapping(true);
               stackRef.current?.spinToRandom();
-              if (typeof window !== "undefined" && window.innerWidth > 768) {
+              if (typeof window !== "undefined" && window.innerWidth >= 1024) {
                 const randomCloud = clouds[Math.floor(Math.random() * clouds.length)];
                 onSelect(randomCloud);
               }

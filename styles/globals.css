@@ -1082,10 +1082,10 @@ body.hero-ready .hero-scroll {
     0 0 60px rgba(2, 66, 255, 0.2);
 }
 
-/* Mobile-only (max-width: 768px): fixed viewport, no scroll, immersive cloud stack */
+/* Mobile/tablet (max-width: 1023px): fixed viewport, no scroll, immersive cloud stack — matches lg:hidden so stack shows below 1024px */
 /* iOS WebKit fix: -webkit-fill-available helps Chrome/Safari on some iOS devices with viewport height */
 /* iOS z-index fix: main must stack above footer so cloud selector isn't overlapped by footer */
-@media (max-width: 768px) {
+@media (max-width: 1023px) {
   html.cloud-selection-view .page-container > main {
     z-index: 20;
   }
@@ -1164,6 +1164,7 @@ body.hero-ready .hero-scroll {
 
   .cloud-selector-container .randomize-button-spacer {
     margin-top: clamp(18px, 3vh, 28px);
+    flex-shrink: 0;
     display: flex;
     justify-content: center;
     width: 100%;
