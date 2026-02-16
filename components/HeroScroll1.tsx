@@ -27,7 +27,7 @@ export default function HeroScroll1() {
       {/* Center headline in viewport (ignore top padding so it sits at true 50%) */}
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 max-w-4xl mx-auto">
         {useBaoLayout ? (
-          <div className="hero-bao-layout grid grid-cols-[1fr_auto] grid-rows-3 items-center justify-items-center gap-x-3 gap-y-0 text-left w-full max-w-3xl mx-auto">
+          <div className="hero-bao-layout grid grid-cols-[auto_auto] grid-rows-3 items-center justify-items-start gap-x-2 gap-y-0 text-left w-full max-w-3xl mx-auto">
             <span className="hero-climb hero-bao-word font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white tracking-headline leading-tight col-start-1 row-span-2 self-center">
               <span className="neon-yellow">{hero1Bao}</span>
             </span>

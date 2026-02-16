@@ -230,6 +230,19 @@ const CHAOS_DISTANCE_MIN = 8;
 const CHAOS_DISTANCE_MAX = 12;
 const RANDOMIZE_EASE = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
+/**
+ * SELECTOR MODEL — single source of truth (no desync possible):
+ *
+ * 1. Position state: ONLY stackPosition (MotionValue) and targetIndexRef (ref).
+ * 2. Writers of stackPosition: physics loop (continuous), randomize completion, visibility resync.
+ * 3. Writers of targetIndexRef: goNext, goPrev, spinToRandom; physics loop only clamps it.
+ * 4. All "which cloud" / "center index" reads: pure function of stackPosition.get() at read time.
+ * 5. No stored index/selection state — any such variable is only a re-render trigger and must never be read for logic.
+ */
+function clampIndex(i: number, n: number): number {
+  return ((Math.round(i) % n) + n) % n;
+}
+
 const CloudStackMobileInner = (
   { onSelect, onDetailsOpenChange }: CloudStackMobileProps,
   ref: React.Ref<CloudStackMobileHandle>
@@ -243,7 +256,8 @@ const CloudStackMobileInner = (
     return () => clearTimeout(t);
   }, []);
 
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  /** Re-render trigger only. Do NOT read for popup or identity — use stackPosition.get() via getCenterIndex() / getCloudAt(). */
+  const [, setPositionRenderTick] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isBlooming, setIsBlooming] = useState(false);
   const [detailsCloud, setDetailsCloud] = useState<CloudPersonality | null>(null);
@@ -263,6 +277,9 @@ const CloudStackMobileInner = (
 
   const [isStackAnimating, setIsStackAnimating] = useState(false);
 
+  /** Sole derivation of "current index" from stackPosition. Use this for any logic that needs center index. */
+  const getCenterIndex = useCallback(() => clampIndex(stackPosition.get(), n), [stackPosition, n]);
+
   const onTick = useCallback(() => {
     const wrapper = cardStackRef.current?.closest(".cloud-stack-wrapper");
     if (!(wrapper instanceof HTMLElement)) return;
@@ -271,7 +288,7 @@ const CloudStackMobileInner = (
     wrapper.style.setProperty("--stack-frac", String(frac));
     const fogStrength = 4 * frac * (1 - frac);
     wrapper.style.setProperty("--medium-opacity", String(fogStrength));
-    const centerIdx = Math.floor(p) % n;
+    const centerIdx = clampIndex(p, n);
     const nextIdx = (centerIdx + 1) % n;
     const blendFrac = frac;
     const a = clouds[centerIdx]?.accentHex ?? "#6b7280";
@@ -283,9 +300,8 @@ const CloudStackMobileInner = (
 
   useCloudCardScrollMotion(cardStackRef, inertiaEnabled, inertiaOffset, onTick);
 
-  useMotionValueEvent(stackPosition, "change", (v) => {
-    setSelectedIndex(((Math.round(v) % n) + n) % n);
-  });
+  /** Re-render when position changes so getCloudAt() / getCenterIndex() are re-evaluated. No stored index. */
+  useMotionValueEvent(stackPosition, "change", () => setPositionRenderTick((t) => t + 1));
 
   useEffect(() => {
     let rafId: number;
@@ -293,7 +309,9 @@ const CloudStackMobileInner = (
       rafId = requestAnimationFrame(tick);
       const pos = stackPosition.get();
       const vel = stackVelocityRef.current;
-      const target = targetIndexRef.current;
+      let target = targetIndexRef.current;
+      target = Math.max(0, Math.min(n - 1, target));
+      targetIndexRef.current = target;
       const dt = lastSpringTimeRef.current
         ? Math.min((now - lastSpringTimeRef.current) / 1000, 0.1)
         : 1 / 60;
@@ -310,7 +328,7 @@ const CloudStackMobileInner = (
           const landing = randomizeLandingIndexRef.current;
           stackPosition.set(landing);
           stackVelocityRef.current = 0;
-          targetIndexRef.current = landing;
+          targetIndexRef.current = Math.max(0, Math.min(n - 1, landing));
           isRandomizingRef.current = false;
           setIsStackAnimating(false);
         } else {
@@ -412,9 +430,10 @@ const CloudStackMobileInner = (
     2: useIdentityStrength(2, stackPosition),
   };
 
+  /** Pure function of stackPosition. Center = getCenterIndex(); cloud at offset = clouds[(center + offset) % n]. */
   const getCloudAt = useCallback(
-    (offset: number) => clouds[((selectedIndex + offset) % n + n) % n],
-    [selectedIndex, n]
+    (offset: number) => clouds[((getCenterIndex() + offset) % n + n) % n],
+    [getCenterIndex, n]
   );
 
   const identityStyleByOffset: Record<number, CardIdentityStyle> = {
@@ -424,14 +443,10 @@ const CloudStackMobileInner = (
     2: useCardIdentityStyle(getCloudAt(2), identityStrengthByOffset[2]),
   };
 
+  /** Popup: read center index from stackPosition at tap time only. One-frame rAF so transform has resolved. */
   const handleActiveTap = useCallback(() => {
-    requestAnimationFrame(() => {
-      const pos = stackPosition.get();
-      const selectedIndexFromPosition = ((Math.round(pos) % n) + n) % n;
-      const cloud = clouds[selectedIndexFromPosition];
-      setDetailsCloud(cloud ?? null);
-    });
-  }, [stackPosition, n]);
+    requestAnimationFrame(() => setDetailsCloud(clouds[getCenterIndex()] ?? null));
+  }, [getCenterIndex]);
 
   const handleJoinTeam = useCallback(() => {
     if (!detailsCloud) return;

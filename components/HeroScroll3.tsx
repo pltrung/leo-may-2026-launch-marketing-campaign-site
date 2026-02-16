@@ -18,14 +18,16 @@ export default function HeroScroll3({ pose }: HeroScroll3Props) {
   const [imgErrored, setImgErrored] = useState(false);
   const imgSrc = IMAGE_MAP[pose];
   const locale = useLocale();
-  const { imaginePlace, movement, feelsLikeBreath } = getMessages(locale).hero;
+  const { imaginePlace, movement, feelsLikeBreath, hero3FeelsEmphasis } = getMessages(locale).hero;
 
   return (
     <section className="hero-section hero-section-scroll relative overflow-hidden px-6">
       {pose === "front" && (
         <div className="hero-text philosophy-text max-w-2xl mx-auto text-center">
           <div className="hero-line-primary text-white/90 whitespace-pre-line">
-            {imaginePlace} <span className="neon-cyan">{movement}</span>{feelsLikeBreath ? ` ${feelsLikeBreath}` : ""}.
+            {imaginePlace} <span className="neon-cyan">{movement}</span>
+            {feelsLikeBreath ? ` ${feelsLikeBreath}` : ""}
+            {hero3FeelsEmphasis ? <><span className="neon-red">{hero3FeelsEmphasis}</span>.</> : "."}
           </div>
         </div>
       )}
