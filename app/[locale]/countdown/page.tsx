@@ -11,6 +11,7 @@ import CloudIconByType from "@/components/CloudIcons";
 import CloudFooter from "@/components/CloudFooter";
 import LanguageSwitch from "@/components/LanguageSwitch";
 import AboutUsModal from "@/components/AboutUsModal";
+import PowerYourCloudShareModal, { buildShareMessage } from "@/components/PowerYourCloudShareModal";
 import { useCountdownHeroEntrance, CONTENT_STAGGER_MS, EASE_APPLE_IN_OUT, EASE_APPLE_SETTLE, EASE_MICRO_SETTLE } from "@/lib/enterCountdownHero";
 import { getMessages } from "@/lib/messages";
 import { isValidLocale } from "@/lib/i18n";
@@ -129,6 +130,7 @@ export default function CountdownPage() {
   const [verified, setVerified] = useState<boolean | null>(null);
   const [shareToast, setShareToast] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [shareModal, setShareModal] = useState<{ referralUrl: string; shareMessage: string } | null>(null);
   const { phase } = useCountdownHeroEntrance({ startDelay: COUNTDOWN_BG_FADE_MS });
   const teamCount = useTeamCount((user?.team ?? "may_nhe") as CloudType);
   const leaderboard = useLeaderboard();
@@ -408,11 +410,11 @@ export default function CountdownPage() {
           type="button"
           onClick={() => {
             const origin = typeof window !== "undefined" ? window.location.origin : "";
-            const link = referralCode ? `${origin}/${locale}?ref=${referralCode}` : `${origin}/${locale}?team=${cloud.id}`;
-            const msg = referralCode
-              ? `Please join my cloud Team ${cloud.name} and be on the countdown with me live for the launch of Leo May Climbing Gym in Ho Chi Minh City, Vietnam — 2026.\n\nJoin here:\n${link}`
-              : link;
-            navigator.clipboard?.writeText(msg).then(() => {
+            const referralUrl = referralCode ? `${origin}/${locale}?ref=${referralCode}` : `${origin}/${locale}?team=${cloud.id}`;
+            const shareMessage = buildShareMessage(locale, cloud, referralUrl);
+            navigator.clipboard?.writeText(shareMessage).then(() => {
+              setShareModal({ referralUrl, shareMessage });
+            }).catch(() => {
               setShareToast(true);
               setTimeout(() => setShareToast(false), 2000);
             });
@@ -625,6 +627,18 @@ export default function CountdownPage() {
 
       <AnimatePresence>
         {aboutOpen && <AboutUsModal onClose={() => setAboutOpen(false)} locale={locale} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {shareModal && cloud && (
+          <PowerYourCloudShareModal
+            locale={locale}
+            cloud={cloud}
+            referralUrl={shareModal.referralUrl}
+            shareMessage={shareModal.shareMessage}
+            onClose={() => setShareModal(null)}
+          />
+        )}
       </AnimatePresence>
       </motion.div>
     </div>

@@ -55,6 +55,13 @@ const en = {
     countdownWinnerText:
       "The team with the most climbers when the countdown ends will receive a special prize.",
     linkCopied: "Link copied. Share it to grow your cloud.",
+    shareModal: {
+      shareHeader: "You found your cloud",
+      copied: "Copied",
+      copiedInstagram: "Copied. Paste into Instagram Story.",
+      shareAsImage: "Share as image",
+      forming: "Your cloud is taking form",
+    },
     skyHeader: "The Sky is Shifting",
     skySub: "Which cloud will rise?",
     yourTeamRank: "Your Team Rank",
@@ -182,6 +189,13 @@ const vi: Messages = {
     countdownWinnerText:
       "Đội có nhiều người leo nhất khi hết countdown sẽ nhận giải thưởng đặc biệt.",
     linkCopied: "Đã copy link. Chia sẻ để mây lớn mạnh.",
+    shareModal: {
+      shareHeader: "Bạn vừa tìm thấy mây của mình",
+      copied: "Đã sao chép",
+      copiedInstagram: "Đã sao chép. Dán vào Instagram Story.",
+      shareAsImage: "Chia sẻ dưới dạng hình ảnh",
+      forming: "Mây của bạn đang hình thành",
+    },
     skyHeader: "Bầu trời đang chuyển",
     skySub: "Mây nào sẽ bay cao?",
     yourTeamRank: "Hạng đội của bạn",
