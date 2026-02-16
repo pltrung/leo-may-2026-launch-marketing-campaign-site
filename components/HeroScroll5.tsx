@@ -28,9 +28,9 @@ export default function HeroScroll5() {
         fetchPriority="high"
       />
       {emphasisBelowMascot && (
-        <div className="hero-text philosophy-text hero-line-secondary-wrapper mt-4">
+        <div className="hero-text philosophy-text hero-line-secondary-wrapper hero-experienced-line mt-[100px] md:mt-20">
           <div className="hero-line-primary text-white tracking-headline">
-            <span className="neon-yellow">{areEverSame}</span>.
+            <span className="neon-green">{areEverSame}</span>.
           </div>
         </div>
       )}

@@ -24,10 +24,10 @@ export default function HeroScroll7({ onJoin }: HeroScroll7Props) {
       <div className="flex-1 flex flex-col items-center justify-end w-full max-w-lg mx-auto min-h-0 pb-[42%] sm:pb-[32%] md:pb-[22%]">
         <motion.h2
           className="font-headline text-center text-white text-3xl sm:text-4xl md:text-5xl tracking-headline whitespace-pre-line"
-          initial={{ opacity: 0, y: 14 }}
+          initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.25, margin: "-60px" }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
         >
           {way ? (
             <>{climbYourWay} <span className="neon-your">{your}</span> {way}</>
@@ -38,10 +38,10 @@ export default function HeroScroll7({ onJoin }: HeroScroll7Props) {
 
         <motion.div
           className="flex justify-center w-full mt-14 md:mt-20"
-          initial={{ opacity: 0, y: 14 }}
+          initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.25, margin: "-60px" }}
-          transition={{ duration: 0.6, delay: 0.08 }}
+          transition={{ duration: 0.8, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
         >
           <button
             type="button"
@@ -64,10 +64,10 @@ export default function HeroScroll7({ onJoin }: HeroScroll7Props) {
       {/* IP on cloud: at bottom of section; on mobile very close to footer for gap from CTA */}
       <motion.div
         className="absolute bottom-2 sm:bottom-6 md:bottom-8 left-0 right-0 flex items-center justify-center pointer-events-none"
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 0, y: 12 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.15, margin: "-60px" }}
-        transition={{ duration: 0.6, delay: 0.15 }}
+        transition={{ duration: 0.8, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
         aria-hidden
       >
         <div className="w-[60%] max-w-[300px] sm:w-[58%] sm:max-w-[320px] aspect-square flex items-center justify-center">

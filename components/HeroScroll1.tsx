@@ -29,15 +29,15 @@ export default function HeroScroll1() {
         {useBaoLayout ? (
           <div className="hero-bao-layout grid grid-cols-[1fr_auto] grid-rows-3 items-center justify-items-center gap-x-6 gap-y-0 text-left w-full max-w-3xl mx-auto">
             <span className="hero-climb hero-bao-word font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white tracking-headline leading-tight col-start-1 row-span-2 self-center">
-              <span className="neon-green">{hero1Bao}</span>
+              <span className="neon-yellow">{hero1Bao}</span>
             </span>
             <span className="hero-climb font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white tracking-headline leading-tight col-start-2 row-start-1">
               {hero1Row1Right}
             </span>
-            <span className="hero-climb font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white tracking-headline leading-tight col-start-2 row-start-2">
+            <span className="hero-climb font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white tracking-headline leading-tight col-start-2 row-start-2 mt-[14px]">
               {hero1Row2Right}
             </span>
-            <span className="hero-build block font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-headline col-span-2 row-start-3 justify-self-center mt-3 sm:mt-4">
+            <span className="hero-build block font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-headline col-span-2 row-start-3 justify-self-center mt-5 sm:mt-6">
               <span className="neon-green">{hero1Row3}</span>
             </span>
           </div>

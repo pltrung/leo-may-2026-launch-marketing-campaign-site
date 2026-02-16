@@ -440,7 +440,7 @@ body.hero-ready .hero-scroll {
   text-align: center;
   z-index: 2;
   opacity: 0;
-  transform: translateY(40px);
+  transform: translateY(12px);
   font-family: inherit;
   color: white;
   max-width: 70vw;
@@ -485,7 +485,7 @@ body.hero-ready .hero-scroll {
 .hero-section-scroll.visible .hero-text {
   opacity: 1;
   transform: translateY(0);
-  transition: all 900ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 800ms cubic-bezier(0.22, 1, 0.36, 1), transform 800ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .hero-section-scroll.visible .hero-ip {
@@ -494,10 +494,15 @@ body.hero-ready .hero-scroll {
   transition: all 1200ms cubic-bezier(0.22, 1, 0.36, 1);
   transition-delay: 200ms;
 }
+.hero-section-scroll .hero-line-secondary-wrapper {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
 .hero-section-scroll.visible .hero-line-secondary-wrapper {
   opacity: 1;
   transform: translateY(0);
-  transition: all 900ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 800ms cubic-bezier(0.22, 1, 0.36, 1), transform 800ms cubic-bezier(0.22, 1, 0.36, 1);
   transition-delay: 500ms;
 }
 .hero-line-secondary-wrapper {
