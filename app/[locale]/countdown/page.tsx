@@ -19,7 +19,8 @@ import type { Locale } from "@/lib/i18n";
 /** Background + holds fade to blue (ms); hero entrance starts after this. */
 const COUNTDOWN_BG_FADE_MS = 1000;
 
-const TARGET = new Date("2026-12-01T00:00:00+07:00");
+/** Countdown target: set to now so countdown shows 0 / has begun. For live event use e.g. new Date("2026-12-01T00:00:00+07:00") */
+const TARGET = new Date();
 const REFERRAL_UNLOCK = 10;
 
 function useCountdown() {
