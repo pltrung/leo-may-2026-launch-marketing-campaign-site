@@ -1156,13 +1156,14 @@ body.hero-ready .hero-scroll {
     animation-play-state: paused;
   }
 
-  .cloud-selector-container {
+  /* Only the mobile block has both classes; desktop has cloud-selector-container only — do NOT set display here or it overrides Tailwind .hidden on desktop */
+  .cloud-selection-container.cloud-selector-container {
     display: flex;
     flex-direction: column;
     align-items: center;
   }
 
-  .cloud-selector-container .randomize-button-spacer {
+  .cloud-selection-container.cloud-selector-container .randomize-button-spacer {
     margin-top: clamp(18px, 3vh, 28px);
     flex-shrink: 0;
     display: flex;
