@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { findUserByEmailOrPhone } from "@/lib/userStorage";
@@ -64,9 +65,13 @@ export default function KnowYourTeamModal({ onClose, onFoundTeam, locale = "en" 
     }
   };
 
-  return (
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const modal = (
     <motion.div
-      className="fixed inset-0 z-[55] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[55] flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+      style={{ minHeight: "100dvh" }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -74,7 +79,7 @@ export default function KnowYourTeamModal({ onClose, onFoundTeam, locale = "en" 
     >
       <div className="absolute inset-0 bg-storm/40 backdrop-blur-sm" aria-hidden />
       <motion.div
-        className="relative w-full max-w-md rounded-2xl shadow-2xl p-8 bg-white/95"
+        className="relative w-full max-w-md min-w-0 rounded-2xl shadow-2xl p-5 sm:p-8 bg-white/98 backdrop-blur-sm my-auto max-h-[min(90dvh,calc(100dvh-2rem))] overflow-y-auto"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.98 }}
@@ -92,13 +97,13 @@ export default function KnowYourTeamModal({ onClose, onFoundTeam, locale = "en" 
           </svg>
         </button>
 
-        <h3 className="font-subheadline text-xl text-storm mb-2">{t.title}</h3>
+        <h3 className="font-subheadline text-xl text-storm mb-2 pr-10">{t.title}</h3>
         <p className="font-caption text-storm/70 text-sm mb-6">
           {t.enterEmailPhone}
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
+        <form onSubmit={handleSubmit} className="space-y-4 min-w-0">
+          <div className="min-w-0">
             <label htmlFor="kyt-email" className="font-caption block text-sm text-storm mb-1">Email</label>
             <input
               id="kyt-email"
@@ -106,18 +111,18 @@ export default function KnowYourTeamModal({ onClose, onFoundTeam, locale = "en" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full px-4 py-3 rounded-xl bg-white border border-mist/60 focus:outline-none focus:ring-2 focus:ring-storm/30 focus:border-storm/50"
+              className="w-full min-w-0 box-border px-4 py-3 rounded-xl bg-white border border-mist/60 focus:outline-none focus:ring-2 focus:ring-storm/30 focus:border-storm/50"
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <label htmlFor="kyt-phone" className="font-caption block text-sm text-storm mb-1">Phone</label>
             <input
               id="kyt-phone"
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+84 xxx xxx xxx"
-              className="w-full px-4 py-3 rounded-xl bg-white border border-mist/60 focus:outline-none focus:ring-2 focus:ring-storm/30 focus:border-storm/50"
+              placeholder="+84"
+              className="w-full min-w-0 box-border px-4 py-3 rounded-xl bg-white border border-mist/60 focus:outline-none focus:ring-2 focus:ring-storm/30 focus:border-storm/50"
             />
           </div>
           <p className="font-caption text-storm text-xs opacity-100">{t.emailOrPhoneRequired}</p>
@@ -132,7 +137,7 @@ export default function KnowYourTeamModal({ onClose, onFoundTeam, locale = "en" 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl bg-storm text-white font-subheadline hover:opacity-90 disabled:opacity-50 transition-opacity"
+            className="w-full py-3 rounded-xl bg-storm text-white font-subheadline hover:opacity-90 disabled:opacity-50 transition-opacity whitespace-nowrap"
           >
             {loading ? t.checking : t.findMyTeam}
           </button>
@@ -140,4 +145,7 @@ export default function KnowYourTeamModal({ onClose, onFoundTeam, locale = "en" 
       </motion.div>
     </motion.div>
   );
+
+  if (!mounted || typeof document === "undefined") return null;
+  return createPortal(modal, document.body);
 }
