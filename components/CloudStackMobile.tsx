@@ -22,6 +22,32 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+const NEUTRAL_HEX = "#6b7280";
+function mixHex(hexA: string, hexB: string, t: number): string {
+  const rA = parseInt(hexA.slice(1, 3), 16);
+  const gA = parseInt(hexA.slice(3, 5), 16);
+  const bA = parseInt(hexA.slice(5, 7), 16);
+  const rB = parseInt(hexB.slice(1, 3), 16);
+  const gB = parseInt(hexB.slice(3, 5), 16);
+  const bB = parseInt(hexB.slice(5, 7), 16);
+  const r = Math.round(rA + (rB - rA) * t);
+  const g = Math.round(gA + (gB - gA) * t);
+  const b = Math.round(bA + (bB - bA) * t);
+  return `rgb(${r},${g},${b})`;
+}
+function mixRgba(rgbaA: string, rgbaB: string, t: number): string {
+  const matchA = rgbaA.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  const matchB = rgbaB.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  const aMatchA = rgbaA.match(/,\s*([\d.]+)\)/);
+  const aMatchB = rgbaB.match(/,\s*([\d.]+)\)/);
+  if (!matchA || !matchB || !aMatchA || !aMatchB) return rgbaB;
+  const r = Math.round(Number(matchA[1]) + (Number(matchB[1]) - Number(matchA[1])) * t);
+  const g = Math.round(Number(matchA[2]) + (Number(matchB[2]) - Number(matchA[2])) * t);
+  const b = Math.round(Number(matchA[3]) + (Number(matchB[3]) - Number(matchA[3])) * t);
+  const a = Number(aMatchA[1]) + (Number(aMatchB[1]) - Number(aMatchA[1])) * t;
+  return `rgba(${r},${g},${b},${a})`;
+}
+
 function CloudDetailsModal({ cloud, onClose, onJoinTeam, locale }: CloudDetailsModalProps) {
   const accent = cloud.accentHex;
   const t = getMessages(locale).common;
@@ -120,6 +146,15 @@ function getStyleFromY(y: number) {
   return { scale, opacity, filter, zIndex, boxShadow };
 }
 
+/** Continuous identity strength from distance to center (frac). 1 at center, 0 when far. */
+function useIdentityStrength(slotK: number, stackPosition: MotionValue<number>) {
+  return useTransform(stackPosition, (pos: number) => {
+    const frac = pos - Math.floor(pos);
+    const distance = Math.abs(slotK - frac);
+    return Math.max(0, 1 - distance);
+  });
+}
+
 /** cardOffsetY = (slotK - frac(stackPosition)) * spacing + inertia; motion only on cards, anchor fixed */
 function useSlotStyle(
   slotK: number,
@@ -197,6 +232,22 @@ const CloudStackMobileInner = (
     onDetailsOpenChange?.(detailsCloud !== null);
   }, [detailsCloud, onDetailsOpenChange]);
 
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.hidden) return;
+      const p = stackPosition.get();
+      const i = inertiaOffset.get();
+      stackPosition.set(p + 0.0001);
+      inertiaOffset.set(i + 0.0001);
+      requestAnimationFrame(() => {
+        stackPosition.set(p);
+        inertiaOffset.set(i);
+      });
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [stackPosition, inertiaOffset]);
+
   const goNext = useCallback(() => {
     if (isStackAnimating) return;
     setIsStackAnimating(true);
@@ -259,10 +310,24 @@ const CloudStackMobileInner = (
     2: slotFarStyle,
   };
 
+  const identityStrengthByOffset: Record<number, MotionValue<number>> = {
+    [-1]: useIdentityStrength(-1, stackPosition),
+    0: useIdentityStrength(0, stackPosition),
+    1: useIdentityStrength(1, stackPosition),
+    2: useIdentityStrength(2, stackPosition),
+  };
+
   const getCloudAt = useCallback(
     (offset: number) => clouds[((selectedIndex + offset) % n + n) % n],
     [selectedIndex, n]
   );
+
+  const identityStyleByOffset = {
+    [-1]: useCardIdentityStyle(getCloudAt(-1), identityStrengthByOffset[-1]),
+    0: useCardIdentityStyle(getCloudAt(0), identityStrengthByOffset[0]),
+    1: useCardIdentityStyle(getCloudAt(1), identityStrengthByOffset[1]),
+    2: useCardIdentityStyle(getCloudAt(2), identityStrengthByOffset[2]),
+  };
 
   const handleActiveTap = useCallback(() => {
     const cloud = getCloudAt(0);
@@ -362,6 +427,7 @@ const CloudStackMobileInner = (
                 filter: slotStyle.filter,
                 zIndex: slotStyle.zIndex,
                 boxShadow: slotStyle.boxShadow,
+                ["--card-glow" as string]: identityStyleByOffset[offset].cardGlow,
               }}
               onClick={handleCardClick}
               onKeyDown={(e) => {
@@ -382,7 +448,7 @@ const CloudStackMobileInner = (
                   ease: EASE_PREMIUM,
                 }}
               >
-                <CloudCardInner cloud={cloud} isActive={isActive} />
+                <CloudCardInner cloud={cloud} isActive={isActive} identityStyle={identityStyleByOffset[offset]} />
               </motion.div>
             </motion.div>
           );
@@ -394,24 +460,49 @@ const CloudStackMobileInner = (
 
 export default forwardRef(CloudStackMobileInner);
 
-function CloudCardInner({ cloud, isActive }: { cloud: CloudPersonality; isActive: boolean }) {
+const NEUTRAL_BORDER = "rgba(107,114,128,0.35)";
+const NEUTRAL_GLOW = "rgba(100,100,100,0.08)";
+
+/** Interpolate identity styles from strength (0 = neutral, 1 = full accent). Used for glow on outer card and color/border on inner. */
+function useCardIdentityStyle(cloud: CloudPersonality, identityStrength: MotionValue<number>) {
   const accent = cloud.accentHex;
-  const glowColor = hexToRgba(accent, 0.25);
-  const cardStyle = {
-    borderColor: hexToRgba(accent, 0.35),
-    ...(isActive && { ["--card-glow" as string]: glowColor }),
-  };
+  const accentBorder = hexToRgba(accent, 0.35);
+  const accentGlow = hexToRgba(accent, 0.25);
+  const borderColor = useTransform(identityStrength, (s: number) =>
+    mixRgba(NEUTRAL_BORDER, accentBorder, s)
+  );
+  const cardGlow = useTransform(identityStrength, (s: number) =>
+    mixRgba(NEUTRAL_GLOW, accentGlow, s)
+  );
+  const accentColor = useTransform(identityStrength, (s: number) =>
+    mixHex(NEUTRAL_HEX, accent, s)
+  );
+  return { borderColor, cardGlow, accentColor };
+}
+
+function CloudCardInner({
+  cloud,
+  isActive,
+  identityStyle,
+}: {
+  cloud: CloudPersonality;
+  isActive: boolean;
+  identityStyle: { borderColor: MotionValue<string>; cardGlow: MotionValue<string>; accentColor: MotionValue<string> };
+}) {
   return (
-    <div
+    <motion.div
       className={`cloud-card-inner cloud-card-base w-full h-full rounded-[24px] flex flex-col justify-center items-center p-6 overflow-hidden ${isActive ? "cloud-card-selected" : ""}`}
-      style={cardStyle}
+      style={{
+        borderColor: identityStyle.borderColor,
+        ["--card-accent" as string]: identityStyle.accentColor,
+      }}
     >
       <div className="flex flex-col items-center justify-center flex-1 min-h-0">
-        <div className="mb-3" style={{ color: accent }}>
+        <div className="mb-3" style={{ color: "var(--card-accent)" }}>
           <CloudIconByType cloudId={cloud.id} className="w-14 h-14" />
         </div>
         <div className="flex flex-col items-center gap-1">
-          <span className="font-subheadline text-xl text-center leading-tight" style={{ color: accent }}>
+          <span className="font-subheadline text-xl text-center leading-tight" style={{ color: "var(--card-accent)" }}>
             {cloud.name}
           </span>
           <span
@@ -422,6 +513,6 @@ function CloudCardInner({ cloud, isActive }: { cloud: CloudPersonality; isActive
           </span>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

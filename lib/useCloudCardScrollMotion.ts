@@ -132,13 +132,20 @@ export function useCloudCardScrollMotion(
       else schedule();
     };
 
+    const onVisibilityChange = () => {
+      if (document.hidden) return;
+      schedule();
+    };
+
     schedule();
     window.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", onResize);
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
       window.removeEventListener("scroll", schedule);
       window.removeEventListener("resize", onResize);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       if (rafId.current != null) cancelAnimationFrame(rafId.current);
       clearAllCardTransforms();
     };
