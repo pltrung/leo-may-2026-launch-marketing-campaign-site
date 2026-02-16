@@ -1174,6 +1174,12 @@ body.hero-ready .hero-scroll {
     touch-action: pan-y;
   }
 
+  /* Stack-driven: all card motion from single shared position; no per-card CSS transition/float */
+  .card-stack.stack-driven .cloud-card {
+    transition: none;
+    animation: none;
+  }
+
   /* Base card: white, calm, premium */
   .cloud-card-base {
     background: rgba(255, 255, 255, 0.92);

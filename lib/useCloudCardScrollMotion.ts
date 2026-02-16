@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import type { MotionValue } from "framer-motion";
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -35,12 +36,12 @@ function clamp01(x: number): number {
 
 /**
  * Mobile-only: scroll-coupled inertia as a small additive offset to fixed stack positions.
- * Cards stay anchored to base positions; inertia is finalY = baseY + (offset * depthMult).
- * Pass inertiaEnabled: false until entry animation + settle phase complete so cards feel grounded first.
+ * When inertiaMotionValue is provided, only that value is updated (stack is driven by shared position in parent).
  */
 export function useCloudCardScrollMotion(
   cardStackRef: React.RefObject<HTMLElement | null>,
-  inertiaEnabled: boolean = true
+  inertiaEnabled: boolean = true,
+  inertiaMotionValue?: MotionValue<number> | null
 ) {
   const smoothedProgress = useRef(1);
   const rafId = useRef<number | null>(null);
@@ -72,14 +73,18 @@ export function useCloudCardScrollMotion(
       const wrapper = container.closest(".cloud-stack-wrapper");
       const hasSelection = wrapper?.classList.contains("has-selection") ?? false;
       const dragging = container.classList.contains("dragging");
-      const transitioning =
-        container.classList.contains("transitioning-up") || container.classList.contains("transitioning-down");
-      if (hasSelection || dragging || transitioning) {
-        clearAllCardTransforms();
+      const stackAnimating = container.classList.contains("stack-animating");
+      const inertiaOffsetY = (1 - progress) * MAX_OFFSET_PX;
+
+      if (inertiaMotionValue) {
+        inertiaMotionValue.set(stackAnimating || dragging ? 0 : inertiaOffsetY);
         return;
       }
 
-      const inertiaOffsetY = (1 - progress) * MAX_OFFSET_PX;
+      if (hasSelection || dragging || stackAnimating) {
+        clearAllCardTransforms();
+        return;
+      }
 
       container.querySelectorAll<HTMLElement>(".cloud-card").forEach((el) => {
         const pos = el.classList.contains("active")
@@ -137,5 +142,5 @@ export function useCloudCardScrollMotion(
       if (rafId.current != null) cancelAnimationFrame(rafId.current);
       clearAllCardTransforms();
     };
-  }, [cardStackRef, inertiaEnabled]);
+  }, [cardStackRef, inertiaEnabled, inertiaMotionValue]);
 }
