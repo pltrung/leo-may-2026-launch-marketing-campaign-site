@@ -153,7 +153,7 @@ const vi: Messages = {
     isNever: "",
     questioned: "",
     only: "Chỉ được ",
-    experienced: "CẢM XÚC",
+    experienced: "CẢM NHẬN",
     likeClouds: "Giống như mây,\n\nkhông có hai hình dạng nào",
     forms: "",
     areEverSame: "GIỐNG NHAU",
