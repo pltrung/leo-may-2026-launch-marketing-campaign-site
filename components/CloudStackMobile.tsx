@@ -259,6 +259,7 @@ const CloudStackMobileInner = (
   const isRandomizingRef = useRef(false);
   const randomizeTargetPositionRef = useRef(0);
   const randomizeLandingIndexRef = useRef(0);
+  const tapHandledInTouchEndRef = useRef(false);
 
   const [isStackAnimating, setIsStackAnimating] = useState(false);
 
@@ -449,6 +450,12 @@ const CloudStackMobileInner = (
     const dy = e.changedTouches[0].clientY - touchStartY.current;
     if (dy < -48) goNext();
     else if (dy > 48) goPrev();
+    else {
+      // Treat as tap: open details for current center cloud so we don't rely on
+      // the delayed synthesized click (which can be suppressed or hit wrong card).
+      tapHandledInTouchEndRef.current = true;
+      handleActiveTap();
+    }
     setIsDragging(false);
   };
 
@@ -510,6 +517,13 @@ const CloudStackMobileInner = (
 
           const isActive = positionClass === "active";
           const handleCardClick = isActive ? handleActiveTap : (positionClass === "next" || positionClass === "far") ? goNext : goPrev;
+          const onCardClick = () => {
+            if (tapHandledInTouchEndRef.current) {
+              tapHandledInTouchEndRef.current = false;
+              return;
+            }
+            handleCardClick();
+          };
           const entry = getEntryConfig(offset);
           const slotStyle = slotStylesByOffset[offset];
           return (
@@ -528,10 +542,10 @@ const CloudStackMobileInner = (
                 boxShadow: slotStyle.boxShadow,
                 ["--card-glow" as string]: identityStyleByOffset[offset].cardGlow,
               }}
-              onClick={handleCardClick}
+              onClick={onCardClick}
               onKeyDown={(e) => {
                 if (e.key !== "Enter") return;
-                handleCardClick();
+                onCardClick();
               }}
               role="button"
               tabIndex={0}
