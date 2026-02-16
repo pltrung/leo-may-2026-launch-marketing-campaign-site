@@ -1,13 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { clouds, CloudPersonality } from "@/lib/cloudData";
 import CloudCard from "./CloudCard";
-import CloudStackMobile from "./CloudStackMobile";
+import CloudStackMobile, { type CloudStackMobileHandle } from "./CloudStackMobile";
 import Logo from "./Logo";
 import { useLocale } from "./LocaleProvider";
 import { getMessages } from "@/lib/messages";
+
+const RANDOMIZE_BUTTON_DELAY_MS = 1240 + 250;
+const RANDOMIZE_FADE_DURATION_MS = 900;
+const BUTTON_EASE = [0.22, 1, 0.36, 1] as const;
 
 interface CloudSelectorProps {
   onSelect: (cloud: CloudPersonality) => void;
@@ -16,8 +20,11 @@ interface CloudSelectorProps {
 export default function CloudSelector({ onSelect }: CloudSelectorProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [randomizePhase, setRandomizePhase] = useState<"hidden" | "breathing">("hidden");
+  const [isRandomizeTapping, setIsRandomizeTapping] = useState(false);
+  const stackRef = useRef<CloudStackMobileHandle>(null);
   const locale = useLocale();
-  const { whatTypeOfCloud } = getMessages(locale).cloudSelector;
+  const { whatTypeOfCloud, randomizeButton } = getMessages(locale).cloudSelector;
 
   useEffect(() => {
     const check = () => setIsMobile(typeof window !== "undefined" && window.innerWidth <= 768);
@@ -57,9 +64,56 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
         </h2>
       </motion.div>
 
+      {/* Randomize: fades in after stack settles; breathing + glow when idle */}
+      <motion.div
+        className="flex justify-center mb-4 md:mb-6"
+        initial={{ opacity: 0, y: 8, scale: 0.98, filter: "blur(4px)" }}
+        animate={
+          randomizePhase === "hidden"
+            ? { opacity: 0, y: 8, scale: 0.98, filter: "blur(4px)" }
+            : { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }
+        }
+        transition={{
+          delay: randomizePhase === "hidden" ? RANDOMIZE_BUTTON_DELAY_MS / 1000 : 0,
+          duration: randomizePhase === "hidden" ? RANDOMIZE_FADE_DURATION_MS / 1000 : 0.5,
+          ease: BUTTON_EASE,
+        }}
+        onAnimationComplete={() => {
+          if (randomizePhase === "hidden" && !isRandomizeTapping) setRandomizePhase("breathing");
+        }}
+      >
+        <motion.button
+          type="button"
+          className={`randomize-btn rounded-full border border-white/50 bg-white/10 px-5 py-2.5 text-sm font-medium text-white/95 backdrop-blur-sm select-none ${randomizePhase === "breathing" ? "randomize-btn-breathing" : ""} ${isRandomizeTapping ? "randomize-btn-tapping" : ""}`}
+          onClick={() => {
+            if (randomizePhase !== "breathing") setRandomizePhase("breathing");
+            setIsRandomizeTapping(true);
+            stackRef.current?.spinToRandom();
+            if (typeof window !== "undefined" && window.innerWidth > 768) {
+              const randomCloud = clouds[Math.floor(Math.random() * clouds.length)];
+              onSelect(randomCloud);
+            }
+            window.setTimeout(() => setIsRandomizeTapping(false), 200);
+          }}
+          initial={false}
+          animate={
+            randomizePhase === "breathing" && !isRandomizeTapping
+              ? { y: [0, -2, 0], scale: [1, 1.01, 1] }
+              : { y: 0, scale: isRandomizeTapping ? 0.97 : 1 }
+          }
+          transition={{
+            duration: randomizePhase === "breathing" && !isRandomizeTapping ? 5 : 0.2,
+            repeat: randomizePhase === "breathing" && !isRandomizeTapping ? Infinity : 0,
+            ease: randomizePhase === "breathing" && !isRandomizeTapping ? "easeInOut" : BUTTON_EASE,
+          }}
+        >
+          {randomizeButton}
+        </motion.button>
+      </motion.div>
+
       {/* Mobile: fixed immersive cloud stack — cards fade in sequentially from 900ms */}
       <div className="md:hidden cloud-selection-container flex-1 w-full min-h-0 flex flex-col items-center justify-center">
-        <CloudStackMobile onSelect={onSelect} onDetailsOpenChange={setDetailsOpen} />
+        <CloudStackMobile ref={stackRef} onSelect={onSelect} onDetailsOpenChange={setDetailsOpen} />
       </div>
 
       {/* Desktop: grid — cards stagger in 900–1800ms */}

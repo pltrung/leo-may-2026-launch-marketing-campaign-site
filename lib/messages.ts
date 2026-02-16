@@ -35,6 +35,7 @@ const en = {
   cloudSelector: {
     whatTypeOfCloud: "What type of cloud are you?",
     swipeUp: "Swipe up",
+    randomizeButton: "Randomize ✨",
   },
   countdown: {
     hi: "Hi",
@@ -156,6 +157,7 @@ const vi: Messages = {
   cloudSelector: {
     whatTypeOfCloud: "Bạn là kiểu mây nào?",
     swipeUp: "Vuốt lên",
+    randomizeButton: "Ngẫu nhiên ✨",
   },
   countdown: {
     hi: "Chào",

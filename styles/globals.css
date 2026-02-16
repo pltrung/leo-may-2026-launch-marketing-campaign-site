@@ -1140,6 +1140,22 @@ body.hero-ready .hero-scroll {
     justify-content: center;
   }
 
+  /* Randomize button: ultra-soft glow pulse (breathing motion is via Framer) */
+  .randomize-btn {
+    cursor: pointer;
+    transition: box-shadow 0.3s ease;
+  }
+  @keyframes randomizeGlow {
+    0%, 100% { box-shadow: 0 0 0 rgba(255, 255, 255, 0); }
+    50% { box-shadow: 0 0 18px rgba(255, 255, 255, 0.18); }
+  }
+  .randomize-btn-breathing {
+    animation: randomizeGlow 6s ease-in-out infinite;
+  }
+  .randomize-btn-tapping {
+    animation-play-state: paused;
+  }
+
   .cloud-stack-wrapper {
     flex: 1 1 0;
     min-height: 0;

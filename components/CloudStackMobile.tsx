@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useImperativeHandle, forwardRef } from "react";
 import { motion } from "framer-motion";
 import { clouds, CloudPersonality } from "@/lib/cloudData";
 import CloudIconByType from "./CloudIcons";
@@ -84,6 +84,10 @@ function CloudDetailsModal({ cloud, onClose, onJoinTeam, locale }: CloudDetailsM
   );
 }
 
+export interface CloudStackMobileHandle {
+  spinToRandom: () => void;
+}
+
 interface CloudStackMobileProps {
   onSelect: (cloud: CloudPersonality) => void;
   onDetailsOpenChange?: (open: boolean) => void;
@@ -106,7 +110,13 @@ function getEntryConfig(offset: number) {
   return { delay: 0.24, duration: 1, from: { opacity: 0, y: 12, scale: 0.96 }, to: { opacity: 1, y: 0, scale: 1 } };
 }
 
-export default function CloudStackMobile({ onSelect, onDetailsOpenChange }: CloudStackMobileProps) {
+const SPIN_STEPS_MIN = 5;
+const SPIN_STEPS_MAX = 9;
+
+const CloudStackMobileInner = (
+  { onSelect, onDetailsOpenChange }: CloudStackMobileProps,
+  ref: React.Ref<CloudStackMobileHandle>
+) => {
   const locale = useLocale();
   const cardStackRef = useRef<HTMLDivElement>(null);
   const [inertiaEnabled, setInertiaEnabled] = useState(false);
@@ -161,6 +171,27 @@ export default function CloudStackMobile({ onSelect, onDetailsOpenChange }: Clou
   const goPrev = useCallback(() => {
     runTransitionThen("down", () => setActiveIndex((i) => (i - 1 + clouds.length) % clouds.length));
   }, [runTransitionThen]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      spinToRandom: () => {
+        if (transitionDirection !== null) return;
+        const steps = SPIN_STEPS_MIN + Math.floor(Math.random() * (SPIN_STEPS_MAX - SPIN_STEPS_MIN + 1));
+        let left = steps;
+        const scheduleNext = () => {
+          if (left <= 0) return;
+          runTransitionThen("up", () => {
+            setActiveIndex((i) => (i + 1) % clouds.length);
+            left--;
+            if (left > 0) scheduleNext();
+          });
+        };
+        scheduleNext();
+      },
+    }),
+    [runTransitionThen, transitionDirection]
+  );
 
   const getCloudAt = useCallback(
     (offset: number) => clouds[(activeIndex + offset + clouds.length) % clouds.length],
@@ -282,7 +313,9 @@ export default function CloudStackMobile({ onSelect, onDetailsOpenChange }: Clou
       </div>
     </div>
   );
-}
+};
+
+export default forwardRef(CloudStackMobileInner);
 
 function CloudCardInner({ cloud, isActive }: { cloud: CloudPersonality; isActive: boolean }) {
   const accent = cloud.accentHex;
