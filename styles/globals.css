@@ -1156,6 +1156,19 @@ body.hero-ready .hero-scroll {
     animation-play-state: paused;
   }
 
+  .cloud-selector-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .cloud-selector-container .randomize-button-spacer {
+    margin-top: clamp(18px, 3vh, 28px);
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+
   .cloud-stack-wrapper {
     flex: 1 1 0;
     min-height: 0;
@@ -1165,6 +1178,10 @@ body.hero-ready .hero-scroll {
     --stack-frac: 0;
     --medium-opacity: 0;
     --neutral-oklch: oklch(0.55 0.02 260);
+    --fog-accent-a: #6b7280;
+    --fog-accent-b: #6b7280;
+    --fog-blend-frac: 0;
+    --fog-tint: color-mix(in oklch, var(--fog-accent-a), var(--fog-accent-b) calc(var(--fog-blend-frac) * 1%));
   }
 
   .card-stack {
@@ -1235,7 +1252,7 @@ body.hero-ready .hero-scroll {
     color: color-mix(in oklch, var(--neutral-oklch), var(--card-accent) calc(var(--identity-strength, 0) * 1%));
   }
 
-  /* Cloud medium overlay: soft blurred gradient, peaks at transition midpoint (frac 0.5) */
+  /* Cloud medium overlay: soft blurred gradient, peaks at transition midpoint; fog tint from OKLCH blend */
   .cloud-stack-medium {
     position: absolute;
     inset: 0;
@@ -1245,8 +1262,8 @@ body.hero-ready .hero-scroll {
     background:
       radial-gradient(
         ellipse 120% 80% at 50% 45%,
-        oklch(0.98 0.008 260 / 0.35),
-        oklch(0.92 0.012 260 / 0.12),
+        color-mix(in oklch, oklch(0.98 0.008 260 / 0.35), var(--fog-tint) 25%),
+        color-mix(in oklch, oklch(0.92 0.012 260 / 0.12), var(--fog-tint) 15%),
         transparent 65%
       );
     filter: blur(20px);

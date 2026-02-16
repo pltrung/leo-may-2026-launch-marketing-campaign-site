@@ -124,49 +124,80 @@ const ENTRY_SETTLE_MS = 200;
 const INERTIA_ENABLE_DELAY_MS = ENTRY_FADE_MS + ENTRY_SETTLE_MS;
 const EASE_PREMIUM = [0.22, 1, 0.36, 1] as [number, number, number, number];
 const CARD_SPACING = 60;
-const STACK_DURATION = 0.6;
-const STACK_EASE = [0.22, 1, 0.36, 1] as [number, number, number, number];
+
+/** Apple-style critically damped spring (no easing) */
+const SPRING_STIFFNESS = 520;
+const SPRING_DAMPING = 38;
+const SPRING_MASS = 1;
+const SPRING_SETTLE_VELOCITY = 0.02;
+const SPRING_SETTLE_DISPLACEMENT = 0.01;
+const RANDOMIZE_INITIAL_VELOCITY = 14;
 
 /** Depth mult for scroll inertia per slot */
 const SLOT_DEPTH_MULT: Record<number, number> = { [-1]: 0.6, 0: 1, 1: 0.6, 2: 0.3 };
 
-/** Derive scale, opacity, filter, zIndex, boxShadow from card Y (center = 0) */
-function getStyleFromY(y: number) {
-  const absY = Math.abs(y);
-  const scale = absY <= 1 ? 1 : absY <= 60 ? 0.96 : 0.9;
-  const opacity = absY <= 1 ? 1 : absY <= 60 ? 0.6 : 0.4;
-  const filter = absY <= 1 ? "blur(0px)" : absY <= 60 ? "blur(4px)" : "blur(10px)";
-  const zIndex = absY <= 30 ? 10 : absY <= 90 ? 5 : 1;
+/** Visual window: only centerIndex-1, centerIndex, centerIndex+1 participate. Slot 2 is always outside. */
+const SLOT_OUTSIDE_WINDOW = 2;
+const BLUR_PER_OFFSET = 5;
+
+/** Rigid card transform from offset (cardIndex - stackPosition). inWindow = false => hidden (opacity 0, max blur). */
+function getStyleFromOffset(offset: number, inWindow: boolean) {
+  const absOffset = Math.abs(offset);
+  if (!inWindow) {
+    return {
+      y: offset * CARD_SPACING,
+      scale: 0.9,
+      opacity: 0,
+      filter: `blur(${BLUR_PER_OFFSET * 2}px)`,
+      zIndex: 0,
+      boxShadow: "0 6px 16px rgba(0,0,0,0.08)",
+    };
+  }
+  const scale = 1 - Math.min(absOffset * 0.05, 0.1);
+  const opacity = absOffset <= 0.02 ? 1 : absOffset <= 1 ? 0.6 + 0.4 * (1 - absOffset) : 0.4;
+  const blurPx = Math.min(absOffset * BLUR_PER_OFFSET, 10);
+  const filter = blurPx < 0.5 ? "blur(0px)" : `blur(${blurPx}px)`;
+  const zIndex = absOffset <= 0.5 ? 10 : absOffset <= 1.2 ? 5 : 1;
   const boxShadow =
-    absY <= 1
+    absOffset <= 0.02
       ? "0 32px 64px rgba(0,0,0,0.22), 0 0 48px var(--card-glow, rgba(100,100,100,0.2))"
-      : absY <= 60
+      : absOffset <= 1
         ? "0 14px 32px rgba(0,0,0,0.14)"
         : "0 6px 16px rgba(0,0,0,0.08)";
-  return { scale, opacity, filter, zIndex, boxShadow };
+  return {
+    y: offset * CARD_SPACING,
+    scale,
+    opacity,
+    filter,
+    zIndex,
+    boxShadow,
+  };
 }
 
-/** Continuous identity strength from distance to center (frac). 1 at center, 0 when far. */
+/** Continuous identity strength from distance to center. If distance > 1.05, force 0 (no snap). */
 function useIdentityStrength(slotK: number, stackPosition: MotionValue<number>) {
   return useTransform(stackPosition, (pos: number) => {
     const frac = pos - Math.floor(pos);
     const distance = Math.abs(slotK - frac);
+    if (distance > 1.05) return 0;
     return Math.max(0, 1 - distance);
   });
 }
 
-/** cardOffsetY = (slotK - frac(stackPosition)) * spacing + inertia; motion only on cards, anchor fixed */
+/** Rigid card transform from stackPosition: offset = slotK - frac, translateY = offset * spacing, scale/blur from offset. Visual window: slot 2 outside => hidden. */
 function useSlotStyle(
   slotK: number,
   stackPosition: MotionValue<number>,
   inertiaOffset: MotionValue<number>
 ) {
+  const inWindow = slotK !== SLOT_OUTSIDE_WINDOW;
   const full = useTransform(
     [stackPosition, inertiaOffset],
     ([pos, i]: number[]) => {
       const frac = pos - Math.floor(pos);
-      const y = (slotK - frac) * CARD_SPACING + i * (SLOT_DEPTH_MULT[slotK] ?? 0.3);
-      return { y, ...getStyleFromY(y) };
+      const offset = slotK - frac;
+      const y = offset * CARD_SPACING + i * (SLOT_DEPTH_MULT[slotK] ?? 0.3);
+      return { ...getStyleFromOffset(offset, inWindow), y };
     }
   );
   const transform = useTransform(
@@ -212,7 +243,6 @@ const CloudStackMobileInner = (
   }, []);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [isStackAnimating, setIsStackAnimating] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isBlooming, setIsBlooming] = useState(false);
   const [detailsCloud, setDetailsCloud] = useState<CloudPersonality | null>(null);
@@ -222,6 +252,11 @@ const CloudStackMobileInner = (
 
   const stackPosition = useMotionValue(0);
   const inertiaOffset = useMotionValue(0);
+  const targetIndexRef = useRef(0);
+  const stackVelocityRef = useRef(0);
+  const lastSpringTimeRef = useRef(0);
+
+  const [isStackAnimating, setIsStackAnimating] = useState(false);
 
   const onTick = useCallback(() => {
     const wrapper = cardStackRef.current?.closest(".cloud-stack-wrapper");
@@ -229,15 +264,51 @@ const CloudStackMobileInner = (
     const p = stackPosition.get();
     const frac = p - Math.floor(p);
     wrapper.style.setProperty("--stack-frac", String(frac));
-    const mediumOpacity = 4 * frac * (1 - frac);
-    wrapper.style.setProperty("--medium-opacity", String(mediumOpacity));
-  }, [stackPosition]);
+    const fogStrength = 4 * frac * (1 - frac);
+    wrapper.style.setProperty("--medium-opacity", String(fogStrength));
+    const centerIdx = Math.floor(p) % n;
+    const nextIdx = (centerIdx + 1) % n;
+    const blendFrac = frac;
+    const a = clouds[centerIdx]?.accentHex ?? "#6b7280";
+    const b = clouds[nextIdx]?.accentHex ?? "#6b7280";
+    wrapper.style.setProperty("--fog-blend-frac", String(blendFrac));
+    wrapper.style.setProperty("--fog-accent-a", a);
+    wrapper.style.setProperty("--fog-accent-b", b);
+  }, [stackPosition, n]);
 
   useCloudCardScrollMotion(cardStackRef, inertiaEnabled, inertiaOffset, onTick);
 
   useMotionValueEvent(stackPosition, "change", (v) => {
     setSelectedIndex(Math.round(v));
   });
+
+  useEffect(() => {
+    let rafId: number;
+    const tick = (now: number) => {
+      rafId = requestAnimationFrame(tick);
+      const pos = stackPosition.get();
+      const vel = stackVelocityRef.current;
+      const target = targetIndexRef.current;
+      const dt = lastSpringTimeRef.current
+        ? Math.min((now - lastSpringTimeRef.current) / 1000, 0.1)
+        : 1 / 60;
+      lastSpringTimeRef.current = now;
+      const displacement = target - pos;
+      const springForce = SPRING_STIFFNESS * displacement;
+      const dampingForce = -SPRING_DAMPING * vel;
+      const acceleration = (springForce + dampingForce) / SPRING_MASS;
+      const newVel = vel + acceleration * dt;
+      const newPos = Math.max(0, Math.min(n - 1, pos + newVel * dt));
+      stackVelocityRef.current = newVel;
+      stackPosition.set(newPos);
+      const settled =
+        Math.abs(newVel) < SPRING_SETTLE_VELOCITY &&
+        Math.abs(displacement) < SPRING_SETTLE_DISPLACEMENT;
+      if (settled) setIsStackAnimating(false);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [stackPosition, n]);
 
   useEffect(() => {
     onDetailsOpenChange?.(detailsCloud !== null);
@@ -272,26 +343,16 @@ const CloudStackMobileInner = (
   const goNext = useCallback(() => {
     if (isStackAnimating) return;
     setIsStackAnimating(true);
-    const current = stackPosition.get();
-    const target = Math.floor(current) + 1;
-    animate(stackPosition, target, {
-      duration: STACK_DURATION,
-      ease: STACK_EASE,
-      onComplete: () => setIsStackAnimating(false),
-    });
-  }, [isStackAnimating, stackPosition]);
+    const next = Math.min(n - 1, Math.floor(stackPosition.get()) + 1);
+    targetIndexRef.current = next;
+  }, [isStackAnimating, stackPosition, n]);
 
   const goPrev = useCallback(() => {
     if (isStackAnimating) return;
     setIsStackAnimating(true);
-    const current = stackPosition.get();
-    const target = Math.ceil(current) - 1;
-    animate(stackPosition, target, {
-      duration: STACK_DURATION,
-      ease: STACK_EASE,
-      onComplete: () => setIsStackAnimating(false),
-    });
-  }, [isStackAnimating, stackPosition]);
+    const prev = Math.max(0, Math.ceil(stackPosition.get()) - 1);
+    targetIndexRef.current = prev;
+  }, [isStackAnimating, stackPosition, n]);
 
   useImperativeHandle(
     ref,
@@ -299,25 +360,13 @@ const CloudStackMobileInner = (
       spinToRandom: () => {
         if (isStackAnimating) return;
         setIsStackAnimating(true);
-        const start = stackPosition.get();
-        const n = clouds.length;
         const finalIndex = Math.floor(Math.random() * n);
-        const chaosDistance =
-          CHAOS_DISTANCE_MIN + Math.random() * (CHAOS_DISTANCE_MAX - CHAOS_DISTANCE_MIN + 1);
-        const mid = start + chaosDistance;
-        const target =
-          finalIndex + n * Math.ceil((mid - finalIndex) / n);
-        const totalMs = CHAOS_DURATION_MS + DECEL_LOCKIN_DURATION_MS;
-        const tChaos = CHAOS_DURATION_MS / totalMs;
-        animate(stackPosition, [start, mid, target], {
-          duration: totalMs / 1000,
-          times: [0, tChaos, 1],
-          ease: ["linear", RANDOMIZE_EASE],
-          onComplete: () => setIsStackAnimating(false),
-        });
+        targetIndexRef.current = finalIndex;
+        const sign = Math.random() > 0.5 ? 1 : -1;
+        stackVelocityRef.current = sign * RANDOMIZE_INITIAL_VELOCITY;
       },
     }),
-    [stackPosition, isStackAnimating]
+    [n, isStackAnimating]
   );
 
   const slotPrevStyle = useSlotStyle(-1, stackPosition, inertiaOffset);
