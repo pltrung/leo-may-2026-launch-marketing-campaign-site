@@ -16,8 +16,8 @@ const MAX_OFFSET_PX = 8;
 /** Base positions from CSS — must match focus hierarchy; inertia is additive only */
 const BASE = {
   active: { y: 0, scale: 1 },
-  next: { y: 65, scale: 0.95 },
-  prev: { y: -65, scale: 0.95 },
+  next: { y: 60, scale: 0.96 },
+  prev: { y: -60, scale: 0.96 },
   far: { y: 88, scale: 0.9 },
 } as const;
 
@@ -72,7 +72,9 @@ export function useCloudCardScrollMotion(
       const wrapper = container.closest(".cloud-stack-wrapper");
       const hasSelection = wrapper?.classList.contains("has-selection") ?? false;
       const dragging = container.classList.contains("dragging");
-      if (hasSelection || dragging) {
+      const transitioning =
+        container.classList.contains("transitioning-up") || container.classList.contains("transitioning-down");
+      if (hasSelection || dragging || transitioning) {
         clearAllCardTransforms();
         return;
       }

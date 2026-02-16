@@ -127,17 +127,17 @@ function HomeContent() {
       </motion.div>
       <motion.div
         className="fixed top-8 right-6 z-[60]"
-        initial={{ opacity: 0, y: -6 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{
           opacity: transitionActive ? 0 : heroReady ? 1 : 0,
-          y: heroReady ? 0 : -6,
+          y: transitionActive ? 12 : heroReady ? 0 : 12,
         }}
         transition={{
-          duration: 0.7,
+          duration: 0.8,
           delay: transitionActive ? 0 : heroReady ? 0.5 : 0,
           ease: heroEase,
         }}
-        style={{ pointerEvents: transitionActive ? "none" : "auto" }}
+        style={{ pointerEvents: transitionActive ? "none" : "auto", willChange: "transform, opacity" }}
       >
         <KnowYourTeamButton
           show

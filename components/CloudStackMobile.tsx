@@ -93,6 +93,18 @@ const ENTRY_FADE_MS = 800;
 const ENTRY_SETTLE_MS = 200;
 const INERTIA_ENABLE_DELAY_MS = ENTRY_FADE_MS + ENTRY_SETTLE_MS;
 const EASE_PREMIUM = [0.22, 1, 0.36, 1] as [number, number, number, number];
+const RISE_FALL_MS = 600;
+
+/** Staggered depth-based entry: back → middle → front (front settles last) */
+function getEntryConfig(offset: number) {
+  if (offset === 2 || offset === -1) {
+    return { delay: 0, duration: 0.9, from: { opacity: 0, y: 20, scale: 0.94 }, to: { opacity: 1, y: 24, scale: 0.94 } };
+  }
+  if (offset === 1) {
+    return { delay: 0.12, duration: 0.9, from: { opacity: 0, y: 16, scale: 0.97 }, to: { opacity: 1, y: 12, scale: 0.97 } };
+  }
+  return { delay: 0.24, duration: 1, from: { opacity: 0, y: 12, scale: 0.96 }, to: { opacity: 1, y: 0, scale: 1 } };
+}
 
 export default function CloudStackMobile({ onSelect, onDetailsOpenChange }: CloudStackMobileProps) {
   const locale = useLocale();
@@ -106,23 +118,49 @@ export default function CloudStackMobile({ onSelect, onDetailsOpenChange }: Clou
   }, []);
 
   const [activeIndex, setActiveIndex] = useState(0);
+  const [transitionDirection, setTransitionDirection] = useState<"up" | "down" | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isBlooming, setIsBlooming] = useState(false);
   const [detailsCloud, setDetailsCloud] = useState<CloudPersonality | null>(null);
   const [swipeGuideVisible, setSwipeGuideVisible] = useState(true);
   const touchStartY = useRef(0);
+  const transitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     onDetailsOpenChange?.(detailsCloud !== null);
   }, [detailsCloud, onDetailsOpenChange]);
 
-  const goNext = useCallback(() => {
-    setActiveIndex((i) => (i + 1) % clouds.length);
+  useEffect(() => {
+    return () => {
+      if (transitionTimeoutRef.current) clearTimeout(transitionTimeoutRef.current);
+    };
   }, []);
 
+  const runTransitionThen = useCallback(
+    (direction: "up" | "down", onComplete: () => void) => {
+      if (transitionDirection !== null) return;
+      setTransitionDirection(direction);
+      transitionTimeoutRef.current = setTimeout(() => {
+        transitionTimeoutRef.current = null;
+        setIsResetting(true);
+        requestAnimationFrame(() => {
+          onComplete();
+          setTransitionDirection(null);
+          requestAnimationFrame(() => setIsResetting(false));
+        });
+      }, RISE_FALL_MS);
+    },
+    [transitionDirection]
+  );
+
+  const goNext = useCallback(() => {
+    runTransitionThen("up", () => setActiveIndex((i) => (i + 1) % clouds.length));
+  }, [runTransitionThen]);
+
   const goPrev = useCallback(() => {
-    setActiveIndex((i) => (i - 1 + clouds.length) % clouds.length);
-  }, []);
+    runTransitionThen("down", () => setActiveIndex((i) => (i - 1 + clouds.length) % clouds.length));
+  }, [runTransitionThen]);
 
   const getCloudAt = useCallback(
     (offset: number) => clouds[(activeIndex + offset + clouds.length) % clouds.length],
@@ -198,7 +236,7 @@ export default function CloudStackMobile({ onSelect, onDetailsOpenChange }: Clou
 
       <div
         ref={cardStackRef}
-        className={`card-stack flex-1 w-full min-h-0 ${isDragging ? "dragging" : ""}`}
+        className={`card-stack flex-1 w-full min-h-0 ${isDragging ? "dragging" : ""} ${transitionDirection === "up" ? "transitioning-up" : ""} ${transitionDirection === "down" ? "transitioning-down" : ""} ${isResetting ? "transition-reset" : ""}`}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchCancel}
@@ -211,7 +249,7 @@ export default function CloudStackMobile({ onSelect, onDetailsOpenChange }: Clou
 
           const isActive = positionClass === "active";
           const handleCardClick = isActive ? handleActiveTap : (positionClass === "next" || positionClass === "far") ? goNext : goPrev;
-          const slotIndex = offset + 1; // 0, 1, 2, 3 for stagger
+          const entry = getEntryConfig(offset);
           return (
             <div
               key={`slot-${offset}`}
@@ -228,11 +266,11 @@ export default function CloudStackMobile({ onSelect, onDetailsOpenChange }: Clou
             >
               <motion.div
                 className="h-full w-full"
-                initial={{ opacity: 0, y: 40, scale: 0.96, filter: "blur(6px)" }}
-                animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+                initial={entry.from}
+                animate={entry.to}
                 transition={{
-                  delay: slotIndex * 0.05,
-                  duration: 0.8,
+                  delay: entry.delay,
+                  duration: entry.duration,
                   ease: EASE_PREMIUM,
                 }}
               >

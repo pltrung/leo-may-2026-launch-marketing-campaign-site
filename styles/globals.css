@@ -1207,16 +1207,16 @@ body.hero-ready .hero-scroll {
   }
 
   .cloud-card.next {
-    transform: translateX(-50%) translateY(65px) scale(0.95);
-    opacity: 0.7;
+    transform: translateX(-50%) translateY(60px) scale(0.96);
+    opacity: 0.6;
     filter: blur(4px);
     z-index: 5;
     box-shadow: 0 14px 32px rgba(0, 0, 0, 0.14);
   }
 
   .cloud-card.prev {
-    transform: translateX(-50%) translateY(-65px) scale(0.95);
-    opacity: 0.7;
+    transform: translateX(-50%) translateY(-60px) scale(0.96);
+    opacity: 0.6;
     filter: blur(4px);
     z-index: 5;
     box-shadow: 0 14px 32px rgba(0, 0, 0, 0.14);
@@ -1228,6 +1228,58 @@ body.hero-ready .hero-scroll {
     filter: blur(10px);
     z-index: 1;
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Rise/fall: continuous vertical motion (swipe up = current rises out, next rises in) */
+  .card-stack.transitioning-up .cloud-card.active {
+    transform: translateX(-50%) translateY(-60px) scale(0.96);
+    opacity: 0.6;
+    animation: none;
+  }
+  .card-stack.transitioning-up .cloud-card.next {
+    transform: translateX(-50%) translateY(0) scale(1);
+    opacity: 1;
+    filter: blur(0);
+    z-index: 10;
+    box-shadow:
+      0 32px 64px rgba(0, 0, 0, 0.22),
+      0 0 48px var(--card-glow, rgba(100, 100, 100, 0.2));
+  }
+  .card-stack.transitioning-up .cloud-card.prev {
+    transform: translateX(-50%) translateY(-120px) scale(0.92);
+    opacity: 0.35;
+  }
+  .card-stack.transitioning-up .cloud-card.far {
+    transform: translateX(-50%) translateY(60px) scale(0.96);
+    opacity: 0.6;
+  }
+
+  .card-stack.transitioning-down .cloud-card.active {
+    transform: translateX(-50%) translateY(60px) scale(0.96);
+    opacity: 0.6;
+    animation: none;
+  }
+  .card-stack.transitioning-down .cloud-card.prev {
+    transform: translateX(-50%) translateY(0) scale(1);
+    opacity: 1;
+    filter: blur(0);
+    z-index: 10;
+    box-shadow:
+      0 32px 64px rgba(0, 0, 0, 0.22),
+      0 0 48px var(--card-glow, rgba(100, 100, 100, 0.2));
+  }
+  .card-stack.transitioning-down .cloud-card.next {
+    transform: translateX(-50%) translateY(120px) scale(0.92);
+    opacity: 0.35;
+  }
+  .card-stack.transitioning-down .cloud-card.far {
+    transform: translateX(-50%) translateY(-60px) scale(0.96);
+    opacity: 0.6;
+  }
+
+  /* Reset positions without animating when content updates after rise/fall */
+  .card-stack.transition-reset .cloud-card {
+    transition: none;
   }
 
   /* Active card: stronger border + inner glow (depth shadow on .cloud-card above) */
