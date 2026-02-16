@@ -29,7 +29,8 @@ export default function KnowYourTeamButton({ show = true, onFoundTeam }: KnowYou
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="know-cloud-btn fixed top-8 right-6 z-[60] px-4 py-2 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors"
+        className="know-cloud-btn fixed top-8 right-6 z-[60] px-4 py-2 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors whitespace-nowrap"
+        style={{ minWidth: "max-content" }}
         aria-label={t.button}
       >
         {t.button}

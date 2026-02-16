@@ -117,8 +117,8 @@ function HomeContent() {
           y: heroReady ? 0 : -6,
         }}
         transition={{
-          duration: 0.6,
-          delay: transitionActive ? 0 : heroReady ? 0.12 : 0,
+          duration: 0.7,
+          delay: transitionActive ? 0 : heroReady ? 0.5 : 0,
           ease: heroEase,
         }}
         style={{ pointerEvents: transitionActive ? "none" : "auto" }}
@@ -133,8 +133,8 @@ function HomeContent() {
           y: heroReady ? 0 : -6,
         }}
         transition={{
-          duration: 0.6,
-          delay: transitionActive ? 0 : heroReady ? 0.12 : 0,
+          duration: 0.7,
+          delay: transitionActive ? 0 : heroReady ? 0.5 : 0,
           ease: heroEase,
         }}
         style={{ pointerEvents: transitionActive ? "none" : "auto" }}
