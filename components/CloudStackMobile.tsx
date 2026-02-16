@@ -231,13 +231,16 @@ const CHAOS_DISTANCE_MAX = 12;
 const RANDOMIZE_EASE = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
 /**
- * SELECTOR MODEL — single source of truth (no desync possible):
+ * SELECTOR MODEL — single source of truth (mathematically no desync):
+ *
+ * INVARIANT: At any time t, "current selection" = round(stackPosition(t)). No other state.
  *
  * 1. Position state: ONLY stackPosition (MotionValue) and targetIndexRef (ref).
- * 2. Writers of stackPosition: physics loop (continuous), randomize completion, visibility resync.
- * 3. Writers of targetIndexRef: goNext, goPrev, spinToRandom; physics loop only clamps it.
- * 4. All "which cloud" / "center index" reads: pure function of stackPosition.get() at read time.
- * 5. No stored index/selection state — any such variable is only a re-render trigger and must never be read for logic.
+ * 2. Writers of stackPosition: physics loop (every frame), randomize completion, visibility resync.
+ * 3. Writers of targetIndexRef: goNext, goPrev, spinToRandom; physics loop only clamps to [0,n-1].
+ * 4. Input (swipe/click) ALWAYS updates targetIndexRef; never blocked. Swipe during randomize cancels randomize.
+ * 5. All "which cloud" reads: f(stackPosition.get()) at read time. Popup uses index captured at tap time (sync read).
+ * 6. Re-render trigger (positionRenderTick) is never read for logic.
  */
 function clampIndex(i: number, n: number): number {
   return ((Math.round(i) % n) + n) % n;
@@ -307,6 +310,7 @@ const CloudStackMobileInner = (
     let rafId: number;
     const tick = (now: number) => {
       rafId = requestAnimationFrame(tick);
+      if (n <= 0) return;
       const pos = stackPosition.get();
       const vel = stackVelocityRef.current;
       let target = targetIndexRef.current;
@@ -380,15 +384,27 @@ const CloudStackMobileInner = (
   }, [stackPosition, inertiaOffset]);
 
   const goNext = useCallback(() => {
+    if (isRandomizingRef.current) {
+      isRandomizingRef.current = false;
+      const pos = stackPosition.get();
+      stackPosition.set(Math.max(0, Math.min(n - 1, pos)));
+      stackVelocityRef.current = 0;
+    }
     setIsStackAnimating(true);
     const next = (Math.floor(stackPosition.get()) + 1) % n;
-    targetIndexRef.current = next;
+    targetIndexRef.current = Math.max(0, Math.min(n - 1, next));
   }, [stackPosition, n]);
 
   const goPrev = useCallback(() => {
+    if (isRandomizingRef.current) {
+      isRandomizingRef.current = false;
+      const pos = stackPosition.get();
+      stackPosition.set(Math.max(0, Math.min(n - 1, pos)));
+      stackVelocityRef.current = 0;
+    }
     setIsStackAnimating(true);
     const prev = (Math.ceil(stackPosition.get()) - 1 + n) % n;
-    targetIndexRef.current = prev;
+    targetIndexRef.current = Math.max(0, Math.min(n - 1, prev));
   }, [stackPosition, n]);
 
   useImperativeHandle(
@@ -443,9 +459,10 @@ const CloudStackMobileInner = (
     2: useCardIdentityStyle(getCloudAt(2), identityStrengthByOffset[2]),
   };
 
-  /** Popup: read center index from stackPosition at tap time only. One-frame rAF so transform has resolved. */
+  /** Popup: capture index synchronously at tap time so popup cannot show wrong cloud. rAF only defers React state update. */
   const handleActiveTap = useCallback(() => {
-    requestAnimationFrame(() => setDetailsCloud(clouds[getCenterIndex()] ?? null));
+    const idx = getCenterIndex();
+    requestAnimationFrame(() => setDetailsCloud(clouds[idx] ?? null));
   }, [getCenterIndex]);
 
   const handleJoinTeam = useCallback(() => {
@@ -462,16 +479,14 @@ const CloudStackMobileInner = (
     setSwipeGuideVisible(false);
   };
 
+  /** One touch = one action. Swipe (any dy beyond 10px) moves exactly one card; only near-zero dy = tap. Suppress synthesized click so we never double-move. */
   const handleTouchEnd = (e: React.TouchEvent) => {
     const dy = e.changedTouches[0].clientY - touchStartY.current;
-    if (dy < -48) goNext();
-    else if (dy > 48) goPrev();
-    else {
-      // Treat as tap: open details for current center cloud so we don't rely on
-      // the delayed synthesized click (which can be suppressed or hit wrong card).
-      tapHandledInTouchEndRef.current = true;
-      handleActiveTap();
-    }
+    tapHandledInTouchEndRef.current = true;
+    const TAP_THRESHOLD_PX = 10;
+    if (dy < -TAP_THRESHOLD_PX) goNext();
+    else if (dy > TAP_THRESHOLD_PX) goPrev();
+    else handleActiveTap();
     setIsDragging(false);
   };
 
