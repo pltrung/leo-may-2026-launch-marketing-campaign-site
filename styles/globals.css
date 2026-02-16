@@ -1179,8 +1179,12 @@ body.hero-ready .hero-scroll {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 450ms cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: transform, opacity;
+    transition:
+      transform 600ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 600ms cubic-bezier(0.22, 1, 0.36, 1),
+      filter 600ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 600ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform, opacity, filter;
   }
 
   .cloud-card-inner {
@@ -1190,53 +1194,69 @@ body.hero-ready .hero-scroll {
     border-width: 2px;
   }
 
-  /* Stack depth: opacity + scale */
+  /* Apple Wallet–style focus: only active card sharp and dominant; background cards lose clarity by distance */
   .cloud-card.active {
     transform: translateX(-50%) translateY(0) scale(1);
     opacity: 1;
+    filter: blur(0);
     z-index: 10;
+    box-shadow:
+      0 32px 64px rgba(0, 0, 0, 0.22),
+      0 0 48px var(--card-glow, rgba(100, 100, 100, 0.2));
     animation: cloudFloat 5s ease-in-out infinite;
   }
 
   .cloud-card.next {
-    transform: translateX(-50%) translateY(65px) scale(0.92);
-    opacity: 0.35;
+    transform: translateX(-50%) translateY(65px) scale(0.95);
+    opacity: 0.7;
+    filter: blur(4px);
     z-index: 5;
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.14);
   }
 
   .cloud-card.prev {
-    transform: translateX(-50%) translateY(-65px) scale(0.92);
-    opacity: 0.35;
+    transform: translateX(-50%) translateY(-65px) scale(0.95);
+    opacity: 0.7;
+    filter: blur(4px);
     z-index: 5;
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.14);
   }
 
   .cloud-card.far {
-    transform: translateX(-50%) translateY(88px) scale(0.85);
-    opacity: 0.35;
+    transform: translateX(-50%) translateY(88px) scale(0.9);
+    opacity: 0.4;
+    filter: blur(10px);
     z-index: 1;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
   }
 
-  /* Active card: stronger border + elevation shadow (team glow via --card-glow) */
+  /* Active card: stronger border + inner glow (depth shadow on .cloud-card above) */
   .cloud-card.active .cloud-card-inner {
     border-width: 3px;
   }
 
   .cloud-card.active .cloud-card-inner.cloud-card-selected {
     box-shadow:
-      0 30px 60px rgba(0, 0, 0, 0.25),
-      0 0 40px var(--card-glow, rgba(100, 100, 100, 0.25));
+      0 20px 40px rgba(0, 0, 0, 0.18),
+      0 0 32px var(--card-glow, rgba(100, 100, 100, 0.25));
   }
 
   /* When modal open, fade non-active cards */
   .cloud-stack-wrapper.has-selection .cloud-card:not(.active) {
     opacity: 0;
+    filter: blur(8px);
     transform: translateX(-50%) scale(0.9);
     pointer-events: none;
-    transition: all 450ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition:
+      transform 600ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 600ms cubic-bezier(0.22, 1, 0.36, 1),
+      filter 600ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 600ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .cloud-stack-wrapper.has-selection .cloud-card.active {
     opacity: 1;
+    filter: blur(0);
   }
 
   .card-stack.dragging .cloud-card.active {

@@ -13,12 +13,12 @@ const SMOOTHING = 0.22;
 /** Max additive offset in px (subtle; finalY = baseY + offset * depthMult) */
 const MAX_OFFSET_PX = 8;
 
-/** Base positions from CSS — must stay intact; inertia is additive only */
+/** Base positions from CSS — must match focus hierarchy; inertia is additive only */
 const BASE = {
   active: { y: 0, scale: 1 },
-  next: { y: 65, scale: 0.92 },
-  prev: { y: -65, scale: 0.92 },
-  far: { y: 88, scale: 0.85 },
+  next: { y: 65, scale: 0.95 },
+  prev: { y: -65, scale: 0.95 },
+  far: { y: 88, scale: 0.9 },
 } as const;
 
 /** Depth dampening: top card moves most, deeper cards less */
