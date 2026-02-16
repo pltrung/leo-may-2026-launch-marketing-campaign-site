@@ -189,7 +189,7 @@ const CloudStackMobileInner = (
   const inertiaOffset = useMotionValue(0);
   useCloudCardScrollMotion(cardStackRef, inertiaEnabled, inertiaOffset);
 
-  useMotionValueEvent(stackPosition, (v) => {
+  useMotionValueEvent(stackPosition, "change", (v) => {
     setSelectedIndex(Math.round(v));
   });
 
