@@ -89,10 +89,22 @@ interface CloudStackMobileProps {
   onDetailsOpenChange?: (open: boolean) => void;
 }
 
+const ENTRY_FADE_MS = 800;
+const ENTRY_SETTLE_MS = 200;
+const INERTIA_ENABLE_DELAY_MS = ENTRY_FADE_MS + ENTRY_SETTLE_MS;
+const EASE_PREMIUM = [0.22, 1, 0.36, 1] as [number, number, number, number];
+
 export default function CloudStackMobile({ onSelect, onDetailsOpenChange }: CloudStackMobileProps) {
   const locale = useLocale();
   const cardStackRef = useRef<HTMLDivElement>(null);
-  useCloudCardScrollMotion(cardStackRef);
+  const [inertiaEnabled, setInertiaEnabled] = useState(false);
+  useCloudCardScrollMotion(cardStackRef, inertiaEnabled);
+
+  useEffect(() => {
+    const t = setTimeout(() => setInertiaEnabled(true), INERTIA_ENABLE_DELAY_MS);
+    return () => clearTimeout(t);
+  }, []);
+
   const [activeIndex, setActiveIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isBlooming, setIsBlooming] = useState(false);
@@ -161,13 +173,20 @@ export default function CloudStackMobile({ onSelect, onDetailsOpenChange }: Clou
       onMouseDown={hideSwipeGuide}
     >
       {isBlooming && <div className="cloud-stack-bloom" aria-hidden />}
-      <div
+      <motion.div
         className={`swipe-guide md:hidden ${swipeGuideVisible ? "" : "swipe-guide-hidden"}`}
         aria-hidden
+        initial={{ opacity: 0 }}
+        animate={{ opacity: swipeGuideVisible ? 1 : 0 }}
+        transition={{
+          duration: 0.5,
+          delay: swipeGuideVisible ? 0.14 : 0,
+          ease: EASE_PREMIUM,
+        }}
       >
         <img src="/brand/cloud-mini.svg" alt="" className="swipe-cloud" />
         <div className="swipe-text">{getMessages(locale).cloudSelector.swipeUp}</div>
-      </div>
+      </motion.div>
       {detailsCloud && (
         <CloudDetailsModal
           cloud={detailsCloud}
@@ -209,12 +228,12 @@ export default function CloudStackMobile({ onSelect, onDetailsOpenChange }: Clou
             >
               <motion.div
                 className="h-full w-full"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                initial={{ opacity: 0, y: 40, scale: 0.96, filter: "blur(6px)" }}
+                animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
                 transition={{
-                  delay: 0.9 + slotIndex * 0.08,
-                  duration: 0.55,
-                  ease: [0.22, 1, 0.36, 1],
+                  delay: slotIndex * 0.05,
+                  duration: 0.8,
+                  ease: EASE_PREMIUM,
                 }}
               >
                 <CloudCardInner cloud={cloud} isActive={isActive} />

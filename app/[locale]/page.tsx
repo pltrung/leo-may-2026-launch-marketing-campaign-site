@@ -87,8 +87,21 @@ function HomeContent() {
     return () => document.documentElement.classList.remove("cloud-selection-view");
   }, [showClouds]);
 
+  const [heroReady, setHeroReady] = useState(false);
+  useEffect(() => {
+    const check = () => document.body.classList.contains("hero-ready") && setHeroReady(true);
+    if (document.body.classList.contains("hero-ready")) {
+      setHeroReady(true);
+      return;
+    }
+    const obs = new MutationObserver(check);
+    obs.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
+
   const transitionActive = skyVisible || isCountdownTransition;
   const heroContentOpacity = showClouds ? 1 : (transitionActive ? 0 : heroOpacity);
+  const heroEase = [0.22, 1, 0.36, 1] as const;
 
   return (
     <div id="hero-page" className="page-container relative min-h-[100dvh] flex flex-col">
@@ -98,18 +111,32 @@ function HomeContent() {
       <HeroScrollObserver />
       <motion.div
         className="fixed bottom-6 left-6 z-[60] scale-90 opacity-80 md:scale-100 md:opacity-100 [&>*]:origin-bottom-left"
-        initial={false}
-        animate={{ opacity: transitionActive ? 0 : 1 }}
-        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        initial={{ opacity: 0, y: -6 }}
+        animate={{
+          opacity: transitionActive ? 0 : heroReady ? 1 : 0,
+          y: heroReady ? 0 : -6,
+        }}
+        transition={{
+          duration: 0.6,
+          delay: transitionActive ? 0 : heroReady ? 0.12 : 0,
+          ease: heroEase,
+        }}
         style={{ pointerEvents: transitionActive ? "none" : "auto" }}
       >
         <LanguageSwitch />
       </motion.div>
       <motion.div
         className="fixed top-8 right-6 z-[60]"
-        initial={false}
-        animate={{ opacity: transitionActive ? 0 : 1 }}
-        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        initial={{ opacity: 0, y: -6 }}
+        animate={{
+          opacity: transitionActive ? 0 : heroReady ? 1 : 0,
+          y: heroReady ? 0 : -6,
+        }}
+        transition={{
+          duration: 0.6,
+          delay: transitionActive ? 0 : heroReady ? 0.12 : 0,
+          ease: heroEase,
+        }}
         style={{ pointerEvents: transitionActive ? "none" : "auto" }}
       >
         <KnowYourTeamButton

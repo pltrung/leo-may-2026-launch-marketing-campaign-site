@@ -35,7 +35,7 @@ export default function RootLayout({
         <link rel="preload" href="/logo-white.svg" as="image" />
         <link rel="preload" href="/brand/cloud-copyright.svg" as="image" />
       </head>
-      <body className="min-h-screen antialiased overflow-x-hidden">
+      <body className="min-h-[100dvh] antialiased overflow-x-hidden">
         <LoadingScreen />
         {children}
         <Script id="loading-controller" strategy="afterInteractive">

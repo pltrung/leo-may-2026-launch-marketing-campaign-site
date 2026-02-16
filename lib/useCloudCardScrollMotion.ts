@@ -36,10 +36,11 @@ function clamp01(x: number): number {
 /**
  * Mobile-only: scroll-coupled inertia as a small additive offset to fixed stack positions.
  * Cards stay anchored to base positions; inertia is finalY = baseY + (offset * depthMult).
- * Settles quickly so stack feels solid and attached to scroll.
+ * Pass inertiaEnabled: false until entry animation + settle phase complete so cards feel grounded first.
  */
 export function useCloudCardScrollMotion(
-  cardStackRef: React.RefObject<HTMLElement | null>
+  cardStackRef: React.RefObject<HTMLElement | null>,
+  inertiaEnabled: boolean = true
 ) {
   const smoothedProgress = useRef(1);
   const rafId = useRef<number | null>(null);
@@ -56,6 +57,11 @@ export function useCloudCardScrollMotion(
         el.style.willChange = "";
       });
     };
+
+    if (!inertiaEnabled) {
+      clearAllCardTransforms();
+      return;
+    }
 
     if (!isMobile()) {
       clearAllCardTransforms();
@@ -129,5 +135,5 @@ export function useCloudCardScrollMotion(
       if (rafId.current != null) cancelAnimationFrame(rafId.current);
       clearAllCardTransforms();
     };
-  }, [cardStackRef]);
+  }, [cardStackRef, inertiaEnabled]);
 }
