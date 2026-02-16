@@ -37,11 +37,13 @@ function clamp01(x: number): number {
 /**
  * Mobile-only: scroll-coupled inertia as a small additive offset to fixed stack positions.
  * When inertiaMotionValue is provided, only that value is updated (stack is driven by shared position in parent).
+ * onTick is called each animation frame (from the same rAF loop) so the parent can sync CSS vars from stackPosition.
  */
 export function useCloudCardScrollMotion(
   cardStackRef: React.RefObject<HTMLElement | null>,
   inertiaEnabled: boolean = true,
-  inertiaMotionValue?: MotionValue<number> | null
+  inertiaMotionValue?: MotionValue<number> | null,
+  onTick?: () => void
 ) {
   const smoothedProgress = useRef(1);
   const rafId = useRef<number | null>(null);
@@ -118,9 +120,10 @@ export function useCloudCardScrollMotion(
       const p = smoothedProgress.current;
       if (p >= 0.998) {
         clearAllCardTransforms();
-        return;
+      } else {
+        apply(p);
       }
-      apply(p);
+      onTick?.();
     };
 
     const schedule = () => {
@@ -149,5 +152,5 @@ export function useCloudCardScrollMotion(
       if (rafId.current != null) cancelAnimationFrame(rafId.current);
       clearAllCardTransforms();
     };
-  }, [cardStackRef, inertiaEnabled, inertiaMotionValue]);
+  }, [cardStackRef, inertiaEnabled, inertiaMotionValue, onTick]);
 }

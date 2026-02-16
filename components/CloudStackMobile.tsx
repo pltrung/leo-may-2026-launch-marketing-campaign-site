@@ -222,7 +222,18 @@ const CloudStackMobileInner = (
 
   const stackPosition = useMotionValue(0);
   const inertiaOffset = useMotionValue(0);
-  useCloudCardScrollMotion(cardStackRef, inertiaEnabled, inertiaOffset);
+
+  const onTick = useCallback(() => {
+    const wrapper = cardStackRef.current?.closest(".cloud-stack-wrapper");
+    if (!(wrapper instanceof HTMLElement)) return;
+    const p = stackPosition.get();
+    const frac = p - Math.floor(p);
+    wrapper.style.setProperty("--stack-frac", String(frac));
+    const mediumOpacity = 4 * frac * (1 - frac);
+    wrapper.style.setProperty("--medium-opacity", String(mediumOpacity));
+  }, [stackPosition]);
+
+  useCloudCardScrollMotion(cardStackRef, inertiaEnabled, inertiaOffset, onTick);
 
   useMotionValueEvent(stackPosition, "change", (v) => {
     setSelectedIndex(Math.round(v));
@@ -322,7 +333,7 @@ const CloudStackMobileInner = (
     [selectedIndex, n]
   );
 
-  const identityStyleByOffset = {
+  const identityStyleByOffset: Record<number, CardIdentityStyle> = {
     [-1]: useCardIdentityStyle(getCloudAt(-1), identityStrengthByOffset[-1]),
     0: useCardIdentityStyle(getCloudAt(0), identityStrengthByOffset[0]),
     1: useCardIdentityStyle(getCloudAt(1), identityStrengthByOffset[1]),
@@ -396,6 +407,8 @@ const CloudStackMobileInner = (
         />
       )}
 
+      <div className="cloud-stack-medium" aria-hidden />
+
       <div
         ref={cardStackRef}
         className={`card-stack flex-1 w-full min-h-0 stack-driven ${isDragging ? "dragging" : ""} ${isStackAnimating ? "stack-animating" : ""}`}
@@ -460,24 +473,22 @@ const CloudStackMobileInner = (
 
 export default forwardRef(CloudStackMobileInner);
 
-const NEUTRAL_BORDER = "rgba(107,114,128,0.35)";
 const NEUTRAL_GLOW = "rgba(100,100,100,0.08)";
 
-/** Interpolate identity styles from strength (0 = neutral, 1 = full accent). Used for glow on outer card and color/border on inner. */
-function useCardIdentityStyle(cloud: CloudPersonality, identityStrength: MotionValue<number>) {
+export type CardIdentityStyle = {
+  identityStrengthPercent: MotionValue<string>;
+  cardGlow: MotionValue<string>;
+};
+
+/** Identity: strength 0–100 for OKLCH color-mix in CSS; glow stays interpolated for box-shadow. */
+function useCardIdentityStyle(cloud: CloudPersonality, identityStrength: MotionValue<number>): CardIdentityStyle {
   const accent = cloud.accentHex;
-  const accentBorder = hexToRgba(accent, 0.35);
   const accentGlow = hexToRgba(accent, 0.25);
-  const borderColor = useTransform(identityStrength, (s: number) =>
-    mixRgba(NEUTRAL_BORDER, accentBorder, s)
-  );
+  const identityStrengthPercent = useTransform(identityStrength, (s: number) => String(s * 100));
   const cardGlow = useTransform(identityStrength, (s: number) =>
     mixRgba(NEUTRAL_GLOW, accentGlow, s)
   );
-  const accentColor = useTransform(identityStrength, (s: number) =>
-    mixHex(NEUTRAL_HEX, accent, s)
-  );
-  return { borderColor, cardGlow, accentColor };
+  return { identityStrengthPercent, cardGlow };
 }
 
 function CloudCardInner({
@@ -487,22 +498,22 @@ function CloudCardInner({
 }: {
   cloud: CloudPersonality;
   isActive: boolean;
-  identityStyle: { borderColor: MotionValue<string>; cardGlow: MotionValue<string>; accentColor: MotionValue<string> };
+  identityStyle: CardIdentityStyle;
 }) {
   return (
     <motion.div
       className={`cloud-card-inner cloud-card-base w-full h-full rounded-[24px] flex flex-col justify-center items-center p-6 overflow-hidden ${isActive ? "cloud-card-selected" : ""}`}
       style={{
-        borderColor: identityStyle.borderColor,
-        ["--card-accent" as string]: identityStyle.accentColor,
+        ["--card-accent" as string]: cloud.accentHex,
+        ["--identity-strength" as string]: identityStyle.identityStrengthPercent,
       }}
     >
       <div className="flex flex-col items-center justify-center flex-1 min-h-0">
-        <div className="mb-3" style={{ color: "var(--card-accent)" }}>
+        <div className="mb-3 cloud-card-accent">
           <CloudIconByType cloudId={cloud.id} className="w-14 h-14" />
         </div>
         <div className="flex flex-col items-center gap-1">
-          <span className="font-subheadline text-xl text-center leading-tight" style={{ color: "var(--card-accent)" }}>
+          <span className="font-subheadline text-xl text-center leading-tight cloud-card-accent">
             {cloud.name}
           </span>
           <span
