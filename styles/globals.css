@@ -1088,7 +1088,14 @@ body.hero-ready .hero-scroll {
 
 /* Mobile-only (max-width: 768px): fixed viewport, no scroll, immersive cloud stack */
 /* iOS WebKit fix: -webkit-fill-available helps Chrome/Safari on some iOS devices with viewport height */
+/* iOS z-index fix: main must stack above footer so cloud selector isn't overlapped by footer */
 @media (max-width: 768px) {
+  html.cloud-selection-view .page-container > main {
+    z-index: 20;
+  }
+  html.cloud-selection-view .page-container > .flex-shrink-0:last-child {
+    z-index: 5;
+  }
   html.cloud-selection-view {
     height: 100%;
     height: -webkit-fill-available;
@@ -1103,19 +1110,21 @@ body.hero-ready .hero-scroll {
     touch-action: pan-x;
   }
   /* Reserve bottom space for footer; z-index above footer; iOS Safari safe-area */
+  /* top/bottom/left/right anchors to viewport edges; iOS WebKit fills correctly */
   .cloud-selection-screen {
     position: fixed;
-    inset: 0;
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh;
-    min-height: -webkit-fill-available;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
     overflow: hidden;
     z-index: 15;
     padding: 96px 24px calc(140px + env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
+    box-sizing: border-box;
   }
 
   .cloud-selection-header {
