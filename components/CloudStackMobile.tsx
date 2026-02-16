@@ -362,24 +362,21 @@ const CloudStackMobileInner = (
   }, [stackPosition, inertiaOffset]);
 
   const goNext = useCallback(() => {
-    if (isStackAnimating) return;
     setIsStackAnimating(true);
     const next = (Math.floor(stackPosition.get()) + 1) % n;
     targetIndexRef.current = next;
-  }, [isStackAnimating, stackPosition, n]);
+  }, [stackPosition, n]);
 
   const goPrev = useCallback(() => {
-    if (isStackAnimating) return;
     setIsStackAnimating(true);
     const prev = (Math.ceil(stackPosition.get()) - 1 + n) % n;
     targetIndexRef.current = prev;
-  }, [isStackAnimating, stackPosition, n]);
+  }, [stackPosition, n]);
 
   useImperativeHandle(
     ref,
     () => ({
       spinToRandom: () => {
-        if (isStackAnimating) return;
         setIsStackAnimating(true);
         const finalIndex = Math.floor(Math.random() * n);
         const current = stackPosition.get();
@@ -394,7 +391,7 @@ const CloudStackMobileInner = (
         stackVelocityRef.current = RANDOMIZE_INITIAL_VELOCITY;
       },
     }),
-    [n, isStackAnimating, stackPosition]
+    [n, stackPosition]
   );
 
   const slotPrevStyle = useSlotStyle(-1, stackPosition, inertiaOffset);
@@ -428,9 +425,13 @@ const CloudStackMobileInner = (
   };
 
   const handleActiveTap = useCallback(() => {
-    const cloud = getCloudAt(0);
-    setDetailsCloud(cloud);
-  }, [getCloudAt]);
+    requestAnimationFrame(() => {
+      const pos = stackPosition.get();
+      const selectedIndexFromPosition = ((Math.round(pos) % n) + n) % n;
+      const cloud = clouds[selectedIndexFromPosition];
+      setDetailsCloud(cloud ?? null);
+    });
+  }, [stackPosition, n]);
 
   const handleJoinTeam = useCallback(() => {
     if (!detailsCloud) return;
