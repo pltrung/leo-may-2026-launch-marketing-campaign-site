@@ -44,7 +44,7 @@ export default function AboutUsModal({ onClose, locale = "en" }: AboutUsModalPro
         <div className="flex-1 overflow-y-auto px-6 py-5">
           <div className="font-body text-storm text-[15px] leading-relaxed space-y-4">
             {paragraphs.map((paragraph, i) => (
-              <p key={i}>{paragraph}</p>
+              <p key={i} className="whitespace-pre-line">{paragraph}</p>
             ))}
           </div>
         </div>
