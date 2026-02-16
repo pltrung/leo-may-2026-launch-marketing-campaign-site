@@ -37,7 +37,7 @@ export default function HeroScroll4() {
           fetchPriority="high"
         />
       </div>
-      <div className="hero-text philosophy-text hero-line-secondary-wrapper mt-[220px] md:mt-20">
+      <div className="hero-text philosophy-text hero-line-secondary-wrapper hero-experienced-line md:mt-20">
         <div className={`hero-line-primary text-white/90 ${!isNever ? "text-lg sm:text-xl md:text-2xl" : ""}`}>
           {only} <span className="neon-cyan">{experienced}</span>.
         </div>
