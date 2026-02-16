@@ -6,6 +6,7 @@ import { clouds, CloudPersonality } from "@/lib/cloudData";
 import CloudIconByType from "./CloudIcons";
 import { useLocale } from "./LocaleProvider";
 import { getMessages } from "@/lib/messages";
+import { useCloudCardScrollMotion } from "@/lib/useCloudCardScrollMotion";
 
 interface CloudDetailsModalProps {
   cloud: CloudPersonality;
@@ -90,6 +91,8 @@ interface CloudStackMobileProps {
 
 export default function CloudStackMobile({ onSelect, onDetailsOpenChange }: CloudStackMobileProps) {
   const locale = useLocale();
+  const cardStackRef = useRef<HTMLDivElement>(null);
+  useCloudCardScrollMotion(cardStackRef);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isBlooming, setIsBlooming] = useState(false);
@@ -175,6 +178,7 @@ export default function CloudStackMobile({ onSelect, onDetailsOpenChange }: Clou
       )}
 
       <div
+        ref={cardStackRef}
         className={`card-stack flex-1 w-full min-h-0 ${isDragging ? "dragging" : ""}`}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
