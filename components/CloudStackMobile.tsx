@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect, useImperativeHandle, forwardRef } from "react";
-import { motion, useMotionValue, useTransform, animate, type MotionValue } from "framer-motion";
+import { motion, useMotionValue, useTransform, useMotionValueEvent, animate, type MotionValue } from "framer-motion";
 import { clouds, CloudPersonality } from "@/lib/cloudData";
 import CloudIconByType from "./CloudIcons";
 import { useLocale } from "./LocaleProvider";
@@ -101,12 +101,11 @@ const CARD_SPACING = 60;
 const STACK_DURATION = 0.6;
 const STACK_EASE = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
-/** Single shared stack: base Y and inertia depth mult per slot; equal spacing */
-const SLOT_BASE_Y: Record<number, number> = { [-1]: -60, 0: 0, 1: 60, 2: 120 };
+/** Depth mult for scroll inertia per slot */
 const SLOT_DEPTH_MULT: Record<number, number> = { [-1]: 0.6, 0: 1, 1: 0.6, 2: 0.3 };
 
-function getStackStyle(p: number, inertia: number, baseY: number, depthMult: number) {
-  const y = baseY - p * CARD_SPACING + inertia * depthMult;
+/** Derive scale, opacity, filter, zIndex, boxShadow from card Y (center = 0) */
+function getStyleFromY(y: number) {
   const absY = Math.abs(y);
   const scale = absY <= 1 ? 1 : absY <= 60 ? 0.96 : 0.9;
   const opacity = absY <= 1 ? 1 : absY <= 60 ? 0.6 : 0.4;
@@ -118,25 +117,32 @@ function getStackStyle(p: number, inertia: number, baseY: number, depthMult: num
       : absY <= 60
         ? "0 14px 32px rgba(0,0,0,0.14)"
         : "0 6px 16px rgba(0,0,0,0.08)";
-  return { y, scale, opacity, filter, zIndex, boxShadow };
+  return { scale, opacity, filter, zIndex, boxShadow };
 }
 
+/** cardOffsetY = (slotK - frac(stackPosition)) * spacing + inertia; motion only on cards, anchor fixed */
 function useSlotStyle(
-  offset: number,
-  stackProgress: MotionValue<number>,
+  slotK: number,
+  stackPosition: MotionValue<number>,
   inertiaOffset: MotionValue<number>
 ) {
   const full = useTransform(
-    [stackProgress, inertiaOffset],
-    ([p, i]: number[]) => getStackStyle(p, i, SLOT_BASE_Y[offset], SLOT_DEPTH_MULT[offset])
+    [stackPosition, inertiaOffset],
+    ([pos, i]: number[]) => {
+      const frac = pos - Math.floor(pos);
+      const y = (slotK - frac) * CARD_SPACING + i * (SLOT_DEPTH_MULT[slotK] ?? 0.3);
+      return { y, ...getStyleFromY(y) };
+    }
   );
-  const y = useTransform(full, (s) => s.y);
-  const scale = useTransform(full, (s) => s.scale);
+  const transform = useTransform(
+    full,
+    (s) => `translate(-50%, -50%) translateY(${s.y}px) scale(${s.scale})`
+  );
   const opacity = useTransform(full, (s) => s.opacity);
   const filter = useTransform(full, (s) => s.filter);
   const zIndex = useTransform(full, (s) => s.zIndex);
   const boxShadow = useTransform(full, (s) => s.boxShadow);
-  return { y, scale, opacity, filter, zIndex, boxShadow };
+  return { transform, opacity, filter, zIndex, boxShadow };
 }
 
 /** Staggered depth-based entry: back → middle → front (front settles last) */
@@ -150,8 +156,12 @@ function getEntryConfig(offset: number) {
   return { delay: 0.24, duration: 1, from: { opacity: 0, y: 12, scale: 0.96 }, to: { opacity: 1, y: 0, scale: 1 } };
 }
 
-const SPIN_STEPS_MIN = 5;
-const SPIN_STEPS_MAX = 9;
+/** Randomize: chaos → deceleration → lock-in (all via stackPosition keyframes) */
+const CHAOS_DURATION_MS = 550;
+const DECEL_LOCKIN_DURATION_MS = 750;
+const CHAOS_DISTANCE_MIN = 8;
+const CHAOS_DISTANCE_MAX = 12;
+const RANDOMIZE_EASE = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
 const CloudStackMobileInner = (
   { onSelect, onDetailsOpenChange }: CloudStackMobileProps,
@@ -166,67 +176,82 @@ const CloudStackMobileInner = (
     return () => clearTimeout(t);
   }, []);
 
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [isStackAnimating, setIsStackAnimating] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isBlooming, setIsBlooming] = useState(false);
   const [detailsCloud, setDetailsCloud] = useState<CloudPersonality | null>(null);
   const [swipeGuideVisible, setSwipeGuideVisible] = useState(true);
   const touchStartY = useRef(0);
+  const n = clouds.length;
 
-  const stackProgress = useMotionValue(0);
+  const stackPosition = useMotionValue(0);
   const inertiaOffset = useMotionValue(0);
   useCloudCardScrollMotion(cardStackRef, inertiaEnabled, inertiaOffset);
+
+  useMotionValueEvent(stackPosition, (v) => {
+    setSelectedIndex(Math.round(v));
+  });
 
   useEffect(() => {
     onDetailsOpenChange?.(detailsCloud !== null);
   }, [detailsCloud, onDetailsOpenChange]);
 
-  const runStep = useCallback(
-    (direction: 1 | -1, onComplete: () => void) => {
-      if (isStackAnimating) return;
-      setIsStackAnimating(true);
-      animate(stackProgress, direction, {
-        duration: STACK_DURATION,
-        ease: STACK_EASE,
-        onComplete: () => {
-          setActiveIndex((i) => (i + direction + clouds.length) % clouds.length);
-          stackProgress.set(0);
-          setIsStackAnimating(false);
-          onComplete();
-        },
-      });
-    },
-    [isStackAnimating, stackProgress]
-  );
+  const goNext = useCallback(() => {
+    if (isStackAnimating) return;
+    setIsStackAnimating(true);
+    const current = stackPosition.get();
+    const target = Math.floor(current) + 1;
+    animate(stackPosition, target, {
+      duration: STACK_DURATION,
+      ease: STACK_EASE,
+      onComplete: () => setIsStackAnimating(false),
+    });
+  }, [isStackAnimating, stackPosition]);
 
-  const goNext = useCallback(() => runStep(1, () => {}), [runStep]);
-  const goPrev = useCallback(() => runStep(-1, () => {}), [runStep]);
+  const goPrev = useCallback(() => {
+    if (isStackAnimating) return;
+    setIsStackAnimating(true);
+    const current = stackPosition.get();
+    const target = Math.ceil(current) - 1;
+    animate(stackPosition, target, {
+      duration: STACK_DURATION,
+      ease: STACK_EASE,
+      onComplete: () => setIsStackAnimating(false),
+    });
+  }, [isStackAnimating, stackPosition]);
 
   useImperativeHandle(
     ref,
     () => ({
       spinToRandom: () => {
         if (isStackAnimating) return;
-        const steps = SPIN_STEPS_MIN + Math.floor(Math.random() * (SPIN_STEPS_MAX - SPIN_STEPS_MIN + 1));
-        let left = steps;
-        const scheduleNext = () => {
-          if (left <= 0) return;
-          runStep(1, () => {
-            left--;
-            if (left > 0) scheduleNext();
-          });
-        };
-        scheduleNext();
+        setIsStackAnimating(true);
+        const start = stackPosition.get();
+        const n = clouds.length;
+        const finalIndex = Math.floor(Math.random() * n);
+        const chaosDistance =
+          CHAOS_DISTANCE_MIN + Math.random() * (CHAOS_DISTANCE_MAX - CHAOS_DISTANCE_MIN + 1);
+        const mid = start + chaosDistance;
+        const target =
+          finalIndex + n * Math.ceil((mid - finalIndex) / n);
+        const totalMs = CHAOS_DURATION_MS + DECEL_LOCKIN_DURATION_MS;
+        const tChaos = CHAOS_DURATION_MS / totalMs;
+        animate(stackPosition, [start, mid, target], {
+          duration: totalMs / 1000,
+          times: [0, tChaos, 1],
+          ease: ["linear", RANDOMIZE_EASE],
+          onComplete: () => setIsStackAnimating(false),
+        });
       },
     }),
-    [runStep, isStackAnimating]
+    [stackPosition, isStackAnimating]
   );
 
-  const slotPrevStyle = useSlotStyle(-1, stackProgress, inertiaOffset);
-  const slotActiveStyle = useSlotStyle(0, stackProgress, inertiaOffset);
-  const slotNextStyle = useSlotStyle(1, stackProgress, inertiaOffset);
-  const slotFarStyle = useSlotStyle(2, stackProgress, inertiaOffset);
+  const slotPrevStyle = useSlotStyle(-1, stackPosition, inertiaOffset);
+  const slotActiveStyle = useSlotStyle(0, stackPosition, inertiaOffset);
+  const slotNextStyle = useSlotStyle(1, stackPosition, inertiaOffset);
+  const slotFarStyle = useSlotStyle(2, stackPosition, inertiaOffset);
   const slotStylesByOffset: Record<number, ReturnType<typeof useSlotStyle>> = {
     [-1]: slotPrevStyle,
     0: slotActiveStyle,
@@ -235,8 +260,8 @@ const CloudStackMobileInner = (
   };
 
   const getCloudAt = useCallback(
-    (offset: number) => clouds[(activeIndex + offset + clouds.length) % clouds.length],
-    [activeIndex]
+    (offset: number) => clouds[((selectedIndex + offset) % n + n) % n],
+    [selectedIndex, n]
   );
 
   const handleActiveTap = useCallback(() => {
@@ -329,9 +354,10 @@ const CloudStackMobileInner = (
               className={`cloud-card ${positionClass}`}
               data-team={cloud.id}
               style={{
-                x: "-50%",
-                y: slotStyle.y,
-                scale: slotStyle.scale,
+                position: "absolute",
+                left: "50%",
+                top: "50%",
+                transform: slotStyle.transform,
                 opacity: slotStyle.opacity,
                 filter: slotStyle.filter,
                 zIndex: slotStyle.zIndex,

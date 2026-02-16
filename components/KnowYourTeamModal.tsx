@@ -79,7 +79,7 @@ export default function KnowYourTeamModal({ onClose, onFoundTeam, locale = "en" 
     >
       <div className="absolute inset-0 bg-storm/40 backdrop-blur-sm" aria-hidden />
       <motion.div
-        className="relative w-full max-w-md min-w-0 rounded-2xl shadow-2xl p-5 sm:p-8 bg-white/98 backdrop-blur-sm my-auto max-h-[min(90dvh,calc(100dvh-2rem))] overflow-y-auto"
+        className="relative w-full max-w-md min-w-0 rounded-2xl shadow-2xl p-5 sm:p-8 bg-white my-auto max-h-[min(90dvh,calc(100dvh-2rem))] overflow-y-auto"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.98 }}
