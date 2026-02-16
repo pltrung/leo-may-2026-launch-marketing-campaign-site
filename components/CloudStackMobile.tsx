@@ -239,7 +239,7 @@ const RANDOMIZE_EASE = [0.22, 1, 0.36, 1] as [number, number, number, number];
  * 2. Writers of stackPosition: physics loop (every frame), randomize completion, visibility resync.
  * 3. Writers of targetIndexRef: goNext, goPrev, spinToRandom; physics loop only clamps to [0,n-1].
  * 4. Input (swipe/click) ALWAYS updates targetIndexRef; never blocked. Swipe during randomize cancels randomize.
- * 5. All "which cloud" reads: f(stackPosition.get()) at read time. Popup uses index captured at tap time (sync read).
+ * 5. All "which cloud" reads: f(stackPosition.get()) at read time. Popup: on click we pass the rendered card's cloud into handleActiveTap(cloud) so the bio always matches the tapped card; on touch tap we use getCenterIndex() at tap time.
  * 6. Re-render trigger (positionRenderTick) is never read for logic.
  */
 function clampIndex(i: number, n: number): number {
@@ -459,11 +459,14 @@ const CloudStackMobileInner = (
     2: useCardIdentityStyle(getCloudAt(2), identityStrengthByOffset[2]),
   };
 
-  /** Popup: capture index synchronously at tap time so popup cannot show wrong cloud. rAF only defers React state update. */
-  const handleActiveTap = useCallback(() => {
-    const idx = getCenterIndex();
-    requestAnimationFrame(() => setDetailsCloud(clouds[idx] ?? null));
-  }, [getCenterIndex]);
+  /** Popup: when cloud is provided (click on a card), open that exact cloud. When not (touch tap), use center from stackPosition. Guarantees popup matches the card the user tapped. */
+  const handleActiveTap = useCallback(
+    (cloud?: CloudPersonality) => {
+      const toShow = cloud ?? clouds[getCenterIndex()] ?? null;
+      requestAnimationFrame(() => setDetailsCloud(toShow));
+    },
+    [getCenterIndex]
+  );
 
   const handleJoinTeam = useCallback(() => {
     if (!detailsCloud) return;
@@ -533,13 +536,14 @@ const CloudStackMobileInner = (
 
       <div className="cloud-stack-medium" aria-hidden />
 
+      {/* touchAction: none so the browser doesn't use vertical swipe for page scroll; ensures touchEnd runs and goNext/goPrev receive the swipe (fixes "stuck" swipe on mobile). */}
       <div
         ref={cardStackRef}
         className={`card-stack flex-1 w-full min-h-0 stack-driven ${isDragging ? "dragging" : ""} ${isStackAnimating ? "stack-animating" : ""}`}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchCancel}
-        style={{ touchAction: "pan-y" }}
+        style={{ touchAction: "none" }}
       >
         {[-1, 0, 1, 2].map((offset) => {
           const cloud = getCloudAt(offset);
@@ -547,13 +551,18 @@ const CloudStackMobileInner = (
           if (positionClass === "hidden") return null;
 
           const isActive = positionClass === "active";
-          const handleCardClick = isActive ? handleActiveTap : (positionClass === "next" || positionClass === "far") ? goNext : goPrev;
+          const handleCardClick = isActive
+            ? () => handleActiveTap(cloud)
+            : (positionClass === "next" || positionClass === "far")
+              ? goNext
+              : goPrev;
           const onCardClick = () => {
             if (tapHandledInTouchEndRef.current) {
               tapHandledInTouchEndRef.current = false;
               return;
             }
-            handleCardClick();
+            if (isActive) handleActiveTap(cloud);
+            else handleCardClick();
           };
           const entry = getEntryConfig(offset);
           const slotStyle = slotStylesByOffset[offset];
