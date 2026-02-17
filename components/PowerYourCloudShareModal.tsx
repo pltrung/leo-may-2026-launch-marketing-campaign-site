@@ -6,7 +6,7 @@ import type { CloudPersonality } from "@/lib/cloudData";
 import CloudIconByType from "@/components/CloudIcons";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
-import { generateCloudIdentityCard } from "@/lib/generateCloudIdentityCard";
+import { generateSharePoster, type PosterPreset } from "@/lib/generateSharePoster";
 
 interface PowerYourCloudShareModalProps {
   locale: Locale;
@@ -91,8 +91,10 @@ export default function PowerYourCloudShareModal({
   const [copyFeedback, setCopyFeedback] = useState<"idle" | "copied" | "instagram">("idle");
   type ImageState = "idle" | "generating" | "preview";
   const [imageState, setImageState] = useState<ImageState>("idle");
+  const [posterPreset, setPosterPreset] = useState<PosterPreset>("square");
   const [generatedImageDataURL, setGeneratedImageDataURL] = useState<string | null>(null);
   const [generatedImageBlob, setGeneratedImageBlob] = useState<Blob | null>(null);
+  const [generatedPreset, setGeneratedPreset] = useState<PosterPreset | null>(null);
   const [previewImageFeedback, setPreviewImageFeedback] = useState<"idle" | "copied" | "instagram">("idle");
 
   const doCopy = useCallback(() => {
@@ -120,39 +122,63 @@ export default function PowerYourCloudShareModal({
 
   const copyLabel = copyFeedback === "copied" ? t.copied : copyFeedback === "instagram" ? t.copiedInstagram : (locale === "vi" ? "Sao chép" : "Copy");
 
-  const handleShareAsImage = useCallback(async () => {
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    setImageState("generating");
-    const minDurationMs = 1000;
-    const start = Date.now();
-    try {
-      const blob = await generateCloudIdentityCard({ locale, cloud, origin });
-      const elapsed = Date.now() - start;
-      const wait = Math.max(0, minDurationMs - elapsed);
-      await new Promise((r) => setTimeout(r, wait));
-      const dataURL = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-      setGeneratedImageBlob(blob);
-      setGeneratedImageDataURL(dataURL);
-      setImageState("preview");
-    } catch {
-      setImageState("idle");
-    }
-  }, [locale, cloud]);
+  const generatePosterForPreset = useCallback(
+    async (preset: PosterPreset) => {
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      setImageState("generating");
+      const minDurationMs = 800;
+      const start = Date.now();
+      try {
+        const blob = await generateSharePoster({
+          preset,
+          cloud,
+          shareUrl: referralUrl,
+          origin,
+          locale,
+        });
+        const elapsed = Date.now() - start;
+        const wait = Math.max(0, minDurationMs - elapsed);
+        await new Promise((r) => setTimeout(r, wait));
+        const dataURL = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        setGeneratedImageBlob(blob);
+        setGeneratedImageDataURL(dataURL);
+        setGeneratedPreset(preset);
+        setPosterPreset(preset);
+        setImageState("preview");
+      } catch {
+        setImageState("idle");
+      }
+    },
+    [locale, cloud, referralUrl]
+  );
+
+  const handleShareAsImage = useCallback(() => {
+    generatePosterForPreset(posterPreset);
+  }, [posterPreset, generatePosterForPreset]);
+
+  const handlePresetChange = useCallback(
+    (preset: PosterPreset) => {
+      if (preset === generatedPreset) return;
+      setPosterPreset(preset);
+      generatePosterForPreset(preset);
+    },
+    [generatedPreset, generatePosterForPreset]
+  );
 
   const handlePreviewDownload = useCallback(() => {
     if (!generatedImageBlob) return;
     const url = URL.createObjectURL(generatedImageBlob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "leo-may-cloud-identity.png";
+    a.download = generatedPreset === "story" ? "leo-may-cloud-story.png" : "leo-may-cloud-identity.png";
     a.click();
     URL.revokeObjectURL(url);
-  }, [generatedImageBlob]);
+  }, [generatedImageBlob, generatedPreset]);
 
   const handlePreviewInstagram = useCallback(async () => {
     if (!generatedImageBlob) return;
@@ -374,7 +400,7 @@ export default function PowerYourCloudShareModal({
             </motion.div>
           )}
 
-          {imageState === "preview" && generatedImageDataURL && (
+          {imageState === "preview" && generatedImageDataURL && generatedPreset && (
             <motion.div
               key="preview"
               className="flex flex-col gap-5"
@@ -384,11 +410,36 @@ export default function PowerYourCloudShareModal({
               transition={{ duration: 0.25 }}
               layout
             >
+              <div className="flex items-center justify-center gap-2 p-1 rounded-xl bg-black/5">
+                <button
+                  type="button"
+                  onClick={() => handlePresetChange("story")}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                    generatedPreset === "story"
+                      ? "bg-white text-[#1a1a1a] shadow-sm"
+                      : "text-[#666] hover:bg-white/50"
+                  }`}
+                >
+                  {t.story}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePresetChange("square")}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                    generatedPreset === "square"
+                      ? "bg-white text-[#1a1a1a] shadow-sm"
+                      : "text-[#666] hover:bg-white/50"
+                  }`}
+                >
+                  {t.square}
+                </button>
+              </div>
               <motion.div
-                className="w-full overflow-hidden rounded-2xl"
+                className="w-full overflow-hidden rounded-2xl relative"
                 style={{
                   boxShadow: `0 0 24px ${accent}35, 0 8px 24px rgba(0,0,0,0.12)`,
                   border: `1px solid ${accent}30`,
+                  aspectRatio: generatedPreset === "story" ? "9/16" : "1",
                 }}
                 initial={{ opacity: 0, y: 12, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -397,8 +448,28 @@ export default function PowerYourCloudShareModal({
                 <img
                   src={generatedImageDataURL}
                   alt=""
-                  className="w-full aspect-square object-cover block"
+                  className="w-full h-full object-contain block"
                 />
+                <div
+                  className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl"
+                  aria-hidden
+                >
+                  <div
+                    className="absolute left-0 right-0 bottom-0 opacity-30"
+                    style={{ height: "30%" }}
+                  >
+                    <div
+                      className="absolute inset-0 w-[80%] max-w-[320px] left-1/2 -translate-x-1/2 rounded-2xl"
+                      style={{
+                        background:
+                          "linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.35) 45%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.35) 55%, transparent 100%)",
+                        backgroundSize: "200% 100%",
+                        animation: "qr-shimmer 3.5s ease-in-out infinite",
+                        mixBlendMode: "soft-light",
+                      }}
+                    />
+                  </div>
+                </div>
               </motion.div>
               <div className="flex items-center justify-center gap-4">
                 <button

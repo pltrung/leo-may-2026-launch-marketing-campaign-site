@@ -1054,6 +1054,12 @@ body.hero-ready .hero-scroll {
   animation: fadeOut 2s ease-out forwards;
 }
 
+/* Share poster preview: QR shimmer (preview only, not exported) — Apple Wallet style */
+@keyframes qr-shimmer {
+  0%, 100% { background-position: -50% 0; }
+  50% { background-position: 150% 0; }
+}
+
 .leaderboard-shimmer {
   background: linear-gradient(
     90deg,
