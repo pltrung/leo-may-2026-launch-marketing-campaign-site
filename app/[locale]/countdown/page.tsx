@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { useRouter, useParams, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { getUser, clearUser } from "@/lib/userStorage";
 import { getCloudById } from "@/lib/cloudData";
@@ -14,8 +14,8 @@ import AboutUsModal from "@/components/AboutUsModal";
 import PowerYourCloudShareModal, { buildShareMessage } from "@/components/PowerYourCloudShareModal";
 import { useCountdownHeroEntrance, CONTENT_STAGGER_MS, EASE_APPLE_IN_OUT, EASE_APPLE_SETTLE, EASE_MICRO_SETTLE } from "@/lib/enterCountdownHero";
 import { getMessages } from "@/lib/messages";
-import { isValidLocale } from "@/lib/i18n";
 import type { Locale } from "@/lib/i18n";
+import { useLocale } from "@/components/LocaleProvider";
 import {
   getEvolutionStage,
   getEvolutionStageIndex,
@@ -230,10 +230,9 @@ function useUserProfile(email?: string, phone?: string) {
 
 export default function CountdownPage() {
   const router = useRouter();
-  const params = useParams();
   const searchParams = useSearchParams();
   const fromMist = searchParams.get("fromMist") === "1";
-  const locale = (params?.locale && isValidLocale(params.locale as string)) ? (params.locale as Locale) : "en";
+  const locale = useLocale();
   const t = getMessages(locale).countdown;
   const [user, setUser] = useState<ReturnType<typeof getUser>>(null);
   const [verified, setVerified] = useState<boolean | null>(null);
