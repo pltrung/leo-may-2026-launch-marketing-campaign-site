@@ -1,4 +1,4 @@
--- 7 evolution stages × 6 cloud types = 42 test accounts
+-- 6 evolution stages × 6 cloud types = 36 test accounts (progress full at 35 refs)
 -- Email: ev{stage}-{cloud}@l  |  Cloud: mn=may_nhe, sm=suong_mu, g=giong, hm=ho_may, cv=cau_vong, gi=gio
 -- Phones use +8492xxxxxx to avoid clashing with previous seeds. Run once; re-run will hit unique on email/phone.
 -- Use "Know your cloud" with e.g. ev1-mn@l or ev5-g@l to test.
@@ -35,15 +35,9 @@ VALUES
   ('Evo 5 Ascending ho_may',  'ev5-hm@l', '+84920000028', 'ho_may',   'evol5-hm',  20),
   ('Evo 5 Ascending cau_vong','ev5-cv@l', '+84920000029', 'cau_vong', 'evol5-cv',  20),
   ('Evo 5 Ascending gio',     'ev5-gi@l', '+84920000030', 'gio',      'evol5-gi',  20),
-  ('Evo 6 Sky Guardian may_nhe', 'ev6-mn@l', '+84920000031', 'may_nhe',  'evol6-mn',  35),
-  ('Evo 6 Sky Guardian suong_mu','ev6-sm@l','+84920000032', 'suong_mu', 'evol6-sm',  35),
-  ('Evo 6 Sky Guardian giong',   'ev6-g@l',  '+84920000033', 'giong',    'evol6-g',   35),
-  ('Evo 6 Sky Guardian ho_may',  'ev6-hm@l', '+84920000034', 'ho_may',   'evol6-hm',  35),
-  ('Evo 6 Sky Guardian cau_vong', 'ev6-cv@l', '+84920000035', 'cau_vong', 'evol6-cv',  35),
-  ('Evo 6 Sky Guardian gio',     'ev6-gi@l', '+84920000036', 'gio',      'evol6-gi',  35),
-  ('Evo 7 Founding may_nhe',  'ev7-mn@l', '+84920000037', 'may_nhe',  'evol7-mn',  55),
-  ('Evo 7 Founding suong_mu', 'ev7-sm@l', '+84920000038', 'suong_mu', 'evol7-sm',  55),
-  ('Evo 7 Founding giong',    'ev7-g@l',  '+84920000039', 'giong',    'evol7-g',   55),
-  ('Evo 7 Founding ho_may',   'ev7-hm@l', '+84920000040', 'ho_may',   'evol7-hm',  55),
-  ('Evo 7 Founding cau_vong',  'ev7-cv@l', '+84920000041', 'cau_vong', 'evol7-cv',  55),
-  ('Evo 7 Founding gio',      'ev7-gi@l', '+84920000042', 'gio',      'evol7-gi',  55);
+  ('Evo 6 Founding may_nhe',  'ev6-mn@l', '+84920000031', 'may_nhe',  'evol6-mn',  35),
+  ('Evo 6 Founding suong_mu', 'ev6-sm@l', '+84920000032', 'suong_mu', 'evol6-sm',  35),
+  ('Evo 6 Founding giong',    'ev6-g@l',  '+84920000033', 'giong',    'evol6-g',   35),
+  ('Evo 6 Founding ho_may',   'ev6-hm@l', '+84920000034', 'ho_may',   'evol6-hm',  35),
+  ('Evo 6 Founding cau_vong', 'ev6-cv@l', '+84920000035', 'cau_vong', 'evol6-cv',  35),
+  ('Evo 6 Founding gio',      'ev6-gi@l', '+84920000036', 'gio',      'evol6-gi',  35);

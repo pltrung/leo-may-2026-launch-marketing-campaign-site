@@ -1,14 +1,13 @@
 import type { Locale } from "./i18n";
 
-/** Evolution stages by invite (referral) count. Aligned with waitlist seed: 0, 4, 7, 12, 20, 35, 55. */
+/** Evolution stages by invite (referral) count. Exactly 6 stages; final at 35+. */
 export const EVOLUTION_STAGES = [
   { min: 0, max: 3, id: "dormant" },
   { min: 4, max: 6, id: "stirring" },
   { min: 7, max: 11, id: "awakening" },
   { min: 12, max: 19, id: "forming" },
   { min: 20, max: 34, id: "ascending" },
-  { min: 35, max: 54, id: "sky_guardian" },
-  { min: 55, max: Infinity, id: "founding" },
+  { min: 35, max: Infinity, id: "founding" },
 ] as const;
 
 export type EvolutionStageId = (typeof EVOLUTION_STAGES)[number]["id"];
@@ -26,25 +25,23 @@ export function getEvolutionStageIndex(inviteCount: number): number {
   return EVOLUTION_STAGES.indexOf(stage);
 }
 
-/** Identity rank by stage (same order as EVOLUTION_STAGES). */
+/** Identity rank by stage (same order as EVOLUTION_STAGES; matches evolutionLevels names). */
 const RANKS_EN = [
   "Gentle Explorer",
   "Sky Listener",
-  "Cloud Caller",
-  "Spirit Awakener",
-  "Sky Shaper",
-  "Cloud Guardian",
+  "Cloud Shaper",
+  "Sky Influencer",
   "Founding Cloud",
+  "Origin Marker",
 ];
 
 const RANKS_VI = [
   "Người Khám Phá Dịu Dàng",
   "Người Lắng Nghe Bầu Trời",
-  "Người Gọi Mây",
-  "Người Đánh Thức Linh Hồn",
-  "Người Định Hình Bầu Trời",
-  "Thần Hộ Mệnh Mây",
+  "Người Định Hình Mây",
+  "Người Ảnh Hưởng Bầu Trời",
   "Mây Sáng Lập",
+  "Dấu Ấn Khởi Nguyên",
 ];
 
 export function getIdentityRank(stageIndex: number, locale: Locale): string {

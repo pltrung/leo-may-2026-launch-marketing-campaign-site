@@ -1007,7 +1007,7 @@ body.hero-ready .hero-scroll {
 /* Stage 4+: mascot translateY oscillation -1px→1px→-1px (no resize) */
 .countdown-mascot-wrapper[data-evolution-index="4"] .evolution-mascot-inner,
 .countdown-mascot-wrapper[data-evolution-index="5"] .evolution-mascot-inner,
-.countdown-mascot-wrapper[data-evolution-index="6"] .evolution-mascot-inner {
+.countdown-mascot-wrapper[data-evolution-index="5"] .evolution-mascot-inner {
   animation: ascensionOscillate 3s ease-in-out infinite;
   will-change: transform;
 }
@@ -1085,7 +1085,7 @@ body.hero-ready .hero-scroll {
 .countdown-mascot-wrapper[data-evolution-index="3"] .evolution-energy-core { width: 85%; height: 85%; margin-left: -42.5%; margin-top: -42.5%; opacity: 0.6; }
 .countdown-mascot-wrapper[data-evolution-index="4"] .evolution-energy-core { opacity: 0.75; }
 .countdown-mascot-wrapper[data-evolution-index="5"] .evolution-energy-core { opacity: 0.85; }
-.countdown-mascot-wrapper[data-evolution-index="6"] .evolution-energy-core { opacity: 0.95; }
+.countdown-mascot-wrapper[data-evolution-index="5"] .evolution-energy-core { opacity: 0.95; }
 @keyframes energyCorePulse {
   0%, 100% { transform: scale(0.98); }
   50% { transform: scale(1.04); }
@@ -1159,9 +1159,10 @@ body.hero-ready .hero-scroll {
   pointer-events: none;
   z-index: 0;
   will-change: transform, opacity;
+  overflow: hidden;
 }
 
-/* Flame spike SVG container */
+/* Flame spike SVG container — above signature so "Goku" spikes are visible */
 .ascension-spikes-svg {
   position: absolute;
   left: 50%;
@@ -1173,6 +1174,7 @@ body.hero-ready .hero-scroll {
   transform: translate(-50%, -50%);
   overflow: visible;
   pointer-events: none;
+  z-index: 2;
 }
 .ascension-spike {
   transform-origin: 50% 50%;
@@ -1193,7 +1195,7 @@ body.hero-ready .hero-scroll {
 .mascot-ascension-aura[data-evolution-index="5"] .ascension-spike {
   animation: ascensionSpikeStretch 3s ease-in-out infinite;
 }
-.mascot-ascension-aura[data-evolution-index="6"] .ascension-spike {
+.mascot-ascension-aura[data-evolution-index="5"] .ascension-spike {
   animation: ascensionSpikeStretch 2s ease-in-out infinite;
 }
 .ascension-spike {
@@ -1204,9 +1206,9 @@ body.hero-ready .hero-scroll {
   50% { transform: scaleY(1.2); }
 }
 .mascot-ascension-aura[data-evolution-index="5"] .ascension-spike { filter: blur(10px); }
-.mascot-ascension-aura[data-evolution-index="6"] .ascension-spike { filter: blur(14px); }
+.mascot-ascension-aura[data-evolution-index="5"] .ascension-spike { filter: blur(14px); }
 
-/* Flame aura gradient field */
+/* Flame aura gradient field — behind spikes so body aura is visible */
 .ascension-flame-gradient {
   position: absolute;
   left: 50%;
@@ -1223,45 +1225,46 @@ body.hero-ready .hero-scroll {
   animation: ascensionFlameBreath 4s ease-in-out infinite;
   transition: opacity 800ms ease;
   will-change: transform, opacity;
+  z-index: 1;
 }
 .mascot-ascension-aura[data-evolution-index="0"] .ascension-flame-gradient { opacity: 0; }
 .mascot-ascension-aura[data-evolution-index="1"] .ascension-flame-gradient { opacity: 0.1; }
 .mascot-ascension-aura[data-evolution-index="2"] .ascension-flame-gradient { opacity: 0.2; }
 .mascot-ascension-aura[data-evolution-index="3"] .ascension-flame-gradient { opacity: 0.35; }
 .mascot-ascension-aura[data-evolution-index="4"] .ascension-flame-gradient { opacity: 0.5; }
-.mascot-ascension-aura[data-evolution-index="5"] .ascension-flame-gradient { opacity: 0.7; }
-.mascot-ascension-aura[data-evolution-index="6"] .ascension-flame-gradient { opacity: 0.9; filter: blur(90px); }
+.mascot-ascension-aura[data-evolution-index="5"] .ascension-flame-gradient { opacity: 0.65; filter: blur(70px); }
 @keyframes ascensionFlameBreath {
   0%, 100% { transform: translate(-50%, -50%) scale(0.97); }
   50% { transform: translate(-50%, -50%) scale(1.03); }
 }
 
-/* Team-specific ascension signature (Stage 5–6 only) */
+/* Team-specific ascension signature (Stage 5 only) — kept small and soft to avoid full-screen white flash */
 .ascension-signature {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 120%;
-  height: 120%;
-  margin-left: -60%;
-  margin-top: -60%;
+  width: 85%;
+  height: 85%;
+  margin-left: -42.5%;
+  margin-top: -42.5%;
+  transform: translate(-50%, -50%);
   pointer-events: none;
   transition: opacity 1200ms ease;
   will-change: opacity;
+  z-index: 0;
+  background: transparent;
 }
-.mascot-ascension-aura[data-evolution-index="5"] .ascension-signature { opacity: 0.35; }
-.mascot-ascension-aura[data-evolution-index="6"] .ascension-signature { opacity: 0.7; }
-/* Signature animations: fade in/out every 4–8s, team-specific visuals via data-cloud-type */
+/* Signature animations: subtle pulse every 4–8s so it never washes out the screen */
 .ascension-signature {
   animation: ascensionSignaturePulse 6s ease-in-out infinite;
 }
 @keyframes ascensionSignaturePulse {
-  0%, 100% { opacity: 0.1; }
-  25% { opacity: var(--sig-opacity, 0.35); }
-  75% { opacity: 0.15; }
+  0%, 100% { opacity: 0.08; }
+  25% { opacity: var(--sig-opacity, 0.22); }
+  75% { opacity: 0.12; }
 }
-.mascot-ascension-aura[data-evolution-index="5"] .ascension-signature { --sig-opacity: 0.35; }
-.mascot-ascension-aura[data-evolution-index="6"] .ascension-signature { --sig-opacity: 0.7; }
+.mascot-ascension-aura[data-evolution-index="5"] .ascension-signature { --sig-opacity: 0.22; }
+.mascot-ascension-aura[data-evolution-index="5"] .ascension-signature { --sig-opacity: 0.4; }
 
 /* Team signature visuals (background/pattern per cloud type) */
 .mascot-ascension-aura[data-cloud-type="may_nhe"] .ascension-signature {
@@ -1435,7 +1438,7 @@ body.hero-ready .hero-scroll {
 }
 .countdown-mascot-wrapper[data-cloud-type="suong_mu"][data-evolution-index="4"]::before,
 .countdown-mascot-wrapper[data-cloud-type="suong_mu"][data-evolution-index="5"]::before,
-.countdown-mascot-wrapper[data-cloud-type="suong_mu"][data-evolution-index="6"]::before {
+.countdown-mascot-wrapper[data-cloud-type="suong_mu"][data-evolution-index="5"]::before {
   filter: blur(20px);
 }
 .countdown-mascot-wrapper[data-cloud-type="cau_vong"]::before {
@@ -1681,7 +1684,7 @@ body.hero-ready .hero-scroll {
 .countdown-page-root[data-evolution-index="5"]::before {
   filter: brightness(1.04) saturate(1.06);
 }
-.countdown-page-root[data-evolution-index="6"]::before {
+.countdown-page-root[data-evolution-index="5"]::before {
   filter: brightness(1.08) saturate(1.12);
 }
 
@@ -1695,7 +1698,7 @@ body.hero-ready .hero-scroll {
   animation: ribbonGlowPulse 2.5s ease-in-out infinite;
   will-change: opacity;
 }
-.countdown-mascot-wrapper[data-evolution-index="6"] .evolution-ribbon-glow {
+.countdown-mascot-wrapper[data-evolution-index="5"] .evolution-ribbon-glow {
   filter: blur(16px);
   box-shadow: 0 0 24px var(--ribbon-glow-color, currentColor);
   opacity: var(--ribbon-glow-opacity, 0.35);

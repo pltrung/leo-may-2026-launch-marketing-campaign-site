@@ -364,8 +364,8 @@ export default function CountdownPage() {
   const orbitParticleCount = evolutionStageIndex >= 3 ? 4 + Math.min(evolutionStageIndex - 3, 4) : 0;
   const windStreaks = evolutionStageIndex >= 5 ? [0, 1, 2, 3, 4, 5, 6, 7] : [];
 
-  const ASCENSION_SPIKE_COUNT = [0, 2, 4, 6, 8, 12, 16] as const;
-  const ASCENSION_SPIKE_OPACITY = [0, 0.15, 0.25, 0.4, 0.55, 0.75, 1] as const;
+  const ASCENSION_SPIKE_COUNT = [0, 2, 4, 6, 8, 16] as const;
+  const ASCENSION_SPIKE_OPACITY = [0, 0.15, 0.25, 0.4, 0.55, 1] as const;
   const spikeCount = ASCENSION_SPIKE_COUNT[evolutionStageIndex] ?? 0;
   const stageSpikeOpacity = ASCENSION_SPIKE_OPACITY[evolutionStageIndex] ?? 0;
 
@@ -554,7 +554,7 @@ export default function CountdownPage() {
               } as React.CSSProperties
             }
           >
-            {evolutionStageIndex === 6 && (
+            {evolutionStageIndex === 5 && (
               <div className="ascension-distortion" aria-hidden />
             )}
             <div className="ascension-flame-gradient" aria-hidden />
@@ -616,7 +616,7 @@ export default function CountdownPage() {
               aria-hidden
             />
           )}
-          {evolutionStageIndex >= 6 && (
+          {evolutionStageIndex >= 5 && (
             <div className="evolution-aura-ring" aria-hidden />
           )}
           {evolutionStageIndex >= 1 && (
