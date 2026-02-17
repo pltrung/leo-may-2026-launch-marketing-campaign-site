@@ -7,7 +7,15 @@ const PARALLAX_FAR = 0.12;
 const PARALLAX_MID = 0.22;
 const PARALLAX_NEAR = 0.32;
 
-/** Scroll-driven volumetric mist: Earth → clouds. Opacity 0→0.15/0.20/0.25, soft gradients, parallax. */
+/** Scroll distance over which mist reaches full intensity (hero scroll range). */
+const MIST_RAMP_PX = 2200;
+
+/** Max opacity per layer so mist is clearly visible as you ascend. */
+const OPACITY_FAR = 0.32;
+const OPACITY_MID = 0.42;
+const OPACITY_NEAR = 0.52;
+
+/** Scroll-driven volumetric mist: Earth → clouds. Ramps over hero scroll; soft gradients, parallax. */
 export default function MistAscent() {
   const [progress, setProgress] = useState(0);
   const [scrollY, setScrollY] = useState(0);
@@ -46,13 +54,13 @@ export default function MistAscent() {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       document.documentElement.style.removeProperty("--hero-parallax-y");
       document.documentElement.style.removeProperty("--hero-ip-float");
-    };
+      };
   }, [updateProgress]);
 
-  // Smooth accumulation: 0 → max over full scroll (no sudden jumps)
-  const farOpacity = Math.min(0.15, progress * 0.15);
-  const midOpacity = Math.min(0.2, progress * 0.2);
-  const nearOpacity = Math.min(0.25, progress * 0.25);
+  const mistProgress = Math.min(1, scrollY / MIST_RAMP_PX);
+  const farOpacity = mistProgress * OPACITY_FAR;
+  const midOpacity = mistProgress * OPACITY_MID;
+  const nearOpacity = mistProgress * OPACITY_NEAR;
 
   const farY = scrollY * PARALLAX_FAR;
   const midY = scrollY * PARALLAX_MID;
