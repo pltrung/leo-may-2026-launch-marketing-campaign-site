@@ -257,7 +257,10 @@ export default function CountdownPage() {
 
   useEffect(() => {
     const stageIndex = getEvolutionStageIndex(profile.referralCount);
-    if (prevEvolutionStageIndexRef.current >= 0 && stageIndex > prevEvolutionStageIndexRef.current) {
+    const prev = prevEvolutionStageIndexRef.current;
+    // Only fire ascension burst on a real single-step transition (e.g. 4→5). Do NOT fire when
+    // profile loads and jumps 0→5 (that caused "crazy flash" and blue screen after load).
+    if (prev >= 0 && stageIndex > prev && stageIndex === prev + 1) {
       setAscensionBurstKey((k) => k + 1);
     }
     prevEvolutionStageIndexRef.current = stageIndex;
