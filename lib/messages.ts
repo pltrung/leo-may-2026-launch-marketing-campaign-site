@@ -53,6 +53,7 @@ const en = {
     climbersJoined: "climbers joined your cloud",
     inviteOthers: "Aura gathers when others follow your cloud",
     auraProgressLabel: "Aura Progress to next form",
+    joinedYourCloud: "joined your cloud",
     auraUnit: "aura",
     nextFormLabel: "Next form",
     countdownWinnerText:
@@ -230,6 +231,7 @@ const vi: Messages = {
     climbersJoined: "người leo đã vào mây của bạn",
     inviteOthers: "Aura tích lũy khi người khác theo mây của bạn",
     auraProgressLabel: "Tiến độ Aura đến hình thể tiếp theo",
+    joinedYourCloud: "đã vào mây của bạn",
     auraUnit: "aura",
     nextFormLabel: "Hình thể tiếp theo",
     countdownWinnerText:
@@ -274,10 +276,13 @@ const vi: Messages = {
     },
     rewardsTitle: "Phần thưởng mở khóa",
     rewards: [
-      "Vào gym sớm",
-      "Thư mời sự kiện ra mắt",
-      "Hàng độc quyền",
-      "Tên vinh danh lâu dài tại Leo Mây",
+      "✦ Thức Tỉnh",
+      "✦ Quyền bước vào Leo Mây trước ngày mở cửa",
+      "✦ Lời triệu hồi đến sự kiện khai sinh Leo Mây",
+      "✦ Vật phẩm sáng lập — chỉ dành cho những đám mây đầu tiên",
+      "✦ Tên của bạn trở thành một phần vĩnh viễn của Leo Mây",
+      "✦ Trở thành một phần của nguồn gốc Leo Mây",
+      "Danh tính của bạn sẽ được khắc vĩnh viễn trong Leo Mây",
     ],
     progressSubByLevel: [
       "Mời người leo để đánh thức mây của bạn.",

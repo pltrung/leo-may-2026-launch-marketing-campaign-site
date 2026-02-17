@@ -36,6 +36,7 @@ import {
 } from "@/lib/evolutionLevels";
 import type { EvolutionLevel } from "@/lib/evolutionLevels";
 import EvolutionCeremonyModal from "@/components/EvolutionCeremonyModal";
+import { getAscensionEnergyVars } from "@/lib/ascensionEnergy";
 
 /** Evolution-driven opacity for aura: 0 at stage 0, ramps to 1 by stage 4+. */
 function auraOpacityForStage(stageIndex: number): number {
@@ -248,9 +249,19 @@ export default function CountdownPage() {
   const [prevLeaderboardOrder, setPrevLeaderboardOrder] = useState<string>("");
   const [skyUnstable, setSkyUnstable] = useState(false);
   const prevLevelIndexRef = useRef<number>(-1);
+  const prevEvolutionStageIndexRef = useRef<number>(-1);
   const [levelUpFlash, setLevelUpFlash] = useState(false);
+  const [ascensionBurstKey, setAscensionBurstKey] = useState(0);
   const [evolutionCeremony, setEvolutionCeremony] = useState<{ fromLevel: EvolutionLevel; toLevel: EvolutionLevel } | null>(null);
   const [pendingEvolutionCeremony, setPendingEvolutionCeremony] = useState<{ fromLevel: EvolutionLevel; toLevel: EvolutionLevel } | null>(null);
+
+  useEffect(() => {
+    const stageIndex = getEvolutionStageIndex(profile.referralCount);
+    if (prevEvolutionStageIndexRef.current >= 0 && stageIndex > prevEvolutionStageIndexRef.current) {
+      setAscensionBurstKey((k) => k + 1);
+    }
+    prevEvolutionStageIndexRef.current = stageIndex;
+  }, [profile.referralCount]);
 
   useEffect(() => {
     const levelIndex = getEvolutionLevel(profile.referralCount).levelIndex;
@@ -350,12 +361,13 @@ export default function CountdownPage() {
   const evolutionAbilityText = t.evolutionAbility?.[evolutionStageIndex] ?? t.yourCloudGathering;
   const skyNarrativeText = t.skyNarrative?.[skyNarrativeKey] ?? t.skyHeader;
   const mascotPartColors = getMascotPartColors(cloud.id);
-  const orbitParticleCount = evolutionStageIndex >= 4 ? 5 + Math.min(evolutionStageIndex - 4, 3) : 0;
+  const orbitParticleCount = evolutionStageIndex >= 3 ? 4 + Math.min(evolutionStageIndex - 3, 4) : 0;
+  const windStreaks = evolutionStageIndex >= 5 ? [0, 1, 2, 3, 4, 5, 6, 7] : [];
 
   return (
     <div
       className="min-h-[100dvh] md:min-h-[100svh] flex flex-col w-full relative countdown-page-root"
-      style={{ backgroundColor: "#0242FF" }}
+      data-evolution-index={evolutionStageIndex}
       data-sky-dominant={skyDominant}
       data-sky-unstable={skyUnstable ? "true" : "false"}
     >
@@ -519,10 +531,32 @@ export default function CountdownPage() {
           data-cloud-type={cloud.id}
           data-evolution-stage={evolutionStage.id}
           data-evolution-index={evolutionStageIndex}
+          style={getAscensionEnergyVars(cloud.id) as React.CSSProperties}
           initial={{ opacity: 0 }}
           animate={{ opacity: phase === "content" ? 1 : 0 }}
           transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[2] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
+          {ascensionBurstKey > 0 && (
+            <div
+              key={ascensionBurstKey}
+              className="evolution-ascension-burst"
+              aria-hidden
+            />
+          )}
+          {evolutionStageIndex >= 5 && (
+            <div className="evolution-ascension-wind" aria-hidden>
+              {windStreaks.map((i) => (
+                <span
+                  key={i}
+                  className="evolution-wind-streak"
+                  style={{
+                    ["--wind-x" as string]: `${20 + i * 10}%`,
+                    ["--wind-delay" as string]: `${i * 0.5}s`,
+                  } as React.CSSProperties}
+                />
+              ))}
+            </div>
+          )}
           {shareModal && shareAuraPulseKey > 0 && (
             <motion.div
               key={shareAuraPulseKey}
@@ -670,6 +704,9 @@ export default function CountdownPage() {
               style={{ backgroundColor: accent }}
             />
           </div>
+          <p className="font-caption text-center text-sm mt-1" style={{ color: "#1E2A38", opacity: 0.85 }}>
+            {referralCount} {referralCount === 1 ? t.climber : t.climbers} {t.joinedYourCloud}
+          </p>
         </motion.div>
 
         <motion.button
