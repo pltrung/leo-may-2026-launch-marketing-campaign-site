@@ -60,10 +60,3 @@ export function getSkyNarrativeKey(daysRemaining: number): "quiet" | "stir" | "f
   if (daysRemaining <= 7) return "stir";
   return "quiet";
 }
-
-/** Founding Climber: first 100 per cloud. API may return this; until then we show badge at stage 6+ (26+ invites). */
-export const FOUNDING_CLIMBER_MIN_INVITES = 26;
-
-export function isFoundingClimberEligible(inviteCount: number): boolean {
-  return inviteCount >= FOUNDING_CLIMBER_MIN_INVITES;
-}

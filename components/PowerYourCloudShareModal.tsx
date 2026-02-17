@@ -13,7 +13,9 @@ interface PowerYourCloudShareModalProps {
   cloud: CloudPersonality;
   referralUrl: string;
   shareMessage: string;
+  referralCount: number;
   onClose: () => void;
+  onShareClick?: () => void;
 }
 
 const EASE_PREMIUM = [0.22, 1, 0.36, 1] as [number, number, number, number];
@@ -83,7 +85,9 @@ export default function PowerYourCloudShareModal({
   cloud,
   referralUrl,
   shareMessage,
+  referralCount,
   onClose,
+  onShareClick,
 }: PowerYourCloudShareModalProps) {
   const t = getMessages(locale).countdown.shareModal;
   const accent = cloud.accentHex;
@@ -280,9 +284,46 @@ export default function PowerYourCloudShareModal({
               >
                 {shareMessage}
               </div>
+              <div
+                className="rounded-[14px] border"
+                style={{
+                  background: "rgba(0,0,0,0.07)",
+                  borderColor: "rgba(255,255,255,0.12)",
+                  backdropFilter: "blur(8px)",
+                  padding: "12px 14px",
+                  marginTop: 12,
+                }}
+              >
+                <p
+                  className="text-[15px] font-semibold leading-snug"
+                  style={{ color: "rgba(255,255,255,0.95)" }}
+                >
+                  Invite others to join your cloud.
+                </p>
+                <p
+                  className="text-[13px] font-normal leading-snug mt-1"
+                  style={{ color: "rgba(255,255,255,0.75)" }}
+                >
+                  Each person who joins through your link becomes a climber in your cloud.
+                </p>
+                <p
+                  className="text-[13px] font-normal leading-snug mt-0.5"
+                  style={{ color: "rgba(255,255,255,0.75)" }}
+                >
+                  Every climber strengthens your cloud and unlocks its next evolution.
+                </p>
+                <p className="text-[13px] font-normal leading-snug mt-2" style={{ color: "rgba(255,255,255,0.75)" }}>
+                  You have awakened{" "}
+                  <span style={{ color: "#7FE3B0", fontWeight: 600 }}>{referralCount}</span>
+                  {" "}climbers.
+                </p>
+              </div>
               <button
                 type="button"
-                onClick={handleShareAsImage}
+                onClick={() => {
+                  onShareClick?.();
+                  handleShareAsImage();
+                }}
                 className="w-full py-3.5 rounded-xl font-subheadline text-sm font-medium border-2 transition-all hover:opacity-90"
                 style={{
                   borderColor: accent,
@@ -297,6 +338,7 @@ export default function PowerYourCloudShareModal({
                   href={zaloUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => onShareClick?.()}
                   className="w-11 h-11 flex items-center justify-center rounded-full bg-[#0068FF] text-white hover:opacity-90 transition-opacity"
                   aria-label="Zalo"
                 >
@@ -306,6 +348,7 @@ export default function PowerYourCloudShareModal({
                   href={facebookUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => onShareClick?.()}
                   className="w-11 h-11 flex items-center justify-center rounded-full bg-[#1877F2] text-white hover:opacity-90 transition-opacity"
                   aria-label="Facebook"
                 >
@@ -315,6 +358,7 @@ export default function PowerYourCloudShareModal({
                   href={threadsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => onShareClick?.()}
                   className="w-11 h-11 flex items-center justify-center rounded-full bg-[#000] text-white hover:opacity-90 transition-opacity"
                   aria-label="Threads"
                 >
@@ -322,7 +366,10 @@ export default function PowerYourCloudShareModal({
                 </a>
                 <button
                   type="button"
-                  onClick={handleInstagram}
+                  onClick={() => {
+                    onShareClick?.();
+                    handleInstagram();
+                  }}
                   className="w-11 h-11 flex items-center justify-center rounded-full bg-gradient-to-br from-[#F58529] via-[#DD2A7B] to-[#8134AF] text-white hover:opacity-90 transition-opacity"
                   aria-label="Instagram"
                   title={t.copiedInstagram}
@@ -331,7 +378,10 @@ export default function PowerYourCloudShareModal({
                 </button>
                 <button
                   type="button"
-                  onClick={handleCopy}
+                  onClick={() => {
+                    onShareClick?.();
+                    handleCopy();
+                  }}
                   className="w-11 h-11 flex items-center justify-center rounded-full border-2 text-[#444] hover:bg-black/5 transition-colors"
                   style={{ borderColor: accent }}
                   aria-label={locale === "vi" ? "Sao chép" : "Copy"}

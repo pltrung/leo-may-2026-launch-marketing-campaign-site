@@ -10,7 +10,8 @@ export const EVOLUTION_LEVELS = [
   { levelIndex: 2, minReferrals: 10, maxReferrals: 19, nameEn: "Cloud Shaper", nameVi: "Người Định Hình Mây" },
   { levelIndex: 3, minReferrals: 20, maxReferrals: 34, nameEn: "Sky Influencer", nameVi: "Người Ảnh Hưởng Bầu Trời" },
   { levelIndex: 4, minReferrals: 35, maxReferrals: 49, nameEn: "Founding Cloud", nameVi: "Mây Sáng Lập" },
-  { levelIndex: 5, minReferrals: 50, maxReferrals: Infinity, nameEn: "Celestial Founder", nameVi: "Người Sáng Lập Thiên Thể" },
+  { levelIndex: 5, minReferrals: 50, maxReferrals: 74, nameEn: "Celestial Founder", nameVi: "Người Sáng Lập Thiên Thể" },
+  { levelIndex: 6, minReferrals: 75, maxReferrals: Infinity, nameEn: "Origin Marker", nameVi: "Dấu Ấn Khởi Nguyên" },
 ] as const;
 
 export type EvolutionLevel = (typeof EVOLUTION_LEVELS)[number];
@@ -60,4 +61,24 @@ export function getNextFormName(referralCount: number, locale: Locale): string |
   const next = getNextLevel(referralCount);
   if (!next) return null;
   return getLevelName(next, locale);
+}
+
+/** Reward unlocked at each level (levelIndex 0 = no reward / awakening). */
+export const EVOLUTION_REWARDS = [
+  { levelIndex: 0, labelEn: "Awakening phase", labelVi: "Giai đoạn thức tỉnh" },
+  { levelIndex: 1, labelEn: "Early gym access eligibility", labelVi: "Đủ điều kiện vào gym sớm" },
+  { levelIndex: 2, labelEn: "Launch event invitation eligibility", labelVi: "Đủ điều kiện thư mời sự kiện ra mắt" },
+  { levelIndex: 3, labelEn: "Exclusive founding merchandise eligibility", labelVi: "Đủ điều kiện hàng độc quyền sáng lập" },
+  { levelIndex: 4, labelEn: "Permanent name recognition inside Leo Mây", labelVi: "Tên vinh danh lâu dài tại Leo Mây" },
+  { levelIndex: 5, labelEn: "Founding Circle access (private pre-opening + founder recognition)", labelVi: "Quyền vào Vòng Sáng Lập (buổi mở cửa riêng + công nhận sáng lập)" },
+  { levelIndex: 6, labelEn: "Origin Marker status (permanent legacy engraving + lifetime founding identity)", labelVi: "Danh hiệu Dấu Ấn Khởi Nguyên (khắc danh vĩnh viễn + bản sắc sáng lập trọn đời)" },
+] as const;
+
+export function getRewardLabel(reward: (typeof EVOLUTION_REWARDS)[number], locale: Locale): string {
+  return locale === "vi" ? reward.labelVi : reward.labelEn;
+}
+
+/** Whether this reward tier is unlocked at the given level index. */
+export function isRewardUnlocked(rewardLevelIndex: number, currentLevelIndex: number): boolean {
+  return currentLevelIndex >= rewardLevelIndex;
 }

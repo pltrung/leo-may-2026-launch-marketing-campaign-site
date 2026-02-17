@@ -21,36 +21,75 @@ import {
   getEvolutionStageIndex,
   getIdentityRank,
   getSkyNarrativeKey,
-  isFoundingClimberEligible,
 } from "@/lib/countdownEvolution";
 import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
 import {
+  EVOLUTION_LEVELS,
+  EVOLUTION_REWARDS,
   getEvolutionLevel,
   getXpInLevel,
   getXpRequiredForLevel,
   getLevelProgressFraction,
   getNextFormName,
   getLevelName,
+  getRewardLabel,
+  isRewardUnlocked,
 } from "@/lib/evolutionLevels";
+import type { EvolutionLevel } from "@/lib/evolutionLevels";
+import EvolutionCeremonyModal from "@/components/EvolutionCeremonyModal";
 
-/** Applies species colors to mascot SVG parts via object ref when loaded. */
-function MascotSvgObject({ src, partColors }: { src: string; partColors: MascotPartColors }) {
+/** Evolution-driven opacity for aura: 0 at stage 0, ramps to 1 by stage 4+. */
+function auraOpacityForStage(stageIndex: number): number {
+  if (stageIndex <= 0) return 0;
+  return Math.min(1, 0.2 + stageIndex * 0.2);
+}
+
+/** Evolution-driven opacity for particles: 0 until stage 3, then ramps. */
+function particlesOpacityForStage(stageIndex: number): number {
+  if (stageIndex < 3) return 0;
+  return Math.min(1, (stageIndex - 2) * 0.35);
+}
+
+/** Applies species colors and evolution state to mascot SVG groups via object ref when loaded. */
+function MascotSvgObject({
+  src,
+  partColors,
+  evolutionStageIndex = 0,
+}: {
+  src: string;
+  partColors: MascotPartColors;
+  evolutionStageIndex?: number;
+}) {
   const objectRef = useRef<HTMLObjectElement>(null);
 
-  const applyColors = useCallback((doc: Document | null) => {
-    if (!doc) return;
-    const eyeLeft = doc.getElementById("eye-left") as SVGElement | null;
-    const eyeRight = doc.getElementById("eye-right") as SVGElement | null;
-    const ribbon = doc.getElementById("ribbon") as SVGElement | null;
-    const cloudOutline = doc.getElementById("cloud-outline") as SVGElement | null;
-    if (eyeLeft) eyeLeft.setAttribute("fill", partColors.eyeLeft);
-    if (eyeRight) eyeRight.setAttribute("fill", partColors.eyeRight);
-    if (ribbon) ribbon.setAttribute("fill", partColors.ribbon);
-    if (cloudOutline) {
-      cloudOutline.setAttribute("stroke", partColors.cloudOutline);
-      if (!cloudOutline.hasAttribute("stroke-width")) cloudOutline.setAttribute("stroke-width", "2");
-    }
-  }, [partColors.eyeLeft, partColors.eyeRight, partColors.ribbon, partColors.cloudOutline]);
+  const applyColors = useCallback(
+    (doc: Document | null) => {
+      if (!doc) return;
+      const eyeLeft = doc.getElementById("eye-left") as SVGElement | null;
+      const eyeRight = doc.getElementById("eye-right") as SVGElement | null;
+      const ribbonEl = doc.getElementById("ribbon") as SVGElement | null;
+      const mascotRibbon = doc.getElementById("mascot-ribbon") as SVGElement | null;
+      const cloudOutline = doc.getElementById("cloud-outline") as SVGElement | null;
+      const mascotLeftEyes = doc.getElementById("mascot-left-eyes") as SVGElement | null;
+      const mascotAura = doc.getElementById("mascot-aura") as SVGElement | null;
+      const mascotParticles = doc.getElementById("mascot-particles") as SVGElement | null;
+
+      if (eyeLeft) eyeLeft.setAttribute("fill", partColors.eyeLeft);
+      if (eyeRight) eyeRight.setAttribute("fill", "#ffffff");
+      if (mascotRibbon) mascotRibbon.setAttribute("fill", partColors.ribbon);
+      else if (ribbonEl) ribbonEl.setAttribute("fill", partColors.ribbon);
+      if (cloudOutline) {
+        cloudOutline.setAttribute("stroke", partColors.cloudOutline);
+        if (!cloudOutline.hasAttribute("stroke-width")) cloudOutline.setAttribute("stroke-width", "2");
+      }
+      if (mascotLeftEyes) {
+        mascotLeftEyes.setAttribute("filter", evolutionStageIndex > 0 ? "url(#mascot-eye-glow)" : "none");
+      }
+      if (mascotAura) mascotAura.setAttribute("opacity", String(auraOpacityForStage(evolutionStageIndex)));
+      if (mascotParticles) mascotParticles.setAttribute("opacity", String(particlesOpacityForStage(evolutionStageIndex)));
+    },
+    [partColors.eyeLeft, partColors.ribbon, partColors.cloudOutline, evolutionStageIndex]
+  );
 
   useEffect(() => {
     const el = objectRef.current;
@@ -190,6 +229,7 @@ export default function CountdownPage() {
   const [shareToast, setShareToast] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shareModal, setShareModal] = useState<{ referralUrl: string; shareMessage: string } | null>(null);
+  const [shareAuraPulseKey, setShareAuraPulseKey] = useState(0);
   const { phase } = useCountdownHeroEntrance({ startDelay: COUNTDOWN_BG_FADE_MS });
   const teamCount = useTeamCount((user?.team ?? "may_nhe") as CloudType);
   const leaderboard = useLeaderboard();
@@ -199,11 +239,15 @@ export default function CountdownPage() {
   const [skyUnstable, setSkyUnstable] = useState(false);
   const prevLevelIndexRef = useRef<number>(-1);
   const [levelUpFlash, setLevelUpFlash] = useState(false);
+  const [evolutionCeremony, setEvolutionCeremony] = useState<{ fromLevel: EvolutionLevel; toLevel: EvolutionLevel } | null>(null);
 
   useEffect(() => {
     const levelIndex = getEvolutionLevel(profile.referralCount).levelIndex;
     if (prevLevelIndexRef.current >= 0 && levelIndex > prevLevelIndexRef.current) {
+      const fromLevel = EVOLUTION_LEVELS[prevLevelIndexRef.current];
+      const toLevel = EVOLUTION_LEVELS[levelIndex];
       setLevelUpFlash(true);
+      setEvolutionCeremony({ fromLevel, toLevel });
       const t = setTimeout(() => setLevelUpFlash(false), 1200);
       prevLevelIndexRef.current = levelIndex;
       return () => clearTimeout(t);
@@ -283,7 +327,6 @@ export default function CountdownPage() {
   const identityRankLabel = getIdentityRank(evolutionStageIndex, locale);
   const daysRemaining = days;
   const skyNarrativeKey = getSkyNarrativeKey(daysRemaining);
-  const foundingClimber = isFoundingClimberEligible(referralCount);
   const leadingTeamId = leaderboard[0]?.id ?? "";
   const skyDominant = leadingTeamId || "default";
   const evolutionAbilityText = t.evolutionAbility?.[evolutionStageIndex] ?? t.yourCloudGathering;
@@ -461,6 +504,25 @@ export default function CountdownPage() {
           animate={{ opacity: phase === "content" ? 1 : 0 }}
           transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[2] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
+          {shareModal && shareAuraPulseKey > 0 && (
+            <motion.div
+              key={shareAuraPulseKey}
+              className="absolute pointer-events-none rounded-full z-[1]"
+              style={{
+                left: "50%",
+                top: "50%",
+                width: "140%",
+                height: "140%",
+                transform: "translate(-50%, -50%)",
+                background: "radial-gradient(circle, var(--cloud-aura) 0%, transparent 70%)",
+                boxShadow: "0 0 80px 30px var(--cloud-aura)",
+              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0, 0.35, 0] }}
+              transition={{ duration: 0.9, ease: "easeOut" }}
+              aria-hidden
+            />
+          )}
           {evolutionStageIndex >= 6 && (
             <div className="evolution-aura-ring" aria-hidden />
           )}
@@ -517,12 +579,41 @@ export default function CountdownPage() {
               <MascotSvgObject
                 src="/brand/ip-count-down.svg"
                 partColors={mascotPartColors}
+                evolutionStageIndex={evolutionStageIndex}
               />
             </motion.div>
           </div>
-          <p className="identity-rank font-caption text-center text-white/90 text-sm mt-2 countdown-spacing-after-identity">
-            {t.youAreNow} <span style={{ color: accent, textShadow: `0 0 10px ${accent}50` }}>{identityRankLabel}</span>
-          </p>
+          <motion.div
+            className="evolution-title-capsule mt-2 countdown-spacing-after-identity"
+            style={{
+              background: "rgba(255,255,255,0.10)",
+              backdropFilter: "blur(12px)",
+              borderRadius: 999,
+              padding: "10px 18px",
+              boxShadow: "0 8px 30px rgba(0,0,0,0.18), 0 0 18px rgba(255,255,255,0.15)",
+              border: "1px solid rgba(255,255,255,0.18)",
+            }}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{
+              opacity: phase === "phase5-rest" || phase === "content" ? 1 : 0,
+              y: phase === "phase5-rest" || phase === "content" ? 0 : 6,
+            }}
+            transition={{
+              duration: 0.6,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+          >
+            <p
+              className="identity-rank font-caption text-center text-sm"
+              style={{
+                color: "white",
+                textShadow: "0 2px 8px rgba(0,0,0,0.35), 0 0 12px rgba(255,255,255,0.25)",
+                fontWeight: 600,
+              }}
+            >
+              {t.youAreNow} <span style={{ color: accent, textShadow: `0 0 10px ${accent}50` }}>{identityRankLabel}</span>
+            </p>
+          </motion.div>
         </motion.div>
 
         <motion.div
@@ -561,19 +652,8 @@ export default function CountdownPage() {
             />
           </div>
           <div className="progress-count font-caption text-xs sm:text-[0.85rem] font-medium" style={{ color: "#1E2A38", letterSpacing: "0.5px" }}>
-            {xpRequired > 0 ? `${xpInLevel} / ${xpRequired} ${t.auraUnit}` : `${currentLevelName}`}
-          </div>
-          <div className="progress-next-form font-caption text-[10px] sm:text-[11px] font-medium" style={{ color: "#1E2A38", opacity: 0.9 }}>
-            {t.nextFormLabel}: {nextFormName ?? "—"}
-          </div>
-          <div className="progress-count font-caption text-xs sm:text-[0.85rem] font-medium mt-0.5" style={{ color: "#1E2A38", letterSpacing: "0.5px" }}>
             {t.youAwakened} <span className="referral-current">{referralCount}</span> {referralCount === 1 ? t.climber : t.climbers}
           </div>
-          {!traitUnlocked && (
-            <div className="progress-sub font-caption text-[10px] sm:text-[11px] text-storm/70 tracking-wide">
-              {t.inviteOthers}
-            </div>
-          )}
         </motion.div>
 
         <motion.button
@@ -759,24 +839,6 @@ export default function CountdownPage() {
           )}
         </motion.div>
 
-        {foundingClimber && (
-          <motion.div
-            className="shrink-0 w-full max-w-[320px] mt-3 px-4 py-2.5 rounded-xl text-center countdown-spacing-after-leaderboard"
-            style={{
-              backgroundColor: "rgba(255,255,255,0.15)",
-              border: `1px solid ${accent}80`,
-              boxShadow: `0 0 16px ${accent}30`,
-            }}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: phase === "content" ? 1 : 0, y: 0 }}
-            transition={{ duration: 0.5, delay: phase === "content" ? CONTENT_STAGGER_MS[4] / 1000 + 0.2 : 0 }}
-          >
-            <p className="font-caption font-medium text-white text-sm" style={{ color: "rgba(255,255,255,0.98)" }}>
-              ✦ {t.foundingClimber}
-            </p>
-          </motion.div>
-        )}
-
         <motion.div
           className="shrink-0 w-full max-w-[320px] mt-4 px-4 py-3 rounded-2xl countdown-rewards-section"
           style={{
@@ -791,12 +853,32 @@ export default function CountdownPage() {
             {t.rewardsTitle}
           </p>
           <ul className="flex flex-col gap-1.5 text-left">
-            {(t.rewards as string[]).map((label, i) => (
-              <li key={i} className="font-caption text-white/80 text-[0.8rem] flex items-center gap-2">
-                <span className="text-white/60" aria-hidden>·</span>
-                {label}
-              </li>
-            ))}
+            {EVOLUTION_REWARDS.map((reward) => {
+              const unlocked = isRewardUnlocked(reward.levelIndex, currentLevel.levelIndex);
+              return (
+                <motion.li
+                  key={reward.levelIndex}
+                  className="font-caption text-[0.8rem] flex items-center gap-2 countdown-reward-item"
+                  initial={false}
+                  animate={{
+                    opacity: unlocked ? 1 : 0.35,
+                    scale: unlocked ? 1 : 0.98,
+                    filter: unlocked ? "blur(0px)" : "blur(1px)",
+                  }}
+                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                  style={{
+                    textShadow: unlocked ? `0 0 12px ${accent}50` : "none",
+                  }}
+                >
+                  <span className={unlocked ? "text-white" : "text-white/60"} aria-hidden>
+                    {unlocked ? "✦" : "·"}
+                  </span>
+                  <span className={unlocked ? "text-white/95" : "text-white/50"}>
+                    {getRewardLabel(reward, locale)}
+                  </span>
+                </motion.li>
+              );
+            })}
           </ul>
         </motion.div>
 
@@ -850,7 +932,21 @@ export default function CountdownPage() {
             cloud={cloud}
             referralUrl={shareModal.referralUrl}
             shareMessage={shareModal.shareMessage}
+            referralCount={profile.referralCount}
             onClose={() => setShareModal(null)}
+            onShareClick={() => setShareAuraPulseKey((k) => k + 1)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {evolutionCeremony && cloud && (
+          <EvolutionCeremonyModal
+            fromLevel={evolutionCeremony.fromLevel}
+            toLevel={evolutionCeremony.toLevel}
+            accent={cloud.accentHex}
+            locale={locale}
+            onClose={() => setEvolutionCeremony(null)}
           />
         )}
       </AnimatePresence>

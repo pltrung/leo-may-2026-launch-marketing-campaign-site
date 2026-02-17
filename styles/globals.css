@@ -1159,6 +1159,24 @@ body.hero-ready .hero-scroll {
 .identity-rank {
   letter-spacing: 0.02em;
 }
+.evolution-title-capsule {
+  position: relative;
+  display: inline-block;
+}
+.evolution-title-capsule::before {
+  content: "";
+  position: absolute;
+  inset: -24px;
+  border-radius: 999px;
+  background: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(255,255,255,0.5) 0%, transparent 70%);
+  filter: blur(16px);
+  z-index: -1;
+  animation: evolutionTitleGlowPulse 3.5s ease-in-out infinite;
+}
+@keyframes evolutionTitleGlowPulse {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.35; }
+}
 .sky-narrative {
   margin-top: 8px;
   letter-spacing: 0.03em;
