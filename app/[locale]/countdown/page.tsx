@@ -394,7 +394,7 @@ export default function CountdownPage() {
         />
       )}
       <motion.div
-        className="flex flex-col w-full flex-1 min-h-0"
+        className="flex flex-col w-full flex-1 min-h-0 overflow-x-hidden"
         initial={{ opacity: fromMist ? 0 : 1 }}
         animate={{ opacity: 1 }}
         transition={{ duration: fromMist ? 0.7 : 0, ease: [0.22, 1, 0.36, 1] }}

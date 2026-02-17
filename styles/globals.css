@@ -912,6 +912,7 @@ body.hero-ready .hero-scroll {
 /* Countdown page: mascot evolution stage — structural scale, glow, layers */
 .countdown-mascot-wrapper {
   position: relative;
+  overflow: hidden;
   --float-amplitude: 8px;
   /* Default tokens (high-contrast on blue sky #0242FF) */
   --cloud-primary: rgba(255,255,255,0.95);
@@ -1084,8 +1085,8 @@ body.hero-ready .hero-scroll {
 }
 .countdown-mascot-wrapper[data-evolution-index="3"] .evolution-energy-core { width: 85%; height: 85%; margin-left: -42.5%; margin-top: -42.5%; opacity: 0.6; }
 .countdown-mascot-wrapper[data-evolution-index="4"] .evolution-energy-core { opacity: 0.75; }
-.countdown-mascot-wrapper[data-evolution-index="5"] .evolution-energy-core { opacity: 0.85; }
-.countdown-mascot-wrapper[data-evolution-index="5"] .evolution-energy-core { opacity: 0.95; }
+.countdown-mascot-wrapper[data-evolution-index="5"] .evolution-energy-core { opacity: 0.55; }
+.countdown-mascot-wrapper[data-evolution-index="5"] .evolution-energy-core { opacity: 0.6; }
 @keyframes energyCorePulse {
   0%, 100% { transform: scale(0.98); }
   50% { transform: scale(1.04); }
@@ -1254,58 +1255,117 @@ body.hero-ready .hero-scroll {
   z-index: 0;
   background: transparent;
 }
-/* Signature animations: subtle pulse every 4–8s so it never washes out the screen */
+/* No flash: “forming” only every 4–8s — smooth build and fade, no brightness spike */
 .ascension-signature {
-  animation: ascensionSignaturePulse 6s ease-in-out infinite;
+  animation: ascensionFormingPulse 6s ease-in-out infinite;
 }
-@keyframes ascensionSignaturePulse {
-  0%, 100% { opacity: 0.08; }
-  25% { opacity: var(--sig-opacity, 0.22); }
-  75% { opacity: 0.12; }
+@keyframes ascensionFormingPulse {
+  0%, 100% { opacity: 0.06; }
+  15% { opacity: 0.12; }
+  35% { opacity: var(--sig-opacity, 0.28); }
+  65% { opacity: 0.18; }
+  85% { opacity: 0.1; }
 }
-.mascot-ascension-aura[data-evolution-index="5"] .ascension-signature { --sig-opacity: 0.22; }
-.mascot-ascension-aura[data-evolution-index="5"] .ascension-signature { --sig-opacity: 0.4; }
+.mascot-ascension-aura[data-evolution-index="5"] .ascension-signature { --sig-opacity: 0.28; }
+.mascot-ascension-aura[data-evolution-index="5"] .ascension-signature { --sig-opacity: 0.38; }
 
 /*
- * Team-specific “special skill” (final form only, stage 5):
- * One layer pulses every 4–8s behind the mascot (opacity 0.08 → 0.22–0.4 → 0.12).
- * Expect: may_nhe = soft blue radial; suong_mu = misty gray-blue radial; giong = red stripe pattern;
- * ho_may = taupe radial; cau_vong = rainbow conic + 12s rotate; gio = green radial.
+ * Team-specific “special skill” (final form only, stage 5) — each triggers every 4–8s:
+ * may_nhe = soft blue pulse; suong_mu = fog/mist overflow; giong = storm forming (no flash);
+ * ho_may (Hollow) = taupe radial; cau_vong = rainbow forming; gio = wind left→right.
  */
 /* Team signature visuals (background/pattern per cloud type) */
 .mascot-ascension-aura[data-cloud-type="may_nhe"] .ascension-signature {
   background: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(127,214,255,0.25) 0%, transparent 60%);
   filter: blur(20px);
 }
+/* Sương Mù: fog/mist that overflows every 4–8s */
 .mascot-ascension-aura[data-cloud-type="suong_mu"] .ascension-signature {
-  background: radial-gradient(ellipse 90% 70% at 50% 50%, rgba(184,198,217,0.2) 0%, transparent 65%);
-  filter: blur(35px);
+  background: radial-gradient(ellipse 100% 100% at 50% 50%, rgba(184,198,217,0.15) 0%, rgba(200,210,225,0.25) 40%, transparent 70%);
+  filter: blur(40px);
+  animation: suongMuMistOverflow 6s ease-in-out infinite;
+  transform: translate(-50%, -50%);
 }
+@keyframes suongMuMistOverflow {
+  0%, 100% { opacity: 0.06; transform: translate(-50%, -50%) scale(0.88); }
+  20% { opacity: 0.18; transform: translate(-50%, -50%) scale(1.02); }
+  50% { opacity: 0.3; transform: translate(-50%, -50%) scale(1.15); }
+  80% { opacity: 0.12; transform: translate(-50%, -50%) scale(1.05); }
+}
+/* Gióng: yellow lightning forming behind mascot every 4–8s (slow build and fade, no burst) */
 .mascot-ascension-aura[data-cloud-type="giong"] .ascension-signature {
-  background: repeating-linear-gradient(105deg, transparent, transparent 8%, rgba(255,99,92,0.2) 8%, rgba(255,99,92,0.2) 10%),
-    repeating-linear-gradient(75deg, transparent, transparent 12%, rgba(255,229,228,0.25) 12%, rgba(255,229,228,0.25) 14%);
+  background: repeating-linear-gradient(105deg, transparent, transparent 8%, rgba(255,99,92,0.15) 8%, rgba(255,99,92,0.15) 10%),
+    repeating-linear-gradient(75deg, transparent, transparent 12%, rgba(255,229,228,0.15) 12%, rgba(255,229,228,0.15) 14%);
   filter: blur(8px);
-  animation: ascensionSignaturePulse 5s ease-in-out infinite;
+  animation: ascensionFormingPulse 5s ease-in-out infinite;
 }
+.mascot-ascension-aura[data-cloud-type="giong"] .ascension-signature::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 140%;
+  height: 140%;
+  margin-left: -70%;
+  margin-top: -70%;
+  background: radial-gradient(ellipse 55% 75% at 50% 45%, rgba(255,255,200,0.5) 0%, rgba(255,235,120,0.4) 20%, rgba(255,200,80,0.3) 40%, transparent 60%);
+  filter: blur(12px);
+  pointer-events: none;
+  animation: giongLightningForming 6s ease-in-out infinite;
+}
+@keyframes giongLightningForming {
+  0%, 100% { opacity: 0; }
+  12% { opacity: 0.08; }
+  25% { opacity: 0.2; }
+  40% { opacity: 0.45; }
+  50% { opacity: 0.5; }
+  60% { opacity: 0.35; }
+  75% { opacity: 0.12; }
+  88% { opacity: 0; }
+}
+/* Hố Mây (Hollow): keep taupe radial pulse */
 .mascot-ascension-aura[data-cloud-type="ho_may"] .ascension-signature {
   background: radial-gradient(ellipse 70% 80% at 50% 50%, rgba(196,184,176,0.3) 0%, transparent 55%);
   filter: blur(30px);
 }
+/* Cầu Vồng: rainbow forming every 4–8s */
 .mascot-ascension-aura[data-cloud-type="cau_vong"] .ascension-signature {
-  background: conic-gradient(from 0deg at 50% 50%, rgba(255,107,107,0.2), rgba(255,224,102,0.25), rgba(127,214,255,0.2), rgba(155,89,182,0.2), rgba(255,107,107,0.2));
-  filter: blur(25px);
-  animation: ascensionSignaturePulse 7s ease-in-out infinite, cauVongRainbowRotate 12s linear infinite;
-}
-@keyframes cauVongRainbowRotate {
-  0% { transform: translate(-50%, -50%) rotate(0deg); }
-  100% { transform: translate(-50%, -50%) rotate(360deg); }
-}
-.mascot-ascension-aura[data-cloud-type="cau_vong"] .ascension-signature {
+  background: conic-gradient(from 0deg at 50% 50%, rgba(255,107,107,0.35), rgba(255,224,102,0.4), rgba(127,214,255,0.35), rgba(155,89,182,0.35), rgba(255,107,107,0.35));
+  filter: blur(20px);
+  animation: cauVongRainbowForm 6s ease-in-out infinite;
   transform: translate(-50%, -50%);
 }
+@keyframes cauVongRainbowForm {
+  0% { opacity: 0.06; transform: translate(-50%, -50%) scale(0.78); }
+  25% { opacity: 0.5; transform: translate(-50%, -50%) scale(1.02); }
+  50% { opacity: 0.48; transform: translate(-50%, -50%) scale(1.05); }
+  75% { opacity: 0.25; transform: translate(-50%, -50%) scale(0.98); }
+  100% { opacity: 0.08; transform: translate(-50%, -50%) scale(0.9); }
+}
+/* Gió: wind left → right every 4–8s */
 .mascot-ascension-aura[data-cloud-type="gio"] .ascension-signature {
-  background: radial-gradient(ellipse 85% 65% at 50% 50%, rgba(111,207,151,0.25) 0%, transparent 60%);
-  filter: blur(22px);
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(111,207,151,0.08) 8%,
+    rgba(111,207,151,0.35) 18%,
+    transparent 28%,
+    transparent 38%,
+    rgba(111,207,151,0.2) 48%,
+    rgba(111,207,151,0.4) 58%,
+    transparent 68%,
+    transparent 78%,
+    rgba(111,207,151,0.15) 88%,
+    transparent 100%);
+  background-size: 200% 100%;
+  filter: blur(6px);
+  animation: gioWindLeftToRight 6s ease-in-out infinite;
+  transform: translate(-50%, -50%);
+}
+@keyframes gioWindLeftToRight {
+  0%, 100% { opacity: 0.12; background-position: 0% 50%; }
+  15% { opacity: 0.35; background-position: 30% 50%; }
+  50% { opacity: 0.5; background-position: 100% 50%; }
+  85% { opacity: 0.25; background-position: 170% 50%; }
 }
 
 /* Energy distortion field (Stage 6 only) */
