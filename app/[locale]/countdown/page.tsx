@@ -554,9 +554,7 @@ export default function CountdownPage() {
               } as React.CSSProperties
             }
           >
-            {evolutionStageIndex === 5 && (
-              <div className="ascension-distortion" aria-hidden />
-            )}
+            {/* Ascension distortion not shown: at stage 5 its large bright radial (var(--cloud-primary)) caused full-screen white flash. Final-form “Goku” aura = spikes + flame gradient + team signature only. */}
             <div className="ascension-flame-gradient" aria-hidden />
             {evolutionStageIndex >= 5 && (
               <div className="ascension-signature" aria-hidden />

@@ -1266,6 +1266,12 @@ body.hero-ready .hero-scroll {
 .mascot-ascension-aura[data-evolution-index="5"] .ascension-signature { --sig-opacity: 0.22; }
 .mascot-ascension-aura[data-evolution-index="5"] .ascension-signature { --sig-opacity: 0.4; }
 
+/*
+ * Team-specific “special skill” (final form only, stage 5):
+ * One layer pulses every 4–8s behind the mascot (opacity 0.08 → 0.22–0.4 → 0.12).
+ * Expect: may_nhe = soft blue radial; suong_mu = misty gray-blue radial; giong = red stripe pattern;
+ * ho_may = taupe radial; cau_vong = rainbow conic + 12s rotate; gio = green radial.
+ */
 /* Team signature visuals (background/pattern per cloud type) */
 .mascot-ascension-aura[data-cloud-type="may_nhe"] .ascension-signature {
   background: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(127,214,255,0.25) 0%, transparent 60%);
