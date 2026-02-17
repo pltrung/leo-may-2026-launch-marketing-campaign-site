@@ -564,7 +564,16 @@ export default function CountdownPage() {
               ))}
             </div>
           )}
-          <div className="evolution-mascot-inner">
+          <div
+            className="mascot-ascension"
+            data-evolution-index={evolutionStageIndex}
+            data-cloud-type={cloud.id}
+          >
+            <div className="aura-core" aria-hidden />
+            <div className="aura-flames" aria-hidden />
+            <div className="aura-team" data-cloud-type={cloud.id} aria-hidden />
+            <div className="aura-outline" aria-hidden />
+            <div className="evolution-mascot-inner">
             {evolutionStageIndex >= 5 && (
               <div
                 className="evolution-eye-glow"
@@ -586,7 +595,7 @@ export default function CountdownPage() {
               />
             )}
             <motion.div
-              className={`countdown-ip origin-center ${phase === "content" ? "countdown-ip-float countdown-ip-breathe" : ""}`}
+              className={`countdown-ip mascot-svg origin-center ${phase === "content" ? "countdown-ip-float countdown-ip-breathe" : ""}`}
               style={{
                 transformOrigin: "center center",
                 visibility: phase === "hidden" || phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" || phase === "phase4-micro-settle" ? "hidden" : "visible",
@@ -607,6 +616,7 @@ export default function CountdownPage() {
                 evolutionStageIndex={evolutionStageIndex}
               />
             </motion.div>
+          </div>
           </div>
           <motion.div
             className="evolution-title-capsule mt-1 countdown-spacing-after-identity"
