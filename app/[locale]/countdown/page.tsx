@@ -235,6 +235,7 @@ export default function CountdownPage() {
   const searchParams = useSearchParams();
   const fromMist = searchParams.get("fromMist") === "1";
   const debugPerf = searchParams.get("debugPerf") === "1";
+  const debugSkill = searchParams.get("debugSkill") === "1";
   const locale = useLocale();
   const [perfDelta, setPerfDelta] = useState<number>(0);
   const perfRef = useRef<number>(0);
@@ -610,7 +611,7 @@ export default function CountdownPage() {
           >
             <div className="aura-core" aria-hidden />
             <div className="aura-flames" aria-hidden />
-            <SkillLayer cloudType={cloud.id} evolutionStageIndex={evolutionStageIndex} />
+            <SkillLayer cloudType={cloud.id} evolutionStageIndex={evolutionStageIndex} debugAnimation={debugSkill} />
             <div className="aura-outline" aria-hidden />
             <div className="evolution-mascot-inner">
             {evolutionStageIndex >= 5 && (

@@ -1183,6 +1183,9 @@ body.hero-ready .hero-scroll {
   pointer-events: none;
   transition: opacity 900ms ease, transform 900ms ease;
 }
+/* Explicit stacking: aura 1, skill 2, mascot 3 — skill never overlaps UI (z 10+) */
+.mascot-ascension > .aura-core,
+.mascot-ascension > .aura-flames,
 .mascot-ascension > .aura-outline {
   z-index: 1;
 }
@@ -1263,7 +1266,8 @@ body.hero-ready .hero-scroll {
 .mascot-ascension[data-evolution-index="6"] .skill-layer { opacity: 1; }
 .mascot-ascension[data-evolution-index="6"] .aura-outline { opacity: 0.55; }
 
-/* ========== SKILL LAYER (GPU-only: transform, opacity, stroke-dashoffset) ========== */
+/* ========== SKILL LAYER — volumetric gradients only (GPU: transform + opacity) ========== */
+/* Parent container: never animate opacity here; stage controls visibility only */
 .skill-layer {
   display: flex;
   align-items: center;
@@ -1272,13 +1276,38 @@ body.hero-ready .hero-scroll {
   z-index: 2;
   will-change: transform, opacity;
   pointer-events: none;
+  animation-play-state: running;
+}
+/* Debug: add class "debug-skill-animation" to .skill-layer to verify animation system */
+@keyframes debugMove {
+  from { transform: translateZ(0) translateX(0); }
+  to { transform: translateZ(0) translateX(40px); }
+}
+.skill-layer.debug-skill-animation {
+  animation: debugMove 2s infinite alternate linear;
 }
 .skill-layer-svg {
   width: 100%;
   height: 100%;
   overflow: visible;
+  /* 1.4x–1.7x mascot: effects extend clearly outside silhouette */
+  transform: scale(1.55);
+  transform-origin: center center;
 }
-/* Only the active cloud's group is visible; formation animates 0 → 0.85–1 */
+/* Animated SVG elements: force GPU layer and running state (mobile Safari/Chrome) */
+.skill-layer.is-animating .skill-rainbow-arc,
+.skill-layer.is-animating .skill-wind-1, .skill-layer.is-animating .skill-wind-2,
+.skill-layer.is-animating .skill-wind-3, .skill-layer.is-animating .skill-wind-4,
+.skill-layer.is-animating .skill-mist-1, .skill-layer.is-animating .skill-mist-2,
+.skill-layer.is-animating .skill-mist-3, .skill-layer.is-animating .skill-mist-4, .skill-layer.is-animating .skill-mist-5,
+.skill-layer.is-animating .skill-sparkle-1, .skill-layer.is-animating .skill-sparkle-2,
+.skill-layer.is-animating .skill-sparkle-3, .skill-layer.is-animating .skill-sparkle-4,
+.skill-layer.is-animating .skill-ring-1, .skill-layer.is-animating .skill-ring-2, .skill-layer.is-animating .skill-ring-3,
+.skill-layer.is-animating .skill-bolt-1, .skill-layer.is-animating .skill-bolt-2 {
+  transform: translateZ(0);
+  animation-play-state: running;
+}
+/* Only the active cloud's group is visible */
 .skill-layer .skill-may_nhe,
 .skill-layer .skill-gio,
 .skill-layer .skill-cau_vong,
@@ -1292,114 +1321,120 @@ body.hero-ready .hero-scroll {
 .skill-layer[data-cloud-type="ho_may"] .skill-ho_may,
 .skill-layer[data-cloud-type="giong"] .skill-giong { opacity: 1; }
 
-/* Cầu Vồng: left→right draw only (stroke-dashoffset + opacity; no transform) */
+/* Cầu Vồng: thick gradient arc — opacity + scale pulse only (no stroke) */
 .skill-layer[data-cloud-type="cau_vong"] .skill-rainbow-arc {
-  stroke-dasharray: 100;
-  stroke-dashoffset: 100;
   opacity: 0;
+  transform: scale(0.92);
+  transform-origin: 50px 50px;
 }
 .skill-layer[data-cloud-type="cau_vong"].is-animating .skill-rainbow-arc {
-  animation: skillRainbowDraw 900ms cubic-bezier(var(--ease-hero)) forwards, skillRainbowPulse 2.8s cubic-bezier(var(--ease-inout)) 900ms infinite;
+  animation: skillRainbowForm 850ms cubic-bezier(var(--ease-hero)) forwards, skillRainbowPulse 5.2s cubic-bezier(var(--ease-inout)) 850ms infinite;
 }
-@keyframes skillRainbowDraw {
-  0% { stroke-dashoffset: 100; opacity: 0; }
-  55% { opacity: 1; }
-  100% { stroke-dashoffset: 0; opacity: 1; }
+@keyframes skillRainbowForm {
+  0% { opacity: 0; transform: scale(0.92); }
+  55%, 100% { opacity: 0.95; transform: scale(1); }
 }
 @keyframes skillRainbowPulse {
-  0%, 100% { opacity: 0.88; }
-  50% { opacity: 1; }
+  0%, 100% { opacity: 0.6; transform: scale(0.98); }
+  50% { opacity: 0.95; transform: scale(1.08); }
 }
 
-/* Gió: formation 780ms hero (opacity 1 by 55%), loop 7.2s inout */
+/* Gió: elongated gradient ellipses — translate 8–18px, opacity fade; stagger 0, 0.8s, 1.6s, 2.4s */
 .skill-layer[data-cloud-type="gio"] .skill-wind-1,
 .skill-layer[data-cloud-type="gio"] .skill-wind-2,
-.skill-layer[data-cloud-type="gio"] .skill-wind-3 { opacity: 0; transform: translate3d(-30%, 0, 0); }
-.skill-layer[data-cloud-type="gio"].is-animating .skill-wind-1 { animation: skillWindForm 780ms cubic-bezier(var(--ease-hero)) forwards, skillWindDrift 7.2s cubic-bezier(var(--ease-inout)) 0.9s infinite; }
-.skill-layer[data-cloud-type="gio"].is-animating .skill-wind-2 { animation: skillWindForm 780ms cubic-bezier(var(--ease-hero)) 0.1s forwards, skillWindDrift 7.2s cubic-bezier(var(--ease-inout)) 1s infinite; }
-.skill-layer[data-cloud-type="gio"].is-animating .skill-wind-3 { animation: skillWindForm 780ms cubic-bezier(var(--ease-hero)) 0.2s forwards, skillWindDrift 7.2s cubic-bezier(var(--ease-inout)) 1.1s infinite; }
+.skill-layer[data-cloud-type="gio"] .skill-wind-3,
+.skill-layer[data-cloud-type="gio"] .skill-wind-4 { opacity: 0; transform: translate3d(-12%, 0, 0); }
+.skill-layer[data-cloud-type="gio"].is-animating .skill-wind-1 { animation: skillWindForm 800ms cubic-bezier(var(--ease-hero)) forwards, skillWindDrift 6.4s cubic-bezier(var(--ease-inout)) 1s infinite; }
+.skill-layer[data-cloud-type="gio"].is-animating .skill-wind-2 { animation: skillWindForm 800ms cubic-bezier(var(--ease-hero)) 0.8s forwards, skillWindDrift 6.4s cubic-bezier(var(--ease-inout)) 1.8s infinite; }
+.skill-layer[data-cloud-type="gio"].is-animating .skill-wind-3 { animation: skillWindForm 800ms cubic-bezier(var(--ease-hero)) 1.6s forwards, skillWindDrift 6.4s cubic-bezier(var(--ease-inout)) 2.6s infinite; }
+.skill-layer[data-cloud-type="gio"].is-animating .skill-wind-4 { animation: skillWindForm 800ms cubic-bezier(var(--ease-hero)) 2.4s forwards, skillWindDrift 6.4s cubic-bezier(var(--ease-inout)) 3.4s infinite; }
 @keyframes skillWindForm {
-  0% { opacity: 0; transform: translate3d(-30%, 0, 0); }
-  55%, 100% { opacity: 1; transform: translate3d(0, 0, 0); }
+  0% { opacity: 0.35; transform: translate3d(-12%, 0, 0); }
+  55%, 100% { opacity: 0.9; transform: translate3d(0, 0, 0); }
 }
 @keyframes skillWindDrift {
-  0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.9; }
-  50% { transform: translate3d(8%, 0, 0); opacity: 1; }
+  0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.5; }
+  50% { transform: translate3d(10%, 0, 0); opacity: 0.95; }
 }
 
-/* Sương Mù: formation 780ms hero (opacity 1 by 55%), loop 8.4s inout */
+/* Sương Mù: radial gradient blobs — drift + opacity; stagger */
 .skill-layer[data-cloud-type="suong_mu"] .skill-mist-1,
 .skill-layer[data-cloud-type="suong_mu"] .skill-mist-2,
 .skill-layer[data-cloud-type="suong_mu"] .skill-mist-3,
-.skill-layer[data-cloud-type="suong_mu"] .skill-mist-4 { opacity: 0; transform: scale(0.85); }
-.skill-layer[data-cloud-type="suong_mu"].is-animating .skill-mist-1 { animation: skillMistForm 780ms cubic-bezier(var(--ease-hero)) forwards, skillMistDrift 8.4s cubic-bezier(var(--ease-inout)) 1s infinite; }
-.skill-layer[data-cloud-type="suong_mu"].is-animating .skill-mist-2 { animation: skillMistForm 780ms cubic-bezier(var(--ease-hero)) 0.15s forwards, skillMistDrift 8.4s cubic-bezier(var(--ease-inout)) 1.2s infinite; }
-.skill-layer[data-cloud-type="suong_mu"].is-animating .skill-mist-3 { animation: skillMistForm 780ms cubic-bezier(var(--ease-hero)) 0.3s forwards, skillMistDrift 8.4s cubic-bezier(var(--ease-inout)) 1.4s infinite; }
-.skill-layer[data-cloud-type="suong_mu"].is-animating .skill-mist-4 { animation: skillMistForm 780ms cubic-bezier(var(--ease-hero)) 0.45s forwards, skillMistDrift 8.4s cubic-bezier(var(--ease-inout)) 1.6s infinite; }
+.skill-layer[data-cloud-type="suong_mu"] .skill-mist-4,
+.skill-layer[data-cloud-type="suong_mu"] .skill-mist-5 { opacity: 0; transform: scale(0.9) translate3d(0, 0, 0); }
+.skill-layer[data-cloud-type="suong_mu"].is-animating .skill-mist-1 { animation: skillMistForm 850ms cubic-bezier(var(--ease-hero)) forwards, skillMistDrift 8s cubic-bezier(var(--ease-inout)) 1s infinite; }
+.skill-layer[data-cloud-type="suong_mu"].is-animating .skill-mist-2 { animation: skillMistForm 850ms cubic-bezier(var(--ease-hero)) 0.8s forwards, skillMistDrift 8s cubic-bezier(var(--ease-inout)) 1.8s infinite; }
+.skill-layer[data-cloud-type="suong_mu"].is-animating .skill-mist-3 { animation: skillMistForm 850ms cubic-bezier(var(--ease-hero)) 1.6s forwards, skillMistDrift 8s cubic-bezier(var(--ease-inout)) 2.6s infinite; }
+.skill-layer[data-cloud-type="suong_mu"].is-animating .skill-mist-4 { animation: skillMistForm 850ms cubic-bezier(var(--ease-hero)) 0.45s forwards, skillMistDrift 8s cubic-bezier(var(--ease-inout)) 1.45s infinite; }
+.skill-layer[data-cloud-type="suong_mu"].is-animating .skill-mist-5 { animation: skillMistForm 850ms cubic-bezier(var(--ease-hero)) 2.4s forwards, skillMistDrift 8s cubic-bezier(var(--ease-inout)) 3.4s infinite; }
 @keyframes skillMistForm {
-  0% { opacity: 0; transform: scale(0.85); }
-  55%, 100% { opacity: 0.9; transform: scale(1); }
+  0% { opacity: 0.35; transform: scale(0.9) translate3d(0, 0, 0); }
+  55%, 100% { opacity: 0.9; transform: scale(1) translate3d(0, 0, 0); }
 }
 @keyframes skillMistDrift {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.85; }
-  50% { transform: translate3d(3%, -2%, 0) scale(1.02); opacity: 1; }
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.5; }
+  50% { transform: translate3d(5%, -4%, 0) scale(1.08); opacity: 0.95; }
 }
 
-/* Mây Nhẹ: formation 780ms hero (opacity 1 by 55%), loop 6.8s inout */
+/* Mây Nhẹ: soft glow circles — pulse + drift; stagger */
 .skill-layer[data-cloud-type="may_nhe"] .skill-sparkle-1,
 .skill-layer[data-cloud-type="may_nhe"] .skill-sparkle-2,
 .skill-layer[data-cloud-type="may_nhe"] .skill-sparkle-3,
-.skill-layer[data-cloud-type="may_nhe"] .skill-sparkle-4 { opacity: 0; transform: scale(0.85); }
-.skill-layer[data-cloud-type="may_nhe"].is-animating .skill-sparkle-1 { animation: skillSparkleForm 780ms cubic-bezier(var(--ease-hero)) forwards, skillSparkleTwinkle 6.8s cubic-bezier(var(--ease-inout)) 0.9s infinite; }
-.skill-layer[data-cloud-type="may_nhe"].is-animating .skill-sparkle-2 { animation: skillSparkleForm 780ms cubic-bezier(var(--ease-hero)) 0.1s forwards, skillSparkleTwinkle 6.8s cubic-bezier(var(--ease-inout)) 1s infinite; }
-.skill-layer[data-cloud-type="may_nhe"].is-animating .skill-sparkle-3 { animation: skillSparkleForm 780ms cubic-bezier(var(--ease-hero)) 0.2s forwards, skillSparkleTwinkle 6.8s cubic-bezier(var(--ease-inout)) 1.1s infinite; }
-.skill-layer[data-cloud-type="may_nhe"].is-animating .skill-sparkle-4 { animation: skillSparkleForm 780ms cubic-bezier(var(--ease-hero)) 0.3s forwards, skillSparkleTwinkle 6.8s cubic-bezier(var(--ease-inout)) 1.2s infinite; }
+.skill-layer[data-cloud-type="may_nhe"] .skill-sparkle-4 { opacity: 0; transform: scale(0.9); }
+.skill-layer[data-cloud-type="may_nhe"].is-animating .skill-sparkle-1 { animation: skillSparkleForm 800ms cubic-bezier(var(--ease-hero)) forwards, skillSparklePulse 5.6s cubic-bezier(var(--ease-inout)) 1s infinite; }
+.skill-layer[data-cloud-type="may_nhe"].is-animating .skill-sparkle-2 { animation: skillSparkleForm 800ms cubic-bezier(var(--ease-hero)) 0.8s forwards, skillSparklePulse 5.6s cubic-bezier(var(--ease-inout)) 1.8s infinite; }
+.skill-layer[data-cloud-type="may_nhe"].is-animating .skill-sparkle-3 { animation: skillSparkleForm 800ms cubic-bezier(var(--ease-hero)) 1.6s forwards, skillSparklePulse 5.6s cubic-bezier(var(--ease-inout)) 2.6s infinite; }
+.skill-layer[data-cloud-type="may_nhe"].is-animating .skill-sparkle-4 { animation: skillSparkleForm 800ms cubic-bezier(var(--ease-hero)) 2.4s forwards, skillSparklePulse 5.6s cubic-bezier(var(--ease-inout)) 3.4s infinite; }
 @keyframes skillSparkleForm {
-  0% { opacity: 0; transform: scale(0.85); }
-  55%, 100% { opacity: 1; transform: scale(1); }
-}
-@keyframes skillSparkleTwinkle {
-  0%, 100% { opacity: 0.85; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.08); }
-}
-
-/* Hồ Mây: formation 780ms hero (opacity 1 by 55%), loop 9.8s inout */
-.skill-layer[data-cloud-type="ho_may"] .skill-ring-1,
-.skill-layer[data-cloud-type="ho_may"] .skill-ring-2 { opacity: 0; transform: scale(0.9); }
-.skill-layer[data-cloud-type="ho_may"].is-animating .skill-ring-1 { animation: skillRingForm 780ms cubic-bezier(var(--ease-hero)) forwards, skillRingPulse 9.8s cubic-bezier(var(--ease-inout)) 1s infinite; }
-.skill-layer[data-cloud-type="ho_may"].is-animating .skill-ring-2 { animation: skillRingForm 780ms cubic-bezier(var(--ease-hero)) 0.2s forwards, skillRingPulse 9.8s cubic-bezier(var(--ease-inout)) 1.2s infinite; }
-@keyframes skillRingForm {
-  0% { opacity: 0; transform: scale(0.9); }
+  0% { opacity: 0.35; transform: scale(0.9); }
   55%, 100% { opacity: 0.9; transform: scale(1); }
 }
-@keyframes skillRingPulse {
-  0%, 100% { transform: scale(0.98); opacity: 0.75; }
-  50% { transform: scale(1.06); opacity: 0.95; }
+@keyframes skillSparklePulse {
+  0%, 100% { opacity: 0.5; transform: scale(0.95); }
+  50% { opacity: 0.95; transform: scale(1.12); }
 }
 
-/* Giông: formation 780ms hero (opacity 1 by 55%), loop 8.2s inout */
+/* Hồ Mây: radial gradient rings — expand + fade; stagger */
+.skill-layer[data-cloud-type="ho_may"] .skill-ring-1,
+.skill-layer[data-cloud-type="ho_may"] .skill-ring-2,
+.skill-layer[data-cloud-type="ho_may"] .skill-ring-3 { opacity: 0; transform: scale(0.9); }
+.skill-layer[data-cloud-type="ho_may"].is-animating .skill-ring-1 { animation: skillRingForm 850ms cubic-bezier(var(--ease-hero)) forwards, skillRingPulse 9s cubic-bezier(var(--ease-inout)) 1s infinite; }
+.skill-layer[data-cloud-type="ho_may"].is-animating .skill-ring-2 { animation: skillRingForm 850ms cubic-bezier(var(--ease-hero)) 0.8s forwards, skillRingPulse 9s cubic-bezier(var(--ease-inout)) 1.8s infinite; }
+.skill-layer[data-cloud-type="ho_may"].is-animating .skill-ring-3 { animation: skillRingForm 850ms cubic-bezier(var(--ease-hero)) 1.6s forwards, skillRingPulse 9s cubic-bezier(var(--ease-inout)) 2.6s infinite; }
+@keyframes skillRingForm {
+  0% { opacity: 0.35; transform: scale(0.9); }
+  55%, 100% { opacity: 0.85; transform: scale(1); }
+}
+@keyframes skillRingPulse {
+  0%, 100% { transform: scale(0.95); opacity: 0.4; }
+  50% { transform: scale(1.15); opacity: 0.9; }
+}
+
+/* Giông: filled bolts — opacity flicker; stagger */
 .skill-layer[data-cloud-type="giong"] .skill-bolt-1,
-.skill-layer[data-cloud-type="giong"] .skill-bolt-2 { opacity: 0; transform: scale(0.85); }
-.skill-layer[data-cloud-type="giong"].is-animating .skill-bolt-1 { animation: skillBoltForm 780ms cubic-bezier(var(--ease-hero)) forwards, skillBoltFlicker 8.2s cubic-bezier(var(--ease-inout)) 0.9s infinite; }
-.skill-layer[data-cloud-type="giong"].is-animating .skill-bolt-2 { animation: skillBoltForm 780ms cubic-bezier(var(--ease-hero)) 0.08s forwards, skillBoltFlicker 8.2s cubic-bezier(var(--ease-inout)) 1s infinite; }
+.skill-layer[data-cloud-type="giong"] .skill-bolt-2 { opacity: 0; transform: scale(0.9); }
+.skill-layer[data-cloud-type="giong"].is-animating .skill-bolt-1 { animation: skillBoltForm 800ms cubic-bezier(var(--ease-hero)) forwards, skillBoltFlicker 7s cubic-bezier(var(--ease-inout)) 1s infinite; }
+.skill-layer[data-cloud-type="giong"].is-animating .skill-bolt-2 { animation: skillBoltForm 800ms cubic-bezier(var(--ease-hero)) 0.8s forwards, skillBoltFlicker 7s cubic-bezier(var(--ease-inout)) 1.8s infinite; }
 @keyframes skillBoltForm {
-  0% { opacity: 0; transform: scale(0.85); }
-  55%, 100% { opacity: 1; transform: scale(1); }
+  0% { opacity: 0.35; transform: scale(0.9); }
+  55%, 100% { opacity: 0.9; transform: scale(1); }
 }
 @keyframes skillBoltFlicker {
-  0%, 70%, 100% { opacity: 0.7; }
-  72%, 78% { opacity: 1; }
-  85% { opacity: 0.85; }
+  0%, 65%, 100% { opacity: 0.4; }
+  70%, 78% { opacity: 0.95; }
+  82% { opacity: 0.7; }
 }
 
+/* Do NOT use 0.01ms duration — it can permanently disable animation on mobile */
 @media (prefers-reduced-motion: reduce) {
   .skill-layer .skill-rainbow-arc,
-  .skill-layer .skill-wind-1, .skill-layer .skill-wind-2, .skill-layer .skill-wind-3,
-  .skill-layer .skill-mist-1, .skill-layer .skill-mist-2, .skill-layer .skill-mist-3, .skill-layer .skill-mist-4,
+  .skill-layer .skill-wind-1, .skill-layer .skill-wind-2, .skill-layer .skill-wind-3, .skill-layer .skill-wind-4,
+  .skill-layer .skill-mist-1, .skill-layer .skill-mist-2, .skill-layer .skill-mist-3, .skill-layer .skill-mist-4, .skill-layer .skill-mist-5,
   .skill-layer .skill-sparkle-1, .skill-layer .skill-sparkle-2, .skill-layer .skill-sparkle-3, .skill-layer .skill-sparkle-4,
-  .skill-layer .skill-ring-1, .skill-layer .skill-ring-2,
+  .skill-layer .skill-ring-1, .skill-layer .skill-ring-2, .skill-layer .skill-ring-3,
   .skill-layer .skill-bolt-1, .skill-layer .skill-bolt-2 {
-    animation-duration: 0.01ms !important;
+    animation: none !important;
   }
 }
 
@@ -1704,9 +1739,11 @@ body.hero-ready .hero-scroll {
 .identity-rank {
   letter-spacing: 0.02em;
 }
+/* UI layer: always above skill layer (z 10) */
 .evolution-title-capsule {
   position: relative;
   display: inline-block;
+  z-index: 10;
 }
 .evolution-title-capsule::before {
   content: "";
