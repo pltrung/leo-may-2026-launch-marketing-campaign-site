@@ -228,7 +228,7 @@ function useSlotStyleFromTransition(
   slotK: number,
   transitionProgress: MotionValue<number>,
   transitionDirection: MotionValue<number>,
-  activeScaleMultiplier: MotionValue<number> | null = null
+  scaleMultiplier: MotionValue<number>
 ) {
   const inWindow = slotK !== SLOT_OUTSIDE_WINDOW;
   const full = useTransform(
@@ -244,14 +244,9 @@ function useSlotStyleFromTransition(
     }
   );
   const transform = useTransform(
-    activeScaleMultiplier != null && slotK === 0
-      ? [full, activeScaleMultiplier]
-      : full,
-    (s: { y: number; scale: number } | [{ y: number; scale: number }, number]) => {
-      const style = Array.isArray(s) ? s[0] : s;
-      const mult = Array.isArray(s) ? s[1] : 1;
-      return `translate(-50%, -50%) translateY(${style.y}px) scale(${style.scale * mult})`;
-    }
+    [full, scaleMultiplier],
+    ([s, mult]: [{ y: number; scale: number; opacity: number; filter: string; zIndex: number; boxShadow: string }, number]) =>
+      `translate(-50%, -50%) translateY(${s.y}px) scale(${s.scale * mult})`
   );
   const opacity = useTransform(full, (s) => s.opacity);
   const filter = useTransform(full, (s) => s.filter);
@@ -337,6 +332,7 @@ const CloudStackMobileInner = (
   const inertiaOffset = useMotionValue(0);
   /** Part 1: active tile scale response — 0.97 on gesture start, 1 when settled */
   const activeScaleResponse = useMotionValue(1);
+  const scaleOne = useMotionValue(1);
 
   const getCenterIndex = useCallback(() => {
     if (isRandomizingRef.current) return clampIndex(position.get(), n);
@@ -506,15 +502,10 @@ const CloudStackMobileInner = (
     [n, position, activeIndex]
   );
 
-  const slotPrevTransition = useSlotStyleFromTransition(-1, transitionProgress, transitionDirection);
-  const slotActiveTransition = useSlotStyleFromTransition(
-    0,
-    transitionProgress,
-    transitionDirection,
-    activeScaleResponse
-  );
-  const slotNextTransition = useSlotStyleFromTransition(1, transitionProgress, transitionDirection);
-  const slotFarTransition = useSlotStyleFromTransition(2, transitionProgress, transitionDirection);
+  const slotPrevTransition = useSlotStyleFromTransition(-1, transitionProgress, transitionDirection, scaleOne);
+  const slotActiveTransition = useSlotStyleFromTransition(0, transitionProgress, transitionDirection, activeScaleResponse);
+  const slotNextTransition = useSlotStyleFromTransition(1, transitionProgress, transitionDirection, scaleOne);
+  const slotFarTransition = useSlotStyleFromTransition(2, transitionProgress, transitionDirection, scaleOne);
   const slotPrevPosition = useSlotStyleFromPosition(-1, position, inertiaOffset);
   const slotActivePosition = useSlotStyleFromPosition(0, position, inertiaOffset);
   const slotNextPosition = useSlotStyleFromPosition(1, position, inertiaOffset);
