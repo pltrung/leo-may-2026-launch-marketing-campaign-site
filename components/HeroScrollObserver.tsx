@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 
+/** Toggles .visible for spatial continuity: add on enter, remove on exit so reverse transition plays. */
 export default function HeroScrollObserver() {
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -9,6 +10,8 @@ export default function HeroScrollObserver() {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add("visible");
+          } else {
+            entry.target.classList.remove("visible");
           }
         });
       },

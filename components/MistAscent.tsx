@@ -17,6 +17,11 @@ export default function MistAscent() {
     );
     const raw = Math.min(1, scrollY / maxScroll);
     setProgress(raw);
+    const root = document.documentElement;
+    const parallaxY = Math.min(40, raw * 40);
+    root.style.setProperty("--hero-parallax-y", `${parallaxY}px`);
+    const ipFloat = 6 + raw * 6;
+    root.style.setProperty("--hero-ip-float", `${ipFloat}px`);
     tickingRef.current = false;
   }, []);
 
@@ -32,6 +37,8 @@ export default function MistAscent() {
     return () => {
       window.removeEventListener("scroll", onScroll);
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      document.documentElement.style.removeProperty("--hero-parallax-y");
+      document.documentElement.style.removeProperty("--hero-ip-float");
     };
   }, [updateProgress]);
 
