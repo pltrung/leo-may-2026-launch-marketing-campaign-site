@@ -901,7 +901,6 @@ body.hero-ready .hero-scroll {
 /* Countdown page: mascot evolution stage — structural scale, glow, layers */
 .countdown-mascot-wrapper {
   position: relative;
-  --evolution-scale: 1;
   --float-amplitude: 8px;
   /* Default tokens (high-contrast on blue sky #0242FF) */
   --cloud-primary: rgba(255,255,255,0.95);
@@ -989,9 +988,39 @@ body.hero-ready .hero-scroll {
 .evolution-mascot-inner {
   position: relative;
   z-index: 2;
-  transform: scale(var(--evolution-scale, 1));
-  transform-origin: center center;
-  transition: transform 1.2s ease;
+  /* Size fixed; evolution shown via color, particles, glow only */
+}
+
+/* Eye glow overlay (high evolution) — positioned over left eye area */
+.evolution-eye-glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 12%;
+  height: 8%;
+  margin-left: -10%;
+  margin-top: -8%;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--eye-glow-color, currentColor) 0%, transparent 70%);
+  opacity: var(--eye-glow-opacity, 0.2);
+  pointer-events: none;
+  filter: blur(6px);
+}
+
+/* Ribbon glow overlay (mid+ evolution) */
+.evolution-ribbon-glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 24%;
+  height: 12%;
+  margin-left: -12%;
+  margin-top: -2%;
+  border-radius: 40%;
+  background: radial-gradient(ellipse, var(--ribbon-glow-color, currentColor) 0%, transparent 70%);
+  opacity: var(--ribbon-glow-opacity, 0.15);
+  pointer-events: none;
+  filter: blur(10px);
 }
 
 /* Float amplitude 4px → 14px by stage; breathing scale 1.0 → 1.03 */

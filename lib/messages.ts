@@ -51,7 +51,10 @@ const en = {
     yourCloudReveals: "Your cloud reveals its true form.",
     yourCloudGathering: "Your cloud is gathering energy",
     climbersJoined: "climbers joined your cloud",
-    inviteOthers: "Invite others to awaken its true form",
+    inviteOthers: "Aura gathers when others follow your cloud",
+    auraProgressLabel: "Aura Progress to next form",
+    auraUnit: "aura",
+    nextFormLabel: "Next form",
     countdownWinnerText:
       "The team with the most climbers when the countdown ends will receive a special prize.",
     linkCopied: "Link copied. Share it to grow your cloud.",
@@ -213,7 +216,10 @@ const vi: Messages = {
     yourCloudReveals: "Mây của bạn lộ ra hình thể thật.",
     yourCloudGathering: "Mây của bạn đang tích năng lượng",
     climbersJoined: "người leo đã vào mây của bạn",
-    inviteOthers: "Mời thêm người để đánh thức hình thể thật",
+    inviteOthers: "Aura tích lũy khi người khác theo mây của bạn",
+    auraProgressLabel: "Tiến độ Aura đến hình thể tiếp theo",
+    auraUnit: "aura",
+    nextFormLabel: "Hình thể tiếp theo",
     countdownWinnerText:
       "Đội có nhiều người leo nhất khi hết countdown sẽ nhận giải thưởng đặc biệt.",
     linkCopied: "Đã copy link. Chia sẻ để mây lớn mạnh.",

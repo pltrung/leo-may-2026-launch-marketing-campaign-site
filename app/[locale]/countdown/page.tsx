@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,6 +23,58 @@ import {
   getSkyNarrativeKey,
   isFoundingClimberEligible,
 } from "@/lib/countdownEvolution";
+import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
+import {
+  getEvolutionLevel,
+  getXpInLevel,
+  getXpRequiredForLevel,
+  getLevelProgressFraction,
+  getNextFormName,
+  getLevelName,
+} from "@/lib/evolutionLevels";
+
+/** Applies species colors to mascot SVG parts via object ref when loaded. */
+function MascotSvgObject({ src, partColors }: { src: string; partColors: MascotPartColors }) {
+  const objectRef = useRef<HTMLObjectElement>(null);
+
+  const applyColors = useCallback((doc: Document | null) => {
+    if (!doc) return;
+    const eyeLeft = doc.getElementById("eye-left") as SVGElement | null;
+    const eyeRight = doc.getElementById("eye-right") as SVGElement | null;
+    const ribbon = doc.getElementById("ribbon") as SVGElement | null;
+    const cloudOutline = doc.getElementById("cloud-outline") as SVGElement | null;
+    if (eyeLeft) eyeLeft.setAttribute("fill", partColors.eyeLeft);
+    if (eyeRight) eyeRight.setAttribute("fill", partColors.eyeRight);
+    if (ribbon) ribbon.setAttribute("fill", partColors.ribbon);
+    if (cloudOutline) {
+      cloudOutline.setAttribute("stroke", partColors.cloudOutline);
+      if (!cloudOutline.hasAttribute("stroke-width")) cloudOutline.setAttribute("stroke-width", "2");
+    }
+  }, [partColors.eyeLeft, partColors.eyeRight, partColors.ribbon, partColors.cloudOutline]);
+
+  useEffect(() => {
+    const el = objectRef.current;
+    if (!el) return;
+    const onLoad = () => applyColors(el.contentDocument);
+    const doc = el.contentDocument;
+    if (doc?.readyState === "complete") {
+      applyColors(doc);
+    } else {
+      el.addEventListener("load", onLoad);
+      return () => el.removeEventListener("load", onLoad);
+    }
+  }, [applyColors]);
+
+  return (
+    <object
+      ref={objectRef}
+      data={src}
+      type="image/svg+xml"
+      aria-hidden
+      className="w-full h-auto object-contain pointer-events-none"
+    />
+  );
+}
 
 /** Background + holds fade to blue (ms); hero entrance starts after this. */
 const COUNTDOWN_BG_FADE_MS = 1000;
@@ -145,6 +197,19 @@ export default function CountdownPage() {
   const { days, hours, minutes, seconds } = useCountdown();
   const [prevLeaderboardOrder, setPrevLeaderboardOrder] = useState<string>("");
   const [skyUnstable, setSkyUnstable] = useState(false);
+  const prevLevelIndexRef = useRef<number>(-1);
+  const [levelUpFlash, setLevelUpFlash] = useState(false);
+
+  useEffect(() => {
+    const levelIndex = getEvolutionLevel(profile.referralCount).levelIndex;
+    if (prevLevelIndexRef.current >= 0 && levelIndex > prevLevelIndexRef.current) {
+      setLevelUpFlash(true);
+      const t = setTimeout(() => setLevelUpFlash(false), 1200);
+      prevLevelIndexRef.current = levelIndex;
+      return () => clearTimeout(t);
+    }
+    prevLevelIndexRef.current = levelIndex;
+  }, [profile.referralCount]);
 
   useEffect(() => {
     const order = leaderboard.slice(0, 3).map((e) => e.id).join(",");
@@ -205,7 +270,13 @@ export default function CountdownPage() {
   const referralCount = profile.referralCount;
   const referralCode = profile.referralCode ?? user.referralCode ?? "";
   const traitUnlocked = profile.traitUnlocked || referralCount >= REFERRAL_UNLOCK;
-  const progressPct = Math.min(100, Math.round((referralCount / REFERRAL_UNLOCK) * 100));
+  const currentLevel = getEvolutionLevel(referralCount);
+  const xpInLevel = getXpInLevel(referralCount);
+  const xpRequired = getXpRequiredForLevel(referralCount);
+  const levelProgressFraction = getLevelProgressFraction(referralCount);
+  const levelProgressPct = Math.min(100, Math.round(levelProgressFraction * 100));
+  const nextFormName = getNextFormName(referralCount, locale);
+  const currentLevelName = getLevelName(currentLevel, locale);
 
   const evolutionStage = getEvolutionStage(referralCount);
   const evolutionStageIndex = getEvolutionStageIndex(referralCount);
@@ -217,8 +288,8 @@ export default function CountdownPage() {
   const skyDominant = leadingTeamId || "default";
   const evolutionAbilityText = t.evolutionAbility?.[evolutionStageIndex] ?? t.yourCloudGathering;
   const skyNarrativeText = t.skyNarrative?.[skyNarrativeKey] ?? t.skyHeader;
-  const evolutionScale = 1 + (evolutionStageIndex / 6) * 0.6;
-  const floatAmplitudePx = 4 + (evolutionStageIndex / 6) * 10;
+  const mascotPartColors = getMascotPartColors(cloud.id);
+  const orbitParticleCount = evolutionStageIndex >= 4 ? 5 + Math.min(evolutionStageIndex - 4, 3) : 0;
 
   return (
     <div
@@ -386,12 +457,6 @@ export default function CountdownPage() {
           data-cloud-type={cloud.id}
           data-evolution-stage={evolutionStage.id}
           data-evolution-index={evolutionStageIndex}
-          style={
-            {
-              "--evolution-scale": evolutionScale,
-              "--float-amplitude": `${floatAmplitudePx}px`,
-            } as React.CSSProperties
-          }
           initial={{ opacity: 0 }}
           animate={{ opacity: phase === "content" ? 1 : 0 }}
           transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[2] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
@@ -405,14 +470,34 @@ export default function CountdownPage() {
           {evolutionStageIndex >= 5 && (
             <div className="evolution-mist" aria-hidden />
           )}
-          {evolutionStageIndex >= 4 && (
+          {orbitParticleCount > 0 && (
             <div className="evolution-orbit-particles" aria-hidden>
-              {[0, 1, 2, 3, 4].map((i) => (
+              {Array.from({ length: orbitParticleCount }, (_, i) => (
                 <span key={i} className="evolution-orbit-dot" style={{ ["--orbit-i" as string]: i }} />
               ))}
             </div>
           )}
           <div className="evolution-mascot-inner">
+            {evolutionStageIndex >= 5 && (
+              <div
+                className="evolution-eye-glow"
+                aria-hidden
+                style={{
+                  ["--eye-glow-color" as string]: mascotPartColors.eyeLeft,
+                  ["--eye-glow-opacity" as string]: 0.15 + (evolutionStageIndex - 5) * 0.08,
+                } as React.CSSProperties}
+              />
+            )}
+            {evolutionStageIndex >= 4 && (
+              <div
+                className="evolution-ribbon-glow"
+                aria-hidden
+                style={{
+                  ["--ribbon-glow-color" as string]: mascotPartColors.ribbon,
+                  ["--ribbon-glow-opacity" as string]: 0.1 + (evolutionStageIndex - 4) * 0.06,
+                } as React.CSSProperties}
+              />
+            )}
             <motion.div
               className={`countdown-ip origin-center ${phase === "content" ? "countdown-ip-float countdown-ip-breathe" : ""}`}
               style={{
@@ -429,10 +514,9 @@ export default function CountdownPage() {
                 ease: EASE_APPLE_IN_OUT,
               }}
             >
-              <img
+              <MascotSvgObject
                 src="/brand/ip-count-down.svg"
-                alt=""
-                className="w-full h-auto object-contain"
+                partColors={mascotPartColors}
               />
             </motion.div>
           </div>
@@ -445,14 +529,20 @@ export default function CountdownPage() {
           className="cloud-progress shrink-0 w-[85%] sm:w-[70%] max-w-[380px] flex flex-col items-center gap-2 leading-tight rounded-2xl px-4 py-3 countdown-spacing-after-progress"
           style={{
             backgroundColor: "rgba(255,255,255,0.95)",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+            boxShadow: levelUpFlash ? `0 0 24px ${accent}80` : "0 4px 20px rgba(0,0,0,0.08)",
           }}
           initial={{ opacity: 0 }}
-          animate={{ opacity: phase === "content" ? 1 : 0 }}
-          transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[2] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+          animate={{
+            opacity: phase === "content" ? 1 : 0,
+            scale: levelUpFlash ? 1.03 : 1,
+          }}
+          transition={{
+            opacity: { duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[2] / 1000 : 0, ease: EASE_APPLE_IN_OUT },
+            scale: { duration: 0.25, ease: EASE_APPLE_IN_OUT },
+          }}
         >
           <div className="progress-title font-caption text-center" style={{ color: traitUnlocked ? accent : "#1E2A38", opacity: traitUnlocked ? 1 : 0.7 }}>
-            {evolutionAbilityText}
+            {t.auraProgressLabel}
           </div>
           <div
             className="w-full h-[10px] min-h-[10px] rounded-full overflow-hidden flex-shrink-0"
@@ -461,12 +551,22 @@ export default function CountdownPage() {
               boxShadow: `0 0 8px ${accent}50`,
             }}
           >
-            <div
-              className="h-full min-w-0 rounded-full transition-all duration-500 flex-shrink-0"
-              style={{ width: `${Math.min(100, Math.max(0, progressPct))}%`, backgroundColor: accent }}
+            <motion.div
+              key={`level-${currentLevel.levelIndex}`}
+              className="h-full min-w-0 rounded-full flex-shrink-0"
+              initial={{ width: "0%" }}
+              animate={{ width: `${levelProgressPct}%` }}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              style={{ backgroundColor: accent }}
             />
           </div>
           <div className="progress-count font-caption text-xs sm:text-[0.85rem] font-medium" style={{ color: "#1E2A38", letterSpacing: "0.5px" }}>
+            {xpRequired > 0 ? `${xpInLevel} / ${xpRequired} ${t.auraUnit}` : `${currentLevelName}`}
+          </div>
+          <div className="progress-next-form font-caption text-[10px] sm:text-[11px] font-medium" style={{ color: "#1E2A38", opacity: 0.9 }}>
+            {t.nextFormLabel}: {nextFormName ?? "—"}
+          </div>
+          <div className="progress-count font-caption text-xs sm:text-[0.85rem] font-medium mt-0.5" style={{ color: "#1E2A38", letterSpacing: "0.5px" }}>
             {t.youAwakened} <span className="referral-current">{referralCount}</span> {referralCount === 1 ? t.climber : t.climbers}
           </div>
           {!traitUnlocked && (

@@ -1,31 +1,49 @@
--- 7 test accounts, one per Cloud Evolution stage (for countdown page UI testing)
--- Run in Supabase SQL Editor
---
--- After running: Use "Know your cloud" with each email to see that stage on the countdown page.
---
--- Stage 1 Dormant (0–2):   evolution_stage_1@test.local  referral_count 0
--- Stage 2 Stirring (3–5):  evolution_stage_2@test.local  referral_count 4
--- Stage 3 Awakening (6–9): evolution_stage_3@test.local  referral_count 7
--- Stage 4 Forming (10–15): evolution_stage_4@test.local  referral_count 12
--- Stage 5 Ascending (16–25): evolution_stage_5@test.local referral_count 20
--- Stage 6 Sky Guardian (26–49): evolution_stage_6@test.local referral_count 35
--- Stage 7 Founding (50+):  evolution_stage_7@test.local  referral_count 55
+-- 7 evolution stages × 6 cloud types = 42 test accounts
+-- Email: ev{stage}-{cloud}@l  |  Cloud: mn=may_nhe, sm=suong_mu, g=giong, hm=ho_may, cv=cau_vong, gi=gio
+-- Phones use +8492xxxxxx to avoid clashing with previous seeds. Run once; re-run will hit unique on email/phone.
+-- Use "Know your cloud" with e.g. ev1-mn@l or ev5-g@l to test.
 
 INSERT INTO waitlist (name, email, phone, cloud_type, referral_code, referral_count)
 VALUES
-  ('Evolution Stage 1 - Dormant',   'evolution_stage_1@test.local', '+84910000001', 'may_nhe',  'evol1' || substr(md5(random()::text), 1, 8), 0),
-  ('Evolution Stage 2 - Stirring',  'evolution_stage_2@test.local', '+84910000002', 'may_nhe',  'evol2' || substr(md5(random()::text), 1, 8), 4),
-  ('Evolution Stage 3 - Awakening', 'evolution_stage_3@test.local', '+84910000003', 'suong_mu', 'evol3' || substr(md5(random()::text), 1, 8), 7),
-  ('Evolution Stage 4 - Forming',   'evolution_stage_4@test.local', '+84910000004', 'suong_mu', 'evol4' || substr(md5(random()::text), 1, 8), 12),
-  ('Evolution Stage 5 - Ascending', 'evolution_stage_5@test.local', '+84910000005', 'giong',    'evol5' || substr(md5(random()::text), 1, 8), 20),
-  ('Evolution Stage 6 - Sky Guardian', 'evolution_stage_6@test.local', '+84910000006', 'giong',   'evol6' || substr(md5(random()::text), 1, 8), 35),
-  ('Evolution Stage 7 - Founding',  'evolution_stage_7@test.local', '+84910000007', 'may_nhe',  'evol7' || substr(md5(random()::text), 1, 8), 55);
-
--- If you need to update existing rows by email instead of inserting:
--- UPDATE waitlist SET referral_count = 0  WHERE LOWER(TRIM(email)) = 'evolution_stage_1@test.local';
--- UPDATE waitlist SET referral_count = 4  WHERE LOWER(TRIM(email)) = 'evolution_stage_2@test.local';
--- UPDATE waitlist SET referral_count = 7  WHERE LOWER(TRIM(email)) = 'evolution_stage_3@test.local';
--- UPDATE waitlist SET referral_count = 12 WHERE LOWER(TRIM(email)) = 'evolution_stage_4@test.local';
--- UPDATE waitlist SET referral_count = 20 WHERE LOWER(TRIM(email)) = 'evolution_stage_5@test.local';
--- UPDATE waitlist SET referral_count = 35 WHERE LOWER(TRIM(email)) = 'evolution_stage_6@test.local';
--- UPDATE waitlist SET referral_count = 55 WHERE LOWER(TRIM(email)) = 'evolution_stage_7@test.local';
+  ('Evo 1 Dormant may_nhe',   'ev1-mn@l', '+84920000001', 'may_nhe',  'evol1-mn',  0),
+  ('Evo 1 Dormant suong_mu',  'ev1-sm@l', '+84920000002', 'suong_mu', 'evol1-sm',  0),
+  ('Evo 1 Dormant giong',     'ev1-g@l',  '+84920000003', 'giong',    'evol1-g',   0),
+  ('Evo 1 Dormant ho_may',    'ev1-hm@l', '+84920000004', 'ho_may',   'evol1-hm',  0),
+  ('Evo 1 Dormant cau_vong',  'ev1-cv@l', '+84920000005', 'cau_vong', 'evol1-cv',  0),
+  ('Evo 1 Dormant gio',       'ev1-gi@l', '+84920000006', 'gio',      'evol1-gi',  0),
+  ('Evo 2 Stirring may_nhe',  'ev2-mn@l', '+84920000007', 'may_nhe',  'evol2-mn',  4),
+  ('Evo 2 Stirring suong_mu', 'ev2-sm@l', '+84920000008', 'suong_mu', 'evol2-sm',  4),
+  ('Evo 2 Stirring giong',    'ev2-g@l',  '+84920000009', 'giong',    'evol2-g',   4),
+  ('Evo 2 Stirring ho_may',   'ev2-hm@l', '+84920000010', 'ho_may',   'evol2-hm',  4),
+  ('Evo 2 Stirring cau_vong', 'ev2-cv@l', '+84920000011', 'cau_vong', 'evol2-cv',  4),
+  ('Evo 2 Stirring gio',      'ev2-gi@l', '+84920000012', 'gio',      'evol2-gi',  4),
+  ('Evo 3 Awakening may_nhe', 'ev3-mn@l', '+84920000013', 'may_nhe',  'evol3-mn',  7),
+  ('Evo 3 Awakening suong_mu','ev3-sm@l','+84920000014', 'suong_mu', 'evol3-sm',  7),
+  ('Evo 3 Awakening giong',   'ev3-g@l',  '+84920000015', 'giong',    'evol3-g',   7),
+  ('Evo 3 Awakening ho_may',  'ev3-hm@l', '+84920000016', 'ho_may',   'evol3-hm',  7),
+  ('Evo 3 Awakening cau_vong','ev3-cv@l', '+84920000017', 'cau_vong', 'evol3-cv',  7),
+  ('Evo 3 Awakening gio',     'ev3-gi@l', '+84920000018', 'gio',      'evol3-gi',  7),
+  ('Evo 4 Forming may_nhe',   'ev4-mn@l', '+84920000019', 'may_nhe',  'evol4-mn',  12),
+  ('Evo 4 Forming suong_mu',  'ev4-sm@l', '+84920000020', 'suong_mu', 'evol4-sm',  12),
+  ('Evo 4 Forming giong',     'ev4-g@l',  '+84920000021', 'giong',    'evol4-g',   12),
+  ('Evo 4 Forming ho_may',    'ev4-hm@l', '+84920000022', 'ho_may',   'evol4-hm',  12),
+  ('Evo 4 Forming cau_vong',  'ev4-cv@l', '+84920000023', 'cau_vong', 'evol4-cv',  12),
+  ('Evo 4 Forming gio',       'ev4-gi@l', '+84920000024', 'gio',      'evol4-gi',  12),
+  ('Evo 5 Ascending may_nhe', 'ev5-mn@l', '+84920000025', 'may_nhe',  'evol5-mn',  20),
+  ('Evo 5 Ascending suong_mu','ev5-sm@l', '+84920000026', 'suong_mu', 'evol5-sm',  20),
+  ('Evo 5 Ascending giong',   'ev5-g@l',  '+84920000027', 'giong',    'evol5-g',   20),
+  ('Evo 5 Ascending ho_may',  'ev5-hm@l', '+84920000028', 'ho_may',   'evol5-hm',  20),
+  ('Evo 5 Ascending cau_vong','ev5-cv@l', '+84920000029', 'cau_vong', 'evol5-cv',  20),
+  ('Evo 5 Ascending gio',     'ev5-gi@l', '+84920000030', 'gio',      'evol5-gi',  20),
+  ('Evo 6 Sky Guardian may_nhe', 'ev6-mn@l', '+84920000031', 'may_nhe',  'evol6-mn',  35),
+  ('Evo 6 Sky Guardian suong_mu','ev6-sm@l','+84920000032', 'suong_mu', 'evol6-sm',  35),
+  ('Evo 6 Sky Guardian giong',   'ev6-g@l',  '+84920000033', 'giong',    'evol6-g',   35),
+  ('Evo 6 Sky Guardian ho_may',  'ev6-hm@l', '+84920000034', 'ho_may',   'evol6-hm',  35),
+  ('Evo 6 Sky Guardian cau_vong', 'ev6-cv@l', '+84920000035', 'cau_vong', 'evol6-cv',  35),
+  ('Evo 6 Sky Guardian gio',     'ev6-gi@l', '+84920000036', 'gio',      'evol6-gi',  35),
+  ('Evo 7 Founding may_nhe',  'ev7-mn@l', '+84920000037', 'may_nhe',  'evol7-mn',  55),
+  ('Evo 7 Founding suong_mu', 'ev7-sm@l', '+84920000038', 'suong_mu', 'evol7-sm',  55),
+  ('Evo 7 Founding giong',    'ev7-g@l',  '+84920000039', 'giong',    'evol7-g',   55),
+  ('Evo 7 Founding ho_may',   'ev7-hm@l', '+84920000040', 'ho_may',   'evol7-hm',  55),
+  ('Evo 7 Founding cau_vong',  'ev7-cv@l', '+84920000041', 'cau_vong', 'evol7-cv',  55),
+  ('Evo 7 Founding gio',      'ev7-gi@l', '+84920000042', 'gio',      'evol7-gi',  55);
