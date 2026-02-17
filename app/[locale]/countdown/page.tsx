@@ -579,6 +579,9 @@ export default function CountdownPage() {
           {evolutionStageIndex >= 6 && (
             <div className="evolution-aura-ring" aria-hidden />
           )}
+          {evolutionStageIndex >= 1 && (
+            <div className="evolution-reflective-back" aria-hidden />
+          )}
           {evolutionStageIndex >= 3 && (
             <div className="evolution-energy-core" aria-hidden />
           )}
@@ -670,7 +673,7 @@ export default function CountdownPage() {
         </motion.div>
 
         <motion.div
-          className="cloud-progress shrink-0 w-[85%] sm:w-[70%] max-w-[380px] flex flex-col items-center gap-2 leading-tight rounded-2xl px-4 py-3 countdown-spacing-after-progress"
+          className="cloud-progress countdown-progress-front shrink-0 w-[85%] sm:w-[70%] max-w-[380px] flex flex-col items-center gap-2 leading-tight rounded-2xl px-4 py-3 countdown-spacing-after-progress"
           style={{
             backgroundColor: "rgba(255,255,255,0.95)",
             boxShadow: levelUpFlash ? `0 0 24px ${accent}80` : "0 4px 20px rgba(0,0,0,0.08)",

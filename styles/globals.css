@@ -866,6 +866,11 @@ body.hero-ready .hero-scroll {
 .countdown-spacing-after-logo { margin-bottom: 8px; }
 .countdown-spacing-after-ip { margin-bottom: 16px; }
 .countdown-spacing-after-progress { margin-bottom: 12px; }
+/* Aura Progress bar and scorecard above mascot aura circle so they are not hidden */
+.countdown-progress-front {
+  position: relative;
+  z-index: 10;
+}
 .countdown-spacing-after-share { margin-bottom: 18px; }
 .countdown-spacing-after-timer { margin-bottom: 18px; }
 .countdown-spacing-after-leaderboard { margin-bottom: 20px; }
@@ -1084,6 +1089,60 @@ body.hero-ready .hero-scroll {
 @keyframes energyCorePulse {
   0%, 100% { transform: scale(0.98); }
   50% { transform: scale(1.04); }
+}
+
+/* Reflective back shape behind mascot — all 6 cloud types (Stage 1+), team-colored */
+.evolution-reflective-back {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 95%;
+  height: 95%;
+  margin-left: -47.5%;
+  margin-top: -47.5%;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+  filter: blur(20px);
+  will-change: opacity, transform;
+  background: radial-gradient(
+    ellipse 80% 70% at 50% 45%,
+    var(--cloud-secondary) 0%,
+    var(--cloud-primary) 35%,
+    transparent 60%
+  );
+}
+.countdown-mascot-wrapper[data-cloud-type="may_nhe"] .evolution-reflective-back {
+  opacity: 0.45;
+  filter: blur(24px);
+}
+.countdown-mascot-wrapper[data-cloud-type="suong_mu"] .evolution-reflective-back {
+  opacity: 0.4;
+  filter: blur(28px);
+  background: radial-gradient(
+    ellipse 85% 75% at 50% 50%,
+    var(--cloud-secondary) 0%,
+    var(--cloud-primary) 30%,
+    transparent 65%
+  );
+}
+.countdown-mascot-wrapper[data-cloud-type="giong"] .evolution-reflective-back {
+  opacity: 0.5;
+  filter: blur(18px);
+}
+.countdown-mascot-wrapper[data-cloud-type="ho_may"] .evolution-reflective-back {
+  opacity: 0.42;
+  filter: blur(22px);
+}
+.countdown-mascot-wrapper[data-cloud-type="cau_vong"] .evolution-reflective-back {
+  opacity: 0.55;
+  filter: blur(20px);
+  background: var(--ascension-gradient, linear-gradient(135deg, rgba(255,224,102,0.6), rgba(127,214,255,0.4), rgba(155,89,182,0.4)));
+}
+.countdown-mascot-wrapper[data-cloud-type="gio"] .evolution-reflective-back {
+  opacity: 0.48;
+  filter: blur(22px);
 }
 
 /* Orbiting atmospheric particles (Stage 5+) */
