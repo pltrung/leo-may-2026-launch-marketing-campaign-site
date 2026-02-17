@@ -660,12 +660,13 @@ export default function CountdownPage() {
           <motion.div
             className="evolution-title-capsule mt-1 countdown-spacing-after-identity"
             style={{
-              background: cloud.id === "giong" || cloud.id === "may_nhe" ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.10)",
+              background: "rgba(255,255,255,0.85)",
               backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
               borderRadius: 999,
               padding: "10px 18px",
-              boxShadow: cloud.id === "giong" || cloud.id === "may_nhe" ? "0 8px 30px rgba(0,0,0,0.2), 0 0 20px rgba(255,255,255,0.2)" : "0 8px 30px rgba(0,0,0,0.18), 0 0 18px rgba(255,255,255,0.15)",
-              border: cloud.id === "giong" || cloud.id === "may_nhe" ? "1px solid rgba(255,255,255,0.35)" : "1px solid rgba(255,255,255,0.18)",
+              boxShadow: "0 8px 30px rgba(0,0,0,0.18), 0 0 18px rgba(255,255,255,0.15)",
+              border: "1px solid rgba(255,255,255,0.25)",
             }}
             initial={{ opacity: 0, y: 6 }}
             animate={{
@@ -680,8 +681,8 @@ export default function CountdownPage() {
             <p
               className="identity-rank font-caption text-center text-sm"
               style={{
-                color: "white",
-                textShadow: "0 2px 8px rgba(0,0,0,0.35), 0 0 12px rgba(255,255,255,0.25)",
+                color: "rgba(0,0,0,0.85)",
+                textShadow: "none",
                 fontWeight: 600,
               }}
             >
