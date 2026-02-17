@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect, useImperativeHandle, forwardRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, useMotionValue, useTransform, useMotionValueEvent, animate, type MotionValue } from "framer-motion";
-import { clouds, CloudPersonality } from "@/lib/cloudData";
+import { clouds, CloudPersonality, getCloudById } from "@/lib/cloudData";
+import type { CloudType } from "@/lib/cloudData";
 import CloudIconByType from "./CloudIcons";
 import { useLocale } from "./LocaleProvider";
 import { getMessages } from "@/lib/messages";
-import { useCloudCardScrollMotion } from "@/lib/useCloudCardScrollMotion";
 
 interface CloudDetailsModalProps {
   cloud: CloudPersonality;
@@ -231,207 +232,182 @@ const CHAOS_DISTANCE_MAX = 12;
 const RANDOMIZE_EASE = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
 /**
- * SELECTOR MODEL — single source of truth (mathematically no desync):
+ * CONTROLLED CAROUSEL — single source of truth, no scroll coupling.
  *
- * INVARIANT: At any time t, "current selection" = round(stackPosition(t)). No other state.
- *
- * 1. Position state: ONLY stackPosition (MotionValue) and targetIndexRef (ref).
- * 2. Writers of stackPosition: physics loop (every frame), randomize completion, visibility resync.
- * 3. Writers of targetIndexRef: goNext, goPrev, spinToRandom; physics loop only clamps to [0,n-1].
- * 4. Input (swipe/click) ALWAYS updates targetIndexRef; never blocked. Swipe during randomize cancels randomize.
- * 5. All "which cloud" reads: f(stackPosition.get()) at read time. Popup: on click we pass the rendered card's cloud into handleActiveTap(cloud) so the bio always matches the tapped card; on touch tap we use getCenterIndex() at tap time.
- * 6. Re-render trigger (positionRenderTick) is never read for logic.
+ * 1. Position: ONE MotionValue "position" (continuous 0..n). Only updated via animate() from user input.
+ * 2. State machine: idle | animating | modalOpen. Input (swipe/click) only when idle.
+ * 3. Bio: openBio(cloudId) only. Modal shows getCloudById(selectedCloudId). Never index.
+ * 4. On modal close: restoreScrolling() then state = idle.
  */
 function clampIndex(i: number, n: number): number {
   return ((Math.round(i) % n) + n) % n;
 }
+
+type CarouselState = "idle" | "animating" | "modalOpen";
+
+const CARD_ANIM_DURATION_S = 0.42;
 
 const CloudStackMobileInner = (
   { onSelect, onDetailsOpenChange }: CloudStackMobileProps,
   ref: React.Ref<CloudStackMobileHandle>
 ) => {
   const locale = useLocale();
+  const searchParams = useSearchParams();
+  const debug = searchParams.get("debug") === "1";
   const cardStackRef = useRef<HTMLDivElement>(null);
-  const [inertiaEnabled, setInertiaEnabled] = useState(false);
+  const n = clouds.length;
 
-  useEffect(() => {
-    const t = setTimeout(() => setInertiaEnabled(true), INERTIA_ENABLE_DELAY_MS);
-    return () => clearTimeout(t);
-  }, []);
-
-  /** Re-render trigger only. Do NOT read for popup or identity — use stackPosition.get() via getCenterIndex() / getCloudAt(). */
+  const [carouselState, setCarouselState] = useState<CarouselState>("idle");
+  const [selectedCloudId, setSelectedCloudId] = useState<CloudType | null>(null);
   const [, setPositionRenderTick] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isBlooming, setIsBlooming] = useState(false);
-  const [detailsCloud, setDetailsCloud] = useState<CloudPersonality | null>(null);
   const [swipeGuideVisible, setSwipeGuideVisible] = useState(true);
   const touchStartY = useRef(0);
-  const n = clouds.length;
-
-  const stackPosition = useMotionValue(0);
-  const inertiaOffset = useMotionValue(0);
-  const targetIndexRef = useRef(0);
-  const stackVelocityRef = useRef(0);
-  const lastSpringTimeRef = useRef(0);
-  const isRandomizingRef = useRef(false);
-  const randomizeTargetPositionRef = useRef(0);
-  const randomizeLandingIndexRef = useRef(0);
   const tapHandledInTouchEndRef = useRef(false);
+  const [lastInput, setLastInput] = useState("");
+  const scrollLockRef = useRef<{ overflow: string; position: string; top: string } | null>(null);
+  const touchMoveListenerRef = useRef<((e: TouchEvent) => void) | null>(null);
 
-  const [isStackAnimating, setIsStackAnimating] = useState(false);
+  const position = useMotionValue(0);
+  const inertiaOffset = useMotionValue(0);
 
-  /** Sole derivation of "current index" from stackPosition. Use this for any logic that needs center index. */
-  const getCenterIndex = useCallback(() => clampIndex(stackPosition.get(), n), [stackPosition, n]);
+  const getCenterIndex = useCallback(() => clampIndex(position.get(), n), [position, n]);
 
   const onTick = useCallback(() => {
     const wrapper = cardStackRef.current?.closest(".cloud-stack-wrapper");
     if (!(wrapper instanceof HTMLElement)) return;
-    const p = stackPosition.get();
+    const p = position.get();
     const frac = p - Math.floor(p);
     wrapper.style.setProperty("--stack-frac", String(frac));
     const fogStrength = 4 * frac * (1 - frac);
     wrapper.style.setProperty("--medium-opacity", String(fogStrength));
     const centerIdx = clampIndex(p, n);
     const nextIdx = (centerIdx + 1) % n;
-    const blendFrac = frac;
     const a = clouds[centerIdx]?.accentHex ?? "#6b7280";
     const b = clouds[nextIdx]?.accentHex ?? "#6b7280";
-    wrapper.style.setProperty("--fog-blend-frac", String(blendFrac));
+    wrapper.style.setProperty("--fog-blend-frac", String(frac));
     wrapper.style.setProperty("--fog-accent-a", a);
     wrapper.style.setProperty("--fog-accent-b", b);
-  }, [stackPosition, n]);
+  }, [position, n]);
 
-  useCloudCardScrollMotion(cardStackRef, inertiaEnabled, inertiaOffset, onTick);
-
-  /** Re-render when position changes so getCloudAt() / getCenterIndex() are re-evaluated. No stored index. */
-  useMotionValueEvent(stackPosition, "change", () => setPositionRenderTick((t) => t + 1));
-
-  useEffect(() => {
-    let rafId: number;
-    const tick = (now: number) => {
-      rafId = requestAnimationFrame(tick);
-      if (n <= 0) return;
-      const pos = stackPosition.get();
-      const vel = stackVelocityRef.current;
-      let target = targetIndexRef.current;
-      target = Math.max(0, Math.min(n - 1, target));
-      targetIndexRef.current = target;
-      const dt = lastSpringTimeRef.current
-        ? Math.min((now - lastSpringTimeRef.current) / 1000, 0.1)
-        : 1 / 60;
-      lastSpringTimeRef.current = now;
-      const displacement = target - pos;
-      const springForce = SPRING_STIFFNESS * displacement;
-      const dampingForce = -SPRING_DAMPING * vel;
-      const acceleration = (springForce + dampingForce) / SPRING_MASS;
-      const newVel = vel + acceleration * dt;
-      let newPos = pos + newVel * dt;
-
-      if (isRandomizingRef.current) {
-        if (newPos >= randomizeTargetPositionRef.current - 0.02) {
-          const landing = randomizeLandingIndexRef.current;
-          stackPosition.set(landing);
-          stackVelocityRef.current = 0;
-          targetIndexRef.current = Math.max(0, Math.min(n - 1, landing));
-          isRandomizingRef.current = false;
-          setIsStackAnimating(false);
-        } else {
-          stackVelocityRef.current = newVel;
-          stackPosition.set(newPos);
-        }
-      } else {
-        newPos = Math.max(0, Math.min(n - 1, newPos));
-        stackVelocityRef.current = newVel;
-        stackPosition.set(newPos);
-        const settled =
-          Math.abs(newVel) < SPRING_SETTLE_VELOCITY &&
-          Math.abs(displacement) < SPRING_SETTLE_DISPLACEMENT;
-        if (settled) setIsStackAnimating(false);
-      }
-    };
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
-  }, [stackPosition, n]);
+  useMotionValueEvent(position, "change", () => {
+    setPositionRenderTick((t) => t + 1);
+    onTick();
+  });
 
   useEffect(() => {
-    onDetailsOpenChange?.(detailsCloud !== null);
-  }, [detailsCloud, onDetailsOpenChange]);
+    onTick();
+  }, [onTick]);
 
-  const visibilityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    const syncFromPosition = () => {
-      const p = stackPosition.get();
-      const i = inertiaOffset.get();
-      stackPosition.set(p + 0.001);
-      inertiaOffset.set(i + 0.001);
-      requestAnimationFrame(() => {
-        stackPosition.set(p);
-        inertiaOffset.set(i);
-      });
+    onDetailsOpenChange?.(selectedCloudId !== null);
+  }, [selectedCloudId, onDetailsOpenChange]);
+
+  const restoreScrolling = useCallback(() => {
+    if (typeof document === "undefined") return;
+    const body = document.body;
+    if (scrollLockRef.current) {
+      body.style.overflow = scrollLockRef.current.overflow;
+      body.style.position = scrollLockRef.current.position;
+      body.style.top = scrollLockRef.current.top;
+      scrollLockRef.current = null;
+    }
+    const listener = touchMoveListenerRef.current;
+    if (listener) {
+      document.removeEventListener("touchmove", listener, { capture: true });
+      touchMoveListenerRef.current = null;
+    }
+    setCarouselState("idle");
+  }, []);
+
+  const openBio = useCallback((cloudId: CloudType) => {
+    setSelectedCloudId(cloudId);
+    setCarouselState("modalOpen");
+    setLastInput("openBio");
+    if (typeof document === "undefined") return;
+    const body = document.body;
+    scrollLockRef.current = {
+      overflow: body.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
     };
-    const onVisibilityChange = () => {
-      if (document.hidden) return;
-      syncFromPosition();
-      requestAnimationFrame(() => requestAnimationFrame(syncFromPosition));
-      if (visibilityTimeoutRef.current) clearTimeout(visibilityTimeoutRef.current);
-      visibilityTimeoutRef.current = setTimeout(syncFromPosition, 120);
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      if (visibilityTimeoutRef.current) clearTimeout(visibilityTimeoutRef.current);
-    };
-  }, [stackPosition, inertiaOffset]);
+    body.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.top = `-${typeof window !== "undefined" ? window.scrollY : 0}px`;
+    const preventTouch = (e: TouchEvent) => e.preventDefault();
+    touchMoveListenerRef.current = preventTouch;
+    document.addEventListener("touchmove", preventTouch, { passive: false, capture: true });
+  }, []);
+
+  const closeBio = useCallback(() => {
+    setSelectedCloudId(null);
+    restoreScrolling();
+  }, [restoreScrolling]);
 
   const goNext = useCallback(() => {
-    if (isRandomizingRef.current) {
-      isRandomizingRef.current = false;
-      const pos = stackPosition.get();
-      stackPosition.set(Math.max(0, Math.min(n - 1, pos)));
-      stackVelocityRef.current = 0;
-    }
-    setIsStackAnimating(true);
-    const next = (Math.floor(stackPosition.get()) + 1) % n;
-    targetIndexRef.current = Math.max(0, Math.min(n - 1, next));
-  }, [stackPosition, n]);
+    if (carouselState !== "idle" || n <= 0) return;
+    setLastInput("wheel/swipe down");
+    setCarouselState("animating");
+    const current = position.get();
+    const next = current + 1;
+    animate(position, next, {
+      duration: CARD_ANIM_DURATION_S,
+      ease: EASE_PREMIUM,
+      onComplete: () => {
+        position.set(next >= n ? 0 : next);
+        setCarouselState("idle");
+      },
+    });
+  }, [carouselState, n, position]);
 
   const goPrev = useCallback(() => {
-    if (isRandomizingRef.current) {
-      isRandomizingRef.current = false;
-      const pos = stackPosition.get();
-      stackPosition.set(Math.max(0, Math.min(n - 1, pos)));
-      stackVelocityRef.current = 0;
-    }
-    setIsStackAnimating(true);
-    const prev = (Math.ceil(stackPosition.get()) - 1 + n) % n;
-    targetIndexRef.current = Math.max(0, Math.min(n - 1, prev));
-  }, [stackPosition, n]);
+    if (carouselState !== "idle" || n <= 0) return;
+    setLastInput("wheel/swipe up");
+    setCarouselState("animating");
+    const current = position.get();
+    const prev = current - 1;
+    animate(position, prev < 0 ? n - 1 : prev, {
+      duration: CARD_ANIM_DURATION_S,
+      ease: EASE_PREMIUM,
+      onComplete: () => {
+        if (prev < 0) position.set(n - 1);
+        else position.set(prev);
+        setCarouselState("idle");
+      },
+    });
+  }, [carouselState, n, position]);
 
   useImperativeHandle(
     ref,
     () => ({
       spinToRandom: () => {
-        setIsStackAnimating(true);
+        if (n <= 0) return;
+        setLastInput("randomize");
+        setCarouselState("animating");
         const finalIndex = Math.floor(Math.random() * n);
-        const current = stackPosition.get();
-        const currentSlot = ((Math.floor(current) % n) + n) % n;
+        const current = position.get();
+        const currentSlot = clampIndex(Math.floor(current), n);
         const stepsToFinal = (finalIndex - currentSlot + n) % n;
         const spinDistance = RANDOMIZE_CYCLES * n + stepsToFinal;
         const targetPosition = current + spinDistance;
-        randomizeLandingIndexRef.current = finalIndex;
-        randomizeTargetPositionRef.current = targetPosition;
-        isRandomizingRef.current = true;
-        targetIndexRef.current = targetPosition;
-        stackVelocityRef.current = RANDOMIZE_INITIAL_VELOCITY;
+        animate(position, targetPosition, {
+          duration: (CHAOS_DURATION_MS + DECEL_LOCKIN_DURATION_MS) / 1000,
+          ease: RANDOMIZE_EASE,
+          onComplete: () => {
+            position.set(finalIndex);
+            setCarouselState("idle");
+          },
+        });
       },
     }),
-    [n, stackPosition]
+    [n, position]
   );
 
-  const slotPrevStyle = useSlotStyle(-1, stackPosition, inertiaOffset);
-  const slotActiveStyle = useSlotStyle(0, stackPosition, inertiaOffset);
-  const slotNextStyle = useSlotStyle(1, stackPosition, inertiaOffset);
-  const slotFarStyle = useSlotStyle(2, stackPosition, inertiaOffset);
+  const slotPrevStyle = useSlotStyle(-1, position, inertiaOffset);
+  const slotActiveStyle = useSlotStyle(0, position, inertiaOffset);
+  const slotNextStyle = useSlotStyle(1, position, inertiaOffset);
+  const slotFarStyle = useSlotStyle(2, position, inertiaOffset);
   const slotStylesByOffset: Record<number, ReturnType<typeof useSlotStyle>> = {
     [-1]: slotPrevStyle,
     0: slotActiveStyle,
@@ -440,13 +416,13 @@ const CloudStackMobileInner = (
   };
 
   const identityStrengthByOffset: Record<number, MotionValue<number>> = {
-    [-1]: useIdentityStrength(-1, stackPosition),
-    0: useIdentityStrength(0, stackPosition),
-    1: useIdentityStrength(1, stackPosition),
-    2: useIdentityStrength(2, stackPosition),
+    [-1]: useIdentityStrength(-1, position),
+    0: useIdentityStrength(0, position),
+    1: useIdentityStrength(1, position),
+    2: useIdentityStrength(2, position),
   };
 
-  /** Pure function of stackPosition. Center = getCenterIndex(); cloud at offset = clouds[(center + offset) % n]. */
+  /** Cloud at slot offset from center. Center = getCenterIndex(). */
   const getCloudAt = useCallback(
     (offset: number) => clouds[((getCenterIndex() + offset) % n + n) % n],
     [getCenterIndex, n]
@@ -459,22 +435,15 @@ const CloudStackMobileInner = (
     2: useCardIdentityStyle(getCloudAt(2), identityStrengthByOffset[2]),
   };
 
-  /** Popup: when cloud is provided (click on a card), open that exact cloud. When not (touch tap), use center from stackPosition. Guarantees popup matches the card the user tapped. */
-  const handleActiveTap = useCallback(
-    (cloud?: CloudPersonality) => {
-      const toShow = cloud ?? clouds[getCenterIndex()] ?? null;
-      requestAnimationFrame(() => setDetailsCloud(toShow));
-    },
-    [getCenterIndex]
-  );
-
   const handleJoinTeam = useCallback(() => {
-    if (!detailsCloud) return;
+    if (!selectedCloudId) return;
+    const cloud = getCloudById(selectedCloudId);
+    if (!cloud) return;
     setIsBlooming(true);
-    const cloud = detailsCloud;
-    setDetailsCloud(null);
+    setSelectedCloudId(null);
+    restoreScrolling();
     setTimeout(() => onSelect(cloud), 450);
-  }, [detailsCloud, onSelect]);
+  }, [selectedCloudId, onSelect, restoreScrolling]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
@@ -482,16 +451,64 @@ const CloudStackMobileInner = (
     setSwipeGuideVisible(false);
   };
 
-  /** One touch = one action. Swipe (any dy beyond 10px) moves exactly one card; only near-zero dy = tap. Suppress synthesized click so we never double-move. */
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    const dy = e.changedTouches[0].clientY - touchStartY.current;
-    tapHandledInTouchEndRef.current = true;
-    const TAP_THRESHOLD_PX = 10;
-    if (dy < -TAP_THRESHOLD_PX) goNext();
-    else if (dy > TAP_THRESHOLD_PX) goPrev();
-    else handleActiveTap();
-    setIsDragging(false);
-  };
+  const TAP_THRESHOLD_PX = 10;
+  const WHEEL_THRESHOLD = 40;
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      if (carouselState !== "idle" || n <= 0) return;
+      if (Math.abs(e.deltaY) < WHEEL_THRESHOLD) return;
+      e.preventDefault();
+      if (e.deltaY > 0) {
+        setLastInput("wheel down");
+        setCarouselState("animating");
+        const current = position.get();
+        const next = current + 1;
+        animate(position, next, {
+          duration: CARD_ANIM_DURATION_S,
+          ease: EASE_PREMIUM,
+          onComplete: () => {
+            position.set(next >= n ? 0 : next);
+            setCarouselState("idle");
+          },
+        });
+      } else {
+        setLastInput("wheel up");
+        setCarouselState("animating");
+        const current = position.get();
+        const prev = current - 1;
+        animate(position, prev < 0 ? n - 1 : prev, {
+          duration: CARD_ANIM_DURATION_S,
+          ease: EASE_PREMIUM,
+          onComplete: () => {
+            if (prev < 0) position.set(n - 1);
+            else position.set(prev);
+            setCarouselState("idle");
+          },
+        });
+      }
+    },
+    [carouselState, n, position]
+  );
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      const dy = e.changedTouches[0].clientY - touchStartY.current;
+      tapHandledInTouchEndRef.current = true;
+      if (carouselState !== "idle") {
+        setIsDragging(false);
+        return;
+      }
+      if (dy < -TAP_THRESHOLD_PX) goNext();
+      else if (dy > TAP_THRESHOLD_PX) goPrev();
+      else {
+        const idx = clampIndex(position.get(), n);
+        const cloud = clouds[idx];
+        if (cloud) openBio(cloud.id);
+      }
+      setIsDragging(false);
+    },
+    [carouselState, goNext, goPrev, n, openBio, position]
+  );
 
   const handleTouchCancel = () => setIsDragging(false);
 
@@ -505,9 +522,12 @@ const CloudStackMobileInner = (
 
   const hideSwipeGuide = useCallback(() => setSwipeGuideVisible(false), []);
 
+  const selectedCloud = selectedCloudId ? getCloudById(selectedCloudId) : null;
+  const isStackAnimating = carouselState === "animating";
+
   return (
     <div
-      className={`cloud-stack-wrapper relative w-full flex-1 flex flex-col min-h-0 ${detailsCloud ? "has-selection" : ""}`}
+      className={`cloud-stack-wrapper relative w-full flex-1 flex flex-col min-h-0 ${selectedCloudId ? "has-selection" : ""}`}
       onMouseDown={hideSwipeGuide}
     >
       {isBlooming && <div className="cloud-stack-bloom" aria-hidden />}
@@ -525,24 +545,37 @@ const CloudStackMobileInner = (
         <img src="/brand/cloud-mini.svg" alt="" className="swipe-cloud" />
         <div className="swipe-text">{getMessages(locale).cloudSelector.swipeUp}</div>
       </motion.div>
-      {detailsCloud && (
+      {selectedCloud && (
         <CloudDetailsModal
-          cloud={detailsCloud}
+          cloud={selectedCloud}
           locale={locale}
-          onClose={() => setDetailsCloud(null)}
+          onClose={closeBio}
           onJoinTeam={handleJoinTeam}
         />
       )}
 
       <div className="cloud-stack-medium" aria-hidden />
 
-      {/* touchAction: none so the browser doesn't use vertical swipe for page scroll; ensures touchEnd runs and goNext/goPrev receive the swipe (fixes "stuck" swipe on mobile). */}
+      {debug && (
+        <div
+          className="fixed bottom-20 left-2 z-50 rounded-lg bg-black/80 px-2 py-1.5 font-mono text-[10px] text-white shadow"
+          aria-hidden
+        >
+          <div>activeIndex: {getCenterIndex()}</div>
+          <div>activeCloudId: {clouds[getCenterIndex()]?.id ?? "-"}</div>
+          <div>state: {carouselState}</div>
+          <div>lastInput: {lastInput || "-"}</div>
+        </div>
+      )}
+
+      {/* touchAction: none so the browser doesn't use vertical swipe for page scroll. */}
       <div
         ref={cardStackRef}
         className={`card-stack flex-1 w-full min-h-0 stack-driven ${isDragging ? "dragging" : ""} ${isStackAnimating ? "stack-animating" : ""}`}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchCancel}
+        onWheel={handleWheel}
         style={{ touchAction: "none" }}
       >
         {[-1, 0, 1, 2].map((offset) => {
@@ -551,18 +584,15 @@ const CloudStackMobileInner = (
           if (positionClass === "hidden") return null;
 
           const isActive = positionClass === "active";
-          const handleCardClick = isActive
-            ? () => handleActiveTap(cloud)
-            : (positionClass === "next" || positionClass === "far")
-              ? goNext
-              : goPrev;
           const onCardClick = () => {
             if (tapHandledInTouchEndRef.current) {
               tapHandledInTouchEndRef.current = false;
               return;
             }
-            if (isActive) handleActiveTap(cloud);
-            else handleCardClick();
+            if (carouselState !== "idle") return;
+            if (isActive) openBio(cloud.id);
+            else if (positionClass === "next" || positionClass === "far") goNext();
+            else goPrev();
           };
           const entry = getEntryConfig(offset);
           const slotStyle = slotStylesByOffset[offset];
