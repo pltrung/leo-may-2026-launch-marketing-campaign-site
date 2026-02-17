@@ -37,6 +37,7 @@ import {
 import type { EvolutionLevel } from "@/lib/evolutionLevels";
 import EvolutionCeremonyModal from "@/components/EvolutionCeremonyModal";
 import { getAscensionEnergyVars } from "@/lib/ascensionEnergy";
+import SkillLayer from "@/components/SkillLayer";
 
 /** Evolution-driven opacity for aura: 0 at stage 0, ramps to 1 by stage 4+. */
 function auraOpacityForStage(stageIndex: number): number {
@@ -233,7 +234,12 @@ export default function CountdownPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromMist = searchParams.get("fromMist") === "1";
+  const debugPerf = searchParams.get("debugPerf") === "1";
   const locale = useLocale();
+  const [perfDelta, setPerfDelta] = useState<number>(0);
+  const perfRef = useRef<number>(0);
+  const perfAccRef = useRef<number>(0);
+  const perfCountRef = useRef<number>(0);
   const t = getMessages(locale).countdown;
   const [user, setUser] = useState<ReturnType<typeof getUser>>(null);
   const [verified, setVerified] = useState<boolean | null>(null);
@@ -315,6 +321,27 @@ export default function CountdownPage() {
     }
   }, [verified, router, locale]);
 
+  useEffect(() => {
+    if (!debugPerf) return;
+    let rafId: number;
+    const tick = (t: number) => {
+      if (perfRef.current) {
+        const delta = t - perfRef.current;
+        perfAccRef.current += delta;
+        perfCountRef.current += 1;
+        if (perfCountRef.current >= 30) {
+          setPerfDelta(perfAccRef.current / perfCountRef.current);
+          perfAccRef.current = 0;
+          perfCountRef.current = 0;
+        }
+      }
+      perfRef.current = t;
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [debugPerf]);
+
   const handleLogout = () => {
     clearUser();
     router.replace(`/${locale}`);
@@ -360,6 +387,18 @@ export default function CountdownPage() {
       data-sky-dominant={skyDominant}
       data-sky-unstable={skyUnstable ? "true" : "false"}
     >
+      {debugPerf && (
+        <div
+          className="fixed top-2 left-2 z-[200] bg-black/80 text-green-400 text-xs font-mono p-2 rounded pointer-events-none"
+          aria-live="polite"
+        >
+          <div>cloud: {cloud.id}</div>
+          <div>evolution: {evolutionStageIndex}</div>
+          <div>skill visible: {evolutionStageIndex >= 3 ? "yes" : "no"}</div>
+          <div>anim: is-animating</div>
+          <div>frame Δ: {perfDelta.toFixed(1)}ms {perfDelta > 0 ? `(~${(1000 / perfDelta).toFixed(0)} fps)` : ""}</div>
+        </div>
+      )}
       {fromMist && (
         <motion.div
           className="countdown-mist-overlay"
@@ -571,7 +610,7 @@ export default function CountdownPage() {
           >
             <div className="aura-core" aria-hidden />
             <div className="aura-flames" aria-hidden />
-            <div className="aura-team" data-cloud-type={cloud.id} aria-hidden />
+            <SkillLayer cloudType={cloud.id} evolutionStageIndex={evolutionStageIndex} />
             <div className="aura-outline" aria-hidden />
             <div className="evolution-mascot-inner">
             {evolutionStageIndex >= 5 && (
