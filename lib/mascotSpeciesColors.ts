@@ -15,7 +15,7 @@ export interface MascotPartColors {
 
 /** All 6 cloud types: eyes, nose, scarf, cloudOutline match cloudData accent/theme.
  *  Both left and right eye use team color (eyeLeft/eyeRight) so no eye stays default blue.
- *  may_nhe #4FA3FF, suong_mu #8FA3B8, giong green, ho_may #8C7F73 taupe, cau_vong #F2C94C, gio #4CAF78.
+ *  may_nhe #4FA3FF, suong_mu #8FA3B8, giong #FF635C coral red, ho_may #8C7F73 taupe, cau_vong #F2C94C, gio #4CAF78.
  */
 const SPECIES_COLORS: Record<CloudType, MascotPartColors> = {
   may_nhe: {
@@ -35,12 +35,12 @@ const SPECIES_COLORS: Record<CloudType, MascotPartColors> = {
     cloudOutline: "#BFBFBF",
   },
   giong: {
-    eyeLeft: "#6FCF97",
-    eyeRight: "#6FCF97",
-    nose: "#5BC48A",
-    scarf: "#4CAF78",
-    ribbon: "#5BC48A",
-    cloudOutline: "#4CAF78",
+    eyeLeft: "#FF8A85",
+    eyeRight: "#FF8A85",
+    nose: "#FF635C",
+    scarf: "#E85A54",
+    ribbon: "#FF635C",
+    cloudOutline: "#E85A54",
   },
   ho_may: {
     eyeLeft: "#C4B8B0",

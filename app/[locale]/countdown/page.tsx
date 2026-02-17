@@ -861,7 +861,7 @@ export default function CountdownPage() {
                   <p className="font-medium text-white/60 text-[0.7rem] uppercase tracking-wider mb-1">{t.yourTeamRank}</p>
                   <div className="flex flex-row items-center justify-between gap-3">
                     <div className="flex flex-row items-center gap-3 flex-1 min-w-0">
-                      <div className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm" style={{ backgroundColor: accentContrast, color: isGiong ? "#0242FF" : (cloud.joinTextHex ?? "#1E2A38") }}>
+                      <div className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm" style={{ backgroundColor: accentContrast, color: isGiong ? "#FF635C" : (cloud.joinTextHex ?? "#1E2A38") }}>
                         #{rank}
                       </div>
                       <div className="leaderboard-text flex flex-col min-w-0">

@@ -27,9 +27,9 @@ const PROFILES: Record<CloudType, AscensionEnergyProfile> = {
     accent: "#DCE3EF",
   },
   giong: {
-    primary: "#7A5CFF",
-    secondary: "#2C1F5E",
-    accent: "#E8E4FF",
+    primary: "#FF635C",
+    secondary: "#B84A45",
+    accent: "rgba(255,229,228,0.7)",
   },
   ho_may: {
     primary: "#9A8B82",

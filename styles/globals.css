@@ -733,7 +733,7 @@ body.hero-ready .hero-scroll {
   --mist: #DDE2E6;
   --team-suong-mu: #8FA3B8;
   --team-ho-may: #FFD580;
-  --team-giong: #0242FF;
+  --team-giong: #FF635C;
   --team-cau-vong: #FF8CF0;
   --team-may-nhe: #A4FFD0;
   --team-gio: #7CE0FF;
@@ -886,7 +886,7 @@ body.hero-ready .hero-scroll {
   opacity: 1;
 }
 .countdown-page-root[data-sky-dominant="giong"]::before {
-  background: radial-gradient(ellipse 120% 120% at 50% 50%, rgba(0,0,20,0.2) 0%, rgba(0,0,40,0.1) 40%, transparent 60%);
+  background: radial-gradient(ellipse 120% 120% at 50% 50%, rgba(80,0,0,0.12) 0%, rgba(255,99,92,0.06) 40%, transparent 60%);
   opacity: 1;
 }
 .countdown-page-root[data-sky-dominant="suong_mu"]::before {
@@ -928,10 +928,10 @@ body.hero-ready .hero-scroll {
   --cloud-core: rgba(184,198,217,0.35);
 }
 .countdown-mascot-wrapper[data-cloud-type="giong"] {
-  --cloud-primary: #7A5CFF;
-  --cloud-secondary: #2C1F5E;
-  --cloud-aura: rgba(232,228,255,0.5);
-  --cloud-core: rgba(122,92,255,0.4);
+  --cloud-primary: #FF635C;
+  --cloud-secondary: #B84A45;
+  --cloud-aura: rgba(255,229,228,0.5);
+  --cloud-core: rgba(255,99,92,0.4);
 }
 .countdown-mascot-wrapper[data-cloud-type="ho_may"] {
   --cloud-primary: #C4B8B0;
