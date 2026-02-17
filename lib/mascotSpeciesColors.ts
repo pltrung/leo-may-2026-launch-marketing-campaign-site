@@ -8,6 +8,14 @@ export interface MascotPartColors {
   cloudOutline: string;
 }
 
+/** All 6 cloud types with mascot colors (aligned to cloudData accent / theme):
+ *  may_nhe   – light blue (Light Cloud)
+ *  suong_mu  – grey/slate (Mist)
+ *  giong     – green (Storm; green for visibility on blue sky)
+ *  ho_may    – taupe (Cloud Hollow)
+ *  cau_vong  – yellow/gold (Rainbow)
+ *  gio       – green (Wind)
+ */
 const SPECIES_COLORS: Record<CloudType, MascotPartColors> = {
   may_nhe: {
     eyeLeft: "#6FD3FF",
@@ -22,10 +30,10 @@ const SPECIES_COLORS: Record<CloudType, MascotPartColors> = {
     cloudOutline: "#BFBFBF",
   },
   giong: {
-    eyeLeft: "#FFD93B",
-    eyeRight: "#FFD93B",
-    ribbon: "#FFC400",
-    cloudOutline: "#4D5BFF",
+    eyeLeft: "#6FCF97",
+    eyeRight: "#6FCF97",
+    ribbon: "#5BC48A",
+    cloudOutline: "#4CAF78",
   },
   ho_may: {
     eyeLeft: "#C4B8B0",

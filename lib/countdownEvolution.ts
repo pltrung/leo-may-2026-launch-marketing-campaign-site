@@ -1,14 +1,14 @@
 import type { Locale } from "./i18n";
 
-/** Evolution stages by invite (referral) count. */
+/** Evolution stages by invite (referral) count. Aligned with waitlist seed: 0, 4, 7, 12, 20, 35, 55. */
 export const EVOLUTION_STAGES = [
-  { min: 0, max: 2, id: "dormant" },
-  { min: 3, max: 5, id: "stirring" },
-  { min: 6, max: 9, id: "awakening" },
-  { min: 10, max: 15, id: "forming" },
-  { min: 16, max: 25, id: "ascending" },
-  { min: 26, max: 49, id: "sky_guardian" },
-  { min: 50, max: Infinity, id: "founding" },
+  { min: 0, max: 3, id: "dormant" },
+  { min: 4, max: 6, id: "stirring" },
+  { min: 7, max: 11, id: "awakening" },
+  { min: 12, max: 19, id: "forming" },
+  { min: 20, max: 34, id: "ascending" },
+  { min: 35, max: 54, id: "sky_guardian" },
+  { min: 55, max: Infinity, id: "founding" },
 ] as const;
 
 export type EvolutionStageId = (typeof EVOLUTION_STAGES)[number]["id"];

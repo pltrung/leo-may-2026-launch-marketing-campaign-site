@@ -19,7 +19,6 @@ import type { Locale } from "@/lib/i18n";
 import {
   getEvolutionStage,
   getEvolutionStageIndex,
-  getIdentityRank,
   getSkyNarrativeKey,
 } from "@/lib/countdownEvolution";
 import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
@@ -79,9 +78,9 @@ function MascotSvgObject({
         el.style.setProperty("fill", value, "important");
       };
       if (eyeLeft) setFill(eyeLeft, partColors.eyeLeft);
-      if (eyeRight) setFill(eyeRight, "#ffffff");
+      if (eyeRight) eyeRight.style.removeProperty("fill");
       if (mascotRibbon) setFill(mascotRibbon, partColors.ribbon);
-      else if (ribbonEl) setFill(ribbonEl, partColors.ribbon);
+      if (ribbonEl) setFill(ribbonEl, partColors.ribbon);
       if (cloudOutline) {
         cloudOutline.style.setProperty("stroke", partColors.cloudOutline, "important");
         if (!cloudOutline.hasAttribute("stroke-width")) cloudOutline.setAttribute("stroke-width", "2");
@@ -340,7 +339,7 @@ export default function CountdownPage() {
 
   const evolutionStage = getEvolutionStage(referralCount);
   const evolutionStageIndex = getEvolutionStageIndex(referralCount);
-  const identityRankLabel = getIdentityRank(evolutionStageIndex, locale);
+  const identityRankLabel = currentLevelName;
   const daysRemaining = days;
   const skyNarrativeKey = getSkyNarrativeKey(daysRemaining);
   const leadingTeamId = leaderboard[0]?.id ?? "";

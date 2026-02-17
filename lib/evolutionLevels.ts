@@ -4,14 +4,15 @@ import type { Locale } from "./i18n";
  * XP-style evolution levels by referral count.
  * Progress bar shows XP within current level toward next form.
  */
+/** Thresholds aligned with waitlist seed: 0, 4, 7, 12, 20, 35, 55 (Sky Listener at 4, etc.). */
 export const EVOLUTION_LEVELS = [
-  { levelIndex: 0, minReferrals: 0, maxReferrals: 4, nameEn: "Gentle Explorer", nameVi: "Người Khám Phá Dịu Dàng" },
-  { levelIndex: 1, minReferrals: 5, maxReferrals: 9, nameEn: "Sky Listener", nameVi: "Người Lắng Nghe Bầu Trời" },
-  { levelIndex: 2, minReferrals: 10, maxReferrals: 19, nameEn: "Cloud Shaper", nameVi: "Người Định Hình Mây" },
-  { levelIndex: 3, minReferrals: 20, maxReferrals: 34, nameEn: "Sky Influencer", nameVi: "Người Ảnh Hưởng Bầu Trời" },
-  { levelIndex: 4, minReferrals: 35, maxReferrals: 49, nameEn: "Founding Cloud", nameVi: "Mây Sáng Lập" },
-  { levelIndex: 5, minReferrals: 50, maxReferrals: 74, nameEn: "Celestial Founder", nameVi: "Người Sáng Lập Thiên Thể" },
-  { levelIndex: 6, minReferrals: 75, maxReferrals: Infinity, nameEn: "Origin Marker", nameVi: "Dấu Ấn Khởi Nguyên" },
+  { levelIndex: 0, minReferrals: 0, maxReferrals: 3, nameEn: "Gentle Explorer", nameVi: "Người Khám Phá Dịu Dàng" },
+  { levelIndex: 1, minReferrals: 4, maxReferrals: 6, nameEn: "Sky Listener", nameVi: "Người Lắng Nghe Bầu Trời" },
+  { levelIndex: 2, minReferrals: 7, maxReferrals: 11, nameEn: "Cloud Shaper", nameVi: "Người Định Hình Mây" },
+  { levelIndex: 3, minReferrals: 12, maxReferrals: 19, nameEn: "Sky Influencer", nameVi: "Người Ảnh Hưởng Bầu Trời" },
+  { levelIndex: 4, minReferrals: 20, maxReferrals: 34, nameEn: "Founding Cloud", nameVi: "Mây Sáng Lập" },
+  { levelIndex: 5, minReferrals: 35, maxReferrals: 54, nameEn: "Celestial Founder", nameVi: "Người Sáng Lập Thiên Thể" },
+  { levelIndex: 6, minReferrals: 55, maxReferrals: Infinity, nameEn: "Origin Marker", nameVi: "Dấu Ấn Khởi Nguyên" },
 ] as const;
 
 export type EvolutionLevel = (typeof EVOLUTION_LEVELS)[number];
