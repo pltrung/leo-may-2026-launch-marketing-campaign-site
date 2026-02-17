@@ -289,32 +289,31 @@ export default function PowerYourCloudShareModal({
               <div
                 className="rounded-[14px] border"
                 style={{
-                  background: "rgba(0,0,0,0.07)",
-                  borderColor: "rgba(255,255,255,0.12)",
-                  backdropFilter: "blur(8px)",
+                  background: "rgba(255,255,255,0.95)",
+                  borderColor: "rgba(0,0,0,0.1)",
                   padding: "12px 14px",
                   marginTop: 12,
                 }}
               >
                 <p
                   className="text-[15px] font-semibold leading-snug"
-                  style={{ color: "rgba(255,255,255,0.95)" }}
+                  style={{ color: "#1E2A38" }}
                 >
                   {c.inviteBlock1}
                 </p>
                 <p
                   className="text-[13px] font-normal leading-snug mt-1"
-                  style={{ color: "rgba(255,255,255,0.75)" }}
+                  style={{ color: "#1E2A38" }}
                 >
                   {c.inviteBlock2}
                 </p>
                 <p
                   className="text-[13px] font-normal leading-snug mt-0.5"
-                  style={{ color: "rgba(255,255,255,0.75)" }}
+                  style={{ color: "#1E2A38" }}
                 >
                   {c.inviteBlock3}
                 </p>
-                <p className="text-[13px] font-normal leading-snug mt-2" style={{ color: "rgba(255,255,255,0.75)" }}>
+                <p className="text-[13px] font-normal leading-snug mt-2" style={{ color: "#1E2A38" }}>
                   {c.youHaveAwakened}{" "}
                   <span style={{ color: accent, fontWeight: 600 }}>{referralCount}</span>
                   {" "}{referralCount === 1 ? c.climber : c.climbers}.
