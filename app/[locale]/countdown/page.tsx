@@ -364,6 +364,11 @@ export default function CountdownPage() {
   const orbitParticleCount = evolutionStageIndex >= 3 ? 4 + Math.min(evolutionStageIndex - 3, 4) : 0;
   const windStreaks = evolutionStageIndex >= 5 ? [0, 1, 2, 3, 4, 5, 6, 7] : [];
 
+  const ASCENSION_SPIKE_COUNT = [0, 2, 4, 6, 8, 12, 16] as const;
+  const ASCENSION_SPIKE_OPACITY = [0, 0.15, 0.25, 0.4, 0.55, 0.75, 1] as const;
+  const spikeCount = ASCENSION_SPIKE_COUNT[evolutionStageIndex] ?? 0;
+  const stageSpikeOpacity = ASCENSION_SPIKE_OPACITY[evolutionStageIndex] ?? 0;
+
   return (
     <div
       className="min-h-[100dvh] md:min-h-[100svh] flex flex-col w-full relative countdown-page-root"
@@ -536,6 +541,41 @@ export default function CountdownPage() {
           animate={{ opacity: phase === "content" ? 1 : 0 }}
           transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[2] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
+          <div
+            id="mascot-ascension-aura"
+            className="mascot-ascension-aura"
+            data-evolution-index={evolutionStageIndex}
+            data-cloud-type={cloud.id}
+            aria-hidden
+            style={
+              {
+                ["--stage-spike-opacity" as string]: stageSpikeOpacity,
+                ["--spike-count" as string]: spikeCount,
+              } as React.CSSProperties
+            }
+          >
+            {evolutionStageIndex === 6 && (
+              <div className="ascension-distortion" aria-hidden />
+            )}
+            <div className="ascension-flame-gradient" aria-hidden />
+            {evolutionStageIndex >= 5 && (
+              <div className="ascension-signature" aria-hidden />
+            )}
+            <svg id="ascension-spikes" className="ascension-spikes-svg" viewBox="-1.2 -1.2 2.4 2.4" preserveAspectRatio="xMidYMid meet">
+              {Array.from({ length: 16 }, (_, i) => (
+                <g key={i} transform={`rotate(${i * 22.5})`}>
+                  <polygon
+                    className="ascension-spike"
+                    points="0,-1 0.12,0.35 -0.12,0.35"
+                    style={{
+                      opacity: i < spikeCount ? stageSpikeOpacity : 0,
+                      ["--spike-delay" as string]: `${(i * 0.11 + (i % 4) * 0.06)}s`,
+                    } as React.CSSProperties}
+                  />
+                </g>
+              ))}
+            </svg>
+          </div>
           {ascensionBurstKey > 0 && (
             <div
               key={ascensionBurstKey}
