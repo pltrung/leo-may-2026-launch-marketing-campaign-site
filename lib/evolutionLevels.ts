@@ -63,22 +63,22 @@ export function getNextFormName(referralCount: number, locale: Locale): string |
   return getLevelName(next, locale);
 }
 
-/** Reward unlocked at each level (levelIndex 0 = no reward / awakening). */
+/** Reward unlocked at each level (levelIndex 0–5). Level 6 (Origin Marker) has no separate reward; top tier is Founding Circle with legacy + lifetime identity. */
 export const EVOLUTION_REWARDS = [
   { levelIndex: 0, labelEn: "Awakening phase", labelVi: "Giai đoạn thức tỉnh" },
   { levelIndex: 1, labelEn: "Early gym access eligibility", labelVi: "Đủ điều kiện vào gym sớm" },
   { levelIndex: 2, labelEn: "Launch event invitation eligibility", labelVi: "Đủ điều kiện thư mời sự kiện ra mắt" },
   { levelIndex: 3, labelEn: "Exclusive founding merchandise eligibility", labelVi: "Đủ điều kiện hàng độc quyền sáng lập" },
   { levelIndex: 4, labelEn: "Permanent name recognition inside Leo Mây", labelVi: "Tên vinh danh lâu dài tại Leo Mây" },
-  { levelIndex: 5, labelEn: "Founding Circle access (private pre-opening + founder recognition)", labelVi: "Quyền vào Vòng Sáng Lập (buổi mở cửa riêng + công nhận sáng lập)" },
-  { levelIndex: 6, labelEn: "Origin Marker status (permanent legacy engraving + lifetime founding identity)", labelVi: "Danh hiệu Dấu Ấn Khởi Nguyên (khắc danh vĩnh viễn + bản sắc sáng lập trọn đời)" },
+  { levelIndex: 5, labelEn: "Founding Circle access (permanent legacy engraving in our 1st gym + lifetime founding identity)", labelVi: "Quyền vào Vòng Sáng Lập (khắc danh vĩnh viễn tại gym đầu tiên + bản sắc sáng lập trọn đời)" },
 ] as const;
 
 export function getRewardLabel(reward: (typeof EVOLUTION_REWARDS)[number], locale: Locale): string {
   return locale === "vi" ? reward.labelVi : reward.labelEn;
 }
 
-/** Whether this reward tier is unlocked at the given level index. */
+/** Whether this reward tier is unlocked at the given level index. Level 6 (Origin Marker) unlocks all 6 rewards. */
 export function isRewardUnlocked(rewardLevelIndex: number, currentLevelIndex: number): boolean {
+  if (currentLevelIndex >= 6) return true;
   return currentLevelIndex >= rewardLevelIndex;
 }

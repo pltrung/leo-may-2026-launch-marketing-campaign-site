@@ -30,7 +30,8 @@ export default function EvolutionCeremonyModal({
 
   const fromName = getLevelName(fromLevel, locale);
   const toName = getLevelName(toLevel, locale);
-  const newlyUnlockedReward = EVOLUTION_REWARDS[toLevel.levelIndex];
+  const rewardIndex = Math.min(toLevel.levelIndex, EVOLUTION_REWARDS.length - 1);
+  const newlyUnlockedReward = EVOLUTION_REWARDS[rewardIndex];
   const showReward = newlyUnlockedReward && toLevel.levelIndex > 0;
 
   return (
@@ -84,6 +85,13 @@ export default function EvolutionCeremonyModal({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="px-6 py-6 flex flex-col items-center text-center">
+            {/* Evolution popup graphic on top */}
+            <img
+              src="/brand/evolution-popup.svg"
+              alt=""
+              className="w-full max-w-[200px] h-auto object-contain mb-4"
+              aria-hidden
+            />
             {/* Phase 3 & 4: title morph */}
             <div className="relative h-20 flex flex-col items-center justify-center overflow-hidden">
               <motion.p

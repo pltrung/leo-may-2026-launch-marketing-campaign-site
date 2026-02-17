@@ -854,6 +854,12 @@ body.hero-ready .hero-scroll {
   font-size: 20px;
   font-family: "MiSans-Bold", sans-serif;
 }
+/* Blue cloud types: whiter card so "Team Giong" / "Team Mây Nhẹ" title pops on blue page */
+.joined-card[data-cloud-type="giong"],
+.joined-card[data-cloud-type="may_nhe"] {
+  background: rgba(255,255,255,0.98);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+}
 
 /* Countdown page: spacing hierarchy */
 .countdown-spacing-after-card { margin-bottom: 12px; }

@@ -74,12 +74,16 @@ function MascotSvgObject({
       const mascotAura = doc.getElementById("mascot-aura") as SVGElement | null;
       const mascotParticles = doc.getElementById("mascot-particles") as SVGElement | null;
 
-      if (eyeLeft) eyeLeft.setAttribute("fill", partColors.eyeLeft);
-      if (eyeRight) eyeRight.setAttribute("fill", "#ffffff");
-      if (mascotRibbon) mascotRibbon.setAttribute("fill", partColors.ribbon);
-      else if (ribbonEl) ribbonEl.setAttribute("fill", partColors.ribbon);
+      // Use inline style so it overrides SVG's class-based fill (e.g. .cls-5 { fill: #0242ff })
+      const setFill = (el: SVGElement, value: string) => {
+        el.style.setProperty("fill", value, "important");
+      };
+      if (eyeLeft) setFill(eyeLeft, partColors.eyeLeft);
+      if (eyeRight) setFill(eyeRight, "#ffffff");
+      if (mascotRibbon) setFill(mascotRibbon, partColors.ribbon);
+      else if (ribbonEl) setFill(ribbonEl, partColors.ribbon);
       if (cloudOutline) {
-        cloudOutline.setAttribute("stroke", partColors.cloudOutline);
+        cloudOutline.style.setProperty("stroke", partColors.cloudOutline, "important");
         if (!cloudOutline.hasAttribute("stroke-width")) cloudOutline.setAttribute("stroke-width", "2");
       }
       if (mascotLeftEyes) {
@@ -100,8 +104,12 @@ function MascotSvgObject({
       applyColors(doc);
     } else {
       el.addEventListener("load", onLoad);
-      return () => el.removeEventListener("load", onLoad);
     }
+    const t = setTimeout(() => applyColors(el.contentDocument), 100);
+    return () => {
+      el.removeEventListener("load", onLoad);
+      clearTimeout(t);
+    };
   }, [applyColors]);
 
   return (
@@ -240,6 +248,7 @@ export default function CountdownPage() {
   const prevLevelIndexRef = useRef<number>(-1);
   const [levelUpFlash, setLevelUpFlash] = useState(false);
   const [evolutionCeremony, setEvolutionCeremony] = useState<{ fromLevel: EvolutionLevel; toLevel: EvolutionLevel } | null>(null);
+  const [pendingEvolutionCeremony, setPendingEvolutionCeremony] = useState<{ fromLevel: EvolutionLevel; toLevel: EvolutionLevel } | null>(null);
 
   useEffect(() => {
     const levelIndex = getEvolutionLevel(profile.referralCount).levelIndex;
@@ -247,13 +256,20 @@ export default function CountdownPage() {
       const fromLevel = EVOLUTION_LEVELS[prevLevelIndexRef.current];
       const toLevel = EVOLUTION_LEVELS[levelIndex];
       setLevelUpFlash(true);
-      setEvolutionCeremony({ fromLevel, toLevel });
+      setPendingEvolutionCeremony({ fromLevel, toLevel });
       const t = setTimeout(() => setLevelUpFlash(false), 1200);
       prevLevelIndexRef.current = levelIndex;
       return () => clearTimeout(t);
     }
     prevLevelIndexRef.current = levelIndex;
   }, [profile.referralCount]);
+
+  useEffect(() => {
+    if (phase === "content" && pendingEvolutionCeremony) {
+      setEvolutionCeremony(pendingEvolutionCeremony);
+      setPendingEvolutionCeremony(null);
+    }
+  }, [phase, pendingEvolutionCeremony]);
 
   useEffect(() => {
     const order = leaderboard.slice(0, 3).map((e) => e.id).join(",");
@@ -470,6 +486,7 @@ export default function CountdownPage() {
       <div className="flex flex-col items-center w-full max-w-lg mx-auto flex-1 pt-4 pb-14 md:pb-3">
         <motion.div
           className="joined-card shrink-0 countdown-spacing-after-card"
+          data-cloud-type={cloud.id}
           initial={{ opacity: 0 }}
           animate={{ opacity: phase === "content" ? 1 : 0 }}
           transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[0] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
@@ -496,7 +513,7 @@ export default function CountdownPage() {
         </motion.div>
 
         <motion.div
-          className="shrink-0 countdown-mascot-wrapper countdown-spacing-after-ip"
+          className="shrink-0 countdown-mascot-wrapper countdown-spacing-after-ip flex flex-col items-center"
           data-cloud-type={cloud.id}
           data-evolution-stage={evolutionStage.id}
           data-evolution-index={evolutionStageIndex}
@@ -584,14 +601,14 @@ export default function CountdownPage() {
             </motion.div>
           </div>
           <motion.div
-            className="evolution-title-capsule mt-2 countdown-spacing-after-identity"
+            className="evolution-title-capsule mt-1 countdown-spacing-after-identity"
             style={{
-              background: "rgba(255,255,255,0.10)",
+              background: cloud.id === "giong" || cloud.id === "may_nhe" ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.10)",
               backdropFilter: "blur(12px)",
               borderRadius: 999,
               padding: "10px 18px",
-              boxShadow: "0 8px 30px rgba(0,0,0,0.18), 0 0 18px rgba(255,255,255,0.15)",
-              border: "1px solid rgba(255,255,255,0.18)",
+              boxShadow: cloud.id === "giong" || cloud.id === "may_nhe" ? "0 8px 30px rgba(0,0,0,0.2), 0 0 20px rgba(255,255,255,0.2)" : "0 8px 30px rgba(0,0,0,0.18), 0 0 18px rgba(255,255,255,0.15)",
+              border: cloud.id === "giong" || cloud.id === "may_nhe" ? "1px solid rgba(255,255,255,0.35)" : "1px solid rgba(255,255,255,0.18)",
             }}
             initial={{ opacity: 0, y: 6 }}
             animate={{
