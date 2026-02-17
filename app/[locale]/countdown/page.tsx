@@ -16,6 +16,13 @@ import { useCountdownHeroEntrance, CONTENT_STAGGER_MS, EASE_APPLE_IN_OUT, EASE_A
 import { getMessages } from "@/lib/messages";
 import { isValidLocale } from "@/lib/i18n";
 import type { Locale } from "@/lib/i18n";
+import {
+  getEvolutionStage,
+  getEvolutionStageIndex,
+  getIdentityRank,
+  getSkyNarrativeKey,
+  isFoundingClimberEligible,
+} from "@/lib/countdownEvolution";
 
 /** Background + holds fade to blue (ms); hero entrance starts after this. */
 const COUNTDOWN_BG_FADE_MS = 1000;
@@ -136,6 +143,18 @@ export default function CountdownPage() {
   const leaderboard = useLeaderboard();
   const profile = useUserProfile(user?.email, user?.phone);
   const { days, hours, minutes, seconds } = useCountdown();
+  const [prevLeaderboardOrder, setPrevLeaderboardOrder] = useState<string>("");
+  const [skyUnstable, setSkyUnstable] = useState(false);
+
+  useEffect(() => {
+    const order = leaderboard.slice(0, 3).map((e) => e.id).join(",");
+    if (prevLeaderboardOrder && order !== prevLeaderboardOrder) {
+      setSkyUnstable(true);
+      const t = setTimeout(() => setSkyUnstable(false), 4000);
+      return () => clearTimeout(t);
+    }
+    setPrevLeaderboardOrder(order);
+  }, [leaderboard, prevLeaderboardOrder]);
 
   useEffect(() => {
     setUser(getUser());
@@ -188,10 +207,23 @@ export default function CountdownPage() {
   const traitUnlocked = profile.traitUnlocked || referralCount >= REFERRAL_UNLOCK;
   const progressPct = Math.min(100, Math.round((referralCount / REFERRAL_UNLOCK) * 100));
 
+  const evolutionStage = getEvolutionStage(referralCount);
+  const evolutionStageIndex = getEvolutionStageIndex(referralCount);
+  const identityRankLabel = getIdentityRank(evolutionStageIndex, locale);
+  const daysRemaining = days;
+  const skyNarrativeKey = getSkyNarrativeKey(daysRemaining);
+  const foundingClimber = isFoundingClimberEligible(referralCount);
+  const leadingTeamId = leaderboard[0]?.id ?? "";
+  const skyDominant = leadingTeamId || "default";
+  const evolutionAbilityText = t.evolutionAbility?.[evolutionStageIndex] ?? t.yourCloudGathering;
+  const skyNarrativeText = t.skyNarrative?.[skyNarrativeKey] ?? t.skyHeader;
+
   return (
     <div
-      className="min-h-[100dvh] md:min-h-[100svh] flex flex-col w-full relative"
+      className="min-h-[100dvh] md:min-h-[100svh] flex flex-col w-full relative countdown-page-root"
       style={{ backgroundColor: "#0242FF" }}
+      data-sky-dominant={skyDominant}
+      data-sky-unstable={skyUnstable ? "true" : "false"}
     >
       {fromMist && (
         <motion.div
@@ -348,26 +380,37 @@ export default function CountdownPage() {
         </motion.div>
 
         <motion.div
-          className={`shrink-0 countdown-ip countdown-spacing-after-ip origin-center ${phase === "content" ? "countdown-ip-float" : ""}`}
-          style={{
-            transformOrigin: "center center",
-            visibility: phase === "hidden" || phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" || phase === "phase4-micro-settle" ? "hidden" : "visible",
-          }}
+          className="shrink-0 countdown-mascot-wrapper countdown-spacing-after-ip"
+          data-evolution-stage={evolutionStage.id}
           initial={{ opacity: 0 }}
-          animate={{
-            opacity: phase === "phase5-rest" || phase === "content" ? 1 : 0,
-          }}
-          transition={{
-            duration: 0.5,
-            delay: phase === "phase5-rest" ? 0.15 : 0,
-            ease: EASE_APPLE_IN_OUT,
-          }}
+          animate={{ opacity: phase === "content" ? 1 : 0 }}
+          transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[2] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
-          <img
-            src="/brand/ip-count-down.svg"
-            alt=""
-            className="w-full h-auto object-contain"
-          />
+          <motion.div
+            className={`countdown-ip origin-center ${phase === "content" ? "countdown-ip-float" : ""}`}
+            style={{
+              transformOrigin: "center center",
+              visibility: phase === "hidden" || phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" || phase === "phase4-micro-settle" ? "hidden" : "visible",
+            }}
+            initial={{ opacity: 0 }}
+            animate={{
+              opacity: phase === "phase5-rest" || phase === "content" ? 1 : 0,
+            }}
+            transition={{
+              duration: 0.5,
+              delay: phase === "phase5-rest" ? 0.15 : 0,
+              ease: EASE_APPLE_IN_OUT,
+            }}
+          >
+            <img
+              src="/brand/ip-count-down.svg"
+              alt=""
+              className="w-full h-auto object-contain"
+            />
+          </motion.div>
+          <p className="identity-rank font-caption text-center text-white/90 text-sm mt-2 countdown-spacing-after-identity">
+            {t.youAreNow} <span style={{ color: accent, textShadow: `0 0 10px ${accent}50` }}>{identityRankLabel}</span>
+          </p>
         </motion.div>
 
         <motion.div
@@ -381,7 +424,7 @@ export default function CountdownPage() {
           transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[2] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
           <div className="progress-title font-caption text-center" style={{ color: traitUnlocked ? accent : "#1E2A38", opacity: traitUnlocked ? 1 : 0.7 }}>
-            {traitUnlocked ? (locale === "vi" && cloud.traitUnlockedVi ? cloud.traitUnlockedVi : (cloud.traitUnlocked ?? t.yourCloudReveals)) : t.yourCloudGathering}
+            {evolutionAbilityText}
           </div>
           <div
             className="w-full h-[10px] min-h-[10px] rounded-full overflow-hidden flex-shrink-0"
@@ -396,8 +439,7 @@ export default function CountdownPage() {
             />
           </div>
           <div className="progress-count font-caption text-xs sm:text-[0.85rem] font-medium" style={{ color: "#1E2A38", letterSpacing: "0.5px" }}>
-            <span className="referral-current">{referralCount}</span>
-            <span className="referral-total"> / 10</span> {t.climbersJoined}
+            {t.youAwakened} <span className="referral-current">{referralCount}</span> {referralCount === 1 ? t.climber : t.climbers}
           </div>
           {!traitUnlocked && (
             <div className="progress-sub font-caption text-[10px] sm:text-[11px] text-storm/70 tracking-wide">
@@ -478,6 +520,9 @@ export default function CountdownPage() {
           transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[4] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
           <div className="absolute inset-0 rounded-2xl leaderboard-shimmer pointer-events-none -z-10" aria-hidden />
+          <p className="sky-narrative font-caption text-white/95 text-center text-sm mb-1">
+            {skyNarrativeText}
+          </p>
           <p className="sky-header font-medium text-white text-center">
             {t.skyHeader}
           </p>
@@ -584,6 +629,47 @@ export default function CountdownPage() {
               );
             })()
           )}
+        </motion.div>
+
+        {foundingClimber && (
+          <motion.div
+            className="shrink-0 w-full max-w-[320px] mt-3 px-4 py-2.5 rounded-xl text-center countdown-spacing-after-leaderboard"
+            style={{
+              backgroundColor: "rgba(255,255,255,0.15)",
+              border: `1px solid ${accent}80`,
+              boxShadow: `0 0 16px ${accent}30`,
+            }}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: phase === "content" ? 1 : 0, y: 0 }}
+            transition={{ duration: 0.5, delay: phase === "content" ? CONTENT_STAGGER_MS[4] / 1000 + 0.2 : 0 }}
+          >
+            <p className="font-caption font-medium text-white text-sm" style={{ color: "rgba(255,255,255,0.98)" }}>
+              ✦ {t.foundingClimber}
+            </p>
+          </motion.div>
+        )}
+
+        <motion.div
+          className="shrink-0 w-full max-w-[320px] mt-4 px-4 py-3 rounded-2xl countdown-rewards-section"
+          style={{
+            backgroundColor: "rgba(255,255,255,0.08)",
+            border: "1px solid rgba(255,255,255,0.2)",
+          }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: phase === "content" ? 1 : 0 }}
+          transition={{ duration: 0.5, delay: phase === "content" ? CONTENT_STAGGER_MS[4] / 1000 + 0.3 : 0 }}
+        >
+          <p className="font-caption font-medium text-white/90 text-xs uppercase tracking-wider mb-2">
+            {t.rewardsTitle}
+          </p>
+          <ul className="flex flex-col gap-1.5 text-left">
+            {(t.rewards as string[]).map((label, i) => (
+              <li key={i} className="font-caption text-white/80 text-[0.8rem] flex items-center gap-2">
+                <span className="text-white/60" aria-hidden>·</span>
+                {label}
+              </li>
+            ))}
+          </ul>
         </motion.div>
 
         <motion.div
