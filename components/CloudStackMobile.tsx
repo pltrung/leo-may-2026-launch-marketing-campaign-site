@@ -244,9 +244,17 @@ function useSlotStyleFromTransition(
     }
   );
   const transform = useTransform(
-    [full, scaleMultiplier],
-    ([s, mult]: [{ y: number; scale: number; opacity: number; filter: string; zIndex: number; boxShadow: string }, number]) =>
-      `translate(-50%, -50%) translateY(${s.y}px) scale(${s.scale * mult})`
+    [transitionProgress, transitionDirection, scaleMultiplier],
+    ([t, dir, mult]: number[]) => {
+      const baseY = slotK * CARD_SPACING + (1 - t) * dir * CARD_SPACING;
+      const overshoot =
+        slotK === 0 && t >= 0.75
+          ? dir * VISUAL_OVERSHOOT_PX * (1 - Math.pow((t - 0.75) / 0.25, 2))
+          : 0;
+      const y = baseY + overshoot;
+      const style = getStyleFromOffset(slotK, inWindow);
+      return `translate(-50%, -50%) translateY(${y}px) scale(${style.scale * mult})`;
+    }
   );
   const opacity = useTransform(full, (s) => s.opacity);
   const filter = useTransform(full, (s) => s.filter);
