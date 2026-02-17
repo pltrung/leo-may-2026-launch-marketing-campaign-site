@@ -68,6 +68,7 @@ function MascotSvgObject({
       const eyeRight = doc.getElementById("eye-right") as SVGElement | null;
       const ribbonEl = doc.getElementById("ribbon") as SVGElement | null;
       const mascotRibbon = doc.getElementById("mascot-ribbon") as SVGElement | null;
+      const mascotScarf = doc.getElementById("mascot-scarf") as SVGElement | null;
       const cloudOutline = doc.getElementById("cloud-outline") as SVGElement | null;
       const mascotLeftEyes = doc.getElementById("mascot-left-eyes") as SVGElement | null;
       const mascotAura = doc.getElementById("mascot-aura") as SVGElement | null;
@@ -79,8 +80,9 @@ function MascotSvgObject({
       };
       if (eyeLeft) setFill(eyeLeft, partColors.eyeLeft);
       if (eyeRight) eyeRight.style.removeProperty("fill");
-      if (mascotRibbon) setFill(mascotRibbon, partColors.ribbon);
-      if (ribbonEl) setFill(ribbonEl, partColors.ribbon);
+      if (mascotRibbon) setFill(mascotRibbon, partColors.nose);
+      if (ribbonEl) setFill(ribbonEl, partColors.nose);
+      if (mascotScarf) setFill(mascotScarf, partColors.scarf);
       if (cloudOutline) {
         cloudOutline.style.setProperty("stroke", partColors.cloudOutline, "important");
         if (!cloudOutline.hasAttribute("stroke-width")) cloudOutline.setAttribute("stroke-width", "2");
@@ -91,7 +93,7 @@ function MascotSvgObject({
       if (mascotAura) mascotAura.setAttribute("opacity", String(auraOpacityForStage(evolutionStageIndex)));
       if (mascotParticles) mascotParticles.setAttribute("opacity", String(particlesOpacityForStage(evolutionStageIndex)));
     },
-    [partColors.eyeLeft, partColors.ribbon, partColors.cloudOutline, evolutionStageIndex]
+    [partColors.eyeLeft, partColors.nose, partColors.scarf, partColors.cloudOutline, evolutionStageIndex]
   );
 
   useEffect(() => {
@@ -651,6 +653,11 @@ export default function CountdownPage() {
           <div className="progress-title font-caption text-center" style={{ color: traitUnlocked ? accent : "#1E2A38", opacity: traitUnlocked ? 1 : 0.7 }}>
             {t.auraProgressLabel}
           </div>
+          <div className="progress-invite font-caption text-center text-xs sm:text-[0.8rem] leading-snug space-y-0.5" style={{ color: "#1E2A38" }}>
+            <p>{t.inviteBlock1}</p>
+            <p>{t.inviteBlock2}</p>
+            <p>{t.inviteBlock3}</p>
+          </div>
           <div
             className="w-full h-[10px] min-h-[10px] rounded-full overflow-hidden flex-shrink-0"
             style={{
@@ -668,7 +675,7 @@ export default function CountdownPage() {
             />
           </div>
           <div className="progress-count font-caption text-xs sm:text-[0.85rem] font-medium" style={{ color: "#1E2A38", letterSpacing: "0.5px" }}>
-            {t.youAwakened} <span className="referral-current">{referralCount}</span> {referralCount === 1 ? t.climber : t.climbers}
+            {t.youHaveAwakened} <span className="referral-current" style={{ color: accent }}>{referralCount}</span> {referralCount === 1 ? t.climber : t.climbers}.
           </div>
         </motion.div>
 

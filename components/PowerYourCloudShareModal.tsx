@@ -89,7 +89,9 @@ export default function PowerYourCloudShareModal({
   onClose,
   onShareClick,
 }: PowerYourCloudShareModalProps) {
-  const t = getMessages(locale).countdown.shareModal;
+  const messages = getMessages(locale);
+  const t = messages.countdown.shareModal;
+  const c = messages.countdown;
   const accent = cloud.accentHex;
   const cloudName = locale === "vi" ? cloud.name : cloud.nameEn;
   const [copyFeedback, setCopyFeedback] = useState<"idle" | "copied" | "instagram">("idle");
@@ -298,24 +300,24 @@ export default function PowerYourCloudShareModal({
                   className="text-[15px] font-semibold leading-snug"
                   style={{ color: "rgba(255,255,255,0.95)" }}
                 >
-                  Invite others to join your cloud.
+                  {c.inviteBlock1}
                 </p>
                 <p
                   className="text-[13px] font-normal leading-snug mt-1"
                   style={{ color: "rgba(255,255,255,0.75)" }}
                 >
-                  Each person who joins through your link becomes a climber in your cloud.
+                  {c.inviteBlock2}
                 </p>
                 <p
                   className="text-[13px] font-normal leading-snug mt-0.5"
                   style={{ color: "rgba(255,255,255,0.75)" }}
                 >
-                  Every climber strengthens your cloud and unlocks its next evolution.
+                  {c.inviteBlock3}
                 </p>
                 <p className="text-[13px] font-normal leading-snug mt-2" style={{ color: "rgba(255,255,255,0.75)" }}>
-                  You have awakened{" "}
-                  <span style={{ color: "#7FE3B0", fontWeight: 600 }}>{referralCount}</span>
-                  {" "}climbers.
+                  {c.youHaveAwakened}{" "}
+                  <span style={{ color: accent, fontWeight: 600 }}>{referralCount}</span>
+                  {" "}{referralCount === 1 ? c.climber : c.climbers}.
                 </p>
               </div>
               <button

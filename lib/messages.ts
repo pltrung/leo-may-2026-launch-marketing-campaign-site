@@ -84,6 +84,10 @@ const en = {
     ],
     youAreNow: "You are now a",
     youAwakened: "You awakened",
+    inviteBlock1: "Invite others to join your cloud.",
+    inviteBlock2: "Each person who joins through your link becomes a climber in your cloud.",
+    inviteBlock3: "Every climber strengthens your cloud and unlocks its next evolution.",
+    youHaveAwakened: "You have awakened",
     skyNarrative: {
       quiet: "The sky is quiet.",
       stir: "The clouds begin to stir.",
@@ -257,6 +261,10 @@ const vi: Messages = {
     ],
     youAreNow: "Bạn là",
     youAwakened: "Bạn đã đánh thức",
+    inviteBlock1: "Mời người khác vào mây của bạn.",
+    inviteBlock2: "Mỗi người vào qua link của bạn sẽ trở thành người leo trong mây của bạn.",
+    inviteBlock3: "Mỗi người leo giúp mây mạnh hơn và mở khóa hình thể tiếp theo.",
+    youHaveAwakened: "Bạn đã đánh thức",
     skyNarrative: {
       quiet: "Bầu trời đang lặng.",
       stir: "Những đám mây bắt đầu chuyển.",
