@@ -249,22 +249,9 @@ export default function CountdownPage() {
   const [prevLeaderboardOrder, setPrevLeaderboardOrder] = useState<string>("");
   const [skyUnstable, setSkyUnstable] = useState(false);
   const prevLevelIndexRef = useRef<number>(-1);
-  const prevEvolutionStageIndexRef = useRef<number>(-1);
   const [levelUpFlash, setLevelUpFlash] = useState(false);
-  const [ascensionBurstKey, setAscensionBurstKey] = useState(0);
   const [evolutionCeremony, setEvolutionCeremony] = useState<{ fromLevel: EvolutionLevel; toLevel: EvolutionLevel } | null>(null);
   const [pendingEvolutionCeremony, setPendingEvolutionCeremony] = useState<{ fromLevel: EvolutionLevel; toLevel: EvolutionLevel } | null>(null);
-
-  useEffect(() => {
-    const stageIndex = getEvolutionStageIndex(profile.referralCount);
-    const prev = prevEvolutionStageIndexRef.current;
-    // Only fire ascension burst on a real single-step transition (e.g. 4→5). Do NOT fire when
-    // profile loads and jumps 0→5 (that caused "crazy flash" and blue screen after load).
-    if (prev >= 0 && stageIndex > prev && stageIndex === prev + 1) {
-      setAscensionBurstKey((k) => k + 1);
-    }
-    prevEvolutionStageIndexRef.current = stageIndex;
-  }, [profile.referralCount]);
 
   useEffect(() => {
     const levelIndex = getEvolutionLevel(profile.referralCount).levelIndex;
@@ -365,12 +352,6 @@ export default function CountdownPage() {
   const skyNarrativeText = t.skyNarrative?.[skyNarrativeKey] ?? t.skyHeader;
   const mascotPartColors = getMascotPartColors(cloud.id);
   const orbitParticleCount = evolutionStageIndex >= 3 ? 4 + Math.min(evolutionStageIndex - 3, 4) : 0;
-  const windStreaks = evolutionStageIndex >= 5 ? [0, 1, 2, 3, 4, 5, 6, 7] : [];
-
-  const ASCENSION_SPIKE_COUNT = [0, 2, 4, 6, 8, 16] as const;
-  const ASCENSION_SPIKE_OPACITY = [0, 0.15, 0.25, 0.4, 0.55, 1] as const;
-  const spikeCount = ASCENSION_SPIKE_COUNT[evolutionStageIndex] ?? 0;
-  const stageSpikeOpacity = ASCENSION_SPIKE_OPACITY[evolutionStageIndex] ?? 0;
 
   return (
     <div
@@ -544,60 +525,7 @@ export default function CountdownPage() {
           animate={{ opacity: phase === "content" ? 1 : 0 }}
           transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[2] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
-          <div
-            id="mascot-ascension-aura"
-            className="mascot-ascension-aura"
-            data-evolution-index={evolutionStageIndex}
-            data-cloud-type={cloud.id}
-            aria-hidden
-            style={
-              {
-                ["--stage-spike-opacity" as string]: stageSpikeOpacity,
-                ["--spike-count" as string]: spikeCount,
-              } as React.CSSProperties
-            }
-          >
-            {/* Ascension distortion not shown: at stage 5 its large bright radial (var(--cloud-primary)) caused full-screen white flash. Final-form “Goku” aura = spikes + flame gradient + team signature only. */}
-            <div className="ascension-flame-gradient" aria-hidden />
-            {evolutionStageIndex >= 5 && (
-              <div className="ascension-signature" aria-hidden />
-            )}
-            <svg id="ascension-spikes" className="ascension-spikes-svg" viewBox="-1.2 -1.2 2.4 2.4" preserveAspectRatio="xMidYMid meet">
-              {Array.from({ length: 16 }, (_, i) => (
-                <g key={i} transform={`rotate(${i * 22.5})`}>
-                  <polygon
-                    className="ascension-spike"
-                    points="0,-1 0.12,0.35 -0.12,0.35"
-                    style={{
-                      opacity: i < spikeCount ? stageSpikeOpacity : 0,
-                      ["--spike-delay" as string]: `${(i * 0.11 + (i % 4) * 0.06)}s`,
-                    } as React.CSSProperties}
-                  />
-                </g>
-              ))}
-            </svg>
-          </div>
-          {ascensionBurstKey > 0 && (
-            <div
-              key={ascensionBurstKey}
-              className="evolution-ascension-burst"
-              aria-hidden
-            />
-          )}
-          {evolutionStageIndex >= 5 && (
-            <div className="evolution-ascension-wind" aria-hidden>
-              {windStreaks.map((i) => (
-                <span
-                  key={i}
-                  className="evolution-wind-streak"
-                  style={{
-                    ["--wind-x" as string]: `${20 + i * 10}%`,
-                    ["--wind-delay" as string]: `${i * 0.5}s`,
-                  } as React.CSSProperties}
-                />
-              ))}
-            </div>
-          )}
+          {/* “Goku” */}
           {shareModal && shareAuraPulseKey > 0 && (
             <motion.div
               key={shareAuraPulseKey}
