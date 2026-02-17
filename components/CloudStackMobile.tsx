@@ -142,6 +142,10 @@ const SLOT_DEPTH_MULT: Record<number, number> = { [-1]: 0.6, 0: 1, 1: 0.6, 2: 0.
 const SLOT_OUTSIDE_WINDOW = 2;
 const BLUR_PER_OFFSET = 5;
 
+/** Part 4: adjacent tiles (next/prev) slightly larger scale and less blur for depth/liveliness */
+const ADJACENT_SCALE = 0.94;
+const ADJACENT_BLUR_PX = 4;
+
 /** Rigid card transform from offset (cardIndex - stackPosition). inWindow = false => hidden (opacity 0, max blur). */
 function getStyleFromOffset(offset: number, inWindow: boolean) {
   const absOffset = Math.abs(offset);
@@ -155,9 +159,9 @@ function getStyleFromOffset(offset: number, inWindow: boolean) {
       boxShadow: "0 6px 16px rgba(0,0,0,0.08)",
     };
   }
-  const scale = 1 - Math.min(absOffset * 0.05, 0.1);
+  const scale = absOffset <= 0.02 ? 1 : absOffset <= 1 ? ADJACENT_SCALE : 1 - Math.min(absOffset * 0.05, 0.1);
   const opacity = absOffset <= 0.02 ? 1 : absOffset <= 1 ? 0.6 + 0.4 * (1 - absOffset) : 0.4;
-  const blurPx = Math.min(absOffset * BLUR_PER_OFFSET, 10);
+  const blurPx = absOffset <= 0.02 ? 0 : absOffset <= 1 ? ADJACENT_BLUR_PX : Math.min(absOffset * BLUR_PER_OFFSET, 10);
   const filter = blurPx < 0.5 ? "blur(0px)" : `blur(${blurPx}px)`;
   const zIndex = absOffset <= 0.5 ? 10 : absOffset <= 1.2 ? 5 : 1;
   const boxShadow =
@@ -213,23 +217,41 @@ function useSlotStyleFromPosition(
   return { transform, opacity, filter, zIndex, boxShadow };
 }
 
-/** Slot style from activeIndex + transition: state updates BEFORE animation. y = slotK * spacing + (1-t)*dir*spacing. */
+/** Part 2: max visual overshoot in px (visual only; logical position unchanged) */
+const VISUAL_OVERSHOOT_PX = 3;
+
+/** Slot style from activeIndex + transition: state updates BEFORE animation. y = slotK * spacing + (1-t)*dir*spacing.
+ * Part 1: optional activeScaleMultiplier for slot 0 (gesture scale response).
+ * Part 2: tiny overshoot for slot 0 as it settles (visual only).
+ */
 function useSlotStyleFromTransition(
   slotK: number,
   transitionProgress: MotionValue<number>,
-  transitionDirection: MotionValue<number>
+  transitionDirection: MotionValue<number>,
+  activeScaleMultiplier: MotionValue<number> | null = null
 ) {
   const inWindow = slotK !== SLOT_OUTSIDE_WINDOW;
   const full = useTransform(
     [transitionProgress, transitionDirection],
     ([t, dir]: number[]) => {
-      const y = slotK * CARD_SPACING + (1 - t) * dir * CARD_SPACING;
+      const baseY = slotK * CARD_SPACING + (1 - t) * dir * CARD_SPACING;
+      const overshoot =
+        slotK === 0 && t >= 0.75
+          ? dir * VISUAL_OVERSHOOT_PX * (1 - Math.pow((t - 0.75) / 0.25, 2))
+          : 0;
+      const y = baseY + overshoot;
       return { ...getStyleFromOffset(slotK, inWindow), y };
     }
   );
   const transform = useTransform(
-    full,
-    (s) => `translate(-50%, -50%) translateY(${s.y}px) scale(${s.scale})`
+    activeScaleMultiplier != null && slotK === 0
+      ? [full, activeScaleMultiplier]
+      : full,
+    (s: { y: number; scale: number } | [{ y: number; scale: number }, number]) => {
+      const style = Array.isArray(s) ? s[0] : s;
+      const mult = Array.isArray(s) ? s[1] : 1;
+      return `translate(-50%, -50%) translateY(${style.y}px) scale(${style.scale * mult})`;
+    }
   );
   const opacity = useTransform(full, (s) => s.opacity);
   const filter = useTransform(full, (s) => s.filter);
@@ -271,6 +293,11 @@ function clampIndex(i: number, n: number): number {
 type CarouselState = "idle" | "animating" | "modalOpen";
 
 const CARD_ANIM_DURATION_S = 0.42;
+/** Part 1: active tile scale on gesture (0.97) and settle-back duration (120–180ms) */
+const ACTIVE_SCALE_ON_GESTURE = 0.97;
+const ACTIVE_SCALE_SETTLE_DURATION_S = 0.15;
+/** Part 3: identity reaches full strength by this progress (sooner than 1) */
+const IDENTITY_LOCKIN_THRESHOLD = 0.85;
 
 const CloudStackMobileInner = (
   { onSelect, onDetailsOpenChange }: CloudStackMobileProps,
@@ -295,6 +322,7 @@ const CloudStackMobileInner = (
     overflow: string;
     position: string;
     top: string;
+    width: string;
     pointerEvents: string;
     touchAction: string;
   } | null>(null);
@@ -307,6 +335,8 @@ const CloudStackMobileInner = (
   const transitionDirection = useMotionValue(1);
   const position = useMotionValue(0);
   const inertiaOffset = useMotionValue(0);
+  /** Part 1: active tile scale response — 0.97 on gesture start, 1 when settled */
+  const activeScaleResponse = useMotionValue(1);
 
   const getCenterIndex = useCallback(() => {
     if (isRandomizingRef.current) return clampIndex(position.get(), n);
@@ -364,6 +394,7 @@ const CloudStackMobileInner = (
       body.style.overflow = saved.overflow;
       body.style.position = saved.position;
       body.style.top = saved.top;
+      body.style.width = saved.width;
       body.style.pointerEvents = saved.pointerEvents;
       body.style.touchAction = saved.touchAction;
       scrollLockRef.current = null;
@@ -386,12 +417,14 @@ const CloudStackMobileInner = (
       overflow: body.style.overflow,
       position: body.style.position,
       top: body.style.top,
+      width: body.style.width,
       pointerEvents: body.style.pointerEvents,
       touchAction: body.style.touchAction,
     };
     body.style.overflow = "hidden";
     body.style.position = "fixed";
     body.style.top = `-${typeof window !== "undefined" ? window.scrollY : 0}px`;
+    body.style.width = "100%";
     body.style.pointerEvents = "auto";
     body.style.touchAction = "none";
     const preventTouch = (e: TouchEvent) => e.preventDefault();
@@ -406,6 +439,7 @@ const CloudStackMobileInner = (
 
   const runTransition = useCallback(
     (nextIndex: number, direction: number) => {
+      activeScaleResponse.set(ACTIVE_SCALE_ON_GESTURE);
       setActiveIndex(nextIndex);
       transitionDirection.set(direction);
       transitionProgress.set(0);
@@ -418,11 +452,15 @@ const CloudStackMobileInner = (
             transitionProgress.set(1);
             position.set(nextIndex);
             setCarouselState("idle");
+            animate(activeScaleResponse, 1, {
+              duration: ACTIVE_SCALE_SETTLE_DURATION_S,
+              ease: EASE_PREMIUM,
+            });
           },
         });
       });
     },
-    [position, transitionDirection, transitionProgress]
+    [activeScaleResponse, position, transitionDirection, transitionProgress]
   );
 
   const goNext = useCallback(() => {
@@ -469,7 +507,12 @@ const CloudStackMobileInner = (
   );
 
   const slotPrevTransition = useSlotStyleFromTransition(-1, transitionProgress, transitionDirection);
-  const slotActiveTransition = useSlotStyleFromTransition(0, transitionProgress, transitionDirection);
+  const slotActiveTransition = useSlotStyleFromTransition(
+    0,
+    transitionProgress,
+    transitionDirection,
+    activeScaleResponse
+  );
   const slotNextTransition = useSlotStyleFromTransition(1, transitionProgress, transitionDirection);
   const slotFarTransition = useSlotStyleFromTransition(2, transitionProgress, transitionDirection);
   const slotPrevPosition = useSlotStyleFromPosition(-1, position, inertiaOffset);
@@ -498,6 +541,10 @@ const CloudStackMobileInner = (
   const identityConstActive = useMotionValue(1);
   const identityConstNext = useMotionValue(0.65);
   const identityConstFar = useMotionValue(0.35);
+  /** Part 3: slot 0 identity reaches full strength sooner during transition (no lag behind position) */
+  const identityTransitionActive = useTransform(transitionProgress, (t: number) =>
+    Math.min(1, t / IDENTITY_LOCKIN_THRESHOLD)
+  );
   const identityFromPosition = {
     [-1]: useIdentityStrength(-1, position),
     0: useIdentityStrength(0, position),
@@ -506,7 +553,7 @@ const CloudStackMobileInner = (
   };
   const identityFromConstant = {
     [-1]: identityConstPrev,
-    0: identityConstActive,
+    0: identityTransitionActive,
     1: identityConstNext,
     2: identityConstFar,
   };
@@ -539,6 +586,7 @@ const CloudStackMobileInner = (
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
+    activeScaleResponse.set(ACTIVE_SCALE_ON_GESTURE);
     setIsDragging(true);
     setSwipeGuideVisible(false);
   };
@@ -575,10 +623,14 @@ const CloudStackMobileInner = (
         const idx = isRandomizingRef.current ? clampIndex(position.get(), n) : activeIndex;
         const cloud = clouds[idx];
         if (cloud) openBio(cloud.id);
+        animate(activeScaleResponse, 1, {
+          duration: ACTIVE_SCALE_SETTLE_DURATION_S,
+          ease: EASE_PREMIUM,
+        });
       }
       setIsDragging(false);
     },
-    [activeIndex, carouselState, goNext, goPrev, n, openBio, position]
+    [activeIndex, activeScaleResponse, carouselState, goNext, goPrev, n, openBio, position]
   );
 
   const handleTouchCancel = () => setIsDragging(false);
