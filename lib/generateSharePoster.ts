@@ -92,7 +92,7 @@ async function drawQRToCanvas(
         color: { dark: "#000000", light: "#ffffff" },
         errorCorrectionLevel: "M",
       },
-      (err: Error | null) => (err ? reject(err) : resolve())
+      (err: Error | null | undefined) => (err ? reject(err) : resolve())
     );
   });
   return canvas;
