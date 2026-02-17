@@ -217,6 +217,8 @@ export default function CountdownPage() {
   const skyDominant = leadingTeamId || "default";
   const evolutionAbilityText = t.evolutionAbility?.[evolutionStageIndex] ?? t.yourCloudGathering;
   const skyNarrativeText = t.skyNarrative?.[skyNarrativeKey] ?? t.skyHeader;
+  const evolutionScale = 1 + (evolutionStageIndex / 6) * 0.6;
+  const floatAmplitudePx = 4 + (evolutionStageIndex / 6) * 10;
 
   return (
     <div
@@ -381,33 +383,59 @@ export default function CountdownPage() {
 
         <motion.div
           className="shrink-0 countdown-mascot-wrapper countdown-spacing-after-ip"
+          data-cloud-type={cloud.id}
           data-evolution-stage={evolutionStage.id}
+          data-evolution-index={evolutionStageIndex}
+          style={
+            {
+              "--evolution-scale": evolutionScale,
+              "--float-amplitude": `${floatAmplitudePx}px`,
+            } as React.CSSProperties
+          }
           initial={{ opacity: 0 }}
           animate={{ opacity: phase === "content" ? 1 : 0 }}
           transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[2] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
-          <motion.div
-            className={`countdown-ip origin-center ${phase === "content" ? "countdown-ip-float" : ""}`}
-            style={{
-              transformOrigin: "center center",
-              visibility: phase === "hidden" || phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" || phase === "phase4-micro-settle" ? "hidden" : "visible",
-            }}
-            initial={{ opacity: 0 }}
-            animate={{
-              opacity: phase === "phase5-rest" || phase === "content" ? 1 : 0,
-            }}
-            transition={{
-              duration: 0.5,
-              delay: phase === "phase5-rest" ? 0.15 : 0,
-              ease: EASE_APPLE_IN_OUT,
-            }}
-          >
-            <img
-              src="/brand/ip-count-down.svg"
-              alt=""
-              className="w-full h-auto object-contain"
-            />
-          </motion.div>
+          {evolutionStageIndex >= 6 && (
+            <div className="evolution-aura-ring" aria-hidden />
+          )}
+          {evolutionStageIndex >= 3 && (
+            <div className="evolution-energy-core" aria-hidden />
+          )}
+          {evolutionStageIndex >= 5 && (
+            <div className="evolution-mist" aria-hidden />
+          )}
+          {evolutionStageIndex >= 4 && (
+            <div className="evolution-orbit-particles" aria-hidden>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <span key={i} className="evolution-orbit-dot" style={{ ["--orbit-i" as string]: i }} />
+              ))}
+            </div>
+          )}
+          <div className="evolution-mascot-inner">
+            <motion.div
+              className={`countdown-ip origin-center ${phase === "content" ? "countdown-ip-float countdown-ip-breathe" : ""}`}
+              style={{
+                transformOrigin: "center center",
+                visibility: phase === "hidden" || phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" || phase === "phase4-micro-settle" ? "hidden" : "visible",
+              }}
+              initial={{ opacity: 0 }}
+              animate={{
+                opacity: phase === "phase5-rest" || phase === "content" ? 1 : 0,
+              }}
+              transition={{
+                duration: 0.5,
+                delay: phase === "phase5-rest" ? 0.15 : 0,
+                ease: EASE_APPLE_IN_OUT,
+              }}
+            >
+              <img
+                src="/brand/ip-count-down.svg"
+                alt=""
+                className="w-full h-auto object-contain"
+              />
+            </motion.div>
+          </div>
           <p className="identity-rank font-caption text-center text-white/90 text-sm mt-2 countdown-spacing-after-identity">
             {t.youAreNow} <span style={{ color: accent, textShadow: `0 0 10px ${accent}50` }}>{identityRankLabel}</span>
           </p>

@@ -898,9 +898,53 @@ body.hero-ready .hero-scroll {
   75% { transform: translate(1%, -1%); }
 }
 
-/* Countdown page: mascot evolution stage — glow/aura by stage */
+/* Countdown page: mascot evolution stage — structural scale, glow, layers */
 .countdown-mascot-wrapper {
   position: relative;
+  --evolution-scale: 1;
+  --float-amplitude: 8px;
+  /* Default tokens (high-contrast on blue sky #0242FF) */
+  --cloud-primary: rgba(255,255,255,0.95);
+  --cloud-secondary: rgba(255,255,255,0.6);
+  --cloud-aura: rgba(255,255,255,0.35);
+  --cloud-core: rgba(255,255,255,0.25);
+}
+/* Cloud-type color tokens — guaranteed visibility on #0242FF background */
+.countdown-mascot-wrapper[data-cloud-type="may_nhe"] {
+  --cloud-primary: #7FD6FF;
+  --cloud-secondary: #CFEFFF;
+  --cloud-aura: rgba(127,214,255,0.45);
+  --cloud-core: rgba(127,214,255,0.3);
+}
+.countdown-mascot-wrapper[data-cloud-type="suong_mu"] {
+  --cloud-primary: #B8D0E8;
+  --cloud-secondary: #D8E8F5;
+  --cloud-aura: rgba(184,208,232,0.5);
+  --cloud-core: rgba(184,208,232,0.35);
+}
+.countdown-mascot-wrapper[data-cloud-type="giong"] {
+  --cloud-primary: #A5B8FF;
+  --cloud-secondary: #D0D8FF;
+  --cloud-aura: rgba(255,255,255,0.45);
+  --cloud-core: rgba(200,210,255,0.4);
+}
+.countdown-mascot-wrapper[data-cloud-type="ho_may"] {
+  --cloud-primary: #C4B8B0;
+  --cloud-secondary: #E8E0D8;
+  --cloud-aura: rgba(230,220,210,0.5);
+  --cloud-core: rgba(196,184,176,0.35);
+}
+.countdown-mascot-wrapper[data-cloud-type="cau_vong"] {
+  --cloud-primary: #FFE066;
+  --cloud-secondary: #FFF0B8;
+  --cloud-aura: rgba(255,224,102,0.5);
+  --cloud-core: rgba(255,224,102,0.35);
+}
+.countdown-mascot-wrapper[data-cloud-type="gio"] {
+  --cloud-primary: #6FCF97;
+  --cloud-secondary: #B8E8CE;
+  --cloud-aura: rgba(111,207,151,0.45);
+  --cloud-core: rgba(111,207,151,0.35);
 }
 .countdown-mascot-wrapper::before {
   content: "";
@@ -913,32 +957,175 @@ body.hero-ready .hero-scroll {
 }
 .countdown-mascot-wrapper[data-evolution-stage="stirring"]::before {
   opacity: 0.15;
-  box-shadow: 0 0 60px 20px rgba(255,255,255,0.2);
+  box-shadow: 0 0 60px 20px var(--cloud-aura);
 }
 .countdown-mascot-wrapper[data-evolution-stage="awakening"]::before {
   opacity: 0.2;
-  box-shadow: 0 0 80px 25px rgba(255,255,255,0.25);
+  box-shadow: 0 0 80px 25px var(--cloud-aura);
 }
 .countdown-mascot-wrapper[data-evolution-stage="forming"]::before {
   opacity: 0.25;
-  box-shadow: 0 0 100px 30px rgba(255,255,255,0.3);
+  box-shadow: 0 0 100px 30px var(--cloud-aura);
 }
 .countdown-mascot-wrapper[data-evolution-stage="ascending"]::before {
   opacity: 0.3;
-  box-shadow: 0 0 120px 35px rgba(255,255,255,0.35);
+  box-shadow: 0 0 120px 35px var(--cloud-aura);
 }
 .countdown-mascot-wrapper[data-evolution-stage="sky_guardian"]::before {
   opacity: 0.35;
-  box-shadow: 0 0 140px 40px rgba(255,255,255,0.4);
+  box-shadow: 0 0 140px 40px var(--cloud-aura);
 }
 .countdown-mascot-wrapper[data-evolution-stage="founding"]::before {
   opacity: 0.4;
-  box-shadow: 0 0 160px 50px rgba(255,255,255,0.45);
+  box-shadow: 0 0 160px 50px var(--cloud-aura);
   animation: mascotGlowPulse 4s ease-in-out infinite;
 }
 @keyframes mascotGlowPulse {
   0%, 100% { opacity: 0.35; }
   50% { opacity: 0.45; }
+}
+
+/* Structural cloud growth: scale 1.0 (stage 1) → 1.6 (stage 7) */
+.evolution-mascot-inner {
+  position: relative;
+  z-index: 2;
+  transform: scale(var(--evolution-scale, 1));
+  transform-origin: center center;
+  transition: transform 1.2s ease;
+}
+
+/* Float amplitude 4px → 14px by stage; breathing scale 1.0 → 1.03 */
+.countdown-ip-float {
+  animation: ipFloatAndBreath 6s ease-in-out infinite;
+}
+@keyframes ipFloatAndBreath {
+  0%, 100% { transform: translateY(0) scale(1); }
+  25% { transform: translateY(var(--float-amplitude, 8px)) scale(1.015); }
+  50% { transform: translateY(0) scale(1.03); }
+  75% { transform: translateY(var(--float-amplitude, 8px)) scale(1.015); }
+}
+
+/* Energy core behind mascot (Stage 4+) — uses --cloud-core, --cloud-primary */
+.evolution-energy-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 90%;
+  height: 90%;
+  margin-left: -45%;
+  margin-top: -45%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at center,
+    var(--cloud-core) 0%,
+    var(--cloud-primary) 25%,
+    transparent 55%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.9;
+  animation: energyCorePulse 4s ease-in-out infinite;
+}
+.countdown-mascot-wrapper[data-evolution-index="3"] .evolution-energy-core { width: 85%; height: 85%; margin-left: -42.5%; margin-top: -42.5%; opacity: 0.6; }
+.countdown-mascot-wrapper[data-evolution-index="4"] .evolution-energy-core { opacity: 0.75; }
+.countdown-mascot-wrapper[data-evolution-index="5"] .evolution-energy-core { opacity: 0.85; }
+.countdown-mascot-wrapper[data-evolution-index="6"] .evolution-energy-core { opacity: 0.95; }
+@keyframes energyCorePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+/* Orbiting atmospheric particles (Stage 5+) */
+.evolution-orbit-particles {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 140%;
+  height: 140%;
+  margin-left: -70%;
+  margin-top: -70%;
+  pointer-events: none;
+  z-index: 1;
+}
+.evolution-orbit-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cloud-primary);
+  box-shadow: 0 0 8px var(--cloud-aura);
+  left: 50%;
+  top: 50%;
+  margin-left: -3px;
+  margin-top: -3px;
+  animation: orbitParticle 24s linear infinite;
+  animation-delay: calc(var(--orbit-i, 0) * -4.8s);
+}
+@keyframes orbitParticle {
+  from { transform: rotate(0deg) translateX(58px) translateY(0); }
+  to { transform: rotate(360deg) translateX(58px) translateY(0); }
+}
+
+/* Mist emission at cloud edges (Stage 6+) — uses --cloud-secondary */
+.evolution-mist {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 130%;
+  height: 130%;
+  margin-left: -65%;
+  margin-top: -65%;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(
+    circle at center,
+    transparent 45%,
+    rgba(255,255,255,0.06) 55%,
+    rgba(255,255,255,0.12) 70%,
+    transparent 85%
+  );
+  filter: blur(25px);
+  animation: mistEmit 5s ease-in-out infinite;
+}
+@supports (background: radial-gradient(circle, color-mix(in srgb, white 20%, transparent), transparent)) {
+  .evolution-mist {
+    background: radial-gradient(
+      circle at center,
+      transparent 45%,
+      color-mix(in srgb, var(--cloud-secondary) 18%, transparent) 55%,
+      color-mix(in srgb, var(--cloud-secondary) 28%, transparent) 70%,
+      transparent 85%
+    );
+  }
+}
+@keyframes mistEmit {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.05); }
+}
+
+/* Legendary aura ring (Stage 7) — uses --cloud-aura, --cloud-primary */
+.evolution-aura-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 115%;
+  height: 115%;
+  margin-left: -57.5%;
+  margin-top: -57.5%;
+  border-radius: 50%;
+  border: 2px solid var(--cloud-aura);
+  box-shadow:
+    0 0 40px var(--cloud-aura),
+    inset 0 0 24px var(--cloud-aura);
+  pointer-events: none;
+  z-index: 0;
+  animation: auraRingBreathe 5s ease-in-out infinite;
+}
+@keyframes auraRingBreathe {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
 }
 .identity-rank {
   letter-spacing: 0.02em;
