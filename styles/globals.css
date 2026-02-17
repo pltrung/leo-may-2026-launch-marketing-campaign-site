@@ -1179,6 +1179,12 @@ body.hero-ready .hero-scroll {
   will-change: opacity, transform, filter;
   transition: opacity 900ms ease, transform 900ms ease, filter 900ms ease, background-position 900ms ease, mask-position 900ms ease;
 }
+.mascot-ascension > .aura-outline {
+  z-index: 0;
+}
+.mascot-ascension > .aura-team {
+  z-index: 1;
+}
 .mascot-ascension .evolution-mascot-inner,
 .mascot-ascension .mascot-svg {
   position: relative;
@@ -1252,46 +1258,50 @@ body.hero-ready .hero-scroll {
 .mascot-ascension[data-evolution-index="6"] .aura-team { opacity: 0.55; }
 .mascot-ascension[data-evolution-index="6"] .aura-outline { opacity: 0.55; }
 
-/* D) Team signature layer — always present, transparent background */
+/* D) Team signature layer — always present; skill draws above outline (z-index:1); mask wide so skill is visible */
 .aura-team {
   border-radius: 50%;
   background: transparent;
   background-size: 300% 100%;
-  -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 75%);
-  mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 85% 85% at 50% 50%, black 0%, black 65%, transparent 88%);
+  mask-image: radial-gradient(ellipse 85% 85% at 50% 50%, black 0%, black 65%, transparent 88%);
   -webkit-mask-size: 100% 100%;
   mask-size: 100% 100%;
 }
 
-/* D1) Giông — lightning forms (crawl + fade via background-position), no flash */
+/* D1) Giông — lightning FORMS from nothing (opacity 0→1), then crawls; no flash */
 .aura-team[data-cloud-type="giong"] {
   background-image: linear-gradient(105deg, transparent 0%, transparent 35%, rgba(255,235,200,0.4) 45%, rgba(255,200,150,0.5) 50%, rgba(255,235,200,0.4) 55%, transparent 65%, transparent 100%),
     linear-gradient(75deg, transparent 0%, transparent 40%, rgba(255,220,180,0.35) 48%, rgba(255,180,140,0.45) 52%, transparent 60%, transparent 100%);
   background-size: 200% 200%, 180% 180%;
-  animation: giongLightningForm 8s ease-in-out infinite;
+  animation: giongLightningForm 10s ease-in-out infinite;
 }
 @keyframes giongLightningForm {
-  0%, 55% { background-position: -20% 50%, -10% 50%; }
+  0%, 22% { opacity: 0; background-position: -20% 50%, -10% 50%; }
+  28% { opacity: 1; }
+  35%, 55% { background-position: -20% 50%, -10% 50%; }
   62% { background-position: 0% 50%, 5% 50%; }
   72% { background-position: 25% 50%, 35% 50%; }
   82% { background-position: 45% 50%, 55% 50%; }
-  90%, 100% { background-position: 60% 50%, 70% 50%; }
+  90%, 100% { opacity: 1; background-position: 60% 50%, 70% 50%; }
 }
 
-/* D2) Gió — wind shear sweep (position only; stage sets opacity) */
+/* D2) Gió — wind FORMS from nothing (opacity 0→1), then flows across */
 .aura-team[data-cloud-type="gio"] {
-  background-image: repeating-linear-gradient(105deg, transparent 0px, transparent 8%, rgba(111,207,151,0.2) 8%, rgba(111,207,151,0.45) 12%, transparent 16%, transparent 24%);
+  background-image: repeating-linear-gradient(105deg, transparent 0px, transparent 8%, rgba(111,207,151,0.28) 8%, rgba(111,207,151,0.5) 12%, transparent 16%, transparent 24%);
   background-size: 250% 100%;
-  animation: gioWindSweep 7s ease-in-out infinite;
+  animation: gioWindSweep 9s ease-in-out infinite;
 }
 @keyframes gioWindSweep {
-  0%, 100% { background-position: 0% 50%; }
+  0%, 20% { opacity: 0; background-position: 0% 50%; }
+  28% { opacity: 1; }
   50% { background-position: 100% 50%; }
+  80%, 100% { opacity: 1; background-position: 0% 50%; }
 }
 
-/* D3) Cầu Vồng — rainbow forms left→right (mask-size reveal) */
+/* D3) Cầu Vồng — rainbow FORMS progressively left→right (mask-size reveal + opacity) */
 .aura-team[data-cloud-type="cau_vong"] {
-  background-image: linear-gradient(90deg, rgba(255,107,107,0.25), rgba(255,224,102,0.3), rgba(127,214,255,0.25), rgba(155,89,182,0.25), rgba(255,107,107,0.25));
+  background-image: linear-gradient(90deg, rgba(255,107,107,0.3), rgba(255,224,102,0.35), rgba(127,214,255,0.3), rgba(155,89,182,0.3), rgba(255,107,107,0.3));
   background-size: 300% 100%;
   -webkit-mask-image: linear-gradient(white, white);
   mask-image: linear-gradient(white, white);
@@ -1299,52 +1309,60 @@ body.hero-ready .hero-scroll {
   mask-size: 0% 100%;
   -webkit-mask-position: 0% 0;
   mask-position: 0% 0;
-  animation: cauVongRainbowForm 10s ease-in-out infinite;
+  animation: cauVongRainbowForm 12s ease-in-out infinite;
 }
 @keyframes cauVongRainbowForm {
-  0%, 12% { background-position: 0% 50%; -webkit-mask-size: 0% 100%; mask-size: 0% 100%; }
-  45% { background-position: 100% 50%; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
-  88%, 100% { background-position: 0% 50%; -webkit-mask-size: 0% 100%; mask-size: 0% 100%; }
+  0%, 8% { opacity: 0; background-position: 0% 50%; -webkit-mask-size: 0% 100%; mask-size: 0% 100%; }
+  15% { opacity: 1; }
+  40% { background-position: 100% 50%; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
+  60%, 85% { -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
+  92%, 100% { opacity: 1; background-position: 0% 50%; -webkit-mask-size: 0% 100%; mask-size: 0% 100%; }
 }
 
-/* D4) Sương Mù — mist drift + density breathing */
+/* D4) Sương Mù — mist FORMS from nothing (opacity 0→1), then gathers and breathes */
 .aura-team[data-cloud-type="suong_mu"] {
-  background-image: radial-gradient(ellipse 90% 90% at 50% 50%, rgba(200,210,225,0.2) 0%, transparent 50%),
-    radial-gradient(ellipse 70% 80% at 45% 55%, rgba(184,198,217,0.15) 0%, transparent 45%);
+  background-image: radial-gradient(ellipse 90% 90% at 50% 50%, rgba(200,210,225,0.28) 0%, transparent 50%),
+    radial-gradient(ellipse 70% 80% at 45% 55%, rgba(184,198,217,0.2) 0%, transparent 45%);
   background-size: 120% 120%, 100% 100%;
   filter: blur(25px);
-  animation: suongMuMistDrift 12s ease-in-out infinite;
+  animation: suongMuMistDrift 14s ease-in-out infinite;
 }
 @keyframes suongMuMistDrift {
-  0%, 100% { background-position: 50% 50%, 50% 50%; }
-  33% { background-position: 55% 48%, 48% 52%; }
-  66% { background-position: 48% 54%, 52% 48%; }
+  0%, 18% { opacity: 0; background-position: 50% 50%, 50% 50%; }
+  25% { opacity: 1; }
+  50% { background-position: 55% 48%, 48% 52%; }
+  75% { background-position: 48% 54%, 52% 48%; }
+  100% { opacity: 1; background-position: 50% 50%, 50% 50%; }
 }
 
-/* D5) Mây Nhẹ — lift shimmer + glow dust */
+/* D5) Mây Nhẹ — light FORMS from nothing (opacity 0→1), then rays pulse upward */
 .aura-team[data-cloud-type="may_nhe"] {
-  background-image: radial-gradient(ellipse 30% 20% at 50% 80%, rgba(127,214,255,0.25) 0%, transparent 60%),
-    radial-gradient(ellipse 25% 15% at 45% 75%, rgba(214,243,255,0.2) 0%, transparent 55%);
+  background-image: radial-gradient(ellipse 30% 20% at 50% 80%, rgba(127,214,255,0.35) 0%, transparent 60%),
+    radial-gradient(ellipse 25% 15% at 45% 75%, rgba(214,243,255,0.28) 0%, transparent 55%);
   background-size: 100% 200%;
   filter: blur(12px);
-  animation: mayNheLiftShimmer 9s ease-in-out infinite;
+  animation: mayNheLiftShimmer 11s ease-in-out infinite;
 }
 @keyframes mayNheLiftShimmer {
-  0%, 100% { background-position: 50% 100%, 50% 100%; }
-  50% { background-position: 50% 0%, 50% 10%; }
+  0%, 20% { opacity: 0; background-position: 50% 100%, 50% 100%; }
+  28% { opacity: 1; }
+  55% { background-position: 50% 0%, 50% 10%; }
+  100% { opacity: 1; background-position: 50% 100%, 50% 100%; }
 }
 
-/* D6) Hồ Mây — deep core pulse + refraction ring */
+/* D6) Hồ Mây — deep pulse FORMS from nothing (opacity 0→1), then contracts/expands */
 .aura-team[data-cloud-type="ho_may"] {
-  background-image: radial-gradient(circle at 50% 50%, rgba(196,184,176,0.15) 0%, transparent 45%),
-    radial-gradient(ellipse 60% 65% at 50% 50%, transparent 35%, rgba(212,200,192,0.2) 50%, transparent 65%);
+  background-image: radial-gradient(circle at 50% 50%, rgba(196,184,176,0.22) 0%, transparent 45%),
+    radial-gradient(ellipse 60% 65% at 50% 50%, transparent 35%, rgba(212,200,192,0.28) 50%, transparent 65%);
   background-size: 100% 100%;
   filter: blur(20px);
-  animation: hoMayDeepPulse 5s ease-in-out infinite;
+  animation: hoMayDeepPulse 8s ease-in-out infinite;
 }
 @keyframes hoMayDeepPulse {
-  0%, 100% { transform: scale(0.98); }
+  0%, 22% { opacity: 0; transform: scale(0.98); }
+  30% { opacity: 1; }
   50% { transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(0.98); }
 }
 
 /* Orbiting atmospheric particles (Stage 5+) */
