@@ -116,7 +116,7 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
         </motion.div>
       </div>
 
-      {/* Desktop only (1024px+): grid + Randomize */}
+      {/* Desktop only (1024px+): grid only (no randomize button) */}
       <div className="hidden lg:block w-full mt-8 cloud-selector-container">
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 max-w-4xl w-full mx-auto justify-items-center items-stretch overflow-visible">
           {clouds.map((cloud, index) => (
@@ -135,51 +135,6 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
             </motion.div>
           ))}
         </div>
-        <motion.div
-          className="randomize-button-spacer"
-          initial={{ opacity: 0, y: 8, scale: 0.98, filter: "blur(4px)" }}
-          animate={
-            randomizePhase === "hidden"
-              ? { opacity: 0, y: 8, scale: 0.98, filter: "blur(4px)" }
-              : { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }
-          }
-          transition={{
-            delay: randomizePhase === "hidden" ? RANDOMIZE_BUTTON_DELAY_MS / 1000 : 0,
-            duration: randomizePhase === "hidden" ? RANDOMIZE_FADE_DURATION_MS / 1000 : 0.5,
-            ease: BUTTON_EASE,
-          }}
-          onAnimationComplete={() => {
-            if (randomizePhase === "hidden" && !isRandomizeTapping) setRandomizePhase("breathing");
-          }}
-        >
-          <motion.button
-            type="button"
-            className={`randomize-btn rounded-full border border-white/50 bg-white/10 px-5 py-2.5 text-sm font-medium text-white/95 backdrop-blur-sm select-none ${randomizePhase === "breathing" ? "randomize-btn-breathing" : ""} ${isRandomizeTapping ? "randomize-btn-tapping" : ""}`}
-            onClick={() => {
-              if (randomizePhase !== "breathing") setRandomizePhase("breathing");
-              setIsRandomizeTapping(true);
-              stackRef.current?.spinToRandom();
-              if (typeof window !== "undefined" && window.innerWidth >= 1024) {
-                const randomCloud = clouds[Math.floor(Math.random() * clouds.length)];
-                onSelect(randomCloud);
-              }
-              window.setTimeout(() => setIsRandomizeTapping(false), 200);
-            }}
-            initial={false}
-            animate={
-              randomizePhase === "breathing" && !isRandomizeTapping
-                ? { y: [0, -2, 0], scale: [1, 1.01, 1] }
-                : { y: 0, scale: isRandomizeTapping ? 0.97 : 1 }
-            }
-            transition={{
-              duration: randomizePhase === "breathing" && !isRandomizeTapping ? 5 : 0.2,
-              repeat: randomizePhase === "breathing" && !isRandomizeTapping ? Infinity : 0,
-              ease: randomizePhase === "breathing" && !isRandomizeTapping ? "easeInOut" : BUTTON_EASE,
-            }}
-          >
-            {randomizeButton}
-          </motion.button>
-        </motion.div>
       </div>
     </section>
   );

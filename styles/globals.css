@@ -682,61 +682,50 @@ body.hero-ready .hero-scroll {
   animation: mistDrift 18s ease-in-out infinite;
 }
 
-/* Mist Ascent: scroll-driven atmospheric layers — ground → sky; parallax from --hero-parallax-y (10–40px) */
+/* Mist Ascent: scroll-driven volumetric mist (far / mid / near). Parallax + opacity only; no layout. */
 .mist-ascent {
   will-change: opacity, transform;
   transform: translateY(var(--hero-parallax-y, 0px));
 }
 .mist-ascent-layer {
   position: absolute;
-  inset: -20%;
+  inset: -25%;
   pointer-events: none;
-  will-change: transform;
-  transition: opacity 1200ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, opacity;
+  transition: opacity 800ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-.mist-ascent-top {
+/* Far (deep background): softest, slowest parallax */
+.mist-ascent-far {
   background: radial-gradient(
-    ellipse 80% 60% at 50% 40%,
-    rgba(255, 255, 255, 0.25) 0%,
-    rgba(200, 230, 255, 0.12) 40%,
-    transparent 70%
-  );
-  filter: blur(32px);
-  animation: mistAscentDrift1 24s ease-in-out infinite;
-}
-.mist-ascent-mid {
-  background: radial-gradient(
-    ellipse 70% 80% at 60% 50%,
-    rgba(255, 255, 255, 0.22) 0%,
-    rgba(200, 235, 255, 0.1) 35%,
+    ellipse 90% 70% at 50% 45%,
+    rgba(255, 255, 255, 0.2) 0%,
+    rgba(220, 238, 255, 0.08) 35%,
     transparent 65%
   );
-  filter: blur(36px);
-  animation: mistAscentDrift2 28s ease-in-out infinite 2s;
-}
-.mist-ascent-upper {
-  background: radial-gradient(
-    ellipse 60% 70% at 40% 55%,
-    rgba(255, 255, 255, 0.3) 0%,
-    rgba(220, 248, 255, 0.12) 30%,
-    transparent 60%
-  );
   filter: blur(40px);
-  animation: mistAscentDrift3 26s ease-in-out infinite 4s;
+  -webkit-filter: blur(40px);
 }
-@keyframes mistAscentDrift1 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(2%, -1.5%) scale(1.01); }
-  66% { transform: translate(-1.5%, 1%) scale(0.99); }
+/* Mid (environmental) */
+.mist-ascent-mid {
+  background: radial-gradient(
+    ellipse 80% 75% at 55% 50%,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(210, 235, 255, 0.1) 40%,
+    transparent 68%
+  );
+  filter: blur(36px);
+  -webkit-filter: blur(36px);
 }
-@keyframes mistAscentDrift2 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(-2%, 2%) scale(1.02); }
-}
-@keyframes mistAscentDrift3 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(1.5%, 1%) scale(0.98); }
-  66% { transform: translate(-1%, -1.5%) scale(1.01); }
+/* Near (foreground haze): most visible, fastest parallax */
+.mist-ascent-near {
+  background: radial-gradient(
+    ellipse 75% 65% at 45% 55%,
+    rgba(255, 255, 255, 0.28) 0%,
+    rgba(230, 245, 255, 0.12) 38%,
+    transparent 62%
+  );
+  filter: blur(28px);
+  -webkit-filter: blur(28px);
 }
 
 :root {
