@@ -186,8 +186,8 @@ function useIdentityStrength(slotK: number, stackPosition: MotionValue<number>) 
   });
 }
 
-/** Rigid card transform from stackPosition: offset = slotK - frac, translateY = offset * spacing, scale/blur from offset. Visual window: slot 2 outside => hidden. */
-function useSlotStyle(
+/** Slot style driven by continuous position (used for randomize spin only). */
+function useSlotStyleFromPosition(
   slotK: number,
   stackPosition: MotionValue<number>,
   inertiaOffset: MotionValue<number>
@@ -200,6 +200,31 @@ function useSlotStyle(
       const offset = slotK - frac;
       const y = offset * CARD_SPACING + i * (SLOT_DEPTH_MULT[slotK] ?? 0.3);
       return { ...getStyleFromOffset(offset, inWindow), y };
+    }
+  );
+  const transform = useTransform(
+    full,
+    (s) => `translate(-50%, -50%) translateY(${s.y}px) scale(${s.scale})`
+  );
+  const opacity = useTransform(full, (s) => s.opacity);
+  const filter = useTransform(full, (s) => s.filter);
+  const zIndex = useTransform(full, (s) => s.zIndex);
+  const boxShadow = useTransform(full, (s) => s.boxShadow);
+  return { transform, opacity, filter, zIndex, boxShadow };
+}
+
+/** Slot style from activeIndex + transition: state updates BEFORE animation. y = slotK * spacing + (1-t)*dir*spacing. */
+function useSlotStyleFromTransition(
+  slotK: number,
+  transitionProgress: MotionValue<number>,
+  transitionDirection: MotionValue<number>
+) {
+  const inWindow = slotK !== SLOT_OUTSIDE_WINDOW;
+  const full = useTransform(
+    [transitionProgress, transitionDirection],
+    ([t, dir]: number[]) => {
+      const y = slotK * CARD_SPACING + (1 - t) * dir * CARD_SPACING;
+      return { ...getStyleFromOffset(slotK, inWindow), y };
     }
   );
   const transform = useTransform(
@@ -266,34 +291,57 @@ const CloudStackMobileInner = (
   const touchStartY = useRef(0);
   const tapHandledInTouchEndRef = useRef(false);
   const [lastInput, setLastInput] = useState("");
-  const scrollLockRef = useRef<{ overflow: string; position: string; top: string } | null>(null);
+  const scrollLockRef = useRef<{
+    overflow: string;
+    position: string;
+    top: string;
+    pointerEvents: string;
+    touchAction: string;
+  } | null>(null);
   const touchMoveListenerRef = useRef<((e: TouchEvent) => void) | null>(null);
+  const isRandomizingRef = useRef(false);
 
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isRandomizing, setIsRandomizing] = useState(false);
+  const transitionProgress = useMotionValue(1);
+  const transitionDirection = useMotionValue(1);
   const position = useMotionValue(0);
   const inertiaOffset = useMotionValue(0);
 
-  const getCenterIndex = useCallback(() => clampIndex(position.get(), n), [position, n]);
+  const getCenterIndex = useCallback(() => {
+    if (isRandomizingRef.current) return clampIndex(position.get(), n);
+    return activeIndex;
+  }, [activeIndex, n, position]);
 
   const onTick = useCallback(() => {
     const wrapper = cardStackRef.current?.closest(".cloud-stack-wrapper");
     if (!(wrapper instanceof HTMLElement)) return;
-    const p = position.get();
-    const frac = p - Math.floor(p);
+    const frac = isRandomizingRef.current
+      ? position.get() - Math.floor(position.get())
+      : 1 - transitionProgress.get();
+    const centerIdx = getCenterIndex();
+    const nextIdx = (centerIdx + 1) % n;
     wrapper.style.setProperty("--stack-frac", String(frac));
     const fogStrength = 4 * frac * (1 - frac);
     wrapper.style.setProperty("--medium-opacity", String(fogStrength));
-    const centerIdx = clampIndex(p, n);
-    const nextIdx = (centerIdx + 1) % n;
     const a = clouds[centerIdx]?.accentHex ?? "#6b7280";
     const b = clouds[nextIdx]?.accentHex ?? "#6b7280";
     wrapper.style.setProperty("--fog-blend-frac", String(frac));
     wrapper.style.setProperty("--fog-accent-a", a);
     wrapper.style.setProperty("--fog-accent-b", b);
-  }, [position, n]);
+  }, [getCenterIndex, n, position, transitionProgress]);
 
+  useMotionValueEvent(transitionProgress, "change", () => {
+    if (!isRandomizingRef.current) {
+      setPositionRenderTick((t) => t + 1);
+      onTick();
+    }
+  });
   useMotionValueEvent(position, "change", () => {
-    setPositionRenderTick((t) => t + 1);
-    onTick();
+    if (isRandomizingRef.current) {
+      setPositionRenderTick((t) => t + 1);
+      onTick();
+    }
   });
 
   useEffect(() => {
@@ -304,13 +352,20 @@ const CloudStackMobileInner = (
     onDetailsOpenChange?.(selectedCloudId !== null);
   }, [selectedCloudId, onDetailsOpenChange]);
 
+  useEffect(() => {
+    if (!isRandomizingRef.current && carouselState === "idle") position.set(activeIndex);
+  }, [activeIndex, carouselState, position]);
+
   const restoreScrolling = useCallback(() => {
     if (typeof document === "undefined") return;
     const body = document.body;
-    if (scrollLockRef.current) {
-      body.style.overflow = scrollLockRef.current.overflow;
-      body.style.position = scrollLockRef.current.position;
-      body.style.top = scrollLockRef.current.top;
+    const saved = scrollLockRef.current;
+    if (saved) {
+      body.style.overflow = saved.overflow;
+      body.style.position = saved.position;
+      body.style.top = saved.top;
+      body.style.pointerEvents = saved.pointerEvents;
+      body.style.touchAction = saved.touchAction;
       scrollLockRef.current = null;
     }
     const listener = touchMoveListenerRef.current;
@@ -331,10 +386,14 @@ const CloudStackMobileInner = (
       overflow: body.style.overflow,
       position: body.style.position,
       top: body.style.top,
+      pointerEvents: body.style.pointerEvents,
+      touchAction: body.style.touchAction,
     };
     body.style.overflow = "hidden";
     body.style.position = "fixed";
     body.style.top = `-${typeof window !== "undefined" ? window.scrollY : 0}px`;
+    body.style.pointerEvents = "auto";
+    body.style.touchAction = "none";
     const preventTouch = (e: TouchEvent) => e.preventDefault();
     touchMoveListenerRef.current = preventTouch;
     document.addEventListener("touchmove", preventTouch, { passive: false, capture: true });
@@ -345,38 +404,40 @@ const CloudStackMobileInner = (
     restoreScrolling();
   }, [restoreScrolling]);
 
+  const runTransition = useCallback(
+    (nextIndex: number, direction: number) => {
+      setActiveIndex(nextIndex);
+      transitionDirection.set(direction);
+      transitionProgress.set(0);
+      setCarouselState("animating");
+      requestAnimationFrame(() => {
+        animate(transitionProgress, 1, {
+          duration: CARD_ANIM_DURATION_S,
+          ease: EASE_PREMIUM,
+          onComplete: () => {
+            transitionProgress.set(1);
+            position.set(nextIndex);
+            setCarouselState("idle");
+          },
+        });
+      });
+    },
+    [position, transitionDirection, transitionProgress]
+  );
+
   const goNext = useCallback(() => {
     if (carouselState !== "idle" || n <= 0) return;
     setLastInput("wheel/swipe down");
-    setCarouselState("animating");
-    const current = position.get();
-    const next = current + 1;
-    animate(position, next, {
-      duration: CARD_ANIM_DURATION_S,
-      ease: EASE_PREMIUM,
-      onComplete: () => {
-        position.set(next >= n ? 0 : next);
-        setCarouselState("idle");
-      },
-    });
-  }, [carouselState, n, position]);
+    const nextIndex = (activeIndex + 1) % n;
+    runTransition(nextIndex, 1);
+  }, [activeIndex, carouselState, n, runTransition]);
 
   const goPrev = useCallback(() => {
     if (carouselState !== "idle" || n <= 0) return;
     setLastInput("wheel/swipe up");
-    setCarouselState("animating");
-    const current = position.get();
-    const prev = current - 1;
-    animate(position, prev < 0 ? n - 1 : prev, {
-      duration: CARD_ANIM_DURATION_S,
-      ease: EASE_PREMIUM,
-      onComplete: () => {
-        if (prev < 0) position.set(n - 1);
-        else position.set(prev);
-        setCarouselState("idle");
-      },
-    });
-  }, [carouselState, n, position]);
+    const nextIndex = (activeIndex - 1 + n) % n;
+    runTransition(nextIndex, -1);
+  }, [activeIndex, carouselState, n, runTransition]);
 
   useImperativeHandle(
     ref,
@@ -385,42 +446,73 @@ const CloudStackMobileInner = (
         if (n <= 0) return;
         setLastInput("randomize");
         setCarouselState("animating");
+        isRandomizingRef.current = true;
+        setIsRandomizing(true);
         const finalIndex = Math.floor(Math.random() * n);
-        const current = position.get();
-        const currentSlot = clampIndex(Math.floor(current), n);
-        const stepsToFinal = (finalIndex - currentSlot + n) % n;
-        const spinDistance = RANDOMIZE_CYCLES * n + stepsToFinal;
-        const targetPosition = current + spinDistance;
+        position.set(activeIndex);
+        const spinDistance = RANDOMIZE_CYCLES * n + ((finalIndex - activeIndex + n) % n);
+        const targetPosition = activeIndex + spinDistance;
         animate(position, targetPosition, {
           duration: (CHAOS_DURATION_MS + DECEL_LOCKIN_DURATION_MS) / 1000,
           ease: RANDOMIZE_EASE,
           onComplete: () => {
             position.set(finalIndex);
+            setActiveIndex(finalIndex);
+            isRandomizingRef.current = false;
+            setIsRandomizing(false);
             setCarouselState("idle");
           },
         });
       },
     }),
-    [n, position]
+    [n, position, activeIndex]
   );
 
-  const slotPrevStyle = useSlotStyle(-1, position, inertiaOffset);
-  const slotActiveStyle = useSlotStyle(0, position, inertiaOffset);
-  const slotNextStyle = useSlotStyle(1, position, inertiaOffset);
-  const slotFarStyle = useSlotStyle(2, position, inertiaOffset);
-  const slotStylesByOffset: Record<number, ReturnType<typeof useSlotStyle>> = {
-    [-1]: slotPrevStyle,
-    0: slotActiveStyle,
-    1: slotNextStyle,
-    2: slotFarStyle,
-  };
+  const slotPrevTransition = useSlotStyleFromTransition(-1, transitionProgress, transitionDirection);
+  const slotActiveTransition = useSlotStyleFromTransition(0, transitionProgress, transitionDirection);
+  const slotNextTransition = useSlotStyleFromTransition(1, transitionProgress, transitionDirection);
+  const slotFarTransition = useSlotStyleFromTransition(2, transitionProgress, transitionDirection);
+  const slotPrevPosition = useSlotStyleFromPosition(-1, position, inertiaOffset);
+  const slotActivePosition = useSlotStyleFromPosition(0, position, inertiaOffset);
+  const slotNextPosition = useSlotStyleFromPosition(1, position, inertiaOffset);
+  const slotFarPosition = useSlotStyleFromPosition(2, position, inertiaOffset);
 
-  const identityStrengthByOffset: Record<number, MotionValue<number>> = {
+  const slotStylesByOffset: Record<
+    number,
+    ReturnType<typeof useSlotStyleFromTransition>
+  > = isRandomizing
+    ? {
+        [-1]: slotPrevPosition,
+        0: slotActivePosition,
+        1: slotNextPosition,
+        2: slotFarPosition,
+      }
+    : {
+        [-1]: slotPrevTransition,
+        0: slotActiveTransition,
+        1: slotNextTransition,
+        2: slotFarTransition,
+      };
+
+  const identityConstPrev = useMotionValue(0.65);
+  const identityConstActive = useMotionValue(1);
+  const identityConstNext = useMotionValue(0.65);
+  const identityConstFar = useMotionValue(0.35);
+  const identityFromPosition = {
     [-1]: useIdentityStrength(-1, position),
     0: useIdentityStrength(0, position),
     1: useIdentityStrength(1, position),
     2: useIdentityStrength(2, position),
   };
+  const identityFromConstant = {
+    [-1]: identityConstPrev,
+    0: identityConstActive,
+    1: identityConstNext,
+    2: identityConstFar,
+  };
+  const identityStrengthByOffset: Record<number, MotionValue<number>> = isRandomizing
+    ? identityFromPosition
+    : identityFromConstant;
 
   /** Cloud at slot offset from center. Center = getCenterIndex(). */
   const getCloudAt = useCallback(
@@ -460,34 +552,13 @@ const CloudStackMobileInner = (
       e.preventDefault();
       if (e.deltaY > 0) {
         setLastInput("wheel down");
-        setCarouselState("animating");
-        const current = position.get();
-        const next = current + 1;
-        animate(position, next, {
-          duration: CARD_ANIM_DURATION_S,
-          ease: EASE_PREMIUM,
-          onComplete: () => {
-            position.set(next >= n ? 0 : next);
-            setCarouselState("idle");
-          },
-        });
+        runTransition((activeIndex + 1) % n, 1);
       } else {
         setLastInput("wheel up");
-        setCarouselState("animating");
-        const current = position.get();
-        const prev = current - 1;
-        animate(position, prev < 0 ? n - 1 : prev, {
-          duration: CARD_ANIM_DURATION_S,
-          ease: EASE_PREMIUM,
-          onComplete: () => {
-            if (prev < 0) position.set(n - 1);
-            else position.set(prev);
-            setCarouselState("idle");
-          },
-        });
+        runTransition((activeIndex - 1 + n) % n, -1);
       }
     },
-    [carouselState, n, position]
+    [activeIndex, carouselState, n, runTransition]
   );
 
   const handleTouchEnd = useCallback(
@@ -501,13 +572,13 @@ const CloudStackMobileInner = (
       if (dy < -TAP_THRESHOLD_PX) goNext();
       else if (dy > TAP_THRESHOLD_PX) goPrev();
       else {
-        const idx = clampIndex(position.get(), n);
+        const idx = isRandomizingRef.current ? clampIndex(position.get(), n) : activeIndex;
         const cloud = clouds[idx];
         if (cloud) openBio(cloud.id);
       }
       setIsDragging(false);
     },
-    [carouselState, goNext, goPrev, n, openBio, position]
+    [activeIndex, carouselState, goNext, goPrev, n, openBio, position]
   );
 
   const handleTouchCancel = () => setIsDragging(false);
