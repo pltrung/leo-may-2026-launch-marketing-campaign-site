@@ -23,7 +23,8 @@ export async function GET() {
     const supabase = createServerClient();
     const { data, error } = await supabase
       .from("waitlist")
-      .select("cloud_type");
+      .select("cloud_type")
+      .eq("is_verified", true);
 
     if (error) {
       console.error("Leaderboard query error:", error);

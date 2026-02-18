@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("waitlist")
-      .select("name, email, phone, cloud_type, referral_code, referral_count")
+      .select("name, email, phone, cloud_type, referral_code, referral_count, is_verified")
       .order("created_at", { ascending: false })
       .limit(1);
 
@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
       : 0;
     const referralCode = (data as { referral_code?: string }).referral_code ?? null;
 
+    const isVerified = (data as { is_verified?: boolean }).is_verified === true;
     return NextResponse.json({
       name: data.name || "Member",
       email: data.email || undefined,
@@ -50,6 +51,7 @@ export async function GET(request: NextRequest) {
       referralCode,
       referralCount,
       traitUnlocked: referralCount >= 10,
+      isVerified,
     }, { headers: { "Cache-Control": "no-store, max-age=10" } });
   } catch {
     return NextResponse.json(null);

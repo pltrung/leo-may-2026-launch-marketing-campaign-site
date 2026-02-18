@@ -38,6 +38,10 @@ import type { EvolutionLevel } from "@/lib/evolutionLevels";
 import EvolutionCeremonyModal from "@/components/EvolutionCeremonyModal";
 import { getAscensionEnergyVars } from "@/lib/ascensionEnergy";
 import SkillLayer from "@/components/SkillLayer";
+import VerificationModal from "@/components/VerificationModal";
+import { createBrowserClient } from "@/lib/supabaseBrowser";
+
+const PENDING_REF_CODE_KEY = "leo_may_pending_ref_code";
 
 /** Evolution-driven opacity for aura: 0 at stage 0, ramps to 1 by stage 4+. */
 function auraOpacityForStage(stageIndex: number): number {
@@ -200,10 +204,11 @@ interface UserProfile {
   referralCount: number;
   referralCode: string | null;
   traitUnlocked: boolean;
+  isVerified: boolean;
 }
 
-function useUserProfile(email?: string, phone?: string) {
-  const [profile, setProfile] = useState<UserProfile>({ referralCount: 0, referralCode: null, traitUnlocked: false });
+function useUserProfile(email?: string, phone?: string, refreshTrigger?: number) {
+  const [profile, setProfile] = useState<UserProfile>({ referralCount: 0, referralCode: null, traitUnlocked: false, isVerified: false });
   useEffect(() => {
     if (!email && !phone) return;
     const fetchProfile = () => {
@@ -218,6 +223,7 @@ function useUserProfile(email?: string, phone?: string) {
               referralCount: typeof d.referralCount === "number" ? d.referralCount : 0,
               referralCode: d.referralCode ?? null,
               traitUnlocked: d.traitUnlocked === true,
+              isVerified: d.isVerified === true,
             });
           }
         })
@@ -226,7 +232,7 @@ function useUserProfile(email?: string, phone?: string) {
     fetchProfile();
     const id = setInterval(fetchProfile, POLL_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [email, phone]);
+  }, [email, phone, refreshTrigger]);
   return profile;
 }
 
@@ -248,10 +254,12 @@ export default function CountdownPage() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shareModal, setShareModal] = useState<{ referralUrl: string; shareMessage: string } | null>(null);
   const [shareAuraPulseKey, setShareAuraPulseKey] = useState(0);
+  const [verificationOpen, setVerificationOpen] = useState(false);
+  const [profileRefreshTrigger, setProfileRefreshTrigger] = useState(0);
   const { phase } = useCountdownHeroEntrance({ startDelay: COUNTDOWN_BG_FADE_MS });
   const teamCount = useTeamCount((user?.team ?? "may_nhe") as CloudType);
   const leaderboard = useLeaderboard();
-  const profile = useUserProfile(user?.email, user?.phone);
+  const profile = useUserProfile(user?.email, user?.phone, profileRefreshTrigger);
   const { days, hours, minutes, seconds } = useCountdown();
   const [prevLeaderboardOrder, setPrevLeaderboardOrder] = useState<string>("");
   const [skyUnstable, setSkyUnstable] = useState(false);
@@ -294,6 +302,17 @@ export default function CountdownPage() {
   useEffect(() => {
     setUser(getUser());
   }, []);
+
+  useEffect(() => {
+    const refCode = searchParams.get("ref")?.trim();
+    if (refCode && typeof window !== "undefined") {
+      try {
+        localStorage.setItem(PENDING_REF_CODE_KEY, refCode);
+      } catch {
+        // ignore
+      }
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (user === null) return;
@@ -755,6 +774,41 @@ export default function CountdownPage() {
         </motion.button>
 
         <motion.div
+          className="shrink-0 flex flex-col items-center gap-2 w-full countdown-spacing-after-share"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: phase === "content" ? 1 : 0 }}
+          transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+        >
+          {profile.isVerified ? (
+            <>
+              <p className="font-caption text-white/90 text-center text-sm">✅ {t.verified}</p>
+              <p className="font-caption text-white/70 text-center text-xs">{t.youCanNowInvite}</p>
+            </>
+          ) : (
+            <>
+              <p className="font-caption text-white/90 text-center text-sm">⚡ {t.verifyToActivateReferrals}</p>
+              <motion.button
+                type="button"
+                onClick={() => setVerificationOpen(true)}
+                className="px-4 py-2 rounded-full font-subheadline text-sm border-2 transition-colors hover:opacity-95"
+                style={{ borderColor: accentContrast, color: accentContrast }}
+                animate={{
+                  scale: [1, 1.02, 1],
+                  opacity: [0.9, 1, 0.9],
+                }}
+                transition={{
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              >
+                {t.verifyAccount}
+              </motion.button>
+            </>
+          )}
+        </motion.div>
+
+        <motion.div
           className="countdown-timer-block shrink-0 w-full flex flex-col items-center countdown-spacing-after-timer"
           initial={{ opacity: 0 }}
           animate={{ opacity: phase === "content" ? 1 : 0 }}
@@ -1023,6 +1077,40 @@ export default function CountdownPage() {
             accent={cloud.accentHex}
             locale={locale}
             onClose={() => setEvolutionCeremony(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {verificationOpen && user && cloud && (
+          <VerificationModal
+            locale={locale}
+            name={user.name}
+            cloud_type={user.team}
+            email={user.email}
+            phone={user.phone}
+            onClose={() => setVerificationOpen(false)}
+            onSuccess={async (payload) => {
+              setVerificationOpen(false);
+              if (payload.mode === "countdown") {
+                setProfileRefreshTrigger((t) => t + 1);
+                try {
+                  const pendingRef = typeof window !== "undefined" ? localStorage.getItem(PENDING_REF_CODE_KEY) : null;
+                  if (pendingRef?.trim()) {
+                    const supabase = createBrowserClient();
+                    await supabase.rpc("confirm_referral", { ref_code: pendingRef.trim() });
+                  }
+                } catch {
+                  // ignore
+                } finally {
+                  try {
+                    if (typeof window !== "undefined") localStorage.removeItem(PENDING_REF_CODE_KEY);
+                  } catch {
+                    // ignore
+                  }
+                }
+              }
+            }}
           />
         )}
       </AnimatePresence>

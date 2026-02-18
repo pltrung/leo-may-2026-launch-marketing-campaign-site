@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import KnowYourTeamModal from "./KnowYourTeamModal";
+import { useRouter } from "next/navigation";
+import VerificationModal from "./VerificationModal";
 import { useLocale } from "./LocaleProvider";
 import { getMessages } from "@/lib/messages";
+import { saveUser } from "@/lib/userStorage";
+import type { CloudType } from "@/lib/cloudData";
 
 interface KnowYourTeamButtonProps {
   /** Hide on countdown page */
@@ -15,13 +18,28 @@ interface KnowYourTeamButtonProps {
 export default function KnowYourTeamButton({ show = true, onFoundTeam }: KnowYourTeamButtonProps) {
   const [open, setOpen] = useState(false);
   const locale = useLocale();
+  const router = useRouter();
   const t = getMessages(locale).knowYourCloud;
 
   if (!show) return null;
 
-  const handleFoundTeam = () => {
+  const handleSuccess = (payload: { mode: "countdown" } | { mode: "lookup"; hasWaitlist: boolean; user?: { name: string; email?: string; phone?: string; team: string; referralCode?: string } }) => {
+    if (payload.mode !== "lookup") return;
     setOpen(false);
-    onFoundTeam?.();
+    if (payload.hasWaitlist && payload.user) {
+      saveUser({
+        name: payload.user.name,
+        email: payload.user.email,
+        phone: payload.user.phone,
+        team: payload.user.team as CloudType,
+        referralCode: payload.user.referralCode,
+        timestamp: Date.now(),
+      });
+      if (onFoundTeam) onFoundTeam();
+      else router.push(`/${locale}/countdown`);
+    } else {
+      router.push(`/${locale}`);
+    }
   };
 
   return (
@@ -36,7 +54,11 @@ export default function KnowYourTeamButton({ show = true, onFoundTeam }: KnowYou
         {t.button}
       </button>
       {open && (
-        <KnowYourTeamModal locale={locale} onClose={() => setOpen(false)} onFoundTeam={onFoundTeam ? handleFoundTeam : undefined} />
+        <VerificationModal
+          locale={locale}
+          onClose={() => setOpen(false)}
+          onSuccess={handleSuccess}
+        />
       )}
     </>
   );

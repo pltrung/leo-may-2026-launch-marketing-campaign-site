@@ -18,7 +18,8 @@ export async function GET(request: NextRequest) {
     const { count, error } = await supabase
       .from("waitlist")
       .select("*", { count: "exact", head: true })
-      .eq("cloud_type", team.trim());
+      .eq("cloud_type", team.trim())
+      .eq("is_verified", true);
 
     if (error) {
       console.error("Team count error:", team, error);

@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     if (email) {
       const { data: byEmail, error: errE } = await supabase
         .from("waitlist")
-        .select("name, email, phone, cloud_type, referral_code")
+        .select("name, email, phone, cloud_type, referral_code, is_verified")
         .eq("email", email)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     if (!data && phone) {
       const { data: byPhone, error: errP } = await supabase
         .from("waitlist")
-        .select("name, email, phone, cloud_type, referral_code")
+        .select("name, email, phone, cloud_type, referral_code, is_verified")
         .eq("phone", phone)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
     const cloud = getCloudById(data.cloud_type as CloudType);
     if (!cloud) return NextResponse.json({ user: null });
 
+    const isVerified = (data as { is_verified?: boolean }).is_verified === true;
     return NextResponse.json({
       user: {
         name: data.name || "Member",
@@ -58,6 +59,7 @@ export async function GET(request: NextRequest) {
         team: data.cloud_type,
         timestamp: Date.now(),
         referralCode: (data as { referral_code?: string }).referral_code,
+        isVerified,
       },
     });
   } catch {
