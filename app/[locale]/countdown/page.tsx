@@ -21,7 +21,6 @@ import { useLocale } from "@/components/LocaleProvider";
 import {
   getEvolutionStage,
   getEvolutionStageIndex,
-  getSkyNarrativeKey,
 } from "@/lib/countdownEvolution";
 import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
 import {
@@ -396,11 +395,9 @@ export default function CountdownPage() {
   const evolutionStageIndex = getEvolutionStageIndex(referralCount);
   const identityRankLabel = currentLevelName;
   const daysRemaining = days;
-  const skyNarrativeKey = getSkyNarrativeKey(daysRemaining);
   const leadingTeamId = leaderboard[0]?.id ?? "";
   const skyDominant = leadingTeamId || "default";
   const evolutionAbilityText = t.evolutionAbility?.[evolutionStageIndex] ?? t.yourCloudGathering;
-  const skyNarrativeText = t.skyNarrative?.[skyNarrativeKey] ?? t.skyHeader;
   const mascotPartColors = getMascotPartColors(cloud.id);
   const orbitParticleCount = evolutionStageIndex >= 3 ? 4 + Math.min(evolutionStageIndex - 3, 4) : 0;
 
@@ -909,16 +906,7 @@ export default function CountdownPage() {
           transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[4] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
           <div className="absolute inset-0 rounded-2xl leaderboard-shimmer pointer-events-none -z-10" aria-hidden />
-          <p className="sky-narrative font-caption text-white/95 text-center text-sm mb-1">
-            {skyNarrativeText}
-          </p>
-          <p className="sky-header font-medium text-white text-center">
-            {t.skyHeader}
-          </p>
-          <p className="sky-sub font-caption text-white/90 text-center">
-            {t.skySub}
-          </p>
-          <div className="flex flex-col gap-2 w-full">
+          <div className="flex flex-col gap-2 w-full mt-1">
             {leaderboard.slice(0, 3).map((entry, idx) => {
               const isUserTeam = entry.id === cloud.id;
               const entryIsGiong = entry.id === "giong";
