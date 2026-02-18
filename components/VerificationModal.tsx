@@ -54,18 +54,26 @@ export default function VerificationModal({
       setError(t.enterEmailOrPhone);
       return;
     }
+    // Prefer email if both filled; for phone require at least 10 digits so "+84" alone is rejected
+    const useEmail = !!eTrim;
+    const phoneDigits = pTrim.replace(/\D/g, "");
+    if (!useEmail && phoneDigits.length < 10) {
+      setError(t.enterEmailOrPhone);
+      return;
+    }
     setLoading(true);
     try {
       const supabase = createBrowserClient();
-      const options = eTrim ? { email: eTrim } : { phone: pTrim };
+      const options = useEmail ? { email: eTrim } : { phone: pTrim };
       const { error: err } = await supabase.auth.signInWithOtp(options as { email: string } | { phone: string });
       if (err) {
         setError(err.message || t.errorSend);
         return;
       }
       setStep("code");
-    } catch {
-      setError(t.errorSend);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : t.errorSend;
+      setError(msg || t.errorSend);
     } finally {
       setLoading(false);
     }
