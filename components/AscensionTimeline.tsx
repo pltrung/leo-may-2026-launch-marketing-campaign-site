@@ -121,7 +121,8 @@ export default function AscensionTimeline({
                     : t.locked;
             const name = locale === "vi" ? cfg.nameVi : cfg.nameEn;
             const flavor = locale === "vi" ? cfg.flavorVi : cfg.flavorEn;
-            const reward = locale === "vi" ? cfg.rewardVi : cfg.rewardEn;
+            const rewardRaw = locale === "vi" ? cfg.rewardVi : cfg.rewardEn;
+            const reward = locked && cfg.tier >= 1 ? (t.unlocksReward ?? "Unlocks: ") + rewardRaw : rewardRaw;
             const backendTier = displayTierToBackend(cfg.tier);
             const deltaUsd = deltaUsdToReachTier(totalContributionUsd, backendTier);
             const upgradePriceLabel = deltaUsd;
@@ -150,7 +151,7 @@ export default function AscensionTimeline({
                 onToggle={() => setExpandedTier(isExpanded ? null : cfg.tier)}
                 onUpgrade={cfg.tier >= 1 ? onUpgrade : undefined}
                 loadingTier={loadingTier}
-                upgradeLabel={t.upgradeToTierPrice.replace("{tier}", String(cfg.tier)).replace("{price}", String(upgradePriceLabel))}
+                upgradeLabel={t.upgradeToTierPrice.replace("{tier}", String(cfg.tier + 1)).replace("{price}", String(upgradePriceLabel))}
                 paymentsConfigured={paymentsConfigured}
                 paymentsComingSoonLabel={paymentsComingSoonLabel}
               />
