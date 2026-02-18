@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { waitlistSchema } from "@/lib/validators";
+import { normalizeEmail } from "@/lib/emailNormalize";
 import { randomUUID } from "crypto";
 
 export async function POST(request: NextRequest) {
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     const { name, email, phone, cloud_type, referred_by } = parsed.data;
 
-    const emailNormalized = email?.trim() ? email.trim().toLowerCase() : null;
+    const emailNormalized = email?.trim() ? normalizeEmail(email.trim().toLowerCase()) : null;
     const phoneNormalized = phone?.trim() ? phone.trim().replace(/\s/g, "") : null;
     const referralCode = randomUUID().replace(/-/g, "").slice(0, 12);
 

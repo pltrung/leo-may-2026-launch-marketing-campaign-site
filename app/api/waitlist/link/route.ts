@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getCloudById } from "@/lib/cloudData";
 import type { CloudType } from "@/lib/cloudData";
+import { normalizeEmail } from "@/lib/emailNormalize";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -30,7 +31,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ user: null }, { status: 401 });
     }
 
-    const email = typeof authUser.email === "string" && authUser.email.trim() ? authUser.email.trim().toLowerCase() : null;
+    const rawEmail = typeof authUser.email === "string" && authUser.email.trim() ? authUser.email.trim().toLowerCase() : null;
+    const email = rawEmail ? normalizeEmail(rawEmail) : null;
     const phone = typeof authUser.phone === "string" && authUser.phone.trim() ? authUser.phone.trim().replace(/\s/g, "") : null;
     if (!email && !phone) {
       return NextResponse.json({ user: null });

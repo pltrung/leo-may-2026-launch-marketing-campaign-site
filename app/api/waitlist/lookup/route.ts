@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getCloudById } from "@/lib/cloudData";
 import type { CloudType } from "@/lib/cloudData";
+import { normalizeEmail } from "@/lib/emailNormalize";
 
 export async function GET(request: NextRequest) {
-  const email = request.nextUrl.searchParams.get("email")?.trim().toLowerCase();
+  const rawEmail = request.nextUrl.searchParams.get("email")?.trim().toLowerCase();
+  const email = rawEmail ? normalizeEmail(rawEmail) : undefined;
   const phone = request.nextUrl.searchParams.get("phone")?.trim().replace(/\s/g, "");
 
   if (!email && !phone) {

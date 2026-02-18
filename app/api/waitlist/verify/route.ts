@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@/lib/supabaseServer";
+import { normalizeEmail } from "@/lib/emailNormalize";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -29,7 +30,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const cloud_type = typeof body.cloud_type === "string" ? body.cloud_type.trim() : "";
-    const email = typeof body.email === "string" && body.email.trim() ? body.email.trim().toLowerCase() : null;
+    const rawEmail = typeof body.email === "string" && body.email.trim() ? body.email.trim().toLowerCase() : null;
+    const email = rawEmail ? normalizeEmail(rawEmail) : null;
     const phone = typeof body.phone === "string" && body.phone.trim() ? body.phone.trim().replace(/\s/g, "") : null;
 
     if (!name || !cloud_type || (!email && !phone)) {
