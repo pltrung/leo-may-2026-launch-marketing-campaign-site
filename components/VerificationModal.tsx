@@ -26,6 +26,22 @@ type Step = "input" | "code" | "verifying";
 
 const EASE_HERO = [0.22, 1, 0.36, 1] as const;
 
+/** Normalize phone to E.164 for Supabase/Twilio. US (+1) and VN (+84) supported when no country code. */
+function toE164(phone: string): string {
+  const trimmed = phone.trim().replace(/\s/g, "");
+  const digits = trimmed.replace(/\D/g, "");
+  if (trimmed.startsWith("+")) return trimmed;
+  // Vietnam: 10 digits starting with 0 (e.g. 0912345678) → +84912345678
+  if (digits.length === 10 && digits.startsWith("0")) return `+84${digits.slice(1)}`;
+  // Vietnam: 9 digits, mobile prefix 9/8/7/5/3 → +84
+  if (digits.length === 9 && /^[98753]/.test(digits)) return `+84${digits}`;
+  // US: 10 digits → +1
+  if (digits.length === 10) return `+1${digits}`;
+  // US: 11 digits starting with 1 → +1...
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  return `+${digits}`;
+}
+
 export default function VerificationModal({
   onClose,
   onSuccess,
@@ -45,6 +61,9 @@ export default function VerificationModal({
 
   const isCountdownFlow = typeof name === "string" && name.trim() !== "" && typeof cloud_type === "string" && cloud_type.trim() !== "";
 
+  const isTestEmail = (e: string) => /^ev\d+-.+@l$/.test(e) || /^dummy2\d+@test\.local$/.test(e);
+  const devBypassOtp = typeof process.env.NEXT_PUBLIC_DEV_BYPASS_OTP === "string" && process.env.NEXT_PUBLIC_DEV_BYPASS_OTP === "true";
+
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -63,8 +82,26 @@ export default function VerificationModal({
     }
     setLoading(true);
     try {
+      // Dev-only: skip OTP for test accounts (verified via seed_verify_test_accounts.sql)
+      if (!isCountdownFlow && devBypassOtp && useEmail && isTestEmail(eTrim)) {
+        const res = await fetch(`/api/waitlist/lookup?email=${encodeURIComponent(eTrim)}`);
+        const json = await res.json();
+        const u = json?.user;
+        if (u?.team && (u.isVerified === true)) {
+          onSuccess({
+            mode: "lookup",
+            hasWaitlist: true,
+            user: { name: u.name, email: u.email, phone: u.phone, team: u.team, referralCode: u.referralCode },
+          });
+          onClose();
+          setLoading(false);
+          return;
+        }
+      }
+
       const supabase = createBrowserClient();
-      const options = useEmail ? { email: eTrim } : { phone: pTrim };
+      const phoneE164 = toE164(phone);
+      const options = useEmail ? { email: eTrim } : { phone: phoneE164 };
       const { error: err } = await supabase.auth.signInWithOtp(options as { email: string } | { phone: string });
       if (err) {
         const msg = err.message?.toLowerCase() ?? "";
@@ -91,11 +128,11 @@ export default function VerificationModal({
     try {
       const supabase = createBrowserClient();
       const eTrim = email.trim().toLowerCase();
-      const pTrim = phone.trim().replace(/\s/g, "");
+      const phoneE164 = toE164(phone);
       const tokenVal = code.trim();
       const { data, error: verifyErr } = eTrim
         ? await supabase.auth.verifyOtp({ email: eTrim, token: tokenVal, type: "email" })
-        : await supabase.auth.verifyOtp({ phone: pTrim, token: tokenVal, type: "sms" });
+        : await supabase.auth.verifyOtp({ phone: phoneE164, token: tokenVal, type: "sms" });
       if (verifyErr || !data?.session) {
         setError(t.invalidCode);
         setStep("code");
@@ -108,11 +145,11 @@ export default function VerificationModal({
         const res = await fetch("/api/waitlist/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
+            body: JSON.stringify({
             name: name.trim(),
             cloud_type: cloud_type.trim(),
             email: eTrim || undefined,
-            phone: pTrim || undefined,
+            phone: (eTrim ? undefined : toE164(phone)) || undefined,
           }),
         });
         const json = await res.json();
