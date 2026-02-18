@@ -389,7 +389,7 @@ export default function CountdownPage() {
     : t.progressToNextTier
         .replace("{current}", String(tierProgress.progressToNext))
         .replace("{required}", String(tierProgress.nextTierDelta))
-        .replace("{tier}", String(tierProgress.nextTierNumber));
+        .replace("{evo}", String(tierProgress.nextTierNumber + 1));
   const tierNameFromConfig = ASCENSION_TIERS[displayTierForBadge]
     ? (locale === "vi" ? ASCENSION_TIERS[displayTierForBadge].nameVi : ASCENSION_TIERS[displayTierForBadge].nameEn)
     : currentLevelName;
