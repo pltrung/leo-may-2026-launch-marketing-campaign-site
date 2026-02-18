@@ -75,7 +75,7 @@ export default function VerificationModal({
     }
     setLoading(true);
     try {
-      if (devBypassOtp && useEmail && isTestEmail(eTrim)) {
+      if (useEmail && isTestEmail(eTrim)) {
         const res = await fetch(`/api/waitlist/lookup?email=${encodeURIComponent(eTrim)}`);
         const json = await res.json();
         const u = json?.user;
