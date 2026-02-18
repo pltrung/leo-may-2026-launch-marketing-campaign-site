@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createServerClient } from "@/lib/supabaseServer";
 import { normalizeEmail } from "@/lib/emailNormalize";
-import { deltaUsdToReachTier } from "@/lib/tiers";
+import { deltaUsdToReachTier, tierToMinUsd, displayTierToBackend } from "@/lib/tiers";
+
+const FOUNDING_CIRCLE_USD = 50;
 
 const stripeSecret = process.env.STRIPE_SECRET_KEY;
 const stripe = stripeSecret ? new Stripe(stripeSecret, { apiVersion: "2026-01-28.clover" }) : null;
@@ -60,7 +62,11 @@ export async function POST(request: NextRequest) {
     }
 
     const currentTotal = typeof row.total_contribution_usd === "number" ? row.total_contribution_usd : 0;
-    const deltaUsd = deltaUsdToReachTier(currentTotal, targetTier);
+    const currentDisplayTier = typeof body.current_display_tier === "number" ? Math.min(5, Math.max(0, Math.floor(body.current_display_tier))) : null;
+    const deltaUsd =
+      targetTier === 6 && currentDisplayTier !== null
+        ? Math.max(0, FOUNDING_CIRCLE_USD - tierToMinUsd(displayTierToBackend(currentDisplayTier)))
+        : deltaUsdToReachTier(currentTotal, targetTier);
 
     if (deltaUsd <= 0) {
       return NextResponse.json({ error: "Already at or above this tier" }, { status: 400 });

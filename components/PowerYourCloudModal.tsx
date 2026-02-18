@@ -9,7 +9,10 @@ import {
   backendTierToDisplay,
   displayTierToBackend,
   getProgressToNextTier,
+  tierToMinUsd,
 } from "@/lib/tiers";
+
+const FOUNDING_CIRCLE_USD = 50;
 import AscensionTimeline from "@/components/AscensionTimeline";
 
 /** Fallback when cloud accent is too light for contrast. */
@@ -74,6 +77,7 @@ export default function PowerYourCloudModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           target_tier: backendTier,
+          current_display_tier: backendTier === 6 ? currentDisplayTier : undefined,
           identifier: userIdentifier,
           identifier_type: identifierType,
           locale,
@@ -105,8 +109,9 @@ export default function PowerYourCloudModal({
   const tierProgress = getProgressToNextTier(currentDisplayTier, referralCount);
   const showProgressBar = !tierProgress.isMaxTier && tierProgress.nextTierDelta > 0;
   const modalAccent = accentHex && accentHex !== "#ffffff" && accentHex !== "#fff" ? accentHex : FALLBACK_ACCENT;
-  const deltaToFoundingCircle = deltaUsdToReachTier(totalContributionUsd, 6);
-  const foundingCircleButtonLabel = t.becomeFoundingCirclePrice.replace("${price}", String(deltaToFoundingCircle));
+  const currentBackendTier = displayTierToBackend(currentDisplayTier);
+  const deltaToFoundingCircle = Math.max(0, FOUNDING_CIRCLE_USD - tierToMinUsd(currentBackendTier));
+  const foundingCircleButtonLabel = t.becomeFoundingCirclePrice.replace("${price}", `$${deltaToFoundingCircle}`);
   const progressPct = showProgressBar
     ? Math.min(100, (tierProgress.progressToNext / tierProgress.nextTierDelta) * 100)
     : 0;
@@ -216,21 +221,37 @@ export default function PowerYourCloudModal({
                 paymentsConfigured={paymentsConfigured}
                 paymentsComingSoonLabel={t.paymentsComingSoon}
               />
-              {currentDisplayTier < 5 && (
+              {currentDisplayTier < 5 && deltaToFoundingCircle > 0 && (
                 <div className="mt-3">
-                  <button
+                  <motion.button
                     type="button"
                     disabled={!paymentsConfigured || loadingTier !== null}
                     onClick={() => handleUpgrade(5)}
-                    className="w-full py-3 px-4 rounded-xl text-sm font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full py-3 px-4 rounded-xl text-sm font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed founding-circle-cta"
                     style={{
                       backgroundColor: paymentsConfigured ? modalAccent : CONTENT_BLOCK_BG,
                       color: "#1E2A38",
+                      border: paymentsConfigured ? `2px solid ${modalAccent}` : undefined,
+                      boxShadow: paymentsConfigured
+                        ? `0 0 12px ${modalAccent}80, 0 0 24px ${modalAccent}40, inset 0 1px 0 rgba(255,255,255,0.2)`
+                        : undefined,
                     }}
+                    animate={
+                      paymentsConfigured && loadingTier !== 5
+                        ? {
+                            boxShadow: [
+                              `0 0 12px ${modalAccent}80, 0 0 24px ${modalAccent}40, inset 0 1px 0 rgba(255,255,255,0.2)`,
+                              `0 0 18px ${modalAccent}99, 0 0 36px ${modalAccent}60, inset 0 1px 0 rgba(255,255,255,0.25)`,
+                              `0 0 12px ${modalAccent}80, 0 0 24px ${modalAccent}40, inset 0 1px 0 rgba(255,255,255,0.2)`,
+                            ],
+                          }
+                        : undefined
+                    }
+                    transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
                     title={!paymentsConfigured ? t.paymentsComingSoon : undefined}
                   >
                     {!paymentsConfigured ? t.paymentsComingSoon : loadingTier === 5 ? "..." : foundingCircleButtonLabel}
-                  </button>
+                  </motion.button>
                 </div>
               )}
               {error && (
