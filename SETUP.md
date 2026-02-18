@@ -57,6 +57,19 @@ Open [http://localhost:3000](http://localhost:3000).
    - `SUPABASE_SERVICE_ROLE_KEY` = your Supabase service_role key
 5. Deploy.
 
+**Trigger a deploy after changes:** Run once from your machine (where Git has your credentials):
+```bash
+npm run deploy
+```
+This runs `git push origin main`; Vercel will build and deploy automatically.
+
+**So Cursor can push for you:** Install [GitHub CLI](https://cli.github.com/) and run once:
+```bash
+gh auth login
+gh auth setup-git
+```
+After that, Cursor’s terminal can use your stored credentials and `npm run deploy` (or `git push origin main`) may succeed from this environment too.
+
 ## 8. Verify Submissions
 
 1. Submit the waitlist form on your live site.
