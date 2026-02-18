@@ -226,7 +226,9 @@ export default function VerificationModal({
           </svg>
         </button>
 
-        <h3 className="font-subheadline text-xl text-white mb-2 pr-10">{t.title}</h3>
+        <h3 className="font-subheadline text-xl text-white mb-2 pr-10">
+          {step === "choose" ? t.chooseTitle : t.title}
+        </h3>
 
         <AnimatePresence mode="wait">
           {step === "choose" && (
@@ -238,7 +240,7 @@ export default function VerificationModal({
               exit={{ opacity: 0, x: 8 }}
               transition={{ duration: 0.2 }}
             >
-              <p className="font-caption text-white/80 text-sm mb-4">{t.enterEmailOrPhone}</p>
+              <p className="font-caption text-white/80 text-sm mb-4">{t.chooseSubtext}</p>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="radio" name="vm-method" checked={method === "email"} onChange={() => setMethod("email")} className="w-4 h-4" />

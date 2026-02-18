@@ -189,6 +189,8 @@ const en = {
   },
   verification: {
     title: "Verify your account",
+    chooseTitle: "Login your credentials",
+    chooseSubtext: "Confirm which method to login",
     enterEmailOrPhone: "Enter your email or phone to receive a code.",
     sendCode: "Send code",
     enterCode: "Enter the code we sent",
@@ -447,6 +449,8 @@ const vi: Messages = {
   },
   verification: {
     title: "Xác minh tài khoản",
+    chooseTitle: "Đăng nhập tài khoản của bạn",
+    chooseSubtext: "Chọn phương thức đăng nhập",
     enterEmailOrPhone: "Nhập email hoặc số điện thoại để nhận mã.",
     sendCode: "Gửi mã",
     enterCode: "Nhập mã chúng tôi đã gửi",
