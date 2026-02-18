@@ -29,7 +29,7 @@ import {
   getNextFormName,
   getLevelName,
 } from "@/lib/evolutionLevels";
-import { backendTierToDisplay } from "@/lib/tiers";
+import { backendTierToDisplay, ASCENSION_TIERS } from "@/lib/tiers";
 import AscensionTimeline from "@/components/AscensionTimeline";
 import type { EvolutionLevel } from "@/lib/evolutionLevels";
 import EvolutionCeremonyModal from "@/components/EvolutionCeremonyModal";
@@ -368,7 +368,10 @@ export default function CountdownPage() {
   const currentLevelName = getLevelName(currentLevel, locale);
 
   const evolutionStageIndex = getEvolutionStageIndex(referralCount);
-  const identityRankLabel = currentLevelName;
+  const displayTierForBadge = backendTierToDisplay(profile.tierLevel);
+  const tierNameFromConfig = ASCENSION_TIERS[displayTierForBadge]
+    ? (locale === "vi" ? ASCENSION_TIERS[displayTierForBadge].nameVi : ASCENSION_TIERS[displayTierForBadge].nameEn)
+    : currentLevelName;
   const daysRemaining = days;
   const leadingTeamId = leaderboard[0]?.id ?? "";
   const skyDominant = leadingTeamId || "default";
@@ -633,7 +636,7 @@ export default function CountdownPage() {
                   boxShadow: tierBadgeGlow ? `0 0 16px ${accent}60` : `0 0 12px ${accent}40`,
                 }}
               >
-                Tier {profile.tierLevel} – {identityRankLabel}
+                Tier {displayTierForBadge} – {tierNameFromConfig}
               </motion.span>
             </p>
           </motion.div>
