@@ -12,6 +12,8 @@ import CloudFooter from "@/components/CloudFooter";
 import LanguageSwitch from "@/components/LanguageSwitch";
 import AboutUsModal from "@/components/AboutUsModal";
 import PowerYourCloudShareModal, { buildShareMessage } from "@/components/PowerYourCloudShareModal";
+import PowerYourCloudModal from "@/components/PowerYourCloudModal";
+import { TIER_BADGE_LABELS_EN, TIER_BADGE_LABELS_VI } from "@/lib/tiers";
 import { useCountdownHeroEntrance, CONTENT_STAGGER_MS, EASE_APPLE_IN_OUT, EASE_APPLE_SETTLE, EASE_MICRO_SETTLE } from "@/lib/enterCountdownHero";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
@@ -203,41 +205,7 @@ function useLeaderboard() {
   return teams;
 }
 
-interface UserProfile {
-  referralCount: number;
-  referralCode: string | null;
-  traitUnlocked: boolean;
-  isVerified: boolean;
-}
-
-function useUserProfile(email?: string, phone?: string, refreshTrigger?: number) {
-  const [profile, setProfile] = useState<UserProfile>({ referralCount: 0, referralCode: null, traitUnlocked: false, isVerified: false });
-  useEffect(() => {
-    if (!email && !phone) return;
-    const fetchProfile = () => {
-      const params = new URLSearchParams();
-      if (email) params.set("email", email);
-      if (phone) params.set("phone", phone);
-      fetch(`/api/user-profile?${params}`)
-        .then((r) => r.json())
-        .then((d) => {
-          if (d?.referralCount !== undefined) {
-            setProfile({
-              referralCount: typeof d.referralCount === "number" ? d.referralCount : 0,
-              referralCode: d.referralCode ?? null,
-              traitUnlocked: d.traitUnlocked === true,
-              isVerified: d.isVerified === true,
-            });
-          }
-        })
-        .catch(() => {});
-    };
-    fetchProfile();
-    const id = setInterval(fetchProfile, POLL_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [email, phone, refreshTrigger]);
-  return profile;
-}
+import { useWaitlist } from "@/lib/useWaitlist";
 
 export default function CountdownPage() {
   const router = useRouter();
@@ -250,20 +218,32 @@ export default function CountdownPage() {
   const perfRef = useRef<number>(0);
   const perfAccRef = useRef<number>(0);
   const perfCountRef = useRef<number>(0);
-  const t = getMessages(locale).countdown;
+  const messages = getMessages(locale);
+  const t = messages.countdown;
+  const tVerification = messages.verification;
   const [user, setUser] = useState<ReturnType<typeof getUser>>(null);
   const [verified, setVerified] = useState<boolean | null>(null);
   const [shareToast, setShareToast] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shareModal, setShareModal] = useState<{ referralUrl: string; shareMessage: string } | null>(null);
+  const [powerYourCloudModalOpen, setPowerYourCloudModalOpen] = useState(false);
   const [shareAuraPulseKey, setShareAuraPulseKey] = useState(0);
   const [verificationOpen, setVerificationOpen] = useState(false);
-  const [profileRefreshTrigger, setProfileRefreshTrigger] = useState(0);
+  const { profile, refreshWaitlist } = useWaitlist(user?.email ?? undefined, user?.phone ?? undefined);
+  const [tierBadgeGlow, setTierBadgeGlow] = useState(false);
+  const [upgradeSuccessToast, setUpgradeSuccessToast] = useState(false);
+  const [verificationSuccessOverlay, setVerificationSuccessOverlay] = useState(false);
+  const [shouldAnimateVerifiedBadge, setShouldAnimateVerifiedBadge] = useState(false);
   const { phase } = useCountdownHeroEntrance({ startDelay: COUNTDOWN_BG_FADE_MS });
   const teamCount = useTeamCount((user?.team ?? "may_nhe") as CloudType);
   const leaderboard = useLeaderboard();
-  const profile = useUserProfile(user?.email, user?.phone, profileRefreshTrigger);
   const { days, hours, minutes, seconds } = useCountdown();
+
+  useEffect(() => {
+    if (!shouldAnimateVerifiedBadge || !profile.isVerified) return;
+    const t = setTimeout(() => setShouldAnimateVerifiedBadge(false), 400);
+    return () => clearTimeout(t);
+  }, [shouldAnimateVerifiedBadge, profile.isVerified]);
   const [prevLeaderboardOrder, setPrevLeaderboardOrder] = useState<string>("");
   const [skyUnstable, setSkyUnstable] = useState(false);
   const prevLevelIndexRef = useRef<number>(-1);
@@ -316,6 +296,21 @@ export default function CountdownPage() {
       }
     }
   }, [searchParams]);
+
+  const upgradeSuccess = searchParams.get("upgrade") === "success";
+  useEffect(() => {
+    if (!upgradeSuccess || !user) return;
+    refreshWaitlist();
+    setTierBadgeGlow(true);
+    const delayToast = setTimeout(() => setUpgradeSuccessToast(true), 600);
+    const t1 = setTimeout(() => setTierBadgeGlow(false), 2000);
+    const t2 = setTimeout(() => setUpgradeSuccessToast(false), 4000);
+    return () => {
+      clearTimeout(delayToast);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [upgradeSuccess, user?.email, user?.phone]);
 
   useEffect(() => {
     if (user === null) return;
@@ -382,6 +377,9 @@ export default function CountdownPage() {
   const pad = (n: number) => String(n).padStart(2, "0");
   const referralCount = profile.referralCount;
   const referralCode = profile.referralCode ?? user.referralCode ?? "";
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const referralUrl = referralCode ? `${origin}/${locale}?ref=${referralCode}` : `${origin}/${locale}?team=${cloud.id}`;
+  const shareMessage = buildShareMessage(locale, cloud, referralUrl);
   const traitUnlocked = profile.traitUnlocked || referralCount >= REFERRAL_UNLOCK;
   const currentLevel = getEvolutionLevel(referralCount);
   const xpInLevel = getXpInLevel(referralCount);
@@ -556,7 +554,24 @@ export default function CountdownPage() {
           animate={{ opacity: phase === "content" ? 1 : 0 }}
           transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[0] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
-          <p className="greeting">{t.hi} {firstName},</p>
+          <p className="greeting flex items-center justify-center gap-2 flex-wrap">
+            {t.hi} {firstName}
+            {profile.isVerified && (
+              <motion.span
+                className="inline-flex items-center justify-center w-4 h-4 rounded-full flex-shrink-0"
+                style={{ backgroundColor: "#1DA1F2" }}
+                initial={shouldAnimateVerifiedBadge ? { scale: 0 } : false}
+                animate={{ scale: 1 }}
+                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                aria-label="Verified"
+              >
+                <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </motion.span>
+            )}
+            ,
+          </p>
           <p className="team-name">
             {t.youJoined} <span style={{ color: accent, textShadow: `0 0 12px ${accent}60` }}>Team {cloud.name}</span>
           </p>
@@ -630,6 +645,7 @@ export default function CountdownPage() {
             className="mascot-ascension"
             data-evolution-index={evolutionStageIndex}
             data-cloud-type={cloud.id}
+            data-tier-max={profile.tierLevel === 6 ? "true" : undefined}
           >
             <div className="aura-core" aria-hidden />
             <div className="aura-flames" aria-hidden />
@@ -712,6 +728,18 @@ export default function CountdownPage() {
             >
               {t.youAreNow} <span style={{ color: accent, textShadow: `0 0 10px ${accent}50` }}>{identityRankLabel}</span>
             </p>
+            {profile.tierLevel >= 1 && (
+              <motion.div
+                className={`mt-2 px-3 py-1 rounded-full font-caption text-xs font-medium inline-block transition-shadow duration-500 ${tierBadgeGlow ? "animate-tier-badge-glow" : ""}`}
+                style={{
+                  background: `linear-gradient(135deg, ${accent}30 0%, ${accent}15 100%)`,
+                  color: accent,
+                  boxShadow: tierBadgeGlow ? `0 0 16px ${accent}60` : "none",
+                }}
+              >
+                {locale === "vi" ? TIER_BADGE_LABELS_VI[profile.tierLevel] : TIER_BADGE_LABELS_EN[profile.tierLevel]}
+              </motion.div>
+            )}
           </motion.div>
         </motion.div>
 
@@ -768,15 +796,7 @@ export default function CountdownPage() {
               <motion.button
                 type="button"
                 onClick={() => {
-                  const origin = typeof window !== "undefined" ? window.location.origin : "";
-                  const referralUrl = referralCode ? `${origin}/${locale}?ref=${referralCode}` : `${origin}/${locale}?team=${cloud.id}`;
-                  const shareMessage = buildShareMessage(locale, cloud, referralUrl);
-                  navigator.clipboard?.writeText(shareMessage).then(() => {
-                    setShareModal({ referralUrl, shareMessage });
-                  }).catch(() => {
-                    setShareToast(true);
-                    setTimeout(() => setShareToast(false), 2000);
-                  });
+                  setPowerYourCloudModalOpen(true);
                 }}
                 className="shrink-0 px-5 py-2.5 rounded-full font-subheadline text-sm border-2 transition-colors hover:opacity-90"
                 style={{ borderColor: accentContrast, color: accentContrast }}
@@ -850,6 +870,34 @@ export default function CountdownPage() {
               {t.linkCopied}
             </div>
           </div>
+        )}
+
+        {upgradeSuccessToast && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+            <div className="px-6 py-4 rounded-xl bg-white/95 shadow-lg text-storm font-medium animate-fade-out-2s">
+              {t.powerYourCloudModal.cloudEvolvedToast.replace("{tier}", String(profile.tierLevel))}
+            </div>
+          </div>
+        )}
+
+        {verificationSuccessOverlay && (
+          <motion.div
+            className="fixed inset-0 flex items-center justify-center z-[100] pointer-events-none"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <motion.div
+              className="px-6 py-5 rounded-2xl bg-white/95 shadow-xl text-center max-w-[280px]"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              style={{ color: "#1E2A38" }}
+            >
+              <p className="font-subheadline text-lg font-semibold">{tVerification.successTitle}</p>
+              <p className="font-caption text-sm mt-1 opacity-80">{tVerification.successSubtext}</p>
+            </motion.div>
+          </motion.div>
         )}
 
         <motion.div
@@ -1037,6 +1085,23 @@ export default function CountdownPage() {
             {t.logOut}
           </button>
         </motion.div>
+
+        {user && (user.email || user.phone) && (
+          <motion.div
+            className="w-full text-center py-3"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: phase === "content" ? 1 : 0 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <p className="font-caption text-white/70 text-xs">
+              {t.loggedInAs}
+            </p>
+            <p className="font-caption text-white/70 text-sm mt-0.5">
+              {user.name?.trim() || "Member"}
+              {user.email ? ` (${user.email})` : user.phone ? ` (${user.phone})` : ""}
+            </p>
+          </motion.div>
+        )}
       </div>
       </main>
       <motion.footer
@@ -1054,6 +1119,27 @@ export default function CountdownPage() {
 
       <AnimatePresence>
         {aboutOpen && <AboutUsModal onClose={() => setAboutOpen(false)} locale={locale} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {powerYourCloudModalOpen && user && cloud && (
+          <PowerYourCloudModal
+            locale={locale}
+            accentHex={cloud.accentHex}
+            tierLevel={profile.tierLevel}
+            totalContributionUsd={profile.totalContributionUsd}
+            referralCount={profile.referralCount}
+            referralUrl={referralUrl}
+            shareMessage={shareMessage}
+            userIdentifier={user.email ?? user.phone ?? ""}
+            identifierType={user.email ? "email" : "phone"}
+            onClose={() => setPowerYourCloudModalOpen(false)}
+            onOpenShare={() => {
+              setPowerYourCloudModalOpen(false);
+              setShareModal({ referralUrl, shareMessage });
+            }}
+          />
+        )}
       </AnimatePresence>
 
       <AnimatePresence>
@@ -1094,9 +1180,11 @@ export default function CountdownPage() {
             identifier_type={user.identifier_type}
             onClose={() => setVerificationOpen(false)}
             onSuccess={async (payload) => {
-              setVerificationOpen(false);
               if (payload.mode === "countdown") {
-                setProfileRefreshTrigger((t) => t + 1);
+                refreshWaitlist();
+                setVerificationSuccessOverlay(true);
+                setShouldAnimateVerifiedBadge(true);
+                setTimeout(() => setVerificationSuccessOverlay(false), 1200);
                 try {
                   const pendingRef = typeof window !== "undefined" ? localStorage.getItem(PENDING_REF_CODE_KEY) : null;
                   if (pendingRef?.trim()) {
@@ -1112,6 +1200,8 @@ export default function CountdownPage() {
                     // ignore
                   }
                 }
+              } else {
+                setVerificationOpen(false);
               }
             }}
           />

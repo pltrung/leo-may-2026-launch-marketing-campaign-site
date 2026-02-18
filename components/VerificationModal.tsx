@@ -25,7 +25,7 @@ interface VerificationModalProps {
   identifier_type?: "email" | "phone";
 }
 
-type Step = "choose" | "input" | "code" | "verifying";
+type Step = "choose" | "input" | "code" | "verifying" | "success";
 
 const EASE_HERO = [0.22, 1, 0.36, 1] as const;
 
@@ -148,6 +148,11 @@ export default function VerificationModal({
           return;
         }
         onSuccess({ mode: "countdown" });
+        setStep("success");
+        setError("");
+        setLoading(false);
+        setTimeout(() => onClose(), 1200);
+        return;
       } else {
         const linkRes = await fetch("/api/waitlist/link", {
           method: "POST",
@@ -165,8 +170,8 @@ export default function VerificationModal({
           hasWaitlist: !!u,
           user: u ? { name: u.name, email: u.email, phone: u.phone, team: u.team, referralCode: u.referralCode } : undefined,
         });
+        onClose();
       }
-      onClose();
     } catch {
       setError(t.invalidCode);
       setStep("code");
@@ -315,6 +320,19 @@ export default function VerificationModal({
                 </button>
               )}
             </motion.form>
+          )}
+
+          {step === "success" && (
+            <motion.div
+              key="success"
+              className="space-y-2 min-w-0 text-center py-4"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <p className="font-subheadline text-xl text-white">{t.successTitle}</p>
+              <p className="font-caption text-white/80 text-sm">{t.successSubtext}</p>
+            </motion.div>
           )}
         </AnimatePresence>
       </motion.div>

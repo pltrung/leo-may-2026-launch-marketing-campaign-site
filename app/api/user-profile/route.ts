@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabaseServer";
 import { getCloudById } from "@/lib/cloudData";
 import type { CloudType } from "@/lib/cloudData";
 import { normalizeEmail } from "@/lib/emailNormalize";
+import { effectiveTier } from "@/lib/tiers";
 
 export async function GET(request: NextRequest) {
   const rawEmail = request.nextUrl.searchParams.get("email")?.trim().toLowerCase();
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("waitlist")
-      .select("name, email, phone, cloud_type, referral_code, referral_count, is_verified")
+      .select("name, email, phone, cloud_type, referral_code, referral_count, is_verified, tier_level, total_contribution_usd")
       .order("created_at", { ascending: false })
       .limit(1);
 
@@ -43,8 +44,12 @@ export async function GET(request: NextRequest) {
       ? (data as { referral_count: number }).referral_count
       : 0;
     const referralCode = (data as { referral_code?: string }).referral_code ?? null;
-
+    const totalContributionUsd = typeof (data as { total_contribution_usd?: number }).total_contribution_usd === "number"
+      ? Math.max(0, (data as { total_contribution_usd: number }).total_contribution_usd)
+      : 0;
+    const tierLevel = effectiveTier(referralCount, totalContributionUsd);
     const isVerified = (data as { is_verified?: boolean }).is_verified === true;
+
     return NextResponse.json({
       name: data.name || "Member",
       email: data.email || undefined,
@@ -54,6 +59,8 @@ export async function GET(request: NextRequest) {
       referralCount,
       traitUnlocked: referralCount >= 10,
       isVerified,
+      tierLevel,
+      totalContributionUsd,
     }, { headers: { "Cache-Control": "no-store, max-age=10" } });
   } catch {
     return NextResponse.json(null);

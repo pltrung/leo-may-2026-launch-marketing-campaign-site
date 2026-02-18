@@ -65,7 +65,7 @@ export default function KnowYourTeamModal({ onClose, onFoundTeam, locale = "en" 
           identifier,
           identifier_type: method,
           name: u.name || "Member",
-          team: u.team,
+          team: u.team as CloudType,
           referralCode: u.referralCode,
         });
         if (onFoundTeam) {

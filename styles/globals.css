@@ -1285,6 +1285,11 @@ body.hero-ready .hero-scroll {
 .mascot-ascension[data-evolution-index="6"] .skill-layer { opacity: 1; }
 .mascot-ascension[data-evolution-index="6"] .aura-outline { opacity: 0.55; }
 
+/* Tier 6 (max paid tier): subtle mascot upgrade state */
+.mascot-ascension[data-tier-max="true"] .evolution-mascot-inner {
+  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.25));
+}
+
 /* ========== SKILL LAYER — volumetric gradients only (GPU: transform + opacity) ========== */
 /* Parent container: never animate opacity here; stage controls visibility only */
 .skill-layer {
@@ -1964,6 +1969,14 @@ body.hero-ready .hero-scroll {
 }
 .animate-fade-out-2s {
   animation: fadeOut 2s ease-out forwards;
+}
+
+@keyframes tierBadgeGlow {
+  0%, 100% { box-shadow: none; }
+  50% { box-shadow: 0 0 20px var(--tier-glow-color, rgba(0,0,0,0.2)); }
+}
+.animate-tier-badge-glow {
+  animation: tierBadgeGlow 1.5s ease-out;
 }
 
 /* Share poster preview: QR shimmer (preview only, not exported) — Apple Wallet style */

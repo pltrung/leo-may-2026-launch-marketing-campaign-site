@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { getUser, saveUser, clearUser, type StoredUser, type IdentifierType } from "./userStorage";
+import type { CloudType } from "./cloudData";
 
 export interface WaitlistIdentity {
   /** Current user from storage (name, team, referralCode, etc.) */
@@ -15,7 +16,7 @@ export interface WaitlistIdentity {
   /** Clear identity and user (for "Change" flow); caller should redirect or reset to step 0 */
   changeIdentity: () => void;
   /** Persist locked identity after upsert-identity success */
-  setLockedIdentity: (opts: { identifier: string; identifier_type: IdentifierType; name: string; team: string; referralCode?: string }) => void;
+  setLockedIdentity: (opts: { identifier: string; identifier_type: IdentifierType; name: string; team: CloudType; referralCode?: string }) => void;
   /** Re-read from storage (e.g. after verification) */
   refresh: () => void;
 }
@@ -41,7 +42,7 @@ export function useWaitlistIdentity(): WaitlistIdentity {
   }, []);
 
   const setLockedIdentity = useCallback(
-    (opts: { identifier: string; identifier_type: IdentifierType; name: string; team: string; referralCode?: string }) => {
+    (opts: { identifier: string; identifier_type: IdentifierType; name: string; team: CloudType; referralCode?: string }) => {
       const next: StoredUser = {
         ...user,
         name: opts.name,
