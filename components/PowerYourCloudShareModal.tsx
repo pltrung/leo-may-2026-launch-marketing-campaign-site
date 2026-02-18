@@ -3,7 +3,6 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { CloudPersonality } from "@/lib/cloudData";
-import CloudIconByType from "@/components/CloudIcons";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
 import { generateSharePoster, type PosterPreset } from "@/lib/generateSharePoster";
@@ -52,15 +51,6 @@ function IconThreads({ className }: { className?: string }) {
   );
 }
 
-function IconCopy({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-    </svg>
-  );
-}
-
 function IconClose({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -91,10 +81,8 @@ export default function PowerYourCloudShareModal({
 }: PowerYourCloudShareModalProps) {
   const messages = getMessages(locale);
   const t = messages.countdown.shareModal;
-  const c = messages.countdown;
   const accent = cloud.accentHex;
-  const cloudName = locale === "vi" ? cloud.name : cloud.nameEn;
-  const [copyFeedback, setCopyFeedback] = useState<"idle" | "copied" | "instagram">("idle");
+  const [linkCopyFeedback, setLinkCopyFeedback] = useState(false);
   type ImageState = "idle" | "generating" | "preview";
   const [imageState, setImageState] = useState<ImageState>("idle");
   const [posterPreset, setPosterPreset] = useState<PosterPreset>("square");
@@ -103,21 +91,18 @@ export default function PowerYourCloudShareModal({
   const [generatedPreset, setGeneratedPreset] = useState<PosterPreset | null>(null);
   const [previewImageFeedback, setPreviewImageFeedback] = useState<"idle" | "copied" | "instagram">("idle");
 
-  const doCopy = useCallback(() => {
-    navigator.clipboard?.writeText(shareMessage).then(() => {
-      setCopyFeedback("copied");
-      setTimeout(() => setCopyFeedback("idle"), 2000);
+  const handleCopyLink = useCallback(() => {
+    navigator.clipboard?.writeText(referralUrl).then(() => {
+      setLinkCopyFeedback(true);
+      setTimeout(() => setLinkCopyFeedback(false), 2000);
     });
-  }, [shareMessage]);
-
-  const handleCopy = () => {
-    doCopy();
-  };
+  }, [referralUrl]);
 
   const handleInstagram = () => {
-    doCopy();
-    setCopyFeedback("instagram");
-    setTimeout(() => setCopyFeedback("idle"), 2500);
+    navigator.clipboard?.writeText(shareMessage).then(() => {
+      setLinkCopyFeedback(true);
+      setTimeout(() => setLinkCopyFeedback(false), 2500);
+    });
   };
 
   const encodedUrl = encodeURIComponent(referralUrl);
@@ -125,8 +110,6 @@ export default function PowerYourCloudShareModal({
   const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
   const threadsUrl = `https://www.threads.net/intent/post?text=${encodedMessage}`;
   const zaloUrl = `https://zalo.me/share?url=${encodedUrl}`;
-
-  const copyLabel = copyFeedback === "copied" ? t.copied : copyFeedback === "instagram" ? t.copiedInstagram : (locale === "vi" ? "Sao chép" : "Copy");
 
   const generatePosterForPreset = useCallback(
     async (preset: PosterPreset) => {
@@ -266,145 +249,113 @@ export default function PowerYourCloudShareModal({
               transition={{ duration: 0.25 }}
               layout
             >
-              <motion.div
-                className="flex justify-center"
-                style={{ color: accent }}
-                animate={{ y: [0, -6, 0] }}
-                transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <CloudIconByType cloudId={cloud.id} className="w-16 h-16" />
-              </motion.div>
-              <h2 className="font-subheadline text-center text-lg text-[#1a1a1a]">
-                {t.shareHeader}
+              <h2 className="font-subheadline text-lg text-[#1a1a1a] pr-10">
+                {t.inviteTitle}
               </h2>
-              <p className="font-headline text-center text-xl sm:text-2xl" style={{ color: accent }}>
-                {cloudName}
+              <p className="font-caption text-sm text-[#555] leading-snug">
+                {t.inviteInstruction}
               </p>
               <div
-                className="rounded-xl p-4 text-sm leading-relaxed whitespace-pre-line border bg-black/[0.04] text-[#333] max-h-[140px] overflow-y-auto"
+                className="rounded-xl p-4 border bg-white/90"
                 style={{ borderColor: "rgba(0,0,0,0.08)" }}
               >
-                {shareMessage}
-              </div>
-              <div
-                className="rounded-[14px] border"
-                style={{
-                  background: "rgba(255,255,255,0.95)",
-                  borderColor: "rgba(0,0,0,0.1)",
-                  padding: "12px 14px",
-                  marginTop: 12,
-                }}
-              >
-                <p
-                  className="text-[15px] font-semibold leading-snug"
-                  style={{ color: "#1E2A38" }}
-                >
-                  {c.inviteBlock1}
-                </p>
-                <p
-                  className="text-[13px] font-normal leading-snug mt-1"
-                  style={{ color: "#1E2A38" }}
-                >
-                  {c.inviteBlock2}
-                </p>
-                <p
-                  className="text-[13px] font-normal leading-snug mt-0.5"
-                  style={{ color: "#1E2A38" }}
-                >
-                  {c.inviteBlock3}
-                </p>
-                <p className="text-[13px] font-normal leading-snug mt-2" style={{ color: "#1E2A38" }}>
-                  {c.youHaveAwakened}{" "}
-                  <span style={{ color: accent, fontWeight: 600 }}>{referralCount}</span>
-                  {" "}{referralCount === 1 ? c.climber : c.climbers}.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  onShareClick?.();
-                  handleShareAsImage();
-                }}
-                className="w-full py-3.5 rounded-xl font-subheadline text-sm font-medium border-2 transition-all hover:opacity-90"
-                style={{
-                  borderColor: accent,
-                  color: accent,
-                  backgroundColor: `${accent}12`,
-                }}
-              >
-                {t.shareAsImage}
-              </button>
-              <div className="flex items-center justify-center gap-4">
-                <a
-                  href={zaloUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => onShareClick?.()}
-                  className="w-11 h-11 flex items-center justify-center rounded-full bg-[#0068FF] text-white hover:opacity-90 transition-opacity"
-                  aria-label="Zalo"
-                >
-                  <IconZalo className="w-5 h-5" />
-                </a>
-                <a
-                  href={facebookUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => onShareClick?.()}
-                  className="w-11 h-11 flex items-center justify-center rounded-full bg-[#1877F2] text-white hover:opacity-90 transition-opacity"
-                  aria-label="Facebook"
-                >
-                  <IconFacebook className="w-5 h-5" />
-                </a>
-                <a
-                  href={threadsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => onShareClick?.()}
-                  className="w-11 h-11 flex items-center justify-center rounded-full bg-[#000] text-white hover:opacity-90 transition-opacity"
-                  aria-label="Threads"
-                >
-                  <IconThreads className="w-5 h-5" />
-                </a>
+                <input
+                  type="text"
+                  readOnly
+                  value={referralUrl}
+                  className="w-full bg-transparent font-mono text-[13px] text-[#333] outline-none"
+                  style={{ userSelect: "all" }}
+                />
                 <button
                   type="button"
                   onClick={() => {
                     onShareClick?.();
-                    handleInstagram();
+                    handleCopyLink();
                   }}
-                  className="w-11 h-11 flex items-center justify-center rounded-full bg-gradient-to-br from-[#F58529] via-[#DD2A7B] to-[#8134AF] text-white hover:opacity-90 transition-opacity"
-                  aria-label="Instagram"
-                  title={t.copiedInstagram}
-                >
-                  <IconInstagram className="w-5 h-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onShareClick?.();
-                    handleCopy();
+                  className="mt-3 w-full py-2.5 rounded-lg font-subheadline text-sm font-medium transition-all hover:opacity-90"
+                  style={{
+                    backgroundColor: accent,
+                    color: "#fff",
                   }}
-                  className="w-11 h-11 flex items-center justify-center rounded-full border-2 text-[#444] hover:bg-black/5 transition-colors"
-                  style={{ borderColor: accent }}
-                  aria-label={locale === "vi" ? "Sao chép" : "Copy"}
-                  title={copyLabel}
                 >
-                  <IconCopy className="w-5 h-5" />
+                  {t.copyLink}
                 </button>
               </div>
               <AnimatePresence mode="wait">
-                {(copyFeedback === "copied" || copyFeedback === "instagram") && (
+                {linkCopyFeedback && (
                   <motion.p
-                    className="text-center text-sm font-medium min-h-[1.25rem]"
-                    style={{ color: accent }}
+                    className="text-center text-sm font-medium text-[#555] min-h-[1.25rem]"
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
                   >
-                    {copyFeedback === "copied" ? t.copied : t.copiedInstagram}
+                    {t.linkCopiedToast}
                   </motion.p>
                 )}
               </AnimatePresence>
+              <div className="border-t border-black/[0.08] pt-5">
+                <p className="font-caption text-xs text-[#888] mb-4">{t.orShareAnotherWay}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onShareClick?.();
+                    handleShareAsImage();
+                  }}
+                  className="w-full py-3 rounded-xl font-subheadline text-sm font-medium border-2 transition-all hover:opacity-90 mb-4"
+                  style={{
+                    borderColor: accent,
+                    color: accent,
+                    backgroundColor: `${accent}10`,
+                  }}
+                >
+                  {t.shareAsImage}
+                </button>
+                <div className="flex items-center justify-center gap-4">
+                  <a
+                    href={zaloUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => onShareClick?.()}
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-[#0068FF] text-white hover:opacity-90 transition-opacity"
+                    aria-label="Zalo"
+                  >
+                    <IconZalo className="w-5 h-5" />
+                  </a>
+                  <a
+                    href={threadsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => onShareClick?.()}
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-[#000] text-white hover:opacity-90 transition-opacity"
+                    aria-label="Threads"
+                  >
+                    <IconThreads className="w-5 h-5" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onShareClick?.();
+                      handleInstagram();
+                    }}
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-br from-[#F58529] via-[#DD2A7B] to-[#8134AF] text-white hover:opacity-90 transition-opacity"
+                    aria-label="Instagram"
+                    title={t.copiedInstagram}
+                  >
+                    <IconInstagram className="w-5 h-5" />
+                  </button>
+                  <a
+                    href={facebookUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => onShareClick?.()}
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-[#1877F2] text-white hover:opacity-90 transition-opacity"
+                    aria-label="Facebook"
+                  >
+                    <IconFacebook className="w-5 h-5" />
+                  </a>
+                </div>
+              </div>
             </motion.div>
           )}
 

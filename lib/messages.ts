@@ -72,6 +72,11 @@ const en = {
       "The team with the most climbers when the countdown ends will receive a special prize.",
     linkCopied: "Link copied. Share it to grow your cloud.",
     shareModal: {
+      inviteTitle: "Invite someone to your cloud",
+      inviteInstruction: "Share your link below. Each person who joins strengthens your cloud.",
+      linkCopiedToast: "Link copied.",
+      copyLink: "Copy Link",
+      orShareAnotherWay: "Or share another way",
       shareHeader: "You found your cloud",
       copied: "Copied",
       copiedInstagram: "Copied. Paste into Instagram Story.",
@@ -322,6 +327,11 @@ const vi: Messages = {
       "Đội có nhiều người leo nhất khi hết countdown sẽ nhận giải thưởng đặc biệt.",
     linkCopied: "Đã copy link. Chia sẻ để mây lớn mạnh.",
     shareModal: {
+      inviteTitle: "Mời ai đó vào mây của bạn",
+      inviteInstruction: "Chia sẻ link bên dưới. Mỗi người tham gia giúp mây mạnh hơn.",
+      linkCopiedToast: "Đã copy link.",
+      copyLink: "Sao chép link",
+      orShareAnotherWay: "Hoặc chia sẻ bằng cách khác",
       shareHeader: "Bạn vừa tìm thấy mây của mình",
       copied: "Đã sao chép",
       copiedInstagram: "Đã sao chép. Dán vào Instagram Story.",
