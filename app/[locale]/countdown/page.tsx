@@ -18,10 +18,7 @@ import { useCountdownHeroEntrance, CONTENT_STAGGER_MS, EASE_APPLE_IN_OUT, EASE_A
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
 import { useLocale } from "@/components/LocaleProvider";
-import {
-  getEvolutionStage,
-  getEvolutionStageIndex,
-} from "@/lib/countdownEvolution";
+import { getEvolutionStageIndex } from "@/lib/countdownEvolution";
 import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
 import {
   EVOLUTION_LEVELS,
@@ -37,33 +34,18 @@ import AscensionTimeline from "@/components/AscensionTimeline";
 import type { EvolutionLevel } from "@/lib/evolutionLevels";
 import EvolutionCeremonyModal from "@/components/EvolutionCeremonyModal";
 import { getAscensionEnergyVars } from "@/lib/ascensionEnergy";
-import SkillLayer from "@/components/SkillLayer";
 import VerificationModal from "@/components/VerificationModal";
 import { createBrowserClient } from "@/lib/supabaseBrowser";
 
 const PENDING_REF_CODE_KEY = "leo_may_pending_ref_code";
 
-/** Evolution-driven opacity for aura: 0 at stage 0, ramps to 1 by stage 4+. */
-function auraOpacityForStage(stageIndex: number): number {
-  if (stageIndex <= 0) return 0;
-  return Math.min(1, 0.2 + stageIndex * 0.2);
-}
-
-/** Evolution-driven opacity for particles: 0 until stage 3, then ramps. */
-function particlesOpacityForStage(stageIndex: number): number {
-  if (stageIndex < 3) return 0;
-  return Math.min(1, (stageIndex - 2) * 0.35);
-}
-
-/** Applies species colors and evolution state to mascot SVG groups via object ref when loaded. */
+/** Applies species colors to mascot SVG groups via object ref when loaded. No stage-based VFX. */
 function MascotSvgObject({
   src,
   partColors,
-  evolutionStageIndex = 0,
 }: {
   src: string;
   partColors: MascotPartColors;
-  evolutionStageIndex?: number;
 }) {
   const objectRef = useRef<HTMLObjectElement>(null);
 
@@ -81,17 +63,13 @@ function MascotSvgObject({
       const mascotAura = doc.getElementById("mascot-aura") as SVGElement | null;
       const mascotParticles = doc.getElementById("mascot-particles") as SVGElement | null;
 
-      // Use inline style so it overrides SVG's class-based fill (e.g. .cls-5 { fill: #0242ff })
       const setFill = (el: SVGElement, value: string) => {
         el.style.setProperty("fill", value, "important");
       };
       const mascotRightEyes = doc.getElementById("mascot-right-eyes") as SVGElement | null;
       if (eyeLeft) setFill(eyeLeft, partColors.eyeLeft);
       if (eyeRight) setFill(eyeRight, partColors.eyeRight);
-      if (mascotLeftEyes) {
-        setFill(mascotLeftEyes, partColors.eyeLeft);
-        mascotLeftEyes.setAttribute("filter", evolutionStageIndex > 0 ? "url(#mascot-eye-glow)" : "none");
-      }
+      if (mascotLeftEyes) setFill(mascotLeftEyes, partColors.eyeLeft);
       if (mascotRightEyes) setFill(mascotRightEyes, partColors.eyeRight);
       if (mascotRibbon) setFill(mascotRibbon, partColors.nose);
       if (ribbonEl) setFill(ribbonEl, partColors.nose);
@@ -101,10 +79,10 @@ function MascotSvgObject({
         cloudOutline.style.setProperty("stroke", partColors.cloudOutline, "important");
         if (!cloudOutline.hasAttribute("stroke-width")) cloudOutline.setAttribute("stroke-width", "2");
       }
-      if (mascotAura) mascotAura.setAttribute("opacity", String(auraOpacityForStage(evolutionStageIndex)));
-      if (mascotParticles) mascotParticles.setAttribute("opacity", String(particlesOpacityForStage(evolutionStageIndex)));
+      if (mascotAura) mascotAura.setAttribute("opacity", "0");
+      if (mascotParticles) mascotParticles.setAttribute("opacity", "0");
     },
-    [partColors.eyeLeft, partColors.eyeRight, partColors.nose, partColors.scarf, partColors.cloudOutline, evolutionStageIndex]
+    [partColors.eyeLeft, partColors.eyeRight, partColors.nose, partColors.scarf, partColors.cloudOutline]
   );
 
   useEffect(() => {
@@ -210,7 +188,6 @@ export default function CountdownPage() {
   const searchParams = useSearchParams();
   const fromMist = searchParams.get("fromMist") === "1";
   const debugPerf = searchParams.get("debugPerf") === "1";
-  const debugSkill = searchParams.get("debugSkill") === "1";
   const locale = useLocale();
   const [perfDelta, setPerfDelta] = useState<number>(0);
   const perfRef = useRef<number>(0);
@@ -390,7 +367,6 @@ export default function CountdownPage() {
   const nextFormName = getNextFormName(referralCount, locale);
   const currentLevelName = getLevelName(currentLevel, locale);
 
-  const evolutionStage = getEvolutionStage(referralCount);
   const evolutionStageIndex = getEvolutionStageIndex(referralCount);
   const identityRankLabel = currentLevelName;
   const daysRemaining = days;
@@ -398,12 +374,10 @@ export default function CountdownPage() {
   const skyDominant = leadingTeamId || "default";
   const evolutionAbilityText = t.evolutionAbility?.[evolutionStageIndex] ?? t.yourCloudGathering;
   const mascotPartColors = getMascotPartColors(cloud.id);
-  const orbitParticleCount = evolutionStageIndex >= 3 ? 4 + Math.min(evolutionStageIndex - 3, 4) : 0;
 
   return (
     <div
       className="min-h-[100dvh] md:min-h-[100svh] flex flex-col w-full relative countdown-page-root"
-      data-evolution-index={evolutionStageIndex}
       data-sky-dominant={skyDominant}
       data-sky-unstable={skyUnstable ? "true" : "false"}
     >
@@ -413,9 +387,6 @@ export default function CountdownPage() {
           aria-live="polite"
         >
           <div>cloud: {cloud.id}</div>
-          <div>evolution: {evolutionStageIndex}</div>
-          <div>skill visible: {evolutionStageIndex >= 3 ? "yes" : "no"}</div>
-          <div>anim: is-animating</div>
           <div>frame Δ: {perfDelta.toFixed(1)}ms {perfDelta > 0 ? `(~${(1000 / perfDelta).toFixed(0)} fps)` : ""}</div>
         </div>
       )}
@@ -569,7 +540,6 @@ export default function CountdownPage() {
                 </svg>
               </motion.span>
             )}
-            ,
           </p>
           <p className="team-name">
             {t.youJoined} <span style={{ color: accent, textShadow: `0 0 12px ${accent}60` }}>Team {cloud.name}</span>
@@ -594,85 +564,15 @@ export default function CountdownPage() {
         <motion.div
           className="shrink-0 countdown-mascot-wrapper countdown-spacing-after-ip flex flex-col items-center"
           data-cloud-type={cloud.id}
-          data-evolution-stage={evolutionStage.id}
-          data-evolution-index={evolutionStageIndex}
           style={getAscensionEnergyVars(cloud.id) as React.CSSProperties}
           initial={{ opacity: 0 }}
           animate={{ opacity: phase === "content" ? 1 : 0 }}
           transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[2] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
-          {/* “Goku” */}
-          {shareModal && shareAuraPulseKey > 0 && (
+          <div className="mascot-ring" aria-hidden />
+          <div className="evolution-mascot-inner">
             <motion.div
-              key={shareAuraPulseKey}
-              className="absolute pointer-events-none rounded-full z-[1]"
-              style={{
-                left: "50%",
-                top: "50%",
-                width: "140%",
-                height: "140%",
-                transform: "translate(-50%, -50%)",
-                background: "radial-gradient(circle, var(--cloud-aura) 0%, transparent 70%)",
-                boxShadow: "0 0 80px 30px var(--cloud-aura)",
-              }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: [0, 0.35, 0] }}
-              transition={{ duration: 0.9, ease: "easeOut" }}
-              aria-hidden
-            />
-          )}
-          {evolutionStageIndex >= 5 && (
-            <div className="evolution-aura-ring" aria-hidden />
-          )}
-          {evolutionStageIndex >= 1 && (
-            <div className="evolution-reflective-back" aria-hidden />
-          )}
-          {evolutionStageIndex >= 3 && (
-            <div className="evolution-energy-core" aria-hidden />
-          )}
-          {evolutionStageIndex >= 5 && (
-            <div className="evolution-mist" aria-hidden />
-          )}
-          {orbitParticleCount > 0 && (
-            <div className="evolution-orbit-particles" aria-hidden>
-              {Array.from({ length: orbitParticleCount }, (_, i) => (
-                <span key={i} className="evolution-orbit-dot" style={{ ["--orbit-i" as string]: i }} />
-              ))}
-            </div>
-          )}
-          <div
-            className="mascot-ascension"
-            data-evolution-index={evolutionStageIndex}
-            data-cloud-type={cloud.id}
-            data-tier-max={profile.tierLevel === 6 ? "true" : undefined}
-          >
-            <div className="aura-core" aria-hidden />
-            <div className="aura-flames" aria-hidden />
-            <SkillLayer cloudType={cloud.id} evolutionStageIndex={evolutionStageIndex} debugAnimation={debugSkill} />
-            <div className="aura-outline" aria-hidden />
-            <div className="evolution-mascot-inner">
-            {evolutionStageIndex >= 5 && (
-              <div
-                className="evolution-eye-glow"
-                aria-hidden
-                style={{
-                  ["--eye-glow-color" as string]: mascotPartColors.eyeLeft,
-                  ["--eye-glow-opacity" as string]: 0.15 + (evolutionStageIndex - 5) * 0.08,
-                } as React.CSSProperties}
-              />
-            )}
-            {evolutionStageIndex >= 4 && (
-              <div
-                className="evolution-ribbon-glow"
-                aria-hidden
-                style={{
-                  ["--ribbon-glow-color" as string]: mascotPartColors.ribbon,
-                  ["--ribbon-glow-opacity" as string]: 0.1 + (evolutionStageIndex - 4) * 0.06,
-                } as React.CSSProperties}
-              />
-            )}
-            <motion.div
-              className={`countdown-ip mascot-svg origin-center ${phase === "content" ? "countdown-ip-float countdown-ip-breathe" : ""}`}
+              className={`countdown-ip mascot-svg origin-center ${phase === "content" ? "countdown-ip-float" : ""}`}
               style={{
                 transformOrigin: "center center",
                 visibility: phase === "hidden" || phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" || phase === "phase4-micro-settle" ? "hidden" : "visible",
@@ -690,10 +590,8 @@ export default function CountdownPage() {
               <MascotSvgObject
                 src="/brand/ip-count-down.svg"
                 partColors={mascotPartColors}
-                evolutionStageIndex={evolutionStageIndex}
               />
             </motion.div>
-          </div>
           </div>
           <motion.div
             className="evolution-title-capsule mt-1 countdown-spacing-after-identity"

@@ -933,790 +933,96 @@ body.hero-ready .hero-scroll {
   75% { transform: translate(1%, -1%); }
 }
 
-/* Countdown page: mascot evolution stage — structural scale, glow, layers.
- * Mascot wrapper: NO visual effects (no background, filter, mask, backdrop-filter) so aura
- * layers can blend into the sky without a visible compositing box. Overflow visible so blur extends.
- * NO WHITE DEFAULTS: fallback tokens are transparent so we never flash white on hydration or before data-cloud-type is applied. */
+/* Countdown page: mascot — 1 ring, 1 soft radial glow, no stage-based VFX. */
 .countdown-mascot-wrapper {
   position: relative;
   overflow: visible;
   background: transparent;
   filter: none;
-  backdrop-filter: none;
-  mask-image: none;
-  -webkit-mask-image: none;
-  --float-amplitude: 8px;
-  /* Fallback tokens: transparent so no white flash; real colors come from [data-cloud-type] only */
   --cloud-primary: transparent;
   --cloud-secondary: transparent;
   --cloud-aura: transparent;
-  --cloud-core: transparent;
 }
-/* Cloud-type color tokens — guaranteed visibility on #0242FF background */
 .countdown-mascot-wrapper[data-cloud-type="may_nhe"] {
   --cloud-primary: #7FD6FF;
   --cloud-secondary: #D6F3FF;
-  --cloud-aura: rgba(127,214,255,0.45);
-  --cloud-core: rgba(127,214,255,0.3);
+  --cloud-aura: rgba(127,214,255,0.4);
 }
 .countdown-mascot-wrapper[data-cloud-type="suong_mu"] {
   --cloud-primary: #B8C6D9;
   --cloud-secondary: #EEF3FA;
-  --cloud-aura: rgba(184,198,217,0.5);
-  --cloud-core: rgba(184,198,217,0.35);
+  --cloud-aura: rgba(184,198,217,0.4);
 }
 .countdown-mascot-wrapper[data-cloud-type="giong"] {
   --cloud-primary: #FF635C;
   --cloud-secondary: #B84A45;
-  --cloud-aura: rgba(255,229,228,0.5);
-  --cloud-core: rgba(255,99,92,0.4);
+  --cloud-aura: rgba(255,229,228,0.4);
 }
 .countdown-mascot-wrapper[data-cloud-type="ho_may"] {
   --cloud-primary: #C4B8B0;
   --cloud-secondary: #E8E0D8;
-  --cloud-aura: rgba(230,220,210,0.5);
-  --cloud-core: rgba(196,184,176,0.35);
+  --cloud-aura: rgba(230,220,210,0.4);
 }
 .countdown-mascot-wrapper[data-cloud-type="cau_vong"] {
   --cloud-primary: #FFE066;
   --cloud-secondary: #FFF0B8;
-  --cloud-aura: rgba(255,224,102,0.5);
-  --cloud-core: rgba(255,224,102,0.35);
+  --cloud-aura: rgba(255,224,102,0.4);
 }
 .countdown-mascot-wrapper[data-cloud-type="gio"] {
   --cloud-primary: #6FCF97;
   --cloud-secondary: #B8E8CE;
-  --cloud-aura: rgba(111,207,151,0.45);
-  --cloud-core: rgba(111,207,151,0.35);
+  --cloud-aura: rgba(111,207,151,0.4);
 }
+/* Single soft radial glow (constant, no pulse) */
 .countdown-mascot-wrapper::before {
   content: "";
   position: absolute;
-  inset: -20%;
+  left: 50%;
+  top: 50%;
+  width: 120%;
+  height: 120%;
+  margin-left: -60%;
+  margin-top: -60%;
   border-radius: 50%;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity 1.2s ease, box-shadow 1.2s ease;
+  z-index: 0;
+  opacity: 0.45;
+  box-shadow: 0 0 80px 24px var(--cloud-aura);
 }
-/* Ascension stages 1–2: aura opacity per spec (0→0.3, 0.3→0.5) */
-.countdown-mascot-wrapper[data-evolution-stage="stirring"]::before {
-  opacity: 0.3;
-  box-shadow: 0 0 60px 20px var(--cloud-aura);
-}
-.countdown-mascot-wrapper[data-evolution-stage="awakening"]::before {
+/* Single ring behind mascot (static; optional subtle rotation in keyframe) */
+.mascot-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 110%;
+  height: 110%;
+  margin-left: -55%;
+  margin-top: -55%;
+  border-radius: 50%;
+  border: 2px solid var(--cloud-aura);
+  pointer-events: none;
+  z-index: 1;
   opacity: 0.5;
-  box-shadow: 0 0 80px 25px var(--cloud-aura);
 }
-.countdown-mascot-wrapper[data-evolution-stage="forming"]::before {
-  opacity: 0.5;
-  box-shadow: 0 0 100px 30px var(--cloud-aura);
-}
-.countdown-mascot-wrapper[data-evolution-stage="ascending"]::before {
-  opacity: 0.5;
-  box-shadow: 0 0 120px 35px var(--cloud-aura);
-}
-.countdown-mascot-wrapper[data-evolution-stage="sky_guardian"]::before {
-  opacity: 0.5;
-  box-shadow: 0 0 140px 40px var(--cloud-aura);
-}
-.countdown-mascot-wrapper[data-evolution-stage="founding"]::before {
-  opacity: 0.4;
-  box-shadow: 0 0 100px 35px var(--cloud-aura);
-}
-/* Team-specific aura animation applied via data-cloud-type (see PART 4 block below); capped to avoid white flash */
-.countdown-mascot-wrapper[data-evolution-stage="founding"]::before {
-  animation: mascotGlowPulse 4s ease-in-out infinite;
-}
-@keyframes mascotGlowPulse {
-  0%, 100% { opacity: 0.35; }
-  50% { opacity: 0.45; }
-}
-
-/* Structural: size fixed; evolution shown via color, particles, glow only */
 .evolution-mascot-inner {
   position: relative;
   z-index: 2;
 }
-/* Stage 4+: mascot translateY oscillation -1px→1px→-1px (no resize) */
-.countdown-mascot-wrapper[data-evolution-index="4"] .evolution-mascot-inner,
-.countdown-mascot-wrapper[data-evolution-index="5"] .evolution-mascot-inner,
-.countdown-mascot-wrapper[data-evolution-index="5"] .evolution-mascot-inner {
-  animation: ascensionOscillate 3s ease-in-out infinite;
-  will-change: transform;
-}
-@keyframes ascensionOscillate {
-  0%, 100% { transform: translateY(-1px); }
-  50% { transform: translateY(1px); }
-}
-
-/* Eye glow overlay (high evolution) — positioned over left eye area */
-.evolution-eye-glow {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 12%;
-  height: 8%;
-  margin-left: -10%;
-  margin-top: -8%;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--eye-glow-color, currentColor) 0%, transparent 70%);
-  opacity: var(--eye-glow-opacity, 0.2);
-  pointer-events: none;
-  filter: blur(6px);
-}
-
-/* Ribbon glow overlay (mid+ evolution) */
-.evolution-ribbon-glow {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 24%;
-  height: 12%;
-  margin-left: -12%;
-  margin-top: -2%;
-  border-radius: 40%;
-  background: radial-gradient(ellipse, var(--ribbon-glow-color, currentColor) 0%, transparent 70%);
-  opacity: var(--ribbon-glow-opacity, 0.15);
-  pointer-events: none;
-  filter: blur(10px);
-}
-
-/* Float amplitude 4px → 14px by stage; breathing scale 1.0 → 1.03 */
+/* Optional subtle mascot float: 3px up/down, 4s ease-in-out */
 .countdown-ip-float {
-  animation: ipFloatAndBreath 6s ease-in-out infinite;
+  animation: mascotFloatSubtle 4s ease-in-out infinite;
 }
-@keyframes ipFloatAndBreath {
-  0%, 100% { transform: translateY(0) scale(1); }
-  25% { transform: translateY(var(--float-amplitude, 8px)) scale(1.015); }
-  50% { transform: translateY(0) scale(1.03); }
-  75% { transform: translateY(var(--float-amplitude, 8px)) scale(1.015); }
+@keyframes mascotFloatSubtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
 }
-
-/* Energy core behind mascot (Stage 3+) — scale 0.98→1.04→0.98, 2600ms */
-.evolution-energy-core {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 90%;
-  height: 90%;
-  margin-left: -45%;
-  margin-top: -45%;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle at center,
-    var(--cloud-core) 0%,
-    var(--cloud-primary) 25%,
-    transparent 55%,
-    transparent 70%
-  );
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.9;
-  will-change: transform;
-  animation: energyCorePulse 2600ms ease-in-out infinite;
-}
-.countdown-mascot-wrapper[data-evolution-index="3"] .evolution-energy-core { width: 85%; height: 85%; margin-left: -42.5%; margin-top: -42.5%; opacity: 0.6; }
-.countdown-mascot-wrapper[data-evolution-index="4"] .evolution-energy-core { opacity: 0.75; }
-.countdown-mascot-wrapper[data-evolution-index="5"] .evolution-energy-core { opacity: 0.55; }
-.countdown-mascot-wrapper[data-evolution-index="5"] .evolution-energy-core { opacity: 0.6; }
-@keyframes energyCorePulse {
-  0%, 100% { transform: scale(0.98); }
-  50% { transform: scale(1.04); }
-}
-
-/* Reflective back shape behind mascot — all 6 cloud types (Stage 1+), team-colored */
-.evolution-reflective-back {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 95%;
-  height: 95%;
-  margin-left: -47.5%;
-  margin-top: -47.5%;
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.5;
-  filter: blur(20px);
-  will-change: opacity, transform;
-  background: radial-gradient(
-    ellipse 80% 70% at 50% 45%,
-    var(--cloud-secondary) 0%,
-    var(--cloud-primary) 35%,
-    transparent 60%
-  );
-}
-.countdown-mascot-wrapper[data-cloud-type="may_nhe"] .evolution-reflective-back {
-  opacity: 0.45;
-  filter: blur(24px);
-}
-.countdown-mascot-wrapper[data-cloud-type="suong_mu"] .evolution-reflective-back {
-  opacity: 0.4;
-  filter: blur(28px);
-  background: radial-gradient(
-    ellipse 85% 75% at 50% 50%,
-    var(--cloud-secondary) 0%,
-    var(--cloud-primary) 30%,
-    transparent 65%
-  );
-}
-.countdown-mascot-wrapper[data-cloud-type="giong"] .evolution-reflective-back {
-  opacity: 0.5;
-  filter: blur(18px);
-}
-.countdown-mascot-wrapper[data-cloud-type="ho_may"] .evolution-reflective-back {
-  opacity: 0.42;
-  filter: blur(22px);
-}
-.countdown-mascot-wrapper[data-cloud-type="cau_vong"] .evolution-reflective-back {
-  opacity: 0.55;
-  filter: blur(20px);
-  background: var(--ascension-gradient, linear-gradient(135deg, rgba(255,224,102,0.6), rgba(127,214,255,0.4), rgba(155,89,182,0.4)));
-}
-.countdown-mascot-wrapper[data-cloud-type="gio"] .evolution-reflective-back {
-  opacity: 0.48;
-  filter: blur(22px);
-}
-
-/* ========== MASCOT ASCENSION (Stage 0–6, permanent layers, no DOM toggling) ========== */
-/* Container: NO visual effects — avoids visible square compositing box; only aura layers have blur. */
-.mascot-ascension {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  background: transparent;
-  filter: none;
-  backdrop-filter: none;
-  mask-image: none;
-  -webkit-mask-image: none;
-}
-.mascot-ascension > .aura-core,
-.mascot-ascension > .aura-flames,
-.mascot-ascension > .aura-outline,
-.mascot-ascension > .skill-layer {
-  position: absolute;
-  inset: -120px;
-  pointer-events: none;
-  transition: opacity 900ms ease, transform 900ms ease;
-}
-/* Explicit stacking: aura 1, skill 2, mascot 3 — skill never overlaps UI (z 10+) */
-.mascot-ascension > .aura-core,
-.mascot-ascension > .aura-flames,
-.mascot-ascension > .aura-outline {
-  z-index: 1;
-}
-.mascot-ascension > .skill-layer {
-  z-index: 2;
-  will-change: transform, opacity;
-}
-.mascot-ascension .evolution-mascot-inner,
-.mascot-ascension .mascot-svg {
-  position: relative;
-  z-index: 3;
-  background: transparent;
-  filter: none;
-}
-
-/* B1) Aura core — radial glow, breathing */
-.aura-core {
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--cloud-primary) 0%, var(--cloud-secondary) 40%, transparent 65%);
-  filter: blur(55px);
-  animation: auraCoreBreath 4s ease-in-out infinite;
-}
-@keyframes auraCoreBreath {
-  0%, 100% { transform: scale(0.98); }
-  50% { transform: scale(1.04); }
-}
-
-/* B2) Flame spike layer — conic mask, rising feel */
-.aura-flames {
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--cloud-primary) 0%, var(--cloud-secondary) 30%, transparent 55%);
-  filter: blur(35px);
-  -webkit-mask-image: repeating-conic-gradient(from 0deg at 50% 50%, black 0deg 22.5deg, transparent 22.5deg 45deg);
-  mask-image: repeating-conic-gradient(from 0deg at 50% 50%, black 0deg 22.5deg, transparent 22.5deg 45deg);
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-  animation: auraFlamesRise 6s ease-in-out infinite;
-}
-@keyframes auraFlamesRise {
-  0%, 100% { transform: scaleY(0.98); mask-position: 50% 50%; }
-  50% { transform: scaleY(1.05); mask-position: 50% 48%; }
-}
-
-/* B3) Edge outline — halo around mascot */
-.aura-outline {
-  border-radius: 50%;
-  background: radial-gradient(ellipse 70% 75% at 50% 50%, var(--cloud-primary) 0%, var(--cloud-secondary) 35%, transparent 60%);
-  filter: blur(14px);
-}
-
-/* C) Stage intensity (opacity only; no white, no DOM) */
-.mascot-ascension[data-evolution-index="0"] .aura-core,
-.mascot-ascension[data-evolution-index="0"] .aura-flames,
-.mascot-ascension[data-evolution-index="0"] .skill-layer,
-.mascot-ascension[data-evolution-index="0"] .aura-outline { opacity: 0; }
-.mascot-ascension[data-evolution-index="1"] .aura-core { opacity: 0.15; }
-.mascot-ascension[data-evolution-index="1"] .aura-flames,
-.mascot-ascension[data-evolution-index="1"] .skill-layer { opacity: 0; }
-.mascot-ascension[data-evolution-index="1"] .aura-outline { opacity: 0.05; }
-.mascot-ascension[data-evolution-index="2"] .aura-core { opacity: 0.25; }
-.mascot-ascension[data-evolution-index="2"] .aura-flames { opacity: 0.05; }
-.mascot-ascension[data-evolution-index="2"] .skill-layer { opacity: 0; }
-.mascot-ascension[data-evolution-index="2"] .aura-outline { opacity: 0.10; }
-.mascot-ascension[data-evolution-index="3"] .aura-core { opacity: 0.40; }
-.mascot-ascension[data-evolution-index="3"] .aura-flames { opacity: 0.15; }
-.mascot-ascension[data-evolution-index="3"] .skill-layer { opacity: 1; }
-.mascot-ascension[data-evolution-index="3"] .aura-outline { opacity: 0.16; }
-.mascot-ascension[data-evolution-index="4"] .aura-core { opacity: 0.55; }
-.mascot-ascension[data-evolution-index="4"] .aura-flames { opacity: 0.30; }
-.mascot-ascension[data-evolution-index="4"] .skill-layer { opacity: 1; }
-.mascot-ascension[data-evolution-index="4"] .aura-outline { opacity: 0.22; }
-.mascot-ascension[data-evolution-index="5"] .aura-core { opacity: 0.75; }
-.mascot-ascension[data-evolution-index="5"] .aura-flames { opacity: 0.55; }
-.mascot-ascension[data-evolution-index="5"] .skill-layer { opacity: 1; }
-.mascot-ascension[data-evolution-index="5"] .aura-outline { opacity: 0.35; }
-.mascot-ascension[data-evolution-index="6"] .aura-core { opacity: 0.95; }
-.mascot-ascension[data-evolution-index="6"] .aura-flames { opacity: 0.85; }
-.mascot-ascension[data-evolution-index="6"] .skill-layer { opacity: 1; }
-.mascot-ascension[data-evolution-index="6"] .aura-outline { opacity: 0.55; }
-
-/* Tier 6 (max paid tier): subtle mascot upgrade state */
-.mascot-ascension[data-tier-max="true"] .evolution-mascot-inner {
-  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.25));
-}
-
-/* ========== SKILL LAYER — volumetric gradients only (GPU: transform + opacity) ========== */
-/* Parent container: never animate opacity here; stage controls visibility only */
-.skill-layer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform: translateZ(0);
-  z-index: 2;
-  will-change: transform, opacity;
-  pointer-events: none;
-  animation-play-state: running;
-}
-/* Debug: add class "debug-skill-animation" to .skill-layer to verify animation system */
-@keyframes debugMove {
-  from { transform: translateZ(0) translateX(0); }
-  to { transform: translateZ(0) translateX(40px); }
-}
-.skill-layer.debug-skill-animation {
-  animation: debugMove 2s infinite alternate linear;
-}
-.skill-layer-svg {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  /* 1.4x–1.7x mascot: effects extend clearly outside silhouette */
-  transform: scale(1.55);
-  transform-origin: center center;
-}
-/* Animated SVG elements: force GPU layer and running state (mobile Safari/Chrome) */
-.skill-layer.is-animating .skill-rainbow-arc,
-.skill-layer.is-animating .skill-wind-1, .skill-layer.is-animating .skill-wind-2,
-.skill-layer.is-animating .skill-wind-3, .skill-layer.is-animating .skill-wind-4,
-.skill-layer.is-animating .skill-mist-1, .skill-layer.is-animating .skill-mist-2,
-.skill-layer.is-animating .skill-mist-3, .skill-layer.is-animating .skill-mist-4, .skill-layer.is-animating .skill-mist-5,
-.skill-layer.is-animating .skill-sparkle-1, .skill-layer.is-animating .skill-sparkle-2,
-.skill-layer.is-animating .skill-sparkle-3, .skill-layer.is-animating .skill-sparkle-4,
-.skill-layer.is-animating .skill-ring-1, .skill-layer.is-animating .skill-ring-2, .skill-layer.is-animating .skill-ring-3,
-.skill-layer.is-animating .skill-bolt-1, .skill-layer.is-animating .skill-bolt-2 {
-  transform: translateZ(0);
-  animation-play-state: running;
-}
-/* Only the active cloud's group is visible */
-.skill-layer .skill-may_nhe,
-.skill-layer .skill-gio,
-.skill-layer .skill-cau_vong,
-.skill-layer .skill-suong_mu,
-.skill-layer .skill-ho_may,
-.skill-layer .skill-giong { opacity: 0; pointer-events: none; }
-.skill-layer[data-cloud-type="may_nhe"] .skill-may_nhe,
-.skill-layer[data-cloud-type="gio"] .skill-gio,
-.skill-layer[data-cloud-type="cau_vong"] .skill-cau_vong,
-.skill-layer[data-cloud-type="suong_mu"] .skill-suong_mu,
-.skill-layer[data-cloud-type="ho_may"] .skill-ho_may,
-.skill-layer[data-cloud-type="giong"] .skill-giong { opacity: 1; }
-
-/* Cầu Vồng: thick gradient arc — opacity + scale pulse only (no stroke) */
-.skill-layer[data-cloud-type="cau_vong"] .skill-rainbow-arc {
-  opacity: 0;
-  transform: scale(0.92);
-  transform-origin: 50px 50px;
-}
-.skill-layer[data-cloud-type="cau_vong"].is-animating .skill-rainbow-arc {
-  animation: skillRainbowForm 850ms cubic-bezier(var(--ease-hero)) forwards, skillRainbowPulse 5.2s cubic-bezier(var(--ease-inout)) 850ms infinite;
-}
-@keyframes skillRainbowForm {
-  0% { opacity: 0; transform: scale(0.92); }
-  55%, 100% { opacity: 0.95; transform: scale(1); }
-}
-@keyframes skillRainbowPulse {
-  0%, 100% { opacity: 0.6; transform: scale(0.98); }
-  50% { opacity: 0.95; transform: scale(1.08); }
-}
-
-/* Gió: elongated gradient ellipses — translate 8–18px, opacity fade; stagger 0, 0.8s, 1.6s, 2.4s */
-.skill-layer[data-cloud-type="gio"] .skill-wind-1,
-.skill-layer[data-cloud-type="gio"] .skill-wind-2,
-.skill-layer[data-cloud-type="gio"] .skill-wind-3,
-.skill-layer[data-cloud-type="gio"] .skill-wind-4 { opacity: 0; transform: translate3d(-12%, 0, 0); }
-.skill-layer[data-cloud-type="gio"].is-animating .skill-wind-1 { animation: skillWindForm 800ms cubic-bezier(var(--ease-hero)) forwards, skillWindDrift 6.4s cubic-bezier(var(--ease-inout)) 1s infinite; }
-.skill-layer[data-cloud-type="gio"].is-animating .skill-wind-2 { animation: skillWindForm 800ms cubic-bezier(var(--ease-hero)) 0.8s forwards, skillWindDrift 6.4s cubic-bezier(var(--ease-inout)) 1.8s infinite; }
-.skill-layer[data-cloud-type="gio"].is-animating .skill-wind-3 { animation: skillWindForm 800ms cubic-bezier(var(--ease-hero)) 1.6s forwards, skillWindDrift 6.4s cubic-bezier(var(--ease-inout)) 2.6s infinite; }
-.skill-layer[data-cloud-type="gio"].is-animating .skill-wind-4 { animation: skillWindForm 800ms cubic-bezier(var(--ease-hero)) 2.4s forwards, skillWindDrift 6.4s cubic-bezier(var(--ease-inout)) 3.4s infinite; }
-@keyframes skillWindForm {
-  0% { opacity: 0.35; transform: translate3d(-12%, 0, 0); }
-  55%, 100% { opacity: 0.9; transform: translate3d(0, 0, 0); }
-}
-@keyframes skillWindDrift {
-  0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.5; }
-  50% { transform: translate3d(10%, 0, 0); opacity: 0.95; }
-}
-
-/* Sương Mù: radial gradient blobs — drift + opacity; stagger */
-.skill-layer[data-cloud-type="suong_mu"] .skill-mist-1,
-.skill-layer[data-cloud-type="suong_mu"] .skill-mist-2,
-.skill-layer[data-cloud-type="suong_mu"] .skill-mist-3,
-.skill-layer[data-cloud-type="suong_mu"] .skill-mist-4,
-.skill-layer[data-cloud-type="suong_mu"] .skill-mist-5 { opacity: 0; transform: scale(0.9) translate3d(0, 0, 0); }
-.skill-layer[data-cloud-type="suong_mu"].is-animating .skill-mist-1 { animation: skillMistForm 850ms cubic-bezier(var(--ease-hero)) forwards, skillMistDrift 8s cubic-bezier(var(--ease-inout)) 1s infinite; }
-.skill-layer[data-cloud-type="suong_mu"].is-animating .skill-mist-2 { animation: skillMistForm 850ms cubic-bezier(var(--ease-hero)) 0.8s forwards, skillMistDrift 8s cubic-bezier(var(--ease-inout)) 1.8s infinite; }
-.skill-layer[data-cloud-type="suong_mu"].is-animating .skill-mist-3 { animation: skillMistForm 850ms cubic-bezier(var(--ease-hero)) 1.6s forwards, skillMistDrift 8s cubic-bezier(var(--ease-inout)) 2.6s infinite; }
-.skill-layer[data-cloud-type="suong_mu"].is-animating .skill-mist-4 { animation: skillMistForm 850ms cubic-bezier(var(--ease-hero)) 0.45s forwards, skillMistDrift 8s cubic-bezier(var(--ease-inout)) 1.45s infinite; }
-.skill-layer[data-cloud-type="suong_mu"].is-animating .skill-mist-5 { animation: skillMistForm 850ms cubic-bezier(var(--ease-hero)) 2.4s forwards, skillMistDrift 8s cubic-bezier(var(--ease-inout)) 3.4s infinite; }
-@keyframes skillMistForm {
-  0% { opacity: 0.35; transform: scale(0.9) translate3d(0, 0, 0); }
-  55%, 100% { opacity: 0.9; transform: scale(1) translate3d(0, 0, 0); }
-}
-@keyframes skillMistDrift {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.5; }
-  50% { transform: translate3d(5%, -4%, 0) scale(1.08); opacity: 0.95; }
-}
-
-/* Mây Nhẹ: soft glow circles — pulse + drift; stagger */
-.skill-layer[data-cloud-type="may_nhe"] .skill-sparkle-1,
-.skill-layer[data-cloud-type="may_nhe"] .skill-sparkle-2,
-.skill-layer[data-cloud-type="may_nhe"] .skill-sparkle-3,
-.skill-layer[data-cloud-type="may_nhe"] .skill-sparkle-4 { opacity: 0; transform: scale(0.9); }
-.skill-layer[data-cloud-type="may_nhe"].is-animating .skill-sparkle-1 { animation: skillSparkleForm 800ms cubic-bezier(var(--ease-hero)) forwards, skillSparklePulse 5.6s cubic-bezier(var(--ease-inout)) 1s infinite; }
-.skill-layer[data-cloud-type="may_nhe"].is-animating .skill-sparkle-2 { animation: skillSparkleForm 800ms cubic-bezier(var(--ease-hero)) 0.8s forwards, skillSparklePulse 5.6s cubic-bezier(var(--ease-inout)) 1.8s infinite; }
-.skill-layer[data-cloud-type="may_nhe"].is-animating .skill-sparkle-3 { animation: skillSparkleForm 800ms cubic-bezier(var(--ease-hero)) 1.6s forwards, skillSparklePulse 5.6s cubic-bezier(var(--ease-inout)) 2.6s infinite; }
-.skill-layer[data-cloud-type="may_nhe"].is-animating .skill-sparkle-4 { animation: skillSparkleForm 800ms cubic-bezier(var(--ease-hero)) 2.4s forwards, skillSparklePulse 5.6s cubic-bezier(var(--ease-inout)) 3.4s infinite; }
-@keyframes skillSparkleForm {
-  0% { opacity: 0.35; transform: scale(0.9); }
-  55%, 100% { opacity: 0.9; transform: scale(1); }
-}
-@keyframes skillSparklePulse {
-  0%, 100% { opacity: 0.5; transform: scale(0.95); }
-  50% { opacity: 0.95; transform: scale(1.12); }
-}
-
-/* Hồ Mây: radial gradient rings — expand + fade; stagger */
-.skill-layer[data-cloud-type="ho_may"] .skill-ring-1,
-.skill-layer[data-cloud-type="ho_may"] .skill-ring-2,
-.skill-layer[data-cloud-type="ho_may"] .skill-ring-3 { opacity: 0; transform: scale(0.9); }
-.skill-layer[data-cloud-type="ho_may"].is-animating .skill-ring-1 { animation: skillRingForm 850ms cubic-bezier(var(--ease-hero)) forwards, skillRingPulse 9s cubic-bezier(var(--ease-inout)) 1s infinite; }
-.skill-layer[data-cloud-type="ho_may"].is-animating .skill-ring-2 { animation: skillRingForm 850ms cubic-bezier(var(--ease-hero)) 0.8s forwards, skillRingPulse 9s cubic-bezier(var(--ease-inout)) 1.8s infinite; }
-.skill-layer[data-cloud-type="ho_may"].is-animating .skill-ring-3 { animation: skillRingForm 850ms cubic-bezier(var(--ease-hero)) 1.6s forwards, skillRingPulse 9s cubic-bezier(var(--ease-inout)) 2.6s infinite; }
-@keyframes skillRingForm {
-  0% { opacity: 0.35; transform: scale(0.9); }
-  55%, 100% { opacity: 0.85; transform: scale(1); }
-}
-@keyframes skillRingPulse {
-  0%, 100% { transform: scale(0.95); opacity: 0.4; }
-  50% { transform: scale(1.15); opacity: 0.9; }
-}
-
-/* Giông: filled bolts — opacity flicker; stagger */
-.skill-layer[data-cloud-type="giong"] .skill-bolt-1,
-.skill-layer[data-cloud-type="giong"] .skill-bolt-2 { opacity: 0; transform: scale(0.9); }
-.skill-layer[data-cloud-type="giong"].is-animating .skill-bolt-1 { animation: skillBoltForm 800ms cubic-bezier(var(--ease-hero)) forwards, skillBoltFlicker 7s cubic-bezier(var(--ease-inout)) 1s infinite; }
-.skill-layer[data-cloud-type="giong"].is-animating .skill-bolt-2 { animation: skillBoltForm 800ms cubic-bezier(var(--ease-hero)) 0.8s forwards, skillBoltFlicker 7s cubic-bezier(var(--ease-inout)) 1.8s infinite; }
-@keyframes skillBoltForm {
-  0% { opacity: 0.35; transform: scale(0.9); }
-  55%, 100% { opacity: 0.9; transform: scale(1); }
-}
-@keyframes skillBoltFlicker {
-  0%, 65%, 100% { opacity: 0.4; }
-  70%, 78% { opacity: 0.95; }
-  82% { opacity: 0.7; }
-}
-
-/* Do NOT use 0.01ms duration — it can permanently disable animation on mobile */
 @media (prefers-reduced-motion: reduce) {
-  .skill-layer .skill-rainbow-arc,
-  .skill-layer .skill-wind-1, .skill-layer .skill-wind-2, .skill-layer .skill-wind-3, .skill-layer .skill-wind-4,
-  .skill-layer .skill-mist-1, .skill-layer .skill-mist-2, .skill-layer .skill-mist-3, .skill-layer .skill-mist-4, .skill-layer .skill-mist-5,
-  .skill-layer .skill-sparkle-1, .skill-layer .skill-sparkle-2, .skill-layer .skill-sparkle-3, .skill-layer .skill-sparkle-4,
-  .skill-layer .skill-ring-1, .skill-layer .skill-ring-2, .skill-layer .skill-ring-3,
-  .skill-layer .skill-bolt-1, .skill-layer .skill-bolt-2 {
-    animation: none !important;
+  .countdown-ip-float {
+    animation: none;
   }
 }
 
-/* Orbiting atmospheric particles (Stage 5+) */
-.evolution-orbit-particles {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 140%;
-  height: 140%;
-  margin-left: -70%;
-  margin-top: -70%;
-  pointer-events: none;
-  z-index: 1;
-}
-.evolution-orbit-dot {
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--cloud-primary);
-  box-shadow: 0 0 8px var(--cloud-aura);
-  left: 50%;
-  top: 50%;
-  margin-left: -3px;
-  margin-top: -3px;
-  will-change: transform, opacity;
-  animation: orbitParticle 24s linear infinite;
-  animation-delay: calc(var(--orbit-i, 0) * -4.8s);
-}
-@keyframes orbitParticle {
-  from { transform: rotate(0deg) translateX(58px) translateY(0); }
-  to { transform: rotate(360deg) translateX(58px) translateY(0); }
-}
-
-/* PART 3 — Team-specific particle behavior (opacity + motion) */
-.countdown-mascot-wrapper[data-cloud-type="may_nhe"] .evolution-orbit-dot {
-  animation: orbitParticle 28s linear infinite;
-  animation-delay: calc(var(--orbit-i, 0) * -5.6s);
-  opacity: 0.25;
-  will-change: transform, opacity;
-}
-.countdown-mascot-wrapper[data-cloud-type="giong"] .evolution-orbit-dot {
-  animation: orbitParticle 12s linear infinite, giongParticleFlash 2.5s ease-in-out infinite;
-  animation-delay: calc(var(--orbit-i, 0) * -2.4s), calc(var(--orbit-i, 0) * 0.4s);
-  opacity: 0.5;
-  will-change: transform, opacity;
-}
-@keyframes giongParticleFlash {
-  0%, 70%, 100% { opacity: 0.3; }
-  40% { opacity: 0.8; }
-  85% { opacity: 0.9; }
-}
-.countdown-mascot-wrapper[data-cloud-type="suong_mu"] .evolution-orbit-dot {
-  animation: orbitParticle 32s linear infinite;
-  animation-delay: calc(var(--orbit-i, 0) * -6.4s);
-  opacity: 0.15;
-  filter: blur(2px);
-  will-change: transform, opacity;
-}
-.countdown-mascot-wrapper[data-cloud-type="cau_vong"] .evolution-orbit-dot {
-  animation: orbitParticle 24s linear infinite, particleColorShift 8s linear infinite;
-  animation-delay: calc(var(--orbit-i, 0) * -4.8s), calc(var(--orbit-i, 0) * 0.5s);
-  opacity: 0.45;
-  will-change: transform, opacity;
-}
-@keyframes particleColorShift {
-  0%, 100% { opacity: 0.25; }
-  33% { opacity: 0.7; }
-  66% { opacity: 0.4; }
-}
-/* Hố Mây: slow grounded drift, low opacity */
-.countdown-mascot-wrapper[data-cloud-type="ho_may"] .evolution-orbit-dot {
-  animation: orbitParticle 32s linear infinite;
-  animation-delay: calc(var(--orbit-i, 0) * -6.4s);
-  opacity: 0.2;
-  will-change: transform, opacity;
-}
-/* Gió: flowing wind-like motion, smooth */
-.countdown-mascot-wrapper[data-cloud-type="gio"] .evolution-orbit-dot {
-  animation: orbitParticle 20s linear infinite;
-  animation-delay: calc(var(--orbit-i, 0) * -4s);
-  opacity: 0.35;
-  will-change: transform, opacity;
-}
-
-/* PART 4 — Team-specific aura (wrapper ::before animation) */
-.countdown-mascot-wrapper[data-cloud-type="may_nhe"][data-evolution-stage="stirring"]::before,
-.countdown-mascot-wrapper[data-cloud-type="may_nhe"][data-evolution-stage="awakening"]::before,
-.countdown-mascot-wrapper[data-cloud-type="may_nhe"][data-evolution-stage="forming"]::before,
-.countdown-mascot-wrapper[data-cloud-type="may_nhe"][data-evolution-stage="ascending"]::before,
-.countdown-mascot-wrapper[data-cloud-type="may_nhe"][data-evolution-stage="sky_guardian"]::before {
-  animation: auraBreathSmooth 3000ms ease-in-out infinite;
-}
-@keyframes auraBreathSmooth {
-  0%, 100% { opacity: 0.25; }
-  50% { opacity: 0.5; }
-}
-.countdown-mascot-wrapper[data-cloud-type="giong"][data-evolution-stage="stirring"]::before,
-.countdown-mascot-wrapper[data-cloud-type="giong"][data-evolution-stage="awakening"]::before,
-.countdown-mascot-wrapper[data-cloud-type="giong"][data-evolution-stage="forming"]::before,
-.countdown-mascot-wrapper[data-cloud-type="giong"][data-evolution-stage="ascending"]::before,
-.countdown-mascot-wrapper[data-cloud-type="giong"][data-evolution-stage="sky_guardian"]::before {
-  animation: auraFlicker 800ms ease-in-out infinite;
-}
-@keyframes auraFlicker {
-  0%, 100% { opacity: 0.35; }
-  25% { opacity: 0.6; }
-  50% { opacity: 0.4; }
-  75% { opacity: 0.55; }
-}
-.countdown-mascot-wrapper[data-cloud-type="suong_mu"]::before {
-  filter: blur(12px);
-  transition: filter 1.2s ease, opacity 1.2s ease, box-shadow 1.2s ease;
-}
-.countdown-mascot-wrapper[data-cloud-type="suong_mu"][data-evolution-index="4"]::before,
-.countdown-mascot-wrapper[data-cloud-type="suong_mu"][data-evolution-index="5"]::before,
-.countdown-mascot-wrapper[data-cloud-type="suong_mu"][data-evolution-index="5"]::before {
-  filter: blur(20px);
-}
-.countdown-mascot-wrapper[data-cloud-type="cau_vong"]::before {
-  background: var(--ascension-gradient, linear-gradient(135deg, #FFE066, #7FD6FF, #9B59B6));
-  animation: auraGradientRotate 12s linear infinite;
-}
-@keyframes auraGradientRotate {
-  0% { filter: hue-rotate(0deg); }
-  100% { filter: hue-rotate(360deg); }
-}
-/* Hố Mây: slow deep pulse */
-.countdown-mascot-wrapper[data-cloud-type="ho_may"][data-evolution-stage="stirring"]::before,
-.countdown-mascot-wrapper[data-cloud-type="ho_may"][data-evolution-stage="awakening"]::before,
-.countdown-mascot-wrapper[data-cloud-type="ho_may"][data-evolution-stage="forming"]::before,
-.countdown-mascot-wrapper[data-cloud-type="ho_may"][data-evolution-stage="ascending"]::before,
-.countdown-mascot-wrapper[data-cloud-type="ho_may"][data-evolution-stage="sky_guardian"]::before {
-  animation: auraBreathDeep 4000ms ease-in-out infinite;
-}
-@keyframes auraBreathDeep {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 0.55; }
-}
-/* Gió: gentle flowing breath */
-.countdown-mascot-wrapper[data-cloud-type="gio"][data-evolution-stage="stirring"]::before,
-.countdown-mascot-wrapper[data-cloud-type="gio"][data-evolution-stage="awakening"]::before,
-.countdown-mascot-wrapper[data-cloud-type="gio"][data-evolution-stage="forming"]::before,
-.countdown-mascot-wrapper[data-cloud-type="gio"][data-evolution-stage="ascending"]::before,
-.countdown-mascot-wrapper[data-cloud-type="gio"][data-evolution-stage="sky_guardian"]::before {
-  animation: auraBreathFlow 3500ms ease-in-out infinite;
-}
-@keyframes auraBreathFlow {
-  0%, 100% { opacity: 0.28; }
-  50% { opacity: 0.52; }
-}
-
-/* PART 5 — Team-specific Stage 6 ring (was PART 6; wind streaks removed with ascension revert) */
-.countdown-mascot-wrapper[data-cloud-type="may_nhe"] .evolution-aura-ring {
-  animation: auraRingRotateBreathe 18s ease-in-out infinite;
-}
-.countdown-mascot-wrapper[data-cloud-type="giong"] .evolution-aura-ring {
-  animation: auraRingRotateBreathe 18s ease-in-out infinite, auraRingFlicker 600ms ease-in-out infinite;
-}
-@keyframes auraRingFlicker {
-  0%, 100% { opacity: 0.85; }
-  50% { opacity: 1; }
-}
-.countdown-mascot-wrapper[data-cloud-type="suong_mu"] .evolution-aura-ring {
-  filter: blur(4px);
-  border-width: 3px;
-  animation: auraRingRotateBreathe 18s ease-in-out infinite;
-}
-.countdown-mascot-wrapper[data-cloud-type="cau_vong"] .evolution-aura-ring {
-  border-color: var(--cloud-primary);
-  box-shadow:
-    0 0 40px var(--cloud-aura),
-    0 0 20px rgba(255,107,107,0.4),
-    0 0 20px rgba(255,224,102,0.4),
-    0 0 20px rgba(127,214,255,0.4),
-    inset 0 0 24px var(--cloud-aura);
-  animation: auraRingRotateBreathe 18s ease-in-out infinite;
-}
-/* Hố Mây: stable warm ring */
-.countdown-mascot-wrapper[data-cloud-type="ho_may"] .evolution-aura-ring {
-  filter: blur(2px);
-  animation: auraRingRotateBreathe 18s ease-in-out infinite;
-}
-/* Gió: flowing stable ring */
-.countdown-mascot-wrapper[data-cloud-type="gio"] .evolution-aura-ring {
-  animation: auraRingRotateBreathe 18s ease-in-out infinite;
-}
-
-/* Mist emission at cloud edges (Stage 5+) — team color only; fallback has no white to avoid flash */
-.evolution-mist {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 130%;
-  height: 130%;
-  margin-left: -65%;
-  margin-top: -65%;
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 1;
-  background: radial-gradient(
-    circle at center,
-    transparent 45%,
-    transparent 55%,
-    transparent 70%,
-    transparent 85%
-  );
-  filter: blur(25px);
-  will-change: transform, opacity;
-  animation: mistEmit 5s ease-in-out infinite;
-}
-@supports (background: radial-gradient(circle, color-mix(in srgb, white 20%, transparent), transparent)) {
-  .evolution-mist {
-    background: radial-gradient(
-      circle at center,
-      transparent 45%,
-      color-mix(in srgb, var(--cloud-secondary) 16%, transparent) 55%,
-      color-mix(in srgb, var(--cloud-secondary) 24%, transparent) 70%,
-      transparent 85%
-    );
-  }
-}
-@keyframes mistEmit {
-  0%, 100% { opacity: 0.35; transform: scale(1); }
-  50% { opacity: 0.55; transform: scale(1.03); }
-}
-
-/* Legendary aura ring (Stage 5) — rotation 18s + scale breathing; opacity capped to avoid flash */
-.evolution-aura-ring {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 115%;
-  height: 115%;
-  margin-left: -57.5%;
-  margin-top: -57.5%;
-  border-radius: 50%;
-  border: 2px solid var(--cloud-aura);
-  box-shadow:
-    0 0 32px var(--cloud-aura),
-    inset 0 0 18px var(--cloud-aura);
-  pointer-events: none;
-  z-index: 0;
-  will-change: transform, opacity;
-  animation: auraRingRotateBreathe 18s ease-in-out infinite;
-}
-@keyframes auraRingRotateBreathe {
-  0%   { opacity: 0.75; transform: rotate(0deg) scale(0.98); }
-  14%  { opacity: 0.85; transform: rotate(50deg) scale(1.04); }
-  28%  { opacity: 0.75; transform: rotate(100deg) scale(0.98); }
-  42%  { opacity: 0.85; transform: rotate(180deg) scale(1.04); }
-  57%  { opacity: 0.75; transform: rotate(260deg) scale(0.98); }
-  71%  { opacity: 0.85; transform: rotate(310deg) scale(1.04); }
-  100% { opacity: 0.75; transform: rotate(360deg) scale(0.98); }
-}
-/* Background reaction (Stage 5+): one layer brightens; brightness +4% / +8%, saturation +6% / +12%, 1200ms */
-/* Prevent any countdown content (auras, burst) from overflowing the viewport */
+/* Prevent countdown content from overflowing the viewport */
 .countdown-page-root {
   position: relative;
   background-color: transparent;
@@ -1733,37 +1039,10 @@ body.hero-ready .hero-scroll {
   pointer-events: none;
   z-index: -1;
 }
-.countdown-page-root[data-evolution-index="5"]::before {
-  filter: brightness(1.04) saturate(1.06);
-}
-.countdown-page-root[data-evolution-index="5"]::before {
-  filter: brightness(1.08) saturate(1.12);
-}
-
-/* Ribbon evolution: stage 4 soft glow, stage 5 pulse, stage 6 outer glow shell */
-.countdown-mascot-wrapper[data-evolution-index="4"] .evolution-ribbon-glow {
-  filter: blur(10px);
-  opacity: var(--ribbon-glow-opacity, 0.2);
-}
-.countdown-mascot-wrapper[data-evolution-index="5"] .evolution-ribbon-glow {
-  filter: blur(12px);
-  animation: ribbonGlowPulse 2.5s ease-in-out infinite;
-  will-change: opacity;
-}
-.countdown-mascot-wrapper[data-evolution-index="5"] .evolution-ribbon-glow {
-  filter: blur(16px);
-  box-shadow: 0 0 24px var(--ribbon-glow-color, currentColor);
-  opacity: var(--ribbon-glow-opacity, 0.35);
-}
-@keyframes ribbonGlowPulse {
-  0%, 100% { opacity: var(--ribbon-glow-opacity, 0.2); }
-  50% { opacity: calc(var(--ribbon-glow-opacity, 0.2) * 1.5); }
-}
-
 .identity-rank {
   letter-spacing: 0.02em;
 }
-/* UI layer: always above skill layer (z 10) */
+/* UI layer: tier label above mascot (z 10) */
 .evolution-title-capsule {
   position: relative;
   display: inline-block;
@@ -1822,18 +1101,11 @@ body.hero-ready .hero-scroll {
   width: 340px;
   max-width: 40vw;
 }
-.countdown-ip-float {
-  animation: ipFloatCountdown 5s ease-in-out infinite;
-}
 @media (max-width: 768px) {
   .countdown-ip {
     width: 78vw;
     max-width: 420px;
   }
-}
-@keyframes ipFloatCountdown {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-8px); }
 }
 
 /* About Us button — gentle breathe to match countdown flow */

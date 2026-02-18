@@ -140,7 +140,7 @@ export default function AscensionTimeline({
             return (
               <TierCard
                 key={cfg.tier}
-                ref={(el) => {
+                ref={(el: HTMLDivElement | null) => {
                   cardRefs.current[index] = el;
                 }}
                 tier={cfg.tier}
