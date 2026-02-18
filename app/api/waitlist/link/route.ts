@@ -37,7 +37,17 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServerClient();
-    let row: { id: string; name: string | null; email: string | null; phone: string | null; cloud_type: string | null; referral_code?: string; referral_count?: number; is_verified?: boolean } | null = null;
+    type WaitlistRow = {
+      id: string;
+      name: string | null;
+      email: string | null;
+      phone: string | null;
+      cloud_type: string | null;
+      referral_code?: string;
+      referral_count?: number;
+      is_verified?: boolean;
+    };
+    let row: WaitlistRow | null = null;
 
     if (email) {
       const { data } = await supabase
@@ -47,7 +57,7 @@ export async function POST(request: NextRequest) {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      row = data as typeof row;
+      row = data as WaitlistRow | null;
     }
     if (!row && phone) {
       const { data } = await supabase
@@ -57,13 +67,14 @@ export async function POST(request: NextRequest) {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      row = data as typeof row;
+      row = data as WaitlistRow | null;
     }
 
     if (!row) {
       return NextResponse.json({ user: null }, { headers: { "Cache-Control": "no-store, max-age=0" } });
     }
 
+    const rowId = row.id;
     const now = new Date().toISOString();
     const { error: updateError } = await supabase
       .from("waitlist")
@@ -73,7 +84,7 @@ export async function POST(request: NextRequest) {
         verified_at: now,
         updated_at: now,
       })
-      .eq("id", row.id);
+      .eq("id", rowId);
 
     if (updateError) {
       console.error("Waitlist link update error:", updateError);
