@@ -1204,8 +1204,8 @@ export default function CountdownPage() {
                 // ignore
               }
               setEvolutionCeremony(null);
-              // Show announcement after ceremony exit animation (~200ms) so the next modal appears clearly on top
-              announcementAfterCeremonyRef.current = setTimeout(() => setShowAnnouncement(true), 280);
+              // Show announcement after ceremony exit animation (~200ms); use z-[71] on announcement so it always appears on top
+              announcementAfterCeremonyRef.current = setTimeout(() => setShowAnnouncement(true), 350);
             }}
           />
         )}
