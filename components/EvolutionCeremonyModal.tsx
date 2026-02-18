@@ -21,7 +21,6 @@ interface EvolutionCeremonyModalProps {
   accent: string;
   locale: Locale;
   onClose: () => void;
-  onInviteMore: () => void;
 }
 
 function IconCheck({ className, style }: { className?: string; style?: CSSProperties }) {
@@ -38,7 +37,6 @@ export default function EvolutionCeremonyModal({
   accent,
   locale,
   onClose,
-  onInviteMore,
 }: EvolutionCeremonyModalProps) {
   const messages = getMessages(locale);
   const t = messages.countdown.evolutionPopup;
@@ -72,11 +70,6 @@ export default function EvolutionCeremonyModal({
       }
     }
     onClose();
-  };
-
-  const handleInviteMore = () => {
-    handleClose();
-    onInviteMore();
   };
 
   return (
@@ -165,20 +158,12 @@ export default function EvolutionCeremonyModal({
               </section>
             )}
 
-            <div className="mt-6 w-full flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={handleInviteMore}
-                className="w-full py-3 rounded-xl font-semibold text-sm transition-transform hover:opacity-90 active:scale-[0.98]"
-                style={{ backgroundColor: modalAccent, color: "#1E2A38" }}
-              >
-                {t.inviteMore}
-              </button>
+            <div className="mt-6 w-full">
               <button
                 type="button"
                 onClick={handleClose}
-                className="w-full py-2.5 rounded-xl font-medium text-sm border transition-colors hover:bg-black/5"
-                style={{ borderColor: BORDER_LIGHT, color: TEXT_PRIMARY }}
+                className="w-full py-3 rounded-xl font-semibold text-sm transition-transform hover:opacity-90 active:scale-[0.98]"
+                style={{ backgroundColor: modalAccent, color: "#1E2A38" }}
               >
                 {t.continue}
               </button>

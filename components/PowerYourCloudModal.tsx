@@ -220,6 +220,7 @@ export default function PowerYourCloudModal({
                 upgradeError={error ?? undefined}
                 paymentsConfigured={paymentsConfigured}
                 paymentsComingSoonLabel={t.paymentsComingSoon}
+                totalContributionUsd={totalContributionUsd}
               />
               {currentDisplayTier < 5 && deltaToFoundingCircle > 0 && (
                 <div className="mt-3">

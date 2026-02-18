@@ -4,7 +4,7 @@ import { useRef, useEffect, useState, useCallback, forwardRef } from "react";
 import { motion } from "framer-motion";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
-import { ASCENSION_TIERS, getEvoRoman } from "@/lib/tiers";
+import { ASCENSION_TIERS, getEvoRoman, displayTierToBackend, deltaUsdToReachTier } from "@/lib/tiers";
 
 const STAGGER_MS = 80;
 
@@ -32,6 +32,8 @@ interface AscensionTimelineProps {
   upgradeError?: string;
   paymentsConfigured?: boolean;
   paymentsComingSoonLabel?: string;
+  /** Current total contribution USD; when set, upgrade labels show delta to reach tier, not full tier price. */
+  totalContributionUsd?: number;
 }
 
 /** First tier index that is locked (tier > currentTier). */
@@ -50,6 +52,7 @@ export default function AscensionTimeline({
   upgradeError,
   paymentsConfigured = true,
   paymentsComingSoonLabel,
+  totalContributionUsd = 0,
 }: AscensionTimelineProps) {
   const messages = getMessages(locale);
   const t = messages.countdown.powerYourCloudModal;
@@ -119,6 +122,9 @@ export default function AscensionTimeline({
             const name = locale === "vi" ? cfg.nameVi : cfg.nameEn;
             const flavor = locale === "vi" ? cfg.flavorVi : cfg.flavorEn;
             const reward = locale === "vi" ? cfg.rewardVi : cfg.rewardEn;
+            const backendTier = displayTierToBackend(cfg.tier);
+            const deltaUsd = deltaUsdToReachTier(totalContributionUsd, backendTier);
+            const upgradePriceLabel = deltaUsd;
 
             return (
               <TierCard
@@ -144,7 +150,7 @@ export default function AscensionTimeline({
                 onToggle={() => setExpandedTier(isExpanded ? null : cfg.tier)}
                 onUpgrade={cfg.tier >= 1 ? onUpgrade : undefined}
                 loadingTier={loadingTier}
-                upgradeLabel={t.upgradeToTierPrice.replace("{tier}", String(cfg.tier)).replace("{price}", String(cfg.priceUsd))}
+                upgradeLabel={t.upgradeToTierPrice.replace("{tier}", String(cfg.tier)).replace("{price}", String(upgradePriceLabel))}
                 paymentsConfigured={paymentsConfigured}
                 paymentsComingSoonLabel={paymentsComingSoonLabel}
               />

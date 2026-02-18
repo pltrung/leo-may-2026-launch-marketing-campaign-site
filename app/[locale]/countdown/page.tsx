@@ -31,7 +31,9 @@ import {
 import { backendTierToDisplay, ASCENSION_TIERS, getProgressToNextTier } from "@/lib/tiers";
 import AscensionTimeline from "@/components/AscensionTimeline";
 import EvolutionCeremonyModal, { LAST_SEEN_TIER_KEY } from "@/components/EvolutionCeremonyModal";
+import VerifyToEvolveModal from "@/components/VerifyToEvolveModal";
 import AnnouncementModal from "@/components/AnnouncementModal";
+import { SOCIAL_LINKS } from "@/lib/announcementConfig";
 import { ANNOUNCEMENT_ID, LAST_SEEN_ANNOUNCEMENT_KEY } from "@/lib/announcementConfig";
 import { getAscensionEnergyVars } from "@/lib/ascensionEnergy";
 import VerificationModal from "@/components/VerificationModal";
@@ -39,13 +41,15 @@ import { createBrowserClient } from "@/lib/supabaseBrowser";
 
 const PENDING_REF_CODE_KEY = "leo_may_pending_ref_code";
 
-/** Applies species colors to mascot SVG groups via object ref when loaded. No stage-based VFX. */
+/** Applies species colors to mascot SVG groups via object ref when loaded. Re-applies when partColors (cloud type) changes. */
 function MascotSvgObject({
   src,
   partColors,
+  cloudId,
 }: {
   src: string;
   partColors: MascotPartColors;
+  cloudId: string;
 }) {
   const objectRef = useRef<HTMLObjectElement>(null);
 
@@ -88,19 +92,25 @@ function MascotSvgObject({
   useEffect(() => {
     const el = objectRef.current;
     if (!el) return;
-    const onLoad = () => applyColors(el.contentDocument);
+
+    const tryApply = () => applyColors(el.contentDocument);
+
+    const onLoad = () => tryApply();
     const doc = el.contentDocument;
     if (doc?.readyState === "complete") {
-      applyColors(doc);
+      tryApply();
     } else {
       el.addEventListener("load", onLoad);
     }
-    const t = setTimeout(() => applyColors(el.contentDocument), 100);
+    tryApply();
+    const t1 = setTimeout(tryApply, 100);
+    const t2 = setTimeout(tryApply, 350);
     return () => {
       el.removeEventListener("load", onLoad);
-      clearTimeout(t);
+      clearTimeout(t1);
+      clearTimeout(t2);
     };
-  }, [applyColors]);
+  }, [applyColors, cloudId]);
 
   return (
     <object
@@ -224,6 +234,7 @@ export default function CountdownPage() {
   const prevLevelIndexRef = useRef<number>(-1);
   const [levelUpFlash, setLevelUpFlash] = useState(false);
   const [evolutionCeremony, setEvolutionCeremony] = useState<{ displayTier: number } | null>(null);
+  const [showVerifyToEvolve, setShowVerifyToEvolve] = useState(false);
   const [showAnnouncement, setShowAnnouncement] = useState(false);
 
   useEffect(() => {
@@ -242,20 +253,15 @@ export default function CountdownPage() {
   }, [phase, showAnnouncement]);
 
   useEffect(() => {
-    if (phase !== "content" || evolutionCeremony !== null) return;
-    const currentTier = backendTierToDisplay(profile.tierLevel);
-    let lastSeenTier = -1;
-    try {
-      if (typeof window !== "undefined") {
-        const stored = window.localStorage.getItem(LAST_SEEN_TIER_KEY);
-        if (stored != null && stored !== "") lastSeenTier = parseInt(stored, 10);
-      }
-    } catch {
-      // ignore
+    if (phase !== "content") return;
+    if (!profile.isVerified) {
+      setShowVerifyToEvolve(true);
+      return;
     }
-    if (Number.isNaN(lastSeenTier)) lastSeenTier = -1;
-    if (currentTier > lastSeenTier) setEvolutionCeremony({ displayTier: currentTier });
-  }, [phase, profile.tierLevel, evolutionCeremony]);
+    if (evolutionCeremony !== null) return;
+    const currentTier = backendTierToDisplay(profile.tierLevel);
+    setEvolutionCeremony({ displayTier: currentTier });
+  }, [phase, profile.tierLevel, profile.isVerified, evolutionCeremony]);
 
   useEffect(() => {
     const order = leaderboard.slice(0, 3).map((e) => e.id).join(",");
@@ -614,6 +620,7 @@ export default function CountdownPage() {
               <MascotSvgObject
                 src="/brand/ip-count-down.svg"
                 partColors={mascotPartColors}
+                cloudId={cloud.id}
               />
             </motion.div>
           </div>
@@ -989,6 +996,25 @@ export default function CountdownPage() {
           >
             {t.aboutUs}
           </button>
+          {user && (user.email || user.phone) && (
+            <div
+              className="w-full max-w-[320px] text-center rounded-xl px-4 py-2.5"
+              style={{
+                backgroundColor: "rgba(255,255,255,0.12)",
+                backdropFilter: "blur(8px)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                boxShadow: "0 0 12px rgba(0,0,0,0.08)",
+              }}
+            >
+              <p className="font-caption text-white/80 text-[10px] uppercase tracking-wider">
+                {t.loggedInAs}
+              </p>
+              <p className="font-caption text-white font-medium text-sm mt-0.5 truncate max-w-[280px] mx-auto" title={user.email || user.phone || undefined}>
+                {user.name?.trim() || "Member"}
+                {user.email ? ` · ${user.email}` : user.phone ? ` · ${user.phone}` : ""}
+              </p>
+            </div>
+          )}
           <button
             type="button"
             onClick={handleLogout}
@@ -1001,7 +1027,7 @@ export default function CountdownPage() {
 
         {user && (user.email || user.phone) && (
           <motion.div
-            className="w-full max-w-[320px] mx-auto text-center py-3"
+            className="hidden md:block w-full max-w-[320px] mx-auto text-center py-3"
             initial={{ opacity: 0 }}
             animate={{ opacity: phase === "content" ? 1 : 0 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
@@ -1025,6 +1051,48 @@ export default function CountdownPage() {
             </div>
           </motion.div>
         )}
+
+        <style>{`.countdown-social-link:hover { border-color: ${accent}99 !important; box-shadow: 0 0 20px ${accent}40; }`}</style>
+        <motion.div
+          className="w-full flex justify-center items-center gap-4 py-6 mt-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: phase === "content" ? 1 : 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <a
+            href={SOCIAL_LINKS.instagram}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="countdown-social-link flex items-center justify-center w-12 h-12 rounded-full border border-white/25 text-white/90 transition-colors hover:text-white hover:opacity-90"
+            aria-label="Instagram"
+          >
+            <svg className="w-6 h-6 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+            </svg>
+          </a>
+          <a
+            href={SOCIAL_LINKS.facebook}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="countdown-social-link flex items-center justify-center w-12 h-12 rounded-full border border-white/25 text-white/90 transition-colors hover:text-white hover:opacity-90"
+            aria-label="Facebook"
+          >
+            <svg className="w-6 h-6 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+            </svg>
+          </a>
+          <a
+            href={SOCIAL_LINKS.tiktok}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="countdown-social-link flex items-center justify-center w-12 h-12 rounded-full border border-white/25 text-white/90 transition-colors hover:text-white hover:opacity-90"
+            aria-label="TikTok"
+          >
+            <svg className="w-6 h-6 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+            </svg>
+          </a>
+        </motion.div>
       </div>
       </main>
       <motion.footer
@@ -1097,6 +1165,20 @@ export default function CountdownPage() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {showVerifyToEvolve && cloud && (
+          <VerifyToEvolveModal
+            locale={locale}
+            accent={cloud.accentHex}
+            onClose={() => setShowVerifyToEvolve(false)}
+            onVerify={() => {
+              setShowVerifyToEvolve(false);
+              setVerificationOpen(true);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {evolutionCeremony && cloud && (
           <EvolutionCeremonyModal
             displayTier={evolutionCeremony.displayTier}
@@ -1110,8 +1192,8 @@ export default function CountdownPage() {
                 // ignore
               }
               setEvolutionCeremony(null);
+              setShowAnnouncement(true);
             }}
-            onInviteMore={() => setShareModal({ referralUrl, shareMessage })}
           />
         )}
       </AnimatePresence>
