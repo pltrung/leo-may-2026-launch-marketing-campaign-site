@@ -5,11 +5,17 @@ import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
 import { SOCIAL_LINKS } from "@/lib/announcementConfig";
 
-const GOLD_ACCENT = "#C9A227";
+/** Fallback when no accent provided (match PowerYourCloudModal / EvolutionCeremonyModal). */
+const FALLBACK_ACCENT = "#C9A227";
+const BORDER_LIGHT = "rgba(0,0,0,0.08)";
+const TEXT_PRIMARY = "#1E2A38";
+const TEXT_SECONDARY = "#555";
 
 interface AnnouncementModalProps {
   locale: Locale;
   onClose: () => void;
+  /** Optional cloud accent; when provided, modal uses it for border/shadow/primary CTA. */
+  accent?: string;
 }
 
 function IconInstagram({ className }: { className?: string }) {
@@ -36,9 +42,10 @@ function IconTikTok({ className }: { className?: string }) {
   );
 }
 
-export default function AnnouncementModal({ locale, onClose }: AnnouncementModalProps) {
+export default function AnnouncementModal({ locale, onClose, accent }: AnnouncementModalProps) {
   const messages = getMessages(locale);
   const t = messages.countdown.announcementPopup;
+  const modalAccent = accent && accent !== "#ffffff" && accent !== "#fff" ? accent : FALLBACK_ACCENT;
 
   const handlePrimary = () => {
     onClose();
@@ -52,82 +59,50 @@ export default function AnnouncementModal({ locale, onClose }: AnnouncementModal
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: 0.2 }}
         onClick={onClose}
         aria-modal
         role="dialog"
         aria-labelledby="announcement-headline"
       >
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" aria-hidden />
         <motion.div
-          className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          aria-hidden
-        />
-        {/* Subtle floating cloud behind modal */}
-        <motion.div
-          className="absolute pointer-events-none opacity-[0.12]"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.12 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-          style={{
-            width: 120,
-            height: 92,
-            left: "50%",
-            top: "50%",
-            transform: "translate(-50%, -50%)",
-          }}
-        >
-          <motion.div
-            animate={{ y: [0, -6, 0] }}
-            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-            className="relative w-full h-full"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/cloud-mini.svg" alt="" className="w-full h-full object-contain" aria-hidden />
-          </motion.div>
-        </motion.div>
-
-        <motion.div
-          className="relative w-full max-w-[min(92vw,400px)] rounded-2xl shadow-2xl overflow-hidden"
-          style={{
-            background: "linear-gradient(165deg, #0a1a3a 0%, #0242FF 28%, #0d2d5c 65%, #061428 100%)",
-            boxShadow: "0 0 0 1px rgba(255,255,255,0.06), 0 25px 50px -12px rgba(0,0,0,0.5)",
-          }}
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.96 }}
-          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          className="relative w-full max-w-[min(92vw,400px)] rounded-2xl shadow-2xl border overflow-hidden"
+          initial={{ scale: 0.96, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.96, opacity: 0 }}
+          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
           onClick={(e) => e.stopPropagation()}
+          style={{
+            backgroundColor: "#ffffff",
+            color: TEXT_PRIMARY,
+            boxShadow: `0 0 40px ${modalAccent}25, 0 24px 48px rgba(0,0,0,0.12)`,
+            borderColor: `${modalAccent}50`,
+          }}
         >
-          <div
-            className="absolute inset-0 rounded-2xl pointer-events-none"
-            aria-hidden
-            style={{
-              background: "radial-gradient(ellipse 80% 50% at 50% 5%, rgba(2,66,255,0.25) 0%, transparent 55%)",
-            }}
-          />
           <div className="relative px-6 py-6 flex flex-col items-center text-center">
             <h2
               id="announcement-headline"
-              className="font-subheadline text-xl sm:text-2xl font-bold text-white leading-tight"
+              className="font-subheadline text-xl sm:text-2xl font-bold leading-tight"
+              style={{ color: TEXT_PRIMARY }}
             >
               {t.headline}
             </h2>
-            <p className="font-caption text-white/85 text-sm mt-2">
+            <p className="font-caption text-sm mt-2" style={{ color: TEXT_SECONDARY }}>
               {t.subtitle}
             </p>
-            <p className="font-caption text-white/80 text-sm mt-3 whitespace-pre-line text-left w-full">
+            <p className="font-caption text-sm mt-3 whitespace-pre-line text-left w-full" style={{ color: TEXT_PRIMARY }}>
               {t.body}
             </p>
 
+            <style>{`.announcement-modal-social:hover { border-color: ${modalAccent}80 !important; box-shadow: 0 0 20px ${modalAccent}35 !important; }`}</style>
             <div className="mt-5 flex items-center justify-center gap-4">
               <a
                 href={SOCIAL_LINKS.instagram}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center w-12 h-12 rounded-full border border-white/25 text-white/90 hover:text-white hover:border-[#C9A227]/60 transition-colors hover:shadow-[0_0_20px_rgba(201,162,39,0.35)]"
+                className="announcement-modal-social flex items-center justify-center w-12 h-12 rounded-full border transition-colors hover:opacity-90"
+                style={{ borderColor: BORDER_LIGHT, color: TEXT_PRIMARY, boxShadow: `0 0 0 1px ${BORDER_LIGHT}` }}
                 aria-label="Instagram"
               >
                 <IconInstagram className="w-6 h-6" />
@@ -136,7 +111,8 @@ export default function AnnouncementModal({ locale, onClose }: AnnouncementModal
                 href={SOCIAL_LINKS.facebook}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center w-12 h-12 rounded-full border border-white/25 text-white/90 hover:text-white hover:border-[#C9A227]/60 transition-colors hover:shadow-[0_0_20px_rgba(201,162,39,0.35)]"
+                className="announcement-modal-social flex items-center justify-center w-12 h-12 rounded-full border transition-colors hover:opacity-90"
+                style={{ borderColor: BORDER_LIGHT, color: TEXT_PRIMARY, boxShadow: `0 0 0 1px ${BORDER_LIGHT}` }}
                 aria-label="Facebook"
               >
                 <IconFacebook className="w-6 h-6" />
@@ -145,7 +121,8 @@ export default function AnnouncementModal({ locale, onClose }: AnnouncementModal
                 href={SOCIAL_LINKS.tiktok}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center w-12 h-12 rounded-full border border-white/25 text-white/90 hover:text-white hover:border-[#C9A227]/60 transition-colors hover:shadow-[0_0_20px_rgba(201,162,39,0.35)]"
+                className="announcement-modal-social flex items-center justify-center w-12 h-12 rounded-full border transition-colors hover:opacity-90"
+                style={{ borderColor: BORDER_LIGHT, color: TEXT_PRIMARY, boxShadow: `0 0 0 1px ${BORDER_LIGHT}` }}
                 aria-label="TikTok"
               >
                 <IconTikTok className="w-6 h-6" />
@@ -156,15 +133,16 @@ export default function AnnouncementModal({ locale, onClose }: AnnouncementModal
               <button
                 type="button"
                 onClick={handlePrimary}
-                className="w-full py-3 rounded-xl font-semibold text-sm transition-opacity hover:opacity-90"
-                style={{ backgroundColor: GOLD_ACCENT, color: "#1E2A38" }}
+                className="w-full py-3 rounded-xl font-semibold text-sm transition-transform hover:opacity-90 active:scale-[0.98]"
+                style={{ backgroundColor: modalAccent, color: "#1E2A38" }}
               >
                 {t.followTheClimb}
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="w-full py-2.5 rounded-xl font-medium text-sm border border-white/30 text-white/95 hover:bg-white/10 transition-colors"
+                className="w-full py-2.5 rounded-xl font-medium text-sm border transition-colors hover:bg-black/5"
+                style={{ borderColor: BORDER_LIGHT, color: TEXT_PRIMARY }}
               >
                 {t.maybeLater}
               </button>

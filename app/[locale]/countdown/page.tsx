@@ -1059,6 +1059,7 @@ export default function CountdownPage() {
         {showAnnouncement && (
           <AnnouncementModal
             locale={locale}
+            accent={cloud?.accentHex}
             onClose={() => {
               try {
                 if (typeof window !== "undefined") window.localStorage.setItem(LAST_SEEN_ANNOUNCEMENT_KEY, String(ANNOUNCEMENT_ID));
