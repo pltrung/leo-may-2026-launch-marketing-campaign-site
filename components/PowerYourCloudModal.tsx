@@ -133,7 +133,7 @@ export default function PowerYourCloudModal({
           <div className="p-5 space-y-6">
             {/* FREE PATH */}
             <section>
-              <p className="text-[10px] font-medium uppercase tracking-wider text-black/5 mb-2">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-black/75 border-b border-black/15 pb-2 mb-2">
                 {t.freePathTitle}
               </p>
               <p className="text-sm text-black/80 mb-2">{t.shareToEarn}</p>
@@ -161,7 +161,7 @@ export default function PowerYourCloudModal({
 
             {/* UPGRADE INSTANTLY */}
             <section>
-              <p className="text-[10px] font-medium uppercase tracking-wider text-black/5 mb-3">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-black/75 border-b border-black/15 pb-2 mb-3">
                 {t.upgradeInstantlyTitle}
               </p>
               <div className="grid gap-3">
