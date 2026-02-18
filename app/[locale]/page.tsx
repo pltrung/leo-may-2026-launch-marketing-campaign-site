@@ -40,7 +40,8 @@ function HomeContent() {
     setShowClouds(true);
     window.scrollTo({ top: 0, behavior: "auto" });
     setSkyVisible(false);
-  }, []);
+    router.replace(`/${locale}?clouds=1`, { scroll: false });
+  }, [router, locale]);
 
   /** Single entry point for all navigation to countdown. Mist transition controls timing; navigation happens only after mist covers viewport. */
   const transitionToCountdown = useCallback(
@@ -81,6 +82,10 @@ function HomeContent() {
   useEffect(() => {
     return () => timersRef.current.forEach(clearTimeout);
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get("clouds") === "1") setShowClouds(true);
+  }, [searchParams]);
 
   useEffect(() => {
     if (showClouds) document.documentElement.classList.add("cloud-selection-view");

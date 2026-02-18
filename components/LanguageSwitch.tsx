@@ -1,18 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useLocale } from "./LocaleProvider";
 
 export default function LanguageSwitch() {
   const locale = useLocale();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   // pathname is /en, /en/countdown, etc. Replace locale segment.
   const otherLocale = locale === "en" ? "vi" : "en";
   const segments = pathname?.split("/").filter(Boolean) ?? [];
   const rest = segments.length > 1 ? "/" + segments.slice(1).join("/") : "";
-  const newPath = `/${otherLocale}${rest}`;
+  const onHome = segments.length <= 1;
+  const preserveClouds = onHome && searchParams?.get("clouds") === "1";
+  const newPath = `/${otherLocale}${rest}${preserveClouds ? "?clouds=1" : ""}`;
 
   return (
     <Link

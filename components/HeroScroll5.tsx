@@ -19,16 +19,18 @@ export default function HeroScroll5() {
           )}
         </div>
       </div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/brand/cloud-singing.svg"
-        alt="Singing Cloud"
-        className="hero-ip w-[70%] max-w-[400px] h-auto object-contain"
-        loading="eager"
-        fetchPriority="high"
-      />
+      <div className="flex items-center justify-center w-[63%] max-w-[300px] sm:w-[55%] sm:max-w-[260px] md:w-[70%] md:max-w-[400px] aspect-square mx-auto pointer-events-none">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/brand/cloud-singing.svg"
+          alt="Singing Cloud"
+          className="hero-ip w-full h-full object-contain"
+          loading="eager"
+          fetchPriority="high"
+        />
+      </div>
       {emphasisBelowMascot && (
-        <div className="hero-text philosophy-text hero-line-secondary-wrapper hero-experienced-line mt-[100px] md:mt-20">
+        <div className="hero-text philosophy-text hero-line-secondary-wrapper hero-experienced-line md:mt-20">
           <div className="hero-line-primary text-white tracking-headline">
             <span className="neon-green">{areEverSame}</span>.
           </div>
