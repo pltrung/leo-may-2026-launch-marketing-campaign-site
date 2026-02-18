@@ -25,16 +25,15 @@ import {
 import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
 import {
   EVOLUTION_LEVELS,
-  EVOLUTION_REWARDS,
   getEvolutionLevel,
   getXpInLevel,
   getXpRequiredForLevel,
   getLevelProgressFraction,
   getNextFormName,
   getLevelName,
-  getRewardLabel,
-  isRewardUnlocked,
 } from "@/lib/evolutionLevels";
+import { backendTierToDisplay } from "@/lib/tiers";
+import AscensionTimeline from "@/components/AscensionTimeline";
 import type { EvolutionLevel } from "@/lib/evolutionLevels";
 import EvolutionCeremonyModal from "@/components/EvolutionCeremonyModal";
 import { getAscensionEnergyVars } from "@/lib/ascensionEnergy";
@@ -1009,46 +1008,20 @@ export default function CountdownPage() {
         </motion.div>
 
         <motion.div
-          className="shrink-0 w-full max-w-[320px] mt-4 px-4 py-3 rounded-2xl countdown-rewards-section"
-          style={{
-            backgroundColor: "rgba(255,255,255,0.08)",
-            border: "1px solid rgba(255,255,255,0.2)",
-          }}
+          className="shrink-0 w-full max-w-[360px] mt-4 countdown-rewards-section"
           initial={{ opacity: 0 }}
           animate={{ opacity: phase === "content" ? 1 : 0 }}
           transition={{ duration: 0.5, delay: phase === "content" ? CONTENT_STAGGER_MS[4] / 1000 + 0.3 : 0 }}
         >
-          <p className="font-caption font-medium text-white/90 text-xs uppercase tracking-wider mb-2">
+          <p className="font-caption font-medium text-white/90 text-xs uppercase tracking-wider mb-3">
             {t.rewardsTitle}
           </p>
-          <ul className="flex flex-col gap-1.5 text-left">
-            {EVOLUTION_REWARDS.map((reward) => {
-              const unlocked = isRewardUnlocked(reward.levelIndex, currentLevel.levelIndex);
-              return (
-                <motion.li
-                  key={reward.levelIndex}
-                  className="font-caption text-[0.8rem] flex items-center gap-2 countdown-reward-item"
-                  initial={false}
-                  animate={{
-                    opacity: unlocked ? 1 : 0.35,
-                    scale: unlocked ? 1 : 0.98,
-                    filter: unlocked ? "blur(0px)" : "blur(1px)",
-                  }}
-                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                  style={{
-                    textShadow: unlocked ? `0 0 12px ${accent}50` : "none",
-                  }}
-                >
-                  <span className={unlocked ? "text-white" : "text-white/60"} aria-hidden>
-                    {unlocked ? "✦" : "·"}
-                  </span>
-                  <span className={unlocked ? "text-white/95" : "text-white/50"}>
-                    {getRewardLabel(reward, locale)}
-                  </span>
-                </motion.li>
-              );
-            })}
-          </ul>
+          <AscensionTimeline
+            locale={locale}
+            accentHex={accent}
+            currentTier={backendTierToDisplay(profile.tierLevel)}
+            variant="light"
+          />
         </motion.div>
 
         <motion.div

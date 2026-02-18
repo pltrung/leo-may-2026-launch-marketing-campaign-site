@@ -1979,6 +1979,20 @@ body.hero-ready .hero-scroll {
   animation: tierBadgeGlow 1.5s ease-out;
 }
 
+/* Ascension timeline: current node very subtle opacity breathe (no flash) */
+@keyframes ascension-node-breathe {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 1; }
+}
+.ascension-node-breathe {
+  animation: ascension-node-breathe 2.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ascension-node-breathe {
+    animation: none;
+  }
+}
+
 /* Share poster preview: QR shimmer (preview only, not exported) — Apple Wallet style */
 @keyframes qr-shimmer {
   0%, 100% { background-position: -50% 0; }

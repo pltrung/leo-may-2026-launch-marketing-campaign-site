@@ -5,11 +5,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
 import {
-  TIER_PRICES_USD,
-  TIER_LABELS_EN,
-  TIER_LABELS_VI,
+  PAID_ASCENSION_TIERS,
   deltaUsdToReachTier,
+  backendTierToDisplay,
+  displayTierToBackend,
 } from "@/lib/tiers";
+import AscensionTimeline from "@/components/AscensionTimeline";
 
 interface PowerYourCloudModalProps {
   locale: Locale;
@@ -34,8 +35,6 @@ function IconClose({ className }: { className?: string }) {
   );
 }
 
-const TIERS = [2, 3, 4, 5, 6] as const;
-
 export default function PowerYourCloudModal({
   locale,
   accentHex,
@@ -51,21 +50,22 @@ export default function PowerYourCloudModal({
 }: PowerYourCloudModalProps) {
   const messages = getMessages(locale);
   const t = messages.countdown.powerYourCloudModal;
-  const tierLabels = locale === "vi" ? TIER_LABELS_VI : TIER_LABELS_EN;
+  const currentDisplayTier = backendTierToDisplay(tierLevel);
   const [loadingTier, setLoadingTier] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleUpgrade = async (targetTier: number) => {
-    const delta = deltaUsdToReachTier(totalContributionUsd, targetTier);
+  const handleUpgrade = async (displayTier: number) => {
+    const backendTier = displayTierToBackend(displayTier);
+    const delta = deltaUsdToReachTier(totalContributionUsd, backendTier);
     if (delta <= 0) return;
     setError(null);
-    setLoadingTier(targetTier);
+    setLoadingTier(displayTier);
     try {
       const res = await fetch("/api/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          target_tier: targetTier,
+          target_tier: backendTier,
           identifier: userIdentifier,
           identifier_type: identifierType,
           locale,
@@ -159,55 +159,76 @@ export default function PowerYourCloudModal({
               </button>
             </section>
 
-            {/* UPGRADE INSTANTLY */}
+            {/* UNLOCKABLE REWARDS — Vertical Ascension Timeline (Tier 0–5) */}
+            <section aria-label={messages.countdown.rewardsTitle}>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-black/75 border-b border-black/15 pb-2 mb-3">
+                {messages.countdown.rewardsTitle}
+              </p>
+              <AscensionTimeline
+                locale={locale}
+                accentHex={accentHex}
+                currentTier={currentDisplayTier}
+                variant="dark"
+              />
+            </section>
+
+            {/* UPGRADE INSTANTLY — Paid tiers 1–5 only (Tier 0 never shown) */}
             <section>
               <p className="text-[10px] font-medium uppercase tracking-wider text-black/75 border-b border-black/15 pb-2 mb-3">
                 {t.upgradeInstantlyTitle}
               </p>
-              <div className="grid gap-3">
-                {TIERS.map((tier) => {
-                  const price = TIER_PRICES_USD[tier] ?? 0;
-                  const unlocked = tierLevel >= tier;
-                  const delta = deltaUsdToReachTier(totalContributionUsd, tier);
-                  const loading = loadingTier === tier;
+              <div className="grid gap-2.5">
+                {PAID_ASCENSION_TIERS.map((cfg) => {
+                  const displayTier = cfg.tier;
+                  const backendTier = displayTierToBackend(displayTier);
+                  const price = cfg.priceUsd;
+                  const unlocked = currentDisplayTier > displayTier;
+                  const isCurrent = currentDisplayTier === displayTier;
+                  const delta = deltaUsdToReachTier(totalContributionUsd, backendTier);
+                  const loading = loadingTier === displayTier;
+                  const tierName = locale === "vi" ? cfg.nameVi : cfg.nameEn;
                   return (
                     <motion.div
-                      key={tier}
-                      className="rounded-xl border border-black/10 p-4 transition-transform hover:translate-y-[-2px]"
+                      key={displayTier}
+                      className="rounded-xl border border-black/10 p-3.5 transition-transform hover:translate-y-[-1px]"
                       style={{
-                        backgroundColor: unlocked ? `${accentHex}08` : "rgba(0,0,0,0.03)",
-                        borderColor: unlocked ? `${accentHex}30` : undefined,
+                        backgroundColor: unlocked || isCurrent ? `${accentHex}08` : "rgba(0,0,0,0.03)",
+                        borderColor: unlocked || isCurrent ? `${accentHex}28` : undefined,
                       }}
-                      whileHover={{ y: -2 }}
+                      whileHover={{ y: -1 }}
                       transition={{ duration: 0.15 }}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-medium text-sm">
-                            Tier {tier} – ${price}
-                          </p>
-                          <p className="text-xs text-black/65 mt-0.5">
-                            {tierLabels[tier] ?? ""}
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-medium text-xs text-black/90">
+                            Tier {displayTier} — ${price} — {tierName}
                           </p>
                         </div>
                         {unlocked ? (
                           <span
-                            className="shrink-0 py-1.5 px-3 rounded-full text-xs font-medium"
+                            className="shrink-0 py-1 px-2.5 rounded-full text-[10px] font-medium uppercase"
                             style={{ backgroundColor: `${accentHex}20`, color: accentHex }}
                           >
                             {t.unlocked}
+                          </span>
+                        ) : isCurrent ? (
+                          <span
+                            className="shrink-0 py-1 px-2.5 rounded-full text-[10px] font-medium uppercase"
+                            style={{ backgroundColor: `${accentHex}25`, color: accentHex }}
+                          >
+                            {t.current}
                           </span>
                         ) : (
                           <button
                             type="button"
                             disabled={loading || delta <= 0}
-                            onClick={() => handleUpgrade(tier)}
-                            className="shrink-0 py-1.5 px-3 rounded-full text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                            onClick={() => handleUpgrade(displayTier)}
+                            className="shrink-0 py-1 px-2.5 rounded-full text-[10px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                             style={{ backgroundColor: accentHex }}
                           >
                             {loading
                               ? "..."
-                              : t.upgradeToTier.replace("{tier}", String(tier))}
+                              : t.upgradeToTier.replace("{tier}", String(displayTier))}
                           </button>
                         )}
                       </div>
