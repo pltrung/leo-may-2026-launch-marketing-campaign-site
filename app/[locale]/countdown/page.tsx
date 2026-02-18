@@ -232,6 +232,7 @@ export default function CountdownPage() {
   const [prevLeaderboardOrder, setPrevLeaderboardOrder] = useState<string>("");
   const [skyUnstable, setSkyUnstable] = useState(false);
   const prevLevelIndexRef = useRef<number>(-1);
+  const announcementAfterCeremonyRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [levelUpFlash, setLevelUpFlash] = useState(false);
   const [evolutionCeremony, setEvolutionCeremony] = useState<{ displayTier: number } | null>(null);
   const [showVerifyToEvolve, setShowVerifyToEvolve] = useState(false);
@@ -258,6 +259,8 @@ export default function CountdownPage() {
       setShowVerifyToEvolve(true);
       return;
     }
+    // Verified: only show ceremony, never show verify modal.
+    setShowVerifyToEvolve(false);
     if (evolutionCeremony !== null) return;
     const currentTier = backendTierToDisplay(profile.tierLevel);
     setEvolutionCeremony({ displayTier: currentTier });
@@ -275,6 +278,15 @@ export default function CountdownPage() {
 
   useEffect(() => {
     setUser(getUser());
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (announcementAfterCeremonyRef.current != null) {
+        clearTimeout(announcementAfterCeremonyRef.current);
+        announcementAfterCeremonyRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -1192,7 +1204,8 @@ export default function CountdownPage() {
                 // ignore
               }
               setEvolutionCeremony(null);
-              setShowAnnouncement(true);
+              // Show announcement after ceremony exit animation (~200ms) so the next modal appears clearly on top
+              announcementAfterCeremonyRef.current = setTimeout(() => setShowAnnouncement(true), 280);
             }}
           />
         )}
