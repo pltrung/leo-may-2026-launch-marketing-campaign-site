@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { getUser, clearUser } from "@/lib/userStorage";
+import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { getCloudById } from "@/lib/cloudData";
 import type { CloudType } from "@/lib/cloudData";
 import CloudIconByType from "@/components/CloudIcons";
@@ -13,7 +14,6 @@ import LanguageSwitch from "@/components/LanguageSwitch";
 import AboutUsModal from "@/components/AboutUsModal";
 import PowerYourCloudShareModal, { buildShareMessage } from "@/components/PowerYourCloudShareModal";
 import PowerYourCloudModal from "@/components/PowerYourCloudModal";
-import { TIER_BADGE_LABELS_EN, TIER_BADGE_LABELS_VI } from "@/lib/tiers";
 import { useCountdownHeroEntrance, CONTENT_STAGGER_MS, EASE_APPLE_IN_OUT, EASE_APPLE_SETTLE, EASE_MICRO_SETTLE } from "@/lib/enterCountdownHero";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
@@ -322,6 +322,7 @@ export default function CountdownPage() {
     if (user.email) searchParams.set("email", user.email);
     else if (user.phone) searchParams.set("phone", user.phone);
     else {
+      getSupabaseBrowserClient().auth.signOut().catch(() => {});
       clearUser();
       router.replace(`/${locale}`);
       return;
@@ -334,6 +335,7 @@ export default function CountdownPage() {
 
   useEffect(() => {
     if (verified === false) {
+      getSupabaseBrowserClient().auth.signOut().catch(() => {});
       clearUser();
       router.replace(`/${locale}`);
     }
@@ -361,6 +363,7 @@ export default function CountdownPage() {
   }, [debugPerf]);
 
   const handleLogout = () => {
+    getSupabaseBrowserClient().auth.signOut().catch(() => {});
     clearUser();
     router.replace(`/${locale}`);
   };
@@ -726,20 +729,19 @@ export default function CountdownPage() {
                 opacity: 0.9,
               }}
             >
-              {t.youAreNow} <span style={{ color: accent, textShadow: `0 0 10px ${accent}50` }}>{identityRankLabel}</span>
-            </p>
-            {profile.tierLevel >= 1 && (
-              <motion.div
-                className={`mt-2 px-3 py-1 rounded-full font-caption text-xs font-medium inline-block transition-shadow duration-500 ${tierBadgeGlow ? "animate-tier-badge-glow" : ""}`}
+              {t.youAreNow}{" "}
+              <motion.span
+                className={`inline-block px-3 py-1 rounded-full font-caption text-sm font-medium align-middle ${tierBadgeGlow ? "animate-tier-badge-glow" : ""}`}
                 style={{
-                  background: `linear-gradient(135deg, ${accent}30 0%, ${accent}15 100%)`,
                   color: accent,
-                  boxShadow: tierBadgeGlow ? `0 0 16px ${accent}60` : "none",
+                  textShadow: `0 0 10px ${accent}50`,
+                  background: `linear-gradient(135deg, ${accent}28 0%, ${accent}12 100%)`,
+                  boxShadow: tierBadgeGlow ? `0 0 16px ${accent}60` : `0 0 12px ${accent}40`,
                 }}
               >
-                {locale === "vi" ? TIER_BADGE_LABELS_VI[profile.tierLevel] : TIER_BADGE_LABELS_EN[profile.tierLevel]}
-              </motion.div>
-            )}
+                Tier {profile.tierLevel} – {identityRankLabel}
+              </motion.span>
+            </p>
           </motion.div>
         </motion.div>
 

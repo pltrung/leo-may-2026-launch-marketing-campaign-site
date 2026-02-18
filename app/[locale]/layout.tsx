@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { LocaleProvider } from "@/components/LocaleProvider";
+import AuthSessionHandler from "@/components/AuthSessionHandler";
 import { isValidLocale } from "@/lib/i18n";
 
 export default function LocaleLayout({
@@ -16,7 +17,9 @@ export default function LocaleLayout({
 
   return (
     <LocaleProvider locale={locale}>
-      {children}
+      <AuthSessionHandler>
+        {children}
+      </AuthSessionHandler>
     </LocaleProvider>
   );
 }
