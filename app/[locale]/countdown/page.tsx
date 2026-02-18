@@ -673,13 +673,20 @@ export default function CountdownPage() {
             {t.auraProgressLabel}
           </div>
           {tierProgress.isMaxTier ? (
-            <p className="font-caption text-center text-sm mt-1" style={{ color: "#1E2A38", opacity: 0.9 }}>
-              {progressLabelText}
-            </p>
+            <div className="mt-1 space-y-1">
+              <p className="font-caption text-center text-sm" style={{ color: "#1E2A38", opacity: 0.9 }}>
+                {progressLabelText}
+              </p>
+              <p className="font-caption text-center text-sm" style={{ color: "#1E2A38", opacity: 0.9 }}>
+                {t.youHaveAwakened}{" "}
+                <span style={{ color: accent, fontWeight: 600, textShadow: `0 0 10px ${accent}50` }}>{referralCount}</span>{" "}
+                {referralCount === 1 ? t.climber : t.climbers}
+              </p>
+            </div>
           ) : (
             <>
               <div
-                className="w-full h-[10px] min-h-[10px] rounded-full overflow-hidden flex-shrink-0"
+                className="relative w-full h-9 min-h-[36px] rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden"
                 style={{
                   backgroundColor: "rgba(0,0,0,0.1)",
                   boxShadow: `0 0 8px ${accent}50`,
@@ -692,15 +699,26 @@ export default function CountdownPage() {
               >
                 <motion.div
                   key={`tier-${displayTierForBadge}-${tierProgress.progressToNext}`}
-                  className="h-full min-w-0 rounded-full flex-shrink-0"
+                  className="absolute inset-y-0 left-0 min-w-0 rounded-full flex-shrink-0"
                   initial={{ width: "0%" }}
                   animate={{ width: `${progressBarPct}%` }}
                   transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                   style={{ backgroundColor: accent }}
                 />
+                <span
+                  className="relative z-10 font-caption text-xs font-semibold text-center px-2 pointer-events-none"
+                  style={{
+                    color: progressBarPct > 50 ? "rgba(255,255,255,0.95)" : "#1E2A38",
+                    textShadow: progressBarPct > 50 ? "0 0 8px rgba(0,0,0,0.3)" : "0 0 6px rgba(255,255,255,0.6)",
+                  }}
+                >
+                  {progressLabelText}
+                </span>
               </div>
-              <p className="font-caption text-center text-sm mt-1" style={{ color: "#1E2A38", opacity: 0.85 }}>
-                {progressLabelText}
+              <p className="font-caption text-center text-sm mt-1.5" style={{ color: "#1E2A38", opacity: 0.9 }}>
+                {t.youHaveAwakened}{" "}
+                <span style={{ color: accent, fontWeight: 600, textShadow: `0 0 10px ${accent}50` }}>{referralCount}</span>{" "}
+                {referralCount === 1 ? t.climber : t.climbers}
               </p>
             </>
           )}

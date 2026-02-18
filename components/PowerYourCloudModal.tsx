@@ -105,6 +105,8 @@ export default function PowerYourCloudModal({
   const tierProgress = getProgressToNextTier(currentDisplayTier, referralCount);
   const showProgressBar = !tierProgress.isMaxTier && tierProgress.nextTierDelta > 0;
   const modalAccent = accentHex && accentHex !== "#ffffff" && accentHex !== "#fff" ? accentHex : FALLBACK_ACCENT;
+  const deltaToFoundingCircle = deltaUsdToReachTier(totalContributionUsd, 6);
+  const foundingCircleButtonLabel = t.becomeFoundingCirclePrice.replace("${price}", String(deltaToFoundingCircle));
   const progressPct = showProgressBar
     ? Math.min(100, (tierProgress.progressToNext / tierProgress.nextTierDelta) * 100)
     : 0;
@@ -227,7 +229,7 @@ export default function PowerYourCloudModal({
                     }}
                     title={!paymentsConfigured ? t.paymentsComingSoon : undefined}
                   >
-                    {!paymentsConfigured ? t.paymentsComingSoon : loadingTier === 5 ? "..." : t.becomeFoundingCircle}
+                    {!paymentsConfigured ? t.paymentsComingSoon : loadingTier === 5 ? "..." : foundingCircleButtonLabel}
                   </button>
                 </div>
               )}
