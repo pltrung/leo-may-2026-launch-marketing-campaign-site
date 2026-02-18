@@ -75,11 +75,19 @@ export default function VerificationModal({
     }
     setLoading(true);
     try {
-      if (!isCountdownFlow && devBypassOtp && useEmail && isTestEmail(eTrim)) {
+      if (devBypassOtp && useEmail && isTestEmail(eTrim)) {
         const res = await fetch(`/api/waitlist/lookup?email=${encodeURIComponent(eTrim)}`);
         const json = await res.json();
         const u = json?.user;
         if (u?.team && (u.isVerified === true)) {
+          if (isCountdownFlow) {
+            onSuccess({ mode: "countdown" });
+            setStep("success");
+            setError("");
+            setLoading(false);
+            setTimeout(() => onClose(), 1200);
+            return;
+          }
           onSuccess({
             mode: "lookup",
             hasWaitlist: true,
