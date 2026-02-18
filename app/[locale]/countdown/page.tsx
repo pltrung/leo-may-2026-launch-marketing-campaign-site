@@ -750,7 +750,9 @@ export default function CountdownPage() {
             />
           </div>
           <p className="font-caption text-center text-sm mt-1" style={{ color: "#1E2A38", opacity: 0.85 }}>
-            {referralCount} {referralCount === 1 ? t.climber : t.climbers} {t.joinedYourCloud}
+            {t.youHaveAwakened}{" "}
+            <span style={{ color: accent, fontWeight: 600, textShadow: `0 0 10px ${accent}50` }}>{referralCount}</span>{" "}
+            {referralCount === 1 ? t.climber : t.climbers}
           </p>
         </motion.div>
 
