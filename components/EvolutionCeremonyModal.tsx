@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type CSSProperties } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
@@ -18,9 +18,9 @@ interface EvolutionCeremonyModalProps {
   onInviteMore: () => void;
 }
 
-function IconCheck({ className }: { className?: string }) {
+function IconCheck({ className, style }: { className?: string; style?: CSSProperties }) {
   return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg className={className} style={style} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M3 8l3 3 7-7" />
     </svg>
   );
