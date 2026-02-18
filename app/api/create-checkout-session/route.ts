@@ -63,10 +63,12 @@ export async function POST(request: NextRequest) {
 
     const currentTotal = typeof row.total_contribution_usd === "number" ? row.total_contribution_usd : 0;
     const currentDisplayTier = typeof body.current_display_tier === "number" ? Math.min(5, Math.max(0, Math.floor(body.current_display_tier))) : null;
-    const deltaUsd =
-      targetTier === 6 && currentDisplayTier !== null
-        ? Math.max(0, FOUNDING_CIRCLE_USD - tierToMinUsd(displayTierToBackend(currentDisplayTier)))
-        : deltaUsdToReachTier(currentTotal, targetTier);
+    // Use effective total (current tier floor or paid amount) so we charge incremental $ to next tier, not full tier price
+    const effectiveTotal =
+      currentDisplayTier !== null
+        ? Math.max(currentTotal, tierToMinUsd(displayTierToBackend(currentDisplayTier)))
+        : currentTotal;
+    const deltaUsd = deltaUsdToReachTier(effectiveTotal, targetTier);
 
     if (deltaUsd <= 0) {
       return NextResponse.json({ error: "Already at or above this tier" }, { status: 400 });

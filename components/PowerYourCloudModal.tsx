@@ -77,7 +77,7 @@ export default function PowerYourCloudModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           target_tier: backendTier,
-          current_display_tier: backendTier === 6 ? currentDisplayTier : undefined,
+          current_display_tier: currentDisplayTier,
           identifier: userIdentifier,
           identifier_type: identifierType,
           locale,
