@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { createBrowserClient } from "@/lib/supabaseBrowser";
+import { toE164 } from "@/lib/phoneE164";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
 
@@ -15,32 +16,18 @@ interface VerificationModalProps {
   onClose: () => void;
   onSuccess: (payload: VerificationSuccessPayload) => void;
   locale?: Locale;
-  /** Countdown flow: prefill and upsert waitlist after verify */
   name?: string;
   cloud_type?: string;
   email?: string;
   phone?: string;
+  /** When set, identity is locked: skip method choice, show this identifier read-only, then Send OTP */
+  identifier?: string;
+  identifier_type?: "email" | "phone";
 }
 
-type Step = "input" | "code" | "verifying";
+type Step = "choose" | "input" | "code" | "verifying";
 
 const EASE_HERO = [0.22, 1, 0.36, 1] as const;
-
-/** Normalize phone to E.164 for Supabase/Twilio. US (+1) and VN (+84) supported when no country code. */
-function toE164(phone: string): string {
-  const trimmed = phone.trim().replace(/\s/g, "");
-  const digits = trimmed.replace(/\D/g, "");
-  if (trimmed.startsWith("+")) return trimmed;
-  // Vietnam: 10 digits starting with 0 (e.g. 0912345678) → +84912345678
-  if (digits.length === 10 && digits.startsWith("0")) return `+84${digits.slice(1)}`;
-  // Vietnam: 9 digits, mobile prefix 9/8/7/5/3 → +84
-  if (digits.length === 9 && /^[98753]/.test(digits)) return `+84${digits}`;
-  // US: 10 digits → +1
-  if (digits.length === 10) return `+1${digits}`;
-  // US: 11 digits starting with 1 → +1...
-  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
-  return `+${digits}`;
-}
 
 export default function VerificationModal({
   onClose,
@@ -50,11 +37,16 @@ export default function VerificationModal({
   cloud_type,
   email: initialEmail,
   phone: initialPhone,
+  identifier: lockedIdentifier,
+  identifier_type: lockedType,
 }: VerificationModalProps) {
   const t = getMessages(locale).verification;
-  const [step, setStep] = useState<Step>("input");
-  const [email, setEmail] = useState(initialEmail ?? "");
-  const [phone, setPhone] = useState(initialPhone ?? "");
+  const identityLocked = !!(lockedIdentifier && lockedType);
+
+  const [step, setStep] = useState<Step>(identityLocked ? "input" : "choose");
+  const [method, setMethod] = useState<"email" | "phone">(lockedType ?? "email");
+  const [email, setEmail] = useState(lockedType === "email" ? (lockedIdentifier ?? initialEmail ?? "") : (initialEmail ?? ""));
+  const [phone, setPhone] = useState(lockedType === "phone" ? (lockedIdentifier ?? initialPhone ?? "") : (initialPhone ?? ""));
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -64,25 +56,25 @@ export default function VerificationModal({
   const isTestEmail = (e: string) => /^ev\d+-.+@l$/.test(e) || /^dummy2\d+@test\.local$/.test(e);
   const devBypassOtp = typeof process.env.NEXT_PUBLIC_DEV_BYPASS_OTP === "string" && process.env.NEXT_PUBLIC_DEV_BYPASS_OTP === "true";
 
+  const effectiveEmail = method === "email" ? (identityLocked ? lockedIdentifier! : email.trim().toLowerCase()) : "";
+  const effectivePhone = method === "phone" ? (identityLocked ? lockedIdentifier! : toE164(phone)) : "";
+  const useEmail = method === "email";
+
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const eTrim = email.trim().toLowerCase();
-    const pTrim = phone.trim().replace(/\s/g, "");
-    if (!eTrim && !pTrim) {
+    const eTrim = useEmail ? (identityLocked ? lockedIdentifier! : email.trim().toLowerCase()) : "";
+    const pTrim = useEmail ? "" : (identityLocked ? lockedIdentifier! : toE164(phone));
+    if (useEmail && !eTrim) {
       setError(t.enterEmailOrPhone);
       return;
     }
-    // Prefer email if both filled; for phone require at least 10 digits so "+84" alone is rejected
-    const useEmail = !!eTrim;
-    const phoneDigits = pTrim.replace(/\D/g, "");
-    if (!useEmail && phoneDigits.length < 10) {
+    if (!useEmail && !pTrim) {
       setError(t.enterEmailOrPhone);
       return;
     }
     setLoading(true);
     try {
-      // Dev-only: skip OTP for test accounts (verified via seed_verify_test_accounts.sql)
       if (!isCountdownFlow && devBypassOtp && useEmail && isTestEmail(eTrim)) {
         const res = await fetch(`/api/waitlist/lookup?email=${encodeURIComponent(eTrim)}`);
         const json = await res.json();
@@ -100,20 +92,16 @@ export default function VerificationModal({
       }
 
       const supabase = createBrowserClient();
-      const phoneE164 = toE164(phone);
-      const options = useEmail ? { email: eTrim } : { phone: phoneE164 };
+      const options = useEmail ? { email: eTrim } : { phone: pTrim };
       const { error: err } = await supabase.auth.signInWithOtp(options as { email: string } | { phone: string });
       if (err) {
         const msg = err.message?.toLowerCase() ?? "";
-        setError(
-          msg.includes("rate limit") || msg.includes("rate_limit") ? t.rateLimit : err.message || t.errorSend
-        );
+        setError(msg.includes("rate limit") || msg.includes("rate_limit") ? t.rateLimit : err.message || t.errorSend);
         return;
       }
       setStep("code");
     } catch (e) {
-      const msg = e instanceof Error ? e.message : t.errorSend;
-      setError(msg || t.errorSend);
+      setError(e instanceof Error ? e.message : t.errorSend);
     } finally {
       setLoading(false);
     }
@@ -127,10 +115,10 @@ export default function VerificationModal({
     setStep("verifying");
     try {
       const supabase = createBrowserClient();
-      const eTrim = email.trim().toLowerCase();
-      const phoneE164 = toE164(phone);
+      const eTrim = useEmail ? (identityLocked ? lockedIdentifier! : email.trim().toLowerCase()) : "";
+      const phoneE164 = useEmail ? "" : (identityLocked ? lockedIdentifier! : toE164(phone));
       const tokenVal = code.trim();
-      const { data, error: verifyErr } = eTrim
+      const { data, error: verifyErr } = useEmail
         ? await supabase.auth.verifyOtp({ email: eTrim, token: tokenVal, type: "email" })
         : await supabase.auth.verifyOtp({ phone: phoneE164, token: tokenVal, type: "sms" });
       if (verifyErr || !data?.session) {
@@ -145,11 +133,11 @@ export default function VerificationModal({
         const res = await fetch("/api/waitlist/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({
+          body: JSON.stringify({
             name: name.trim(),
             cloud_type: cloud_type.trim(),
-            email: eTrim || undefined,
-            phone: (eTrim ? undefined : toE164(phone)) || undefined,
+            email: useEmail ? (identityLocked ? lockedIdentifier : eTrim) || undefined : undefined,
+            phone: !useEmail ? (identityLocked ? lockedIdentifier : phoneE164) || undefined : undefined,
           }),
         });
         const json = await res.json();
@@ -161,7 +149,6 @@ export default function VerificationModal({
         }
         onSuccess({ mode: "countdown" });
       } else {
-        // Link flow (e.g. "Know your cloud?"): link auth to existing waitlist row by email/phone, or get existing linked row
         const linkRes = await fetch("/api/waitlist/link", {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
@@ -173,10 +160,9 @@ export default function VerificationModal({
           const meJson = await meRes.json();
           u = meJson?.user;
         }
-        const hasWaitlist = !!u;
         onSuccess({
           mode: "lookup",
-          hasWaitlist,
+          hasWaitlist: !!u,
           user: u ? { name: u.name, email: u.email, phone: u.phone, team: u.team, referralCode: u.referralCode } : undefined,
         });
       }
@@ -201,13 +187,14 @@ export default function VerificationModal({
       exit={{ opacity: 0 }}
       onClick={onClose}
     >
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" aria-hidden />
+      <div className="absolute inset-0 bg-black/40" aria-hidden style={{ backgroundColor: "rgba(0,0,0,0.4)" }} />
       <motion.div
         className="relative w-full max-w-md min-w-0 rounded-3xl shadow-2xl p-6 sm:p-8 my-auto max-h-[min(90dvh,calc(100dvh-2rem))] overflow-y-auto"
         style={{
-          background: "rgba(255,255,255,0.92)",
+          background: "rgba(255,255,255,0.12)",
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
+          borderRadius: "24px",
         }}
         initial={{ opacity: 0, scale: 0.92 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -218,7 +205,7 @@ export default function VerificationModal({
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-storm/60 hover:text-storm"
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-white/70 hover:text-white"
           aria-label="Close"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -226,9 +213,35 @@ export default function VerificationModal({
           </svg>
         </button>
 
-        <h3 className="font-subheadline text-xl text-storm mb-2 pr-10">{t.title}</h3>
+        <h3 className="font-subheadline text-xl text-white mb-2 pr-10">{t.title}</h3>
 
         <AnimatePresence mode="wait">
+          {step === "choose" && (
+            <motion.div
+              key="choose"
+              className="space-y-4 min-w-0"
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 8 }}
+              transition={{ duration: 0.2 }}
+            >
+              <p className="font-caption text-white/80 text-sm mb-4">{t.enterEmailOrPhone}</p>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="vm-method" checked={method === "email"} onChange={() => setMethod("email")} className="w-4 h-4" />
+                  <span className="font-caption text-white/90">Email</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="vm-method" checked={method === "phone"} onChange={() => setMethod("phone")} className="w-4 h-4" />
+                  <span className="font-caption text-white/90">Phone</span>
+                </label>
+              </div>
+              <button type="button" onClick={() => setStep("input")} className="w-full py-3 rounded-xl bg-white/20 text-white font-subheadline hover:bg-white/30">
+                Next
+              </button>
+            </motion.div>
+          )}
+
           {step === "input" && (
             <motion.form
               key="input"
@@ -239,39 +252,30 @@ export default function VerificationModal({
               exit={{ opacity: 0, x: 8 }}
               transition={{ duration: 0.2 }}
             >
-              <p className="font-caption text-storm/70 text-sm mb-4">{t.enterEmailOrPhone}</p>
+              <p className="font-caption text-white/80 text-sm mb-4">{t.enterEmailOrPhone}</p>
               <div className="min-w-0">
-                <label htmlFor="vm-email" className="font-caption block text-sm text-storm mb-1">Email</label>
+                <label htmlFor="vm-identifier" className="font-caption block text-sm text-white/90 mb-1">
+                  {method === "email" ? "Email" : "Phone"}
+                </label>
                 <input
-                  id="vm-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="w-full min-w-0 box-border px-4 py-3 rounded-xl bg-white border border-mist/60 focus:outline-none focus:ring-2 focus:ring-storm/30"
+                  id="vm-identifier"
+                  type={method === "email" ? "email" : "tel"}
+                  value={identityLocked ? lockedIdentifier : method === "email" ? email : phone}
+                  onChange={(e) => !identityLocked && (method === "email" ? setEmail(e.target.value) : setPhone(e.target.value))}
+                  placeholder={method === "email" ? "you@example.com" : "+84"}
+                  disabled={identityLocked}
+                  className={`w-full min-w-0 box-border px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-white/50 ${
+                    identityLocked ? "bg-white/10 border-white/30 text-white/90 cursor-not-allowed" : "bg-white/10 border-white/20 text-white placeholder-white/50"
+                  }`}
                 />
               </div>
-              <div className="min-w-0">
-                <label htmlFor="vm-phone" className="font-caption block text-sm text-storm mb-1">Phone</label>
-                <input
-                  id="vm-phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+84"
-                  className="w-full min-w-0 box-border px-4 py-3 rounded-xl bg-white border border-mist/60 focus:outline-none focus:ring-2 focus:ring-storm/30"
-                />
-              </div>
-              {error && <p className="text-red-500 text-sm">{error}</p>}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 rounded-xl bg-storm text-white font-subheadline hover:opacity-90 disabled:opacity-50"
-              >
+              {error && <p className="text-red-300 text-sm">{error}</p>}
+              <button type="submit" disabled={loading} className="w-full py-3 rounded-xl bg-white/25 text-white font-subheadline hover:bg-white/35 disabled:opacity-50">
                 {loading ? t.sending : t.sendCode}
               </button>
             </motion.form>
           )}
+
           {(step === "code" || step === "verifying") && (
             <motion.form
               key="code"
@@ -282,7 +286,7 @@ export default function VerificationModal({
               exit={{ opacity: 0, x: 8 }}
               transition={{ duration: 0.2 }}
             >
-              <p className="font-caption text-storm/70 text-sm mb-4">{t.enterCode}</p>
+              <p className="font-caption text-white/80 text-sm mb-4">{t.enterCode}</p>
               <input
                 type="text"
                 inputMode="numeric"
@@ -290,24 +294,26 @@ export default function VerificationModal({
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                 placeholder="000000"
-                className="w-full min-w-0 box-border px-4 py-3 rounded-xl bg-white border border-mist/60 focus:outline-none focus:ring-2 focus:ring-storm/30 text-center text-lg tracking-widest"
+                className="w-full min-w-0 box-border px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50 text-center text-lg tracking-widest"
                 maxLength={6}
               />
-              {error && <p className="text-red-500 text-sm">{error}</p>}
+              {error && <p className="text-red-300 text-sm">{error}</p>}
               <button
                 type="submit"
                 disabled={loading || code.length < 4}
-                className="w-full py-3 rounded-xl bg-storm text-white font-subheadline hover:opacity-90 disabled:opacity-50"
+                className="w-full py-3 rounded-xl bg-white/25 text-white font-subheadline hover:bg-white/35 disabled:opacity-50"
               >
                 {loading ? t.verifying : t.verify}
               </button>
-              <button
-                type="button"
-                onClick={() => { setStep("input"); setCode(""); setError(""); }}
-                className="w-full py-2 text-storm/70 text-sm"
-              >
-                Use a different email or phone
-              </button>
+              {!identityLocked && (
+                <button
+                  type="button"
+                  onClick={() => { setStep("input"); setCode(""); setError(""); }}
+                  className="w-full py-2 text-white/70 text-sm hover:text-white/90"
+                >
+                  Use a different email or phone
+                </button>
+              )}
             </motion.form>
           )}
         </AnimatePresence>

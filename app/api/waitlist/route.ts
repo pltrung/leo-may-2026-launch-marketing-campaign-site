@@ -34,6 +34,19 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerClient();
 
+    let referrerId: string | null = null;
+    if (referred_by?.trim()) {
+      const { data: refRow } = await supabase
+        .from("waitlist")
+        .select("id")
+        .eq("referral_code", referred_by.trim())
+        .maybeSingle();
+      referrerId = refRow?.id ?? null;
+    }
+
+    const identifierType = emailNormalized ? "email" : phoneNormalized ? "phone" : null;
+    const identifierValue = emailNormalized ?? phoneNormalized ?? null;
+
     const insertPayload: Record<string, unknown> = {
       name: name.trim(),
       email: emailNormalized,
@@ -42,7 +55,9 @@ export async function POST(request: NextRequest) {
       referral_code: referralCode,
       referral_count: 0,
     };
-    if (referred_by?.trim()) insertPayload.referred_by = referred_by.trim();
+    if (identifierValue) insertPayload.identifier = identifierValue;
+    if (identifierType) insertPayload.identifier_type = identifierType;
+    if (referrerId) insertPayload.referred_by = referrerId;
 
     const { error } = await supabase.from("waitlist").insert(insertPayload);
 
@@ -60,18 +75,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (referred_by?.trim()) {
-      const { data: referrer } = await supabase
-        .from("waitlist")
-        .select("referral_count")
-        .eq("referral_code", referred_by.trim())
-        .maybeSingle();
-      const newCount = (referrer?.referral_count ?? 0) + 1;
-      await supabase
-        .from("waitlist")
-        .update({ referral_count: newCount })
-        .eq("referral_code", referred_by.trim());
-    }
+    // Referral count is NOT incremented here. It is only incremented when the referred
+    // user verifies and confirm_referral is called (RPC or /api/referrals/claim).
 
     // Fetch total count and team count for confirmation
     const [totalRes, teamRes] = await Promise.all([

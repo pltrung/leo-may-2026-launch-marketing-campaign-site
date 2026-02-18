@@ -1,5 +1,7 @@
 import type { CloudType } from "./cloudData";
 
+export type IdentifierType = "email" | "phone";
+
 export interface StoredUser {
   name: string;
   email?: string;
@@ -7,6 +9,10 @@ export interface StoredUser {
   team: CloudType;
   timestamp: number;
   referralCode?: string;
+  /** Locked identity: one of email or phone (source of truth after "Continue") */
+  identifier?: string;
+  identifier_type?: IdentifierType;
+  locked?: boolean;
 }
 
 const STORAGE_KEY = "leo_may_user";
@@ -64,4 +70,9 @@ export function findUserByEmailOrPhone(
   if (e && userEmail && e === userEmail) return user;
   if (p && userPhone && p === userPhone) return user;
   return null;
+}
+
+/** Clear identity lock and reset flow (e.g. after "Change identity" confirm). */
+export function clearIdentityAndUser(): void {
+  clearUser();
 }

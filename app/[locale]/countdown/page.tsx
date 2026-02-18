@@ -704,9 +704,10 @@ export default function CountdownPage() {
             <p
               className="identity-rank font-caption text-center text-sm"
               style={{
-                color: "rgba(0,0,0,0.85)",
+                color: "rgba(0,0,0,0.9)",
                 textShadow: "none",
                 fontWeight: 600,
+                opacity: 0.9,
               }}
             >
               {t.youAreNow} <span style={{ color: accent, textShadow: `0 0 10px ${accent}50` }}>{identityRankLabel}</span>
@@ -791,7 +792,7 @@ export default function CountdownPage() {
                 type="button"
                 onClick={() => setVerificationOpen(true)}
                 className="px-5 py-2.5 rounded-full font-subheadline text-sm border-2 transition-colors hover:opacity-95"
-                style={{ borderColor: accentContrast, color: accentContrast }}
+                style={{ borderColor: accentContrast, color: accentContrast, willChange: "transform" }}
                 animate={{
                   scale: [1, 1.02, 1],
                   opacity: [0.9, 1, 0.9],
@@ -1089,6 +1090,8 @@ export default function CountdownPage() {
             cloud_type={user.team}
             email={user.email}
             phone={user.phone}
+            identifier={user.identifier}
+            identifier_type={user.identifier_type}
             onClose={() => setVerificationOpen(false)}
             onSuccess={async (payload) => {
               setVerificationOpen(false);
