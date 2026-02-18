@@ -4,7 +4,7 @@ import { useRef, useEffect, useState, useCallback, forwardRef } from "react";
 import { motion } from "framer-motion";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
-import { ASCENSION_TIERS, getEvoRoman, displayTierToBackend, deltaUsdToReachTier } from "@/lib/tiers";
+import { ASCENSION_TIERS, getEvoRoman, displayTierToBackend, deltaUsdToReachTier, tierToMinUsd } from "@/lib/tiers";
 
 const STAGGER_MS = 80;
 
@@ -61,6 +61,9 @@ export default function AscensionTimeline({
   const containerRef = useRef<HTMLElement | null>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const nextLocked = getNextLockedTier(currentTier);
+  // Effective USD already "covered" by current tier (payments or referral tier floor) so we show incremental $ to next tier
+  const currentBackendTier = displayTierToBackend(currentTier);
+  const effectiveUsd = Math.max(totalContributionUsd, tierToMinUsd(currentBackendTier));
 
   // Keep expanded card in sync with current tier (countdown page: highlight right tier; modal: open with current tier)
   useEffect(() => {
@@ -121,9 +124,10 @@ export default function AscensionTimeline({
                     : t.locked;
             const name = locale === "vi" ? cfg.nameVi : cfg.nameEn;
             const flavor = locale === "vi" ? cfg.flavorVi : cfg.flavorEn;
-            const reward = locale === "vi" ? cfg.rewardVi : cfg.rewardEn;
+            const rewardRaw = locale === "vi" ? cfg.rewardVi : cfg.rewardEn;
+            const reward = locked && cfg.tier >= 1 ? (t.unlocksReward ?? "Unlocks: ") + rewardRaw : rewardRaw;
             const backendTier = displayTierToBackend(cfg.tier);
-            const deltaUsd = deltaUsdToReachTier(totalContributionUsd, backendTier);
+            const deltaUsd = deltaUsdToReachTier(effectiveUsd, backendTier);
             const upgradePriceLabel = deltaUsd;
 
             return (
@@ -150,7 +154,7 @@ export default function AscensionTimeline({
                 onToggle={() => setExpandedTier(isExpanded ? null : cfg.tier)}
                 onUpgrade={cfg.tier >= 1 ? onUpgrade : undefined}
                 loadingTier={loadingTier}
-                upgradeLabel={t.upgradeToTierPrice.replace("{tier}", String(cfg.tier)).replace("{price}", String(upgradePriceLabel))}
+                upgradeLabel={t.upgradeToTierPrice.replace("{tier}", String(cfg.tier + 1)).replace("{price}", String(upgradePriceLabel))}
                 paymentsConfigured={paymentsConfigured}
                 paymentsComingSoonLabel={paymentsComingSoonLabel}
               />
