@@ -26,7 +26,7 @@ interface AscensionTimelineProps {
   locale: Locale;
   accentHex: string;
   currentTier: number;
-  variant?: "light" | "dark" | "frosted";
+  variant?: "light" | "dark" | "frosted" | "lightModal";
   onUpgrade?: (displayTier: number) => void;
   loadingTier?: number;
   upgradeError?: string;
@@ -59,8 +59,9 @@ export default function AscensionTimeline({
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const nextLocked = getNextLockedTier(currentTier);
 
+  // Keep expanded card in sync with current tier (countdown page: highlight right tier; modal: open with current tier)
   useEffect(() => {
-    setExpandedTier((prev) => (prev === null ? currentTier : prev));
+    setExpandedTier(currentTier);
   }, [currentTier]);
 
   useEffect(() => {
@@ -73,6 +74,7 @@ export default function AscensionTimeline({
 
   const rgb = hexToRgb(accentHex);
   const isFrosted = variant === "frosted";
+  const isLightModal = variant === "lightModal";
 
   return (
     <section
@@ -89,9 +91,11 @@ export default function AscensionTimeline({
           <div
             className="absolute left-0 top-1 bottom-1 w-px pointer-events-none"
             style={{
-              background: isFrosted
-                ? "linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.15) 15%, rgba(255,255,255,0.25) 50%, rgba(255,255,255,0.15) 85%, transparent 100%)"
-                : `linear-gradient(to bottom, transparent 0%, rgba(${rgb},0.2) 10%, rgba(${rgb},0.35) 50%, rgba(${rgb},0.2) 90%, transparent 100%)`,
+              background: isLightModal
+                ? "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.12) 20%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.12) 80%, transparent 100%)"
+                : isFrosted
+                  ? "linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.15) 15%, rgba(255,255,255,0.25) 50%, rgba(255,255,255,0.15) 85%, transparent 100%)"
+                  : `linear-gradient(to bottom, transparent 0%, rgba(${rgb},0.2) 10%, rgba(${rgb},0.35) 50%, rgba(${rgb},0.2) 90%, transparent 100%)`,
             }}
           />
         </div>
@@ -164,7 +168,7 @@ interface TierCardProps {
   priceUsd: number;
   accentHex: string;
   rgb: string;
-  variant: "light" | "dark" | "frosted";
+  variant: "light" | "dark" | "frosted" | "lightModal";
   reducedMotion: boolean;
   staggerIndex: number;
   isExpanded: boolean;
@@ -233,29 +237,45 @@ const TierCard = forwardRef<HTMLDivElement, TierCardProps>(
     }, [reducedMotion, node]);
 
     const isFrosted = variant === "frosted";
+    const isLightModal = variant === "lightModal";
+    const isLight = variant === "light";
     const isDark = variant === "dark";
     const goldOnly = isFrosted;
-    const pillAccent = goldOnly && isCurrent ? accentHex : (isCurrent || (tier > 0 && unlocked) ? accentHex : undefined);
-    const usePillNeutral = tier === 0 || (locked && !goldOnly);
+    const pillAccent = isLightModal ? (isCurrent ? accentHex : undefined) : (goldOnly && isCurrent ? accentHex : (isCurrent || (tier > 0 && unlocked) ? accentHex : undefined));
+    const usePillNeutral = tier === 0 || (locked && (goldOnly || isLightModal));
 
-    const bg = isFrosted
-      ? "rgba(255,255,255,0.08)"
-      : isDark
-        ? unlocked || isCurrent
-          ? `rgba(${rgb},0.08)`
-          : "rgba(0,0,0,0.03)"
-        : "rgba(255,255,255,0.06)";
-    const borderColor = isFrosted
-      ? isCurrent
-        ? `rgba(${rgb},0.5)`
-        : "rgba(255,255,255,0.12)"
-      : isDark
-        ? unlocked || isCurrent
-          ? `rgba(${rgb},0.25)`
-          : "rgba(0,0,0,0.1)"
-        : "rgba(255,255,255,0.2)";
-    const textPrimary = isFrosted || !isDark ? "rgba(255,255,255,0.95)" : "#1E2A38";
-    const textSecondary = isFrosted || !isDark ? "rgba(255,255,255,0.75)" : "rgba(0,0,0,0.6)";
+    const bg = isLightModal
+      ? "#F5F5F5"
+      : isLight
+        ? isCurrent
+          ? `rgba(${rgb},0.22)`
+          : locked
+            ? "rgba(255,255,255,0.05)"
+            : "rgba(255,255,255,0.1)"
+        : isFrosted
+          ? "rgba(255,255,255,0.08)"
+          : isDark
+            ? unlocked || isCurrent
+              ? `rgba(${rgb},0.08)`
+              : "rgba(0,0,0,0.03)"
+            : "rgba(255,255,255,0.06)";
+    const borderColor = isLightModal
+      ? "rgba(0,0,0,0.08)"
+      : isLight
+        ? isCurrent
+          ? `rgba(${rgb},0.6)`
+          : "rgba(255,255,255,0.2)"
+        : isFrosted
+          ? isCurrent
+            ? `rgba(${rgb},0.5)`
+            : "rgba(255,255,255,0.12)"
+          : isDark
+            ? unlocked || isCurrent
+              ? `rgba(${rgb},0.25)`
+              : "rgba(0,0,0,0.1)"
+            : "rgba(255,255,255,0.2)";
+    const textPrimary = isLightModal ? "#1E2A38" : isFrosted || !isDark || isLight ? "rgba(255,255,255,0.95)" : "#1E2A38";
+    const textSecondary = isLightModal ? "#555" : isFrosted || !isDark || isLight ? "rgba(255,255,255,0.75)" : "rgba(0,0,0,0.6)";
 
     const loading = loadingTier === tier;
     const showUpgradeCta = locked && tier >= 1 && onUpgrade;
@@ -292,21 +312,25 @@ const TierCard = forwardRef<HTMLDivElement, TierCardProps>(
           rounded-2xl border transition-[transform,box-shadow] duration-200 ease-out cursor-pointer
           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
           ${isFrosted ? "backdrop-blur-md focus-visible:ring-offset-[#0f2744]" : ""}
+          ${isLightModal ? "focus-visible:ring-offset-white" : ""}
           ${isDark ? "focus-visible:ring-offset-white" : ""}
-          ${!isDark && !isFrosted ? "focus-visible:ring-offset-[#0242FF]" : ""}
+          ${isLight ? "focus-visible:ring-offset-transparent" : ""}
+          ${!isDark && !isFrosted && !isLightModal && !isLight ? "focus-visible:ring-offset-[#0242FF]" : ""}
           ${locked && isFrosted ? "opacity-95" : ""}
         `}
         style={{
           backgroundColor: bg,
           borderColor,
           padding: isExpanded ? "0.75rem 1rem" : "0.5rem 0.75rem",
-          boxShadow: isFrosted ? "0 4px 16px rgba(0,0,0,0.15)" : undefined,
+          boxShadow: isFrosted ? "0 4px 16px rgba(0,0,0,0.15)" : isLightModal ? "0 1px 3px rgba(0,0,0,0.06)" : isLight && isCurrent ? `0 0 20px rgba(${rgb},0.35)` : undefined,
           filter: locked && isFrosted ? "saturate(0.85)" : undefined,
         }}
         whileHover={
           isFrosted && !reducedMotion && isExpanded
             ? { y: -1, boxShadow: "0 6px 20px rgba(0,0,0,0.2)" }
-            : undefined
+            : isLightModal && !reducedMotion
+              ? { y: -1, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }
+              : isLight && !reducedMotion ? { y: -1, boxShadow: isCurrent ? `0 0 24px rgba(${rgb},0.4)` : "0 4px 16px rgba(0,0,0,0.15)" } : undefined
         }
         aria-label={`Tier ${tier}: ${name}, ${pillText}`}
         aria-expanded={isExpanded}
@@ -327,11 +351,21 @@ const TierCard = forwardRef<HTMLDivElement, TierCardProps>(
             </span>
           </div>
           <span
-            className="shrink-0 py-0.5 px-2 rounded-full text-[10px] font-medium uppercase"
-            style={{
-              backgroundColor: usePillNeutral ? "rgba(255,255,255,0.2)" : (pillAccent ? `${pillAccent}22` : `${accentHex}22`),
-              color: usePillNeutral ? "rgba(255,255,255,0.95)" : (pillAccent ?? accentHex),
-            }}
+            className="shrink-0 py-0.5 px-2.5 rounded-full text-[10px] font-semibold uppercase tracking-wide"
+            style={
+              isLight
+                ? tier === 0
+                  ? { backgroundColor: "rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.95)" }
+                  : isCurrent
+                    ? { backgroundColor: accentHex, color: "#ffffff" }
+                    : unlocked
+                      ? { backgroundColor: `rgba(${rgb},0.35)`, color: "rgba(255,255,255,0.98)" }
+                      : { backgroundColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)" }
+                : {
+                    backgroundColor: isLightModal && usePillNeutral ? "rgba(0,0,0,0.1)" : usePillNeutral ? "rgba(255,255,255,0.2)" : (pillAccent ? `${pillAccent}22` : `${accentHex}22`),
+                    color: isLightModal && usePillNeutral ? "#555" : usePillNeutral ? "rgba(255,255,255,0.95)" : (pillAccent ?? accentHex),
+                  }
+            }
           >
             {pillText}
           </span>
@@ -357,7 +391,7 @@ const TierCard = forwardRef<HTMLDivElement, TierCardProps>(
               {flavor}
             </p>
             <div className="flex items-start gap-2 mt-2 text-xs" style={{ color: textSecondary }}>
-              <IconCheck className="w-3.5 h-3.5 shrink-0 mt-0.5 opacity-90" style={{ color: isCurrent || unlocked ? accentHex : "rgba(255,255,255,0.5)" }} />
+              <IconCheck className="w-3.5 h-3.5 shrink-0 mt-0.5 opacity-90" style={{ color: isLightModal ? (isCurrent || unlocked ? accentHex : "#999") : isLight ? (isCurrent || unlocked ? accentHex : "rgba(255,255,255,0.5)") : isCurrent || unlocked ? accentHex : "rgba(255,255,255,0.5)" }} />
               <span>{reward}</span>
             </div>
             {showUpgradeCta && (
@@ -368,7 +402,7 @@ const TierCard = forwardRef<HTMLDivElement, TierCardProps>(
                   e.stopPropagation();
                   if (!upgradeDisabled && onUpgrade) onUpgrade(tier);
                 }}
-                className="mt-3 w-full py-2 px-4 rounded-xl text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="mt-3 w-full py-2.5 px-4 rounded-xl text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
                 style={{
                   backgroundColor: accentHex,
                   color: "#1E2A38",

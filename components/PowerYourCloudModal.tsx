@@ -12,8 +12,12 @@ import {
 } from "@/lib/tiers";
 import AscensionTimeline from "@/components/AscensionTimeline";
 
-/** Gold accent for current tier, upgrade CTAs, and progress bar in Power Your Cloud modal. */
-const GOLD_ACCENT = "#C9A227";
+/** Fallback when cloud accent is too light for contrast. */
+const FALLBACK_ACCENT = "#C9A227";
+const CONTENT_BLOCK_BG = "#F5F5F5";
+const BORDER_LIGHT = "rgba(0,0,0,0.08)";
+const TEXT_PRIMARY = "#1E2A38";
+const TEXT_SECONDARY = "#555";
 
 interface PowerYourCloudModalProps {
   locale: Locale;
@@ -100,6 +104,7 @@ export default function PowerYourCloudModal({
 
   const tierProgress = getProgressToNextTier(currentDisplayTier, referralCount);
   const showProgressBar = !tierProgress.isMaxTier && tierProgress.nextTierDelta > 0;
+  const modalAccent = accentHex && accentHex !== "#ffffff" && accentHex !== "#fff" ? accentHex : FALLBACK_ACCENT;
   const progressPct = showProgressBar
     ? Math.min(100, (tierProgress.progressToNext / tierProgress.nextTierDelta) * 100)
     : 0;
@@ -128,34 +133,28 @@ export default function PowerYourCloudModal({
           aria-hidden
         />
         <motion.div
-          className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl shadow-2xl"
+          className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl shadow-2xl border overflow-hidden"
           initial={{ scale: 0.96, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.96, opacity: 0 }}
           transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
           onClick={(e) => e.stopPropagation()}
           style={{
-            background: "linear-gradient(165deg, #0a1a3a 0%, #0242FF 35%, #0d2d5c 70%, #061428 100%)",
-            color: "rgba(255,255,255,0.95)",
-            boxShadow: "0 0 0 1px rgba(255,255,255,0.06), 0 25px 50px -12px rgba(0,0,0,0.5)",
+            backgroundColor: "#ffffff",
+            color: TEXT_PRIMARY,
+            boxShadow: "0 24px 48px rgba(0,0,0,0.15)",
+            borderColor: BORDER_LIGHT,
           }}
         >
-          {/* Soft radial glow (mascot-style) */}
-          <div
-            className="pointer-events-none absolute inset-0 rounded-2xl overflow-hidden"
-            aria-hidden
-            style={{
-              background: "radial-gradient(ellipse 80% 60% at 50% 20%, rgba(2,66,255,0.25) 0%, rgba(2,66,255,0.08) 40%, transparent 70%)",
-            }}
-          />
-          <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/5 backdrop-blur-md rounded-t-2xl">
-            <h2 id="power-your-cloud-title" className="font-subheadline font-semibold text-lg text-white">
+          <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 border-b bg-white rounded-t-2xl" style={{ borderColor: BORDER_LIGHT }}>
+            <h2 id="power-your-cloud-title" className="font-subheadline font-semibold text-lg" style={{ color: TEXT_PRIMARY }}>
               {t.title}
             </h2>
             <button
               type="button"
               onClick={onClose}
-              className="p-2 -m-2 rounded-full hover:bg-white/10 transition-colors text-white"
+              className="p-2 -m-2 rounded-full hover:bg-black/10 transition-colors"
+              style={{ color: "#666" }}
               aria-label="Close"
             >
               <IconClose className="w-5 h-5" />
@@ -163,48 +162,52 @@ export default function PowerYourCloudModal({
           </div>
 
           <div className="relative p-4 space-y-4">
-            {/* FREE PATH — frosted glass card */}
-            <section className="rounded-xl bg-white/10 backdrop-blur-md border border-white/15 p-3 shadow-lg">
-              <p className="text-[10px] font-medium uppercase tracking-wider text-white/70 border-b border-white/15 pb-1.5 mb-2">
+            {/* FREE PATH — light grey block (on-brand with referral module) */}
+            <section
+              className="rounded-xl p-3 border"
+              style={{ backgroundColor: CONTENT_BLOCK_BG, borderColor: BORDER_LIGHT }}
+            >
+              <p className="text-[10px] font-medium uppercase tracking-wider border-b pb-1.5 mb-2" style={{ color: TEXT_SECONDARY, borderColor: BORDER_LIGHT }}>
                 {t.freePathTitle}
               </p>
-              <p className="text-sm text-white/90 mb-2">{t.shareToEarn}</p>
+              <p className="text-sm mb-2" style={{ color: TEXT_PRIMARY }}>{t.shareToEarn}</p>
               {showProgressBar && (
                 <>
-                  <div className="h-2 rounded-full bg-white/20 overflow-hidden mb-1.5">
+                  <div className="h-2 rounded-full overflow-hidden mb-1.5" style={{ backgroundColor: "rgba(0,0,0,0.1)" }}>
                     <motion.div
                       className="h-full rounded-full"
                       initial={{ width: 0 }}
                       animate={{ width: `${progressPct}%` }}
                       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                      style={{ backgroundColor: GOLD_ACCENT }}
+                      style={{ backgroundColor: modalAccent }}
                     />
                   </div>
-                  <p className="text-xs text-white/60 mb-2">{progressLabel}</p>
+                  <p className="text-xs mb-2" style={{ color: TEXT_SECONDARY }}>{progressLabel}</p>
                 </>
               )}
               {!showProgressBar && (
-                <p className="text-xs text-white/60 mb-2">{progressLabel}</p>
+                <p className="text-xs mb-2" style={{ color: TEXT_SECONDARY }}>{progressLabel}</p>
               )}
               <button
                 type="button"
                 onClick={onOpenShare}
-                className="w-full py-2 px-4 rounded-xl font-medium text-sm border-2 transition-transform hover:scale-[1.02] active:scale-[0.98] border-white/30 text-white hover:bg-white/10"
+                className="w-full py-3 rounded-xl font-medium text-sm transition-transform hover:opacity-90 active:scale-[0.98]"
+                style={{ backgroundColor: modalAccent, color: "#1E2A38" }}
               >
                 Share
               </button>
             </section>
 
-            {/* UNLOCKABLE REWARDS — single timeline with upgrade CTAs inside */}
+            {/* UNLOCKABLE REWARDS — light grey section (on-brand) */}
             <section aria-label={messages.countdown.rewardsTitle}>
-              <p className="text-[10px] font-medium uppercase tracking-wider text-white/70 border-b border-white/15 pb-1.5 mb-2">
+              <p className="text-[10px] font-medium uppercase tracking-wider border-b pb-1.5 mb-2" style={{ color: TEXT_SECONDARY, borderColor: BORDER_LIGHT }}>
                 {messages.countdown.rewardsTitle}
               </p>
               <AscensionTimeline
                 locale={locale}
-                accentHex={GOLD_ACCENT}
+                accentHex={modalAccent}
                 currentTier={currentDisplayTier}
-                variant="frosted"
+                variant="lightModal"
                 onUpgrade={handleUpgrade}
                 loadingTier={loadingTier ?? undefined}
                 upgradeError={error ?? undefined}
@@ -217,11 +220,10 @@ export default function PowerYourCloudModal({
                     type="button"
                     disabled={!paymentsConfigured || loadingTier !== null}
                     onClick={() => handleUpgrade(5)}
-                    className="w-full py-2.5 px-4 rounded-xl text-sm font-medium border-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full py-3 px-4 rounded-xl text-sm font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                     style={{
-                      borderColor: GOLD_ACCENT,
-                      backgroundColor: paymentsConfigured ? `${GOLD_ACCENT}22` : "rgba(255,255,255,0.08)",
-                      color: GOLD_ACCENT,
+                      backgroundColor: paymentsConfigured ? modalAccent : CONTENT_BLOCK_BG,
+                      color: "#1E2A38",
                     }}
                     title={!paymentsConfigured ? t.paymentsComingSoon : undefined}
                   >
@@ -230,7 +232,7 @@ export default function PowerYourCloudModal({
                 </div>
               )}
               {error && (
-                <p className="mt-2 text-xs text-amber-200" role="alert">
+                <p className="mt-2 text-xs" style={{ color: "#b45309" }} role="alert">
                   {error}
                 </p>
               )}
