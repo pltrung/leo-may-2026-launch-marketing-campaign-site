@@ -59,7 +59,7 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
           ease: [0.22, 1, 0.36, 1],
         }}
       >
-        <h2 className="cloud-selection-title font-headline text-[22px] sm:text-[26px] md:text-[32px] leading-[1.2] md:text-5xl text-center text-white tracking-headline pl-20 pr-20 md:px-4">
+        <h2 className="cloud-selection-title font-headline text-[22px] sm:text-[26px] md:text-[32px] leading-[1.2] md:text-5xl text-center text-white tracking-headline pl-20 pr-20 md:px-4 max-md:whitespace-nowrap">
           {whatTypeOfCloud}
         </h2>
       </motion.div>

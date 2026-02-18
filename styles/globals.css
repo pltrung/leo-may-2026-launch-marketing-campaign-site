@@ -2464,12 +2464,16 @@ body.hero-ready .hero-scroll {
   }
 }
 
-/* Mobile phones: swipe guide higher so it doesn’t touch the card stack (iOS + Android) */
+/* Mobile phones: swipe guide position; title single row */
 @media (max-width: 768px) {
   .swipe-guide {
-    top: 20vh;
-    /* Support dynamic viewport on iOS Safari */
-    top: 20dvh;
+    top: 26vh;
+    top: 26dvh;
+  }
+
+  .cloud-selection-title {
+    font-size: clamp(15px, 4.5vw, 22px);
+    white-space: nowrap;
   }
 }
 
