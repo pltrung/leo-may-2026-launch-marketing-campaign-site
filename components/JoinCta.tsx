@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 
 interface JoinCtaProps {
@@ -10,10 +10,11 @@ interface JoinCtaProps {
 export default function JoinCta({ onJoin }: JoinCtaProps) {
   const [showCta, setShowCta] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const mountedRef = useRef(true);
   const { scrollY } = useScroll();
 
   useEffect(() => {
-    const check = () => setIsMobile(typeof window !== "undefined" && window.innerWidth < 768);
+    const check = () => mountedRef.current && setIsMobile(typeof window !== "undefined" && window.innerWidth < 768);
     check();
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
@@ -26,10 +27,16 @@ export default function JoinCta({ onJoin }: JoinCtaProps) {
   const y = useTransform(scrollY, [fadeStart, fadeEnd], [24, 0]);
 
   useEffect(() => {
+    mountedRef.current = true;
     const unsub = scrollY.on("change", (v) => {
-      setShowCta(v > threshold);
+      if (!mountedRef.current) return;
+      const num = typeof v === "number" ? v : Number(v);
+      if (Number.isFinite(num)) setShowCta(num > threshold);
     });
-    return () => unsub();
+    return () => {
+      mountedRef.current = false;
+      unsub();
+    };
   }, [scrollY, threshold]);
 
   return (

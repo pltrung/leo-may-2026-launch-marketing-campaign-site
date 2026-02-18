@@ -21,26 +21,37 @@ export default function MistAscent() {
   const [scrollY, setScrollY] = useState(0);
   const rafRef = useRef<number | null>(null);
   const tickingRef = useRef(false);
+  const mountedRef = useRef(true);
 
   const updateProgress = useCallback(() => {
     if (typeof window === "undefined") return;
-    const sy = window.scrollY;
+    if (!mountedRef.current) {
+      tickingRef.current = false;
+      return;
+    }
+    const sy = Math.max(0, window.scrollY);
     const maxScroll = Math.max(
       1,
       document.documentElement.scrollHeight - window.innerHeight
     );
     const raw = Math.min(1, sy / maxScroll);
+    if (!mountedRef.current) return;
     setProgress(raw);
     setScrollY(sy);
-    const root = document.documentElement;
-    const parallaxY = Math.min(40, raw * 40);
-    root.style.setProperty("--hero-parallax-y", `${parallaxY}px`);
-    const ipFloat = 6 + raw * 6;
-    root.style.setProperty("--hero-ip-float", `${ipFloat}px`);
+    try {
+      const root = document.documentElement;
+      const parallaxY = Math.min(40, raw * 40);
+      root.style.setProperty("--hero-parallax-y", `${parallaxY}px`);
+      const ipFloat = 6 + raw * 6;
+      root.style.setProperty("--hero-ip-float", `${ipFloat}px`);
+    } catch (_) {
+      // ignore DOM/layout errors on iOS (e.g. during overscroll)
+    }
     tickingRef.current = false;
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     const onScroll = () => {
       if (!tickingRef.current) {
         tickingRef.current = true;
@@ -50,11 +61,14 @@ export default function MistAscent() {
     updateProgress();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
+      mountedRef.current = false;
       window.removeEventListener("scroll", onScroll);
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-      document.documentElement.style.removeProperty("--hero-parallax-y");
-      document.documentElement.style.removeProperty("--hero-ip-float");
-      };
+      try {
+        document.documentElement.style.removeProperty("--hero-parallax-y");
+        document.documentElement.style.removeProperty("--hero-ip-float");
+      } catch (_) {}
+    };
   }, [updateProgress]);
 
   const mistProgress = Math.min(1, scrollY / MIST_RAMP_PX);

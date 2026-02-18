@@ -54,21 +54,28 @@ export default function AscentBar() {
   const [isMobile, setIsMobile] = useState(false);
   const rafRef = useRef<number | null>(null);
   const tickingRef = useRef(false);
+  const mountedRef = useRef(true);
 
   const updateProgress = useCallback(() => {
     if (typeof window === "undefined") return;
-    const scrollY = window.scrollY;
+    if (!mountedRef.current) {
+      tickingRef.current = false;
+      return;
+    }
+    const scrollY = Math.max(0, window.scrollY);
     const maxScroll = Math.max(
       1,
       document.documentElement.scrollHeight - window.innerHeight
     );
     const raw = scrollY / maxScroll;
     const eased = 1 - Math.pow(1 - Math.min(1, raw), 0.9);
+    if (!mountedRef.current) return;
     setProgress(eased);
     tickingRef.current = false;
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     const onScroll = () => {
       if (!tickingRef.current) {
         tickingRef.current = true;
@@ -79,7 +86,7 @@ export default function AscentBar() {
     };
 
     const onResize = () => {
-      setIsMobile(typeof window !== "undefined" && window.innerWidth < 768);
+      if (mountedRef.current) setIsMobile(typeof window !== "undefined" && window.innerWidth < 768);
     };
 
     onResize();
@@ -88,6 +95,7 @@ export default function AscentBar() {
     window.addEventListener("resize", onResize);
 
     return () => {
+      mountedRef.current = false;
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);

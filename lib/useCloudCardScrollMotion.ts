@@ -110,21 +110,26 @@ export function useCloudCardScrollMotion(
 
     const tick = () => {
       rafId.current = null;
-      const rect = container.getBoundingClientRect();
-      const stackTop = rect.top;
-      const targetProgress = clamp01(
-        (DEEP_TOP_PX - stackTop) / (DEEP_TOP_PX - SETTLE_TOP_PX)
-      );
-      smoothedProgress.current +=
-        (targetProgress - smoothedProgress.current) * SMOOTHING;
-      const p = smoothedProgress.current;
-      if (p >= 0.998) {
-        if (!inertiaMotionValue) clearAllCardTransforms();
-        else inertiaMotionValue.set(0);
-      } else {
-        apply(p);
+      try {
+        if (!container.isConnected) return;
+        const rect = container.getBoundingClientRect();
+        const stackTop = rect.top;
+        const targetProgress = clamp01(
+          (DEEP_TOP_PX - stackTop) / (DEEP_TOP_PX - SETTLE_TOP_PX)
+        );
+        smoothedProgress.current +=
+          (targetProgress - smoothedProgress.current) * SMOOTHING;
+        const p = smoothedProgress.current;
+        if (p >= 0.998) {
+          if (!inertiaMotionValue) clearAllCardTransforms();
+          else inertiaMotionValue.set(0);
+        } else {
+          apply(p);
+        }
+        onTick?.();
+      } catch (_) {
+        // avoid client exception on iOS when layout/DOM is in flux
       }
-      onTick?.();
     };
 
     const schedule = () => {
@@ -151,7 +156,9 @@ export function useCloudCardScrollMotion(
       window.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       if (rafId.current != null) cancelAnimationFrame(rafId.current);
-      clearAllCardTransforms();
+      try {
+        if (container.isConnected) clearAllCardTransforms();
+      } catch (_) {}
     };
   }, [cardStackRef, inertiaEnabled, inertiaMotionValue, onTick]);
 }
