@@ -20,9 +20,10 @@ import HeroScrollObserver from "@/components/HeroScrollObserver";
 import SkyTransition from "@/components/SkyTransition";
 import AscentBar from "@/components/AscentBar";
 import MistAscent from "@/components/MistAscent";
-import { CloudPersonality } from "@/lib/cloudData";
+import { CloudPersonality, getCloudById } from "@/lib/cloudData";
 import { getUser } from "@/lib/userStorage";
 import type { Locale } from "@/lib/i18n";
+import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
 
 function HomeContent() {
   const router = useRouter();
@@ -91,6 +92,10 @@ function HomeContent() {
     if (showClouds) document.documentElement.classList.add("cloud-selection-view");
     return () => document.documentElement.classList.remove("cloud-selection-view");
   }, [showClouds]);
+
+  const userForMascot = getUser();
+  const cloudForMascot = userForMascot?.team ? getCloudById(userForMascot.team) : null;
+  const heroMascotPartColors: MascotPartColors | null = cloudForMascot ? getMascotPartColors(cloudForMascot.id) : null;
 
   const [heroReady, setHeroReady] = useState(false);
   useEffect(() => {
@@ -163,7 +168,7 @@ function HomeContent() {
               <HeroScroll1 />
               <HeroScroll2 />
               <HeroScroll3 pose="front" />
-              <HeroScroll4 />
+              <HeroScroll4 partColors={heroMascotPartColors} />
               <HeroScroll5 />
               <HeroScroll6 />
               <HeroScroll7 onJoin={handleAscendClick} />
