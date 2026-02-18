@@ -1001,18 +1001,28 @@ export default function CountdownPage() {
 
         {user && (user.email || user.phone) && (
           <motion.div
-            className="w-full text-center py-3"
+            className="w-full max-w-[320px] mx-auto text-center py-3"
             initial={{ opacity: 0 }}
             animate={{ opacity: phase === "content" ? 1 : 0 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           >
-            <p className="font-caption text-white/70 text-xs">
-              {t.loggedInAs}
-            </p>
-            <p className="font-caption text-white/70 text-sm mt-0.5">
-              {user.name?.trim() || "Member"}
-              {user.email ? ` (${user.email})` : user.phone ? ` (${user.phone})` : ""}
-            </p>
+            <div
+              className="rounded-xl px-4 py-2.5 inline-block"
+              style={{
+                backgroundColor: "rgba(255,255,255,0.12)",
+                backdropFilter: "blur(8px)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                boxShadow: "0 0 12px rgba(0,0,0,0.08)",
+              }}
+            >
+              <p className="font-caption text-white/80 text-[10px] uppercase tracking-wider">
+                {t.loggedInAs}
+              </p>
+              <p className="font-caption text-white font-medium text-sm mt-0.5 truncate max-w-[280px] mx-auto" title={user.email || user.phone || undefined}>
+                {user.name?.trim() || "Member"}
+                {user.email ? ` · ${user.email}` : user.phone ? ` · ${user.phone}` : ""}
+              </p>
+            </div>
           </motion.div>
         )}
       </div>
