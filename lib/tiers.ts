@@ -21,14 +21,30 @@ export interface AscensionTierConfig {
   flavorVi: string;
 }
 
+/** Canonical tier names (cinematic origin myth). Single source of truth for EN + VN. */
 export const ASCENSION_TIERS: AscensionTierConfig[] = [
-  { tier: 0, nameEn: "Awakening Phase", nameVi: "Giai đoạn Thức tỉnh", priceUsd: 0, referralsRequired: 0, rewardEn: "Awakening phase activated", rewardVi: "Giai đoạn thức tỉnh được kích hoạt", flavorEn: "The first spark.", flavorVi: "Tia lửa đầu tiên." },
-  { tier: 1, nameEn: "Rising Current", nameVi: "Dòng Thăng", priceUsd: 5, referralsRequired: 4, rewardEn: "Early gym access eligibility", rewardVi: "Đủ điều kiện vào gym sớm", flavorEn: "Move before the crowd.", flavorVi: "Di chuyển trước đám đông." },
-  { tier: 2, nameEn: "Thunder Signal", nameVi: "Tín hiệu Sấm", priceUsd: 10, referralsRequired: 7, rewardEn: "Launch event invitation eligibility", rewardVi: "Đủ điều kiện thư mời sự kiện ra mắt", flavorEn: "Your presence is heard.", flavorVi: "Sự hiện diện của bạn được lắng nghe." },
-  { tier: 3, nameEn: "Sky Shaper", nameVi: "Người Định Hình Bầu Trời", priceUsd: 20, referralsRequired: 12, rewardEn: "Exclusive founding merchandise eligibility", rewardVi: "Đủ điều kiện hàng độc quyền sáng lập", flavorEn: "Shape the first Leo Mây.", flavorVi: "Định hình Leo Mây đầu tiên." },
-  { tier: 4, nameEn: "Name in the Clouds", nameVi: "Tên trong Mây", priceUsd: 35, referralsRequired: 20, rewardEn: "Permanent name recognition inside Leo Mây", rewardVi: "Tên vinh danh vĩnh viễn trong Leo Mây", flavorEn: "Your name becomes part of the sky.", flavorVi: "Tên bạn trở thành một phần bầu trời." },
-  { tier: 5, nameEn: "Founding Circle", nameVi: "Vòng Sáng Lập", priceUsd: 50, referralsRequired: 35, rewardEn: "Founding Circle access (permanent legacy engraving in our 1st gym + lifetime founding identity)", rewardVi: "Quyền vào Vòng Sáng Lập (khắc danh vĩnh viễn tại gym đầu tiên + bản sắc sáng lập trọn đời)", flavorEn: "Legacy, forever.", flavorVi: "Di sản, mãi mãi." },
+  { tier: 0, nameEn: "The Dreamer", nameVi: "Kẻ Mơ Mộng", priceUsd: 0, referralsRequired: 0, rewardEn: "Awakening phase activated", rewardVi: "Giai đoạn thức tỉnh được kích hoạt", flavorEn: "The first spark.", flavorVi: "Tia lửa đầu tiên." },
+  { tier: 1, nameEn: "The Cloud Seeker", nameVi: "Kẻ Lần Theo Mây", priceUsd: 5, referralsRequired: 4, rewardEn: "Early gym access eligibility", rewardVi: "Đủ điều kiện vào gym sớm", flavorEn: "Move before the crowd.", flavorVi: "Di chuyển trước đám đông." },
+  { tier: 2, nameEn: "The Thunder Challenger", nameVi: "Kẻ Thách Sấm", priceUsd: 10, referralsRequired: 7, rewardEn: "Launch event invitation eligibility", rewardVi: "Đủ điều kiện thư mời sự kiện ra mắt", flavorEn: "Your presence is heard.", flavorVi: "Sự hiện diện của bạn được lắng nghe." },
+  { tier: 3, nameEn: "The Sky Ascendant", nameVi: "Kẻ Vượt Tầng Trời", priceUsd: 20, referralsRequired: 12, rewardEn: "Exclusive founding merchandise eligibility", rewardVi: "Đủ điều kiện hàng độc quyền sáng lập", flavorEn: "Shape the first Leo Mây.", flavorVi: "Định hình Leo Mây đầu tiên." },
+  { tier: 4, nameEn: "The Sky Guardian", nameVi: "Kẻ Canh Giữ Bầu Trời", priceUsd: 35, referralsRequired: 20, rewardEn: "Permanent name recognition inside Leo Mây", rewardVi: "Tên vinh danh vĩnh viễn trong Leo Mây", flavorEn: "Your name becomes part of the sky.", flavorVi: "Tên bạn trở thành một phần bầu trời." },
+  { tier: 5, nameEn: "The Sky Creator", nameVi: "Kẻ Tạo Nên Thiên Không", priceUsd: 50, referralsRequired: 35, rewardEn: "Founding Circle access (permanent legacy engraving in our 1st gym + lifetime founding identity)", rewardVi: "Quyền vào Vòng Sáng Lập (khắc danh vĩnh viễn tại gym đầu tiên + bản sắc sáng lập trọn đời)", flavorEn: "Legacy, forever.", flavorVi: "Di sản, mãi mãi." },
 ];
+
+const EVO_ROMAN: Record<number, string> = { 0: "I", 1: "II", 2: "III", 3: "IV", 4: "V", 5: "VI" };
+
+/** Evo label for display tier (0–5). Tier 0 = Evo I, … Tier 5 = Evo VI. */
+export function getEvoRoman(displayTier: number): string {
+  return EVO_ROMAN[Math.min(5, Math.max(0, Math.floor(displayTier)))] ?? "I";
+}
+
+/** Evo label with canonical name: "Evo V — The Sky Guardian" (EN) / "Tiến Hóa V — Kẻ Canh Giữ Bầu Trời" (VN). */
+export function getEvoLabel(displayTier: number, locale: "en" | "vi"): string {
+  const t = ASCENSION_TIERS[Math.min(5, Math.max(0, Math.floor(displayTier)))];
+  const roman = getEvoRoman(displayTier);
+  const name = locale === "vi" ? t.nameVi : t.nameEn;
+  return locale === "vi" ? `Tiến Hóa ${roman} — ${name}` : `Evo ${roman} — ${name}`;
+}
 
 /** Paid tiers only (Tier 1–5) for Upgrade Instantly. */
 export const PAID_ASCENSION_TIERS = ASCENSION_TIERS.filter((t) => t.tier >= 1);

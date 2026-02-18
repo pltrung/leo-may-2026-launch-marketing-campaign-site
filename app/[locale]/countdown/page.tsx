@@ -637,7 +637,6 @@ export default function CountdownPage() {
                 opacity: 0.9,
               }}
             >
-              {t.youAreNow}{" "}
               <motion.span
                 className={`inline-block px-3 py-1 rounded-full font-caption text-sm font-medium align-middle ${tierBadgeGlow ? "animate-tier-badge-glow" : ""}`}
                 style={{
@@ -647,7 +646,7 @@ export default function CountdownPage() {
                   boxShadow: tierBadgeGlow ? `0 0 16px ${accent}60` : `0 0 12px ${accent}40`,
                 }}
               >
-                Tier {displayTierForBadge} – {tierNameFromConfig}
+                {t.youAreIdentity.replace("{identity}", tierNameFromConfig)}
               </motion.span>
             </p>
           </motion.div>
@@ -814,7 +813,7 @@ export default function CountdownPage() {
         {upgradeSuccessToast && (
           <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
             <div className="px-6 py-4 rounded-xl bg-white/95 shadow-lg text-storm font-medium animate-fade-out-2s">
-              {t.powerYourCloudModal.cloudEvolvedToast.replace("{tier}", String(profile.tierLevel))}
+              {t.powerYourCloudModal.cloudEvolvedToIdentity.replace("{identity}", tierNameFromConfig)}
             </div>
           </div>
         )}

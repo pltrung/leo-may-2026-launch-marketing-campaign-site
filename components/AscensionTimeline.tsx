@@ -4,7 +4,7 @@ import { useRef, useEffect, useState, useCallback, forwardRef } from "react";
 import { motion } from "framer-motion";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
-import { ASCENSION_TIERS } from "@/lib/tiers";
+import { ASCENSION_TIERS, getEvoRoman } from "@/lib/tiers";
 
 const STAGGER_MS = 80;
 
@@ -332,7 +332,7 @@ const TierCard = forwardRef<HTMLDivElement, TierCardProps>(
               ? { y: -1, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }
               : isLight && !reducedMotion ? { y: -1, boxShadow: isCurrent ? `0 0 24px rgba(${rgb},0.4)` : "0 4px 16px rgba(0,0,0,0.15)" } : undefined
         }
-        aria-label={`Tier ${tier}: ${name}, ${pillText}`}
+        aria-label={`Evo ${getEvoRoman(tier)}: ${name}, ${pillText}`}
         aria-expanded={isExpanded}
       >
         <div className="flex items-center justify-between gap-2">
@@ -341,7 +341,7 @@ const TierCard = forwardRef<HTMLDivElement, TierCardProps>(
               className="text-[10px] font-medium uppercase tracking-wider shrink-0 opacity-80"
               style={{ color: textSecondary }}
             >
-              TIER {tier}
+              EVO {getEvoRoman(tier)}
             </span>
             <span
               className="font-subheadline font-semibold text-sm truncate"
