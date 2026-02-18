@@ -21,7 +21,6 @@ import { useLocale } from "@/components/LocaleProvider";
 import { getEvolutionStageIndex } from "@/lib/countdownEvolution";
 import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
 import {
-  EVOLUTION_LEVELS,
   getEvolutionLevel,
   getXpInLevel,
   getXpRequiredForLevel,
@@ -31,8 +30,9 @@ import {
 } from "@/lib/evolutionLevels";
 import { backendTierToDisplay, ASCENSION_TIERS, getProgressToNextTier } from "@/lib/tiers";
 import AscensionTimeline from "@/components/AscensionTimeline";
-import type { EvolutionLevel } from "@/lib/evolutionLevels";
-import EvolutionCeremonyModal from "@/components/EvolutionCeremonyModal";
+import EvolutionCeremonyModal, { LAST_SEEN_TIER_KEY } from "@/components/EvolutionCeremonyModal";
+import AnnouncementModal from "@/components/AnnouncementModal";
+import { ANNOUNCEMENT_ID, LAST_SEEN_ANNOUNCEMENT_KEY } from "@/lib/announcementConfig";
 import { getAscensionEnergyVars } from "@/lib/ascensionEnergy";
 import VerificationModal from "@/components/VerificationModal";
 import { createBrowserClient } from "@/lib/supabaseBrowser";
@@ -223,29 +223,39 @@ export default function CountdownPage() {
   const [skyUnstable, setSkyUnstable] = useState(false);
   const prevLevelIndexRef = useRef<number>(-1);
   const [levelUpFlash, setLevelUpFlash] = useState(false);
-  const [evolutionCeremony, setEvolutionCeremony] = useState<{ fromLevel: EvolutionLevel; toLevel: EvolutionLevel } | null>(null);
-  const [pendingEvolutionCeremony, setPendingEvolutionCeremony] = useState<{ fromLevel: EvolutionLevel; toLevel: EvolutionLevel } | null>(null);
+  const [evolutionCeremony, setEvolutionCeremony] = useState<{ displayTier: number } | null>(null);
+  const [showAnnouncement, setShowAnnouncement] = useState(false);
 
   useEffect(() => {
-    const levelIndex = getEvolutionLevel(profile.referralCount).levelIndex;
-    if (prevLevelIndexRef.current >= 0 && levelIndex > prevLevelIndexRef.current) {
-      const fromLevel = EVOLUTION_LEVELS[prevLevelIndexRef.current];
-      const toLevel = EVOLUTION_LEVELS[levelIndex];
-      setLevelUpFlash(true);
-      setPendingEvolutionCeremony({ fromLevel, toLevel });
-      const t = setTimeout(() => setLevelUpFlash(false), 1200);
-      prevLevelIndexRef.current = levelIndex;
-      return () => clearTimeout(t);
+    if (phase !== "content" || showAnnouncement) return;
+    let lastSeen = -1;
+    try {
+      if (typeof window !== "undefined") {
+        const stored = window.localStorage.getItem(LAST_SEEN_ANNOUNCEMENT_KEY);
+        if (stored != null && stored !== "") lastSeen = parseInt(stored, 10);
+      }
+    } catch {
+      // ignore
     }
-    prevLevelIndexRef.current = levelIndex;
-  }, [profile.referralCount]);
+    if (Number.isNaN(lastSeen)) lastSeen = -1;
+    if (ANNOUNCEMENT_ID > lastSeen) setShowAnnouncement(true);
+  }, [phase, showAnnouncement]);
 
   useEffect(() => {
-    if (phase === "content" && pendingEvolutionCeremony) {
-      setEvolutionCeremony(pendingEvolutionCeremony);
-      setPendingEvolutionCeremony(null);
+    if (phase !== "content" || evolutionCeremony !== null) return;
+    const currentTier = backendTierToDisplay(profile.tierLevel);
+    let lastSeenTier = -1;
+    try {
+      if (typeof window !== "undefined") {
+        const stored = window.localStorage.getItem(LAST_SEEN_TIER_KEY);
+        if (stored != null && stored !== "") lastSeenTier = parseInt(stored, 10);
+      }
+    } catch {
+      // ignore
     }
-  }, [phase, pendingEvolutionCeremony]);
+    if (Number.isNaN(lastSeenTier)) lastSeenTier = -1;
+    if (currentTier > lastSeenTier) setEvolutionCeremony({ displayTier: currentTier });
+  }, [phase, profile.tierLevel, evolutionCeremony]);
 
   useEffect(() => {
     const order = leaderboard.slice(0, 3).map((e) => e.id).join(",");
@@ -1046,6 +1056,22 @@ export default function CountdownPage() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {showAnnouncement && (
+          <AnnouncementModal
+            locale={locale}
+            onClose={() => {
+              try {
+                if (typeof window !== "undefined") window.localStorage.setItem(LAST_SEEN_ANNOUNCEMENT_KEY, String(ANNOUNCEMENT_ID));
+              } catch {
+                // ignore
+              }
+              setShowAnnouncement(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {shareModal && cloud && (
           <PowerYourCloudShareModal
             locale={locale}
@@ -1062,11 +1088,19 @@ export default function CountdownPage() {
       <AnimatePresence>
         {evolutionCeremony && cloud && (
           <EvolutionCeremonyModal
-            fromLevel={evolutionCeremony.fromLevel}
-            toLevel={evolutionCeremony.toLevel}
+            displayTier={evolutionCeremony.displayTier}
+            referralCount={profile.referralCount}
             accent={cloud.accentHex}
             locale={locale}
-            onClose={() => setEvolutionCeremony(null)}
+            onClose={() => {
+              try {
+                if (typeof window !== "undefined") window.localStorage.setItem(LAST_SEEN_TIER_KEY, String(evolutionCeremony.displayTier));
+              } catch {
+                // ignore
+              }
+              setEvolutionCeremony(null);
+            }}
+            onInviteMore={() => setShareModal({ referralUrl, shareMessage })}
           />
         )}
       </AnimatePresence>
