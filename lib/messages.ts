@@ -177,8 +177,8 @@ const en = {
   },
   knowYourCloud: {
     button: "Login",
-    loginTitle: "Logging in?",
-    pickMethod: "Pick the login method to receive the code.",
+    loginTitle: "Login your credentials",
+    pickMethod: "Confirm which method to login",
     verifyTitle: "Verify your account",
     enterEmailOrPhone: "Enter your email or phone to receive a code.",
     enterEmailPhone: "Enter your email or phone to see your cloud.",
@@ -435,8 +435,8 @@ const vi: Messages = {
   },
   knowYourCloud: {
     button: "Đăng nhập",
-    loginTitle: "Đang đăng nhập?",
-    pickMethod: "Chọn phương thức đăng nhập để nhận mã.",
+    loginTitle: "Đăng nhập tài khoản của bạn",
+    pickMethod: "Chọn phương thức đăng nhập",
     verifyTitle: "Xác minh tài khoản",
     enterEmailOrPhone: "Nhập email hoặc số điện thoại để nhận mã.",
     enterEmailPhone: "Nhập email hoặc số điện thoại để xem mây của bạn.",
