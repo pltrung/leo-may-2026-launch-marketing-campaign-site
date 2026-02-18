@@ -81,11 +81,10 @@ export default function VerificationModal({
       const supabase = createBrowserClient();
       const eTrim = email.trim().toLowerCase();
       const pTrim = phone.trim().replace(/\s/g, "");
-      const { data, error: verifyErr } = await supabase.auth.verifyOtp({
-        ...(eTrim ? { email: eTrim } : { phone: pTrim }),
-        token: code.trim(),
-        type: eTrim ? "email" : "sms",
-      });
+      const tokenVal = code.trim();
+      const { data, error: verifyErr } = eTrim
+        ? await supabase.auth.verifyOtp({ email: eTrim, token: tokenVal, type: "email" })
+        : await supabase.auth.verifyOtp({ phone: pTrim, token: tokenVal, type: "sms" });
       if (verifyErr || !data?.session) {
         setError(t.invalidCode);
         setStep("code");
