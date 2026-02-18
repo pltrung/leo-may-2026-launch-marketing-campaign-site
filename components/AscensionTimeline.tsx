@@ -30,6 +30,8 @@ interface AscensionTimelineProps {
   onUpgrade?: (displayTier: number) => void;
   loadingTier?: number;
   upgradeError?: string;
+  paymentsConfigured?: boolean;
+  paymentsComingSoonLabel?: string;
 }
 
 /** First tier index that is locked (tier > currentTier). */
@@ -46,13 +48,20 @@ export default function AscensionTimeline({
   onUpgrade,
   loadingTier,
   upgradeError,
+  paymentsConfigured = true,
+  paymentsComingSoonLabel,
 }: AscensionTimelineProps) {
   const messages = getMessages(locale);
   const t = messages.countdown.powerYourCloudModal;
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [expandedTier, setExpandedTier] = useState<number | null>(currentTier);
   const containerRef = useRef<HTMLElement | null>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const nextLocked = getNextLockedTier(currentTier);
+
+  useEffect(() => {
+    setExpandedTier((prev) => (prev === null ? currentTier : prev));
+  }, [currentTier]);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -72,7 +81,7 @@ export default function AscensionTimeline({
       className="w-full"
     >
       <div className="flex flex-col md:flex-row md:gap-4 md:items-stretch">
-        {/* LEFT: Subtle vertical line only (no buttons) */}
+        {/* LEFT: Subtle vertical line only */}
         <div
           className="hidden md:block relative w-px flex-shrink-0 md:min-w-[1px] md:py-1"
           aria-hidden
@@ -87,14 +96,13 @@ export default function AscensionTimeline({
           />
         </div>
 
-        {/* RIGHT: Tier cards */}
+        {/* RIGHT: Tier cards (accordion: one expanded at a time) */}
         <div className="flex-1 flex flex-col gap-3 min-w-0">
           {ASCENSION_TIERS.map((cfg, index) => {
-            const unlocked = currentTier >= cfg.tier;
+            const unlocked = currentTier > cfg.tier;
             const isCurrent = currentTier === cfg.tier;
-            const locked = !unlocked;
-            const isNextLocked = nextLocked !== null && cfg.tier === nextLocked;
-            const isExpanded = isCurrent || isNextLocked;
+            const locked = currentTier < cfg.tier;
+            const isExpanded = expandedTier === cfg.tier;
 
             const pillText =
               cfg.tier === 0
@@ -129,9 +137,12 @@ export default function AscensionTimeline({
                 reducedMotion={reducedMotion}
                 staggerIndex={index}
                 isExpanded={isExpanded}
+                onToggle={() => setExpandedTier(isExpanded ? null : cfg.tier)}
                 onUpgrade={cfg.tier >= 1 ? onUpgrade : undefined}
                 loadingTier={loadingTier}
                 upgradeLabel={t.upgradeToTierPrice.replace("{tier}", String(cfg.tier)).replace("{price}", String(cfg.priceUsd))}
+                paymentsConfigured={paymentsConfigured}
+                paymentsComingSoonLabel={paymentsComingSoonLabel}
               />
             );
           })}
@@ -157,9 +168,12 @@ interface TierCardProps {
   reducedMotion: boolean;
   staggerIndex: number;
   isExpanded: boolean;
+  onToggle: () => void;
   onUpgrade?: (displayTier: number) => void;
   loadingTier?: number;
   upgradeLabel: string;
+  paymentsConfigured?: boolean;
+  paymentsComingSoonLabel?: string;
 }
 
 const TierCard = forwardRef<HTMLDivElement, TierCardProps>(
@@ -180,9 +194,12 @@ const TierCard = forwardRef<HTMLDivElement, TierCardProps>(
       reducedMotion,
       staggerIndex,
       isExpanded,
+      onToggle,
       onUpgrade,
       loadingTier,
       upgradeLabel,
+      paymentsConfigured = true,
+      paymentsComingSoonLabel,
     },
     ref
   ) => {
@@ -217,11 +234,14 @@ const TierCard = forwardRef<HTMLDivElement, TierCardProps>(
 
     const isFrosted = variant === "frosted";
     const isDark = variant === "dark";
+    const goldOnly = isFrosted;
+    const pillAccent = goldOnly && isCurrent ? accentHex : (isCurrent || (tier > 0 && unlocked) ? accentHex : undefined);
+    const usePillNeutral = tier === 0 || (locked && !goldOnly);
 
     const bg = isFrosted
       ? "rgba(255,255,255,0.08)"
       : isDark
-        ? unlocked
+        ? unlocked || isCurrent
           ? `rgba(${rgb},0.08)`
           : "rgba(0,0,0,0.03)"
         : "rgba(255,255,255,0.06)";
@@ -230,7 +250,7 @@ const TierCard = forwardRef<HTMLDivElement, TierCardProps>(
         ? `rgba(${rgb},0.5)`
         : "rgba(255,255,255,0.12)"
       : isDark
-        ? unlocked
+        ? unlocked || isCurrent
           ? `rgba(${rgb},0.25)`
           : "rgba(0,0,0,0.1)"
         : "rgba(255,255,255,0.2)";
@@ -239,11 +259,14 @@ const TierCard = forwardRef<HTMLDivElement, TierCardProps>(
 
     const loading = loadingTier === tier;
     const showUpgradeCta = locked && tier >= 1 && onUpgrade;
+    const upgradeDisabled = !paymentsConfigured || loading;
+    const upgradeButtonLabel = !paymentsConfigured && paymentsComingSoonLabel ? paymentsComingSoonLabel : loading ? "..." : upgradeLabel;
 
     return (
       <motion.div
         ref={setRef}
-        tabIndex={-1}
+        role="button"
+        tabIndex={0}
         initial={reducedMotion ? false : { opacity: 0, y: 12 }}
         animate={
           reducedMotion
@@ -258,18 +281,27 @@ const TierCard = forwardRef<HTMLDivElement, TierCardProps>(
           delay: reducedMotion ? 0 : staggerIndex * (STAGGER_MS / 1000),
           ease: [0.22, 1, 0.36, 1],
         }}
+        onClick={onToggle}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
         className={`
-          rounded-2xl border transition-[transform,box-shadow] duration-200 ease-out
+          rounded-2xl border transition-[transform,box-shadow] duration-200 ease-out cursor-pointer
           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
           ${isFrosted ? "backdrop-blur-md focus-visible:ring-offset-[#0f2744]" : ""}
           ${isDark ? "focus-visible:ring-offset-white" : ""}
           ${!isDark && !isFrosted ? "focus-visible:ring-offset-[#0242FF]" : ""}
+          ${locked && isFrosted ? "opacity-95" : ""}
         `}
         style={{
           backgroundColor: bg,
           borderColor,
           padding: isExpanded ? "0.75rem 1rem" : "0.5rem 0.75rem",
           boxShadow: isFrosted ? "0 4px 16px rgba(0,0,0,0.15)" : undefined,
+          filter: locked && isFrosted ? "saturate(0.85)" : undefined,
         }}
         whileHover={
           isFrosted && !reducedMotion && isExpanded
@@ -277,6 +309,7 @@ const TierCard = forwardRef<HTMLDivElement, TierCardProps>(
             : undefined
         }
         aria-label={`Tier ${tier}: ${name}, ${pillText}`}
+        aria-expanded={isExpanded}
       >
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -296,42 +329,56 @@ const TierCard = forwardRef<HTMLDivElement, TierCardProps>(
           <span
             className="shrink-0 py-0.5 px-2 rounded-full text-[10px] font-medium uppercase"
             style={{
-              backgroundColor: tier === 0 ? "rgba(255,255,255,0.2)" : `${accentHex}22`,
-              color: tier === 0 ? "rgba(255,255,255,0.95)" : accentHex,
+              backgroundColor: usePillNeutral ? "rgba(255,255,255,0.2)" : (pillAccent ? `${pillAccent}22` : `${accentHex}22`),
+              color: usePillNeutral ? "rgba(255,255,255,0.95)" : (pillAccent ?? accentHex),
             }}
           >
             {pillText}
           </span>
         </div>
 
-        {isExpanded && (
-          <>
+        <motion.div
+          initial={false}
+          animate={{
+            height: isExpanded ? "auto" : 0,
+            opacity: isExpanded ? 1 : 0,
+          }}
+          transition={{
+            height: { duration: reducedMotion ? 0 : 0.25, ease: [0.22, 1, 0.36, 1] },
+            opacity: { duration: reducedMotion ? 0 : 0.2 },
+          }}
+          className="overflow-hidden"
+        >
+          <div className="pt-1.5">
             <p
-              className="text-xs mt-1.5 font-caption italic"
+              className="text-xs font-caption italic"
               style={{ color: textSecondary }}
             >
               {flavor}
             </p>
             <div className="flex items-start gap-2 mt-2 text-xs" style={{ color: textSecondary }}>
-              <IconCheck className="w-3.5 h-3.5 shrink-0 mt-0.5 opacity-90" style={{ color: accentHex }} />
+              <IconCheck className="w-3.5 h-3.5 shrink-0 mt-0.5 opacity-90" style={{ color: isCurrent || unlocked ? accentHex : "rgba(255,255,255,0.5)" }} />
               <span>{reward}</span>
             </div>
             {showUpgradeCta && (
               <button
                 type="button"
-                disabled={loading}
-                onClick={() => onUpgrade(tier)}
-                className="mt-3 w-full py-2 px-4 rounded-xl text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-60"
+                disabled={upgradeDisabled}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!upgradeDisabled && onUpgrade) onUpgrade(tier);
+                }}
+                className="mt-3 w-full py-2 px-4 rounded-xl text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
                 style={{
                   backgroundColor: accentHex,
                   color: "#1E2A38",
                 }}
               >
-                {loading ? "..." : upgradeLabel}
+                {upgradeButtonLabel}
               </button>
             )}
-          </>
-        )}
+          </div>
+        </motion.div>
       </motion.div>
     );
   }

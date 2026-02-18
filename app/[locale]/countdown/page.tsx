@@ -29,7 +29,7 @@ import {
   getNextFormName,
   getLevelName,
 } from "@/lib/evolutionLevels";
-import { backendTierToDisplay, ASCENSION_TIERS } from "@/lib/tiers";
+import { backendTierToDisplay, ASCENSION_TIERS, getProgressToNextTier } from "@/lib/tiers";
 import AscensionTimeline from "@/components/AscensionTimeline";
 import type { EvolutionLevel } from "@/lib/evolutionLevels";
 import EvolutionCeremonyModal from "@/components/EvolutionCeremonyModal";
@@ -369,6 +369,17 @@ export default function CountdownPage() {
 
   const evolutionStageIndex = getEvolutionStageIndex(referralCount);
   const displayTierForBadge = backendTierToDisplay(profile.tierLevel);
+  const tierProgress = getProgressToNextTier(displayTierForBadge, referralCount);
+  const progressBarPct =
+    tierProgress.isMaxTier || tierProgress.nextTierDelta <= 0
+      ? 0
+      : Math.min(100, (tierProgress.progressToNext / tierProgress.nextTierDelta) * 100);
+  const progressLabelText = tierProgress.isMaxTier
+    ? t.finalEvolutionReached
+    : t.progressToNextTier
+        .replace("{current}", String(tierProgress.progressToNext))
+        .replace("{required}", String(tierProgress.nextTierDelta))
+        .replace("{tier}", String(tierProgress.nextTierNumber));
   const tierNameFromConfig = ASCENSION_TIERS[displayTierForBadge]
     ? (locale === "vi" ? ASCENSION_TIERS[displayTierForBadge].nameVi : ASCENSION_TIERS[displayTierForBadge].nameEn)
     : currentLevelName;
@@ -661,27 +672,38 @@ export default function CountdownPage() {
           <div className="progress-title font-caption text-center" style={{ color: traitUnlocked ? accent : "#1E2A38", opacity: traitUnlocked ? 1 : 0.7 }}>
             {t.auraProgressLabel}
           </div>
-          <div
-            className="w-full h-[10px] min-h-[10px] rounded-full overflow-hidden flex-shrink-0"
-            style={{
-              backgroundColor: "rgba(0,0,0,0.1)",
-              boxShadow: `0 0 8px ${accent}50`,
-            }}
-          >
-            <motion.div
-              key={`level-${currentLevel.levelIndex}`}
-              className="h-full min-w-0 rounded-full flex-shrink-0"
-              initial={{ width: "0%" }}
-              animate={{ width: `${levelProgressPct}%` }}
-              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-              style={{ backgroundColor: accent }}
-            />
-          </div>
-          <p className="font-caption text-center text-sm mt-1" style={{ color: "#1E2A38", opacity: 0.85 }}>
-            {t.youHaveAwakened}{" "}
-            <span style={{ color: accent, fontWeight: 600, textShadow: `0 0 10px ${accent}50` }}>{referralCount}</span>{" "}
-            {referralCount === 1 ? t.climber : t.climbers}
-          </p>
+          {tierProgress.isMaxTier ? (
+            <p className="font-caption text-center text-sm mt-1" style={{ color: "#1E2A38", opacity: 0.9 }}>
+              {progressLabelText}
+            </p>
+          ) : (
+            <>
+              <div
+                className="w-full h-[10px] min-h-[10px] rounded-full overflow-hidden flex-shrink-0"
+                style={{
+                  backgroundColor: "rgba(0,0,0,0.1)",
+                  boxShadow: `0 0 8px ${accent}50`,
+                }}
+                role="progressbar"
+                aria-valuenow={tierProgress.progressToNext}
+                aria-valuemin={0}
+                aria-valuemax={tierProgress.nextTierDelta}
+                aria-label={progressLabelText}
+              >
+                <motion.div
+                  key={`tier-${displayTierForBadge}-${tierProgress.progressToNext}`}
+                  className="h-full min-w-0 rounded-full flex-shrink-0"
+                  initial={{ width: "0%" }}
+                  animate={{ width: `${progressBarPct}%` }}
+                  transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                  style={{ backgroundColor: accent }}
+                />
+              </div>
+              <p className="font-caption text-center text-sm mt-1" style={{ color: "#1E2A38", opacity: 0.85 }}>
+                {progressLabelText}
+              </p>
+            </>
+          )}
         </motion.div>
 
         <motion.div

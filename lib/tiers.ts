@@ -7,12 +7,14 @@
  * Use backendTierToDisplay / displayTierToBackend for mapping.
  */
 
-/** Single source of truth: Tier 0 (free) through Tier 5. Used by Ascension Timeline and Upgrade Instantly (filter Tier 0 for paid list). */
+/** Single source of truth: Tier 0 (free) through Tier 5. referralsRequired = cumulative total to reach this tier. */
 export interface AscensionTierConfig {
   tier: 0 | 1 | 2 | 3 | 4 | 5;
   nameEn: string;
   nameVi: string;
   priceUsd: number;
+  /** Cumulative referral count required to reach this tier (free path). */
+  referralsRequired: number;
   rewardEn: string;
   rewardVi: string;
   flavorEn: string;
@@ -20,70 +22,51 @@ export interface AscensionTierConfig {
 }
 
 export const ASCENSION_TIERS: AscensionTierConfig[] = [
-  {
-    tier: 0,
-    nameEn: "Awakening Phase",
-    nameVi: "Giai đoạn Thức tỉnh",
-    priceUsd: 0,
-    rewardEn: "Awakening phase activated",
-    rewardVi: "Giai đoạn thức tỉnh được kích hoạt",
-    flavorEn: "The first spark.",
-    flavorVi: "Tia lửa đầu tiên.",
-  },
-  {
-    tier: 1,
-    nameEn: "Rising Current",
-    nameVi: "Dòng Thăng",
-    priceUsd: 5,
-    rewardEn: "Early gym access eligibility",
-    rewardVi: "Đủ điều kiện vào gym sớm",
-    flavorEn: "Move before the crowd.",
-    flavorVi: "Di chuyển trước đám đông.",
-  },
-  {
-    tier: 2,
-    nameEn: "Thunder Signal",
-    nameVi: "Tín hiệu Sấm",
-    priceUsd: 10,
-    rewardEn: "Launch event invitation eligibility",
-    rewardVi: "Đủ điều kiện thư mời sự kiện ra mắt",
-    flavorEn: "Your presence is heard.",
-    flavorVi: "Sự hiện diện của bạn được lắng nghe.",
-  },
-  {
-    tier: 3,
-    nameEn: "Sky Shaper",
-    nameVi: "Người Định Hình Bầu Trời",
-    priceUsd: 20,
-    rewardEn: "Exclusive founding merchandise eligibility",
-    rewardVi: "Đủ điều kiện hàng độc quyền sáng lập",
-    flavorEn: "Shape the first Leo Mây.",
-    flavorVi: "Định hình Leo Mây đầu tiên.",
-  },
-  {
-    tier: 4,
-    nameEn: "Name in the Clouds",
-    nameVi: "Tên trong Mây",
-    priceUsd: 35,
-    rewardEn: "Permanent name recognition inside Leo Mây",
-    rewardVi: "Tên vinh danh vĩnh viễn trong Leo Mây",
-    flavorEn: "Your name becomes part of the sky.",
-    flavorVi: "Tên bạn trở thành một phần bầu trời.",
-  },
-  {
-    tier: 5,
-    nameEn: "Founding Circle",
-    nameVi: "Vòng Sáng Lập",
-    priceUsd: 50,
-    rewardEn: "Founding Circle access (permanent legacy engraving in our 1st gym + lifetime founding identity)",
-    rewardVi: "Quyền vào Vòng Sáng Lập (khắc danh vĩnh viễn tại gym đầu tiên + bản sắc sáng lập trọn đời)",
-    flavorEn: "Legacy, forever.",
-    flavorVi: "Di sản, mãi mãi.",
-  },
+  { tier: 0, nameEn: "Awakening Phase", nameVi: "Giai đoạn Thức tỉnh", priceUsd: 0, referralsRequired: 0, rewardEn: "Awakening phase activated", rewardVi: "Giai đoạn thức tỉnh được kích hoạt", flavorEn: "The first spark.", flavorVi: "Tia lửa đầu tiên." },
+  { tier: 1, nameEn: "Rising Current", nameVi: "Dòng Thăng", priceUsd: 5, referralsRequired: 4, rewardEn: "Early gym access eligibility", rewardVi: "Đủ điều kiện vào gym sớm", flavorEn: "Move before the crowd.", flavorVi: "Di chuyển trước đám đông." },
+  { tier: 2, nameEn: "Thunder Signal", nameVi: "Tín hiệu Sấm", priceUsd: 10, referralsRequired: 7, rewardEn: "Launch event invitation eligibility", rewardVi: "Đủ điều kiện thư mời sự kiện ra mắt", flavorEn: "Your presence is heard.", flavorVi: "Sự hiện diện của bạn được lắng nghe." },
+  { tier: 3, nameEn: "Sky Shaper", nameVi: "Người Định Hình Bầu Trời", priceUsd: 20, referralsRequired: 12, rewardEn: "Exclusive founding merchandise eligibility", rewardVi: "Đủ điều kiện hàng độc quyền sáng lập", flavorEn: "Shape the first Leo Mây.", flavorVi: "Định hình Leo Mây đầu tiên." },
+  { tier: 4, nameEn: "Name in the Clouds", nameVi: "Tên trong Mây", priceUsd: 35, referralsRequired: 20, rewardEn: "Permanent name recognition inside Leo Mây", rewardVi: "Tên vinh danh vĩnh viễn trong Leo Mây", flavorEn: "Your name becomes part of the sky.", flavorVi: "Tên bạn trở thành một phần bầu trời." },
+  { tier: 5, nameEn: "Founding Circle", nameVi: "Vòng Sáng Lập", priceUsd: 50, referralsRequired: 35, rewardEn: "Founding Circle access (permanent legacy engraving in our 1st gym + lifetime founding identity)", rewardVi: "Quyền vào Vòng Sáng Lập (khắc danh vĩnh viễn tại gym đầu tiên + bản sắc sáng lập trọn đời)", flavorEn: "Legacy, forever.", flavorVi: "Di sản, mãi mãi." },
 ];
 
 /** Paid tiers only (Tier 1–5) for Upgrade Instantly. */
 export const PAID_ASCENSION_TIERS = ASCENSION_TIERS.filter((t) => t.tier >= 1);
+
+/**
+ * Progress toward the NEXT tier only. Use for main stage and Power Your Cloud modal.
+ * value = progressToNext, max = nextTierDelta, label "X / Y to Tier Z".
+ * If isMaxTier, hide bar and show final evolution message.
+ */
+export function getProgressToNextTier(
+  currentDisplayTier: number,
+  totalReferrals: number
+): {
+  progressToNext: number;
+  nextTierDelta: number;
+  nextTierNumber: number;
+  isMaxTier: boolean;
+} {
+  const isMaxTier = currentDisplayTier >= 5;
+  const currentTierThreshold = ASCENSION_TIERS[currentDisplayTier]?.referralsRequired ?? 0;
+  const nextTierThreshold = ASCENSION_TIERS[currentDisplayTier + 1]?.referralsRequired;
+  const nextTierDelta = nextTierThreshold != null ? Math.max(0, nextTierThreshold - currentTierThreshold) : 0;
+  const progressToNext = Math.max(0, totalReferrals - currentTierThreshold);
+  const nextTierNumber = currentDisplayTier + 1; // display tier 1–5 for "to Tier Z"
+  return {
+    progressToNext: isMaxTier ? 0 : Math.min(progressToNext, nextTierDelta),
+    nextTierDelta,
+    nextTierNumber,
+    isMaxTier,
+  };
+}
+
+/** Referral count required to reach the next tier (display 0–5). Null if already at max (5). */
+export function getNextTierReferralThreshold(currentDisplayTier: number): number | null {
+  if (currentDisplayTier >= 5) return null;
+  const next = ASCENSION_TIERS[currentDisplayTier + 1];
+  return next?.referralsRequired ?? null;
+}
 
 /** Backend tier (1–6) to display tier (0–5). */
 export function backendTierToDisplay(backendTier: number): number {
@@ -162,14 +145,12 @@ export function deltaUsdToReachTier(currentTotalUsd: number, targetTier: number)
   return Math.max(0, required - Math.max(0, Math.floor(currentTotalUsd)));
 }
 
-/** Tier (1–6) from referral count only; used for MAX(referral_tier, payment_tier). */
+/** Tier (1–6) from referral count only; uses ASCENSION_TIERS.referralsRequired. */
 export function referralCountToTier(count: number): number {
   const n = Math.max(0, Math.floor(count));
-  if (n >= 50) return 6;
-  if (n >= 35) return 5;
-  if (n >= 20) return 4;
-  if (n >= 10) return 3;
-  if (n >= 5) return 2;
+  for (let i = ASCENSION_TIERS.length - 1; i >= 0; i--) {
+    if (n >= ASCENSION_TIERS[i].referralsRequired) return (i + 1) as 1 | 2 | 3 | 4 | 5 | 6;
+  }
   return 1;
 }
 
