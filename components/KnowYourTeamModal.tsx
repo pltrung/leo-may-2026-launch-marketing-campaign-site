@@ -21,7 +21,8 @@ type IdMethod = "email" | "phone";
 
 export default function KnowYourTeamModal({ onClose, onFoundTeam, locale = "en" }: KnowYourTeamModalProps) {
   const router = useRouter();
-  const t = getMessages(locale).knowYourCloud;
+  const m = getMessages(locale);
+  const t = m.knowYourCloud;
   const { user: storedUser, locked, setLockedIdentity } = useWaitlistIdentity();
 
   const [step, setStep] = useState<0 | 1>(0);
@@ -122,7 +123,9 @@ export default function KnowYourTeamModal({ onClose, onFoundTeam, locale = "en" 
           </svg>
         </button>
 
-        <h3 className="font-subheadline text-xl text-storm mb-2 pr-10">{t.title}</h3>
+        <h3 className="font-subheadline text-xl text-storm mb-2 pr-10">
+          {locked && storedUser ? t.loginTitle : step === 0 ? t.loginTitle : t.verifyTitle}
+        </h3>
 
         {locked && storedUser ? (
           <div className="space-y-4">
@@ -142,7 +145,7 @@ export default function KnowYourTeamModal({ onClose, onFoundTeam, locale = "en" 
           <>
             {step === 0 && (
               <>
-                <p className="font-caption text-storm/70 text-sm mb-4">{t.enterEmailPhone}</p>
+                <p className="font-caption text-storm/70 text-sm mb-4">{t.pickMethod}</p>
                 <div className="flex gap-4 mb-4">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="radio" name="kyt-method" checked={method === "email"} onChange={() => setMethod("email")} className="w-4 h-4" />
@@ -160,7 +163,7 @@ export default function KnowYourTeamModal({ onClose, onFoundTeam, locale = "en" 
             )}
             {step === 1 && (
               <form onSubmit={handleFindTeam} className="space-y-4 min-w-0">
-                <p className="font-caption text-storm/70 text-sm mb-4">{t.enterEmailPhone}</p>
+                <p className="font-caption text-storm/70 text-sm mb-4">{t.enterEmailOrPhone}</p>
                 <div className="min-w-0">
                   <label htmlFor="kyt-identifier" className="font-caption block text-sm text-storm mb-1">
                     {method === "email" ? "Email" : "Phone"}
