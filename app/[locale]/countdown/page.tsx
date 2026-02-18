@@ -233,6 +233,7 @@ export default function CountdownPage() {
   const [skyUnstable, setSkyUnstable] = useState(false);
   const prevLevelIndexRef = useRef<number>(-1);
   const announcementAfterCeremonyRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ceremonyShownOrDismissedRef = useRef(false);
   const [levelUpFlash, setLevelUpFlash] = useState(false);
   const [evolutionCeremony, setEvolutionCeremony] = useState<{ displayTier: number } | null>(null);
   const [showVerifyToEvolve, setShowVerifyToEvolve] = useState(false);
@@ -259,9 +260,11 @@ export default function CountdownPage() {
       setShowVerifyToEvolve(true);
       return;
     }
-    // Verified: only show ceremony, never show verify modal.
+    // Verified: only show ceremony once per session; don't re-open after user dismisses.
     setShowVerifyToEvolve(false);
+    if (ceremonyShownOrDismissedRef.current) return;
     if (evolutionCeremony !== null) return;
+    ceremonyShownOrDismissedRef.current = true;
     const currentTier = backendTierToDisplay(profile.tierLevel);
     setEvolutionCeremony({ displayTier: currentTier });
   }, [phase, profile.tierLevel, profile.isVerified, evolutionCeremony]);

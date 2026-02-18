@@ -55,7 +55,7 @@ export default function AnnouncementModal({ locale, onClose, accent }: Announcem
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-[69] flex items-center justify-center p-4 pointer-events-auto"
+        className="fixed inset-0 z-[71] flex items-center justify-center p-4 pointer-events-auto"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
