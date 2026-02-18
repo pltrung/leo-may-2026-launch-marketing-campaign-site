@@ -67,7 +67,10 @@ export default function VerificationModal({
       const options = useEmail ? { email: eTrim } : { phone: pTrim };
       const { error: err } = await supabase.auth.signInWithOtp(options as { email: string } | { phone: string });
       if (err) {
-        setError(err.message || t.errorSend);
+        const msg = err.message?.toLowerCase() ?? "";
+        setError(
+          msg.includes("rate limit") || msg.includes("rate_limit") ? t.rateLimit : err.message || t.errorSend
+        );
         return;
       }
       setStep("code");

@@ -142,6 +142,7 @@ const en = {
     verifying: "Verifying…",
     invalidCode: "Invalid or expired code.",
     errorSend: "Could not send code. Try again.",
+    rateLimit: "Too many codes sent. Please wait a minute and try again.",
   },
   signup: {
     joinTeam: "You are about to join Team",
@@ -336,6 +337,7 @@ const vi: Messages = {
     verifying: "Đang xác minh…",
     invalidCode: "Mã không hợp lệ hoặc đã hết hạn.",
     errorSend: "Không gửi được mã. Thử lại.",
+    rateLimit: "Đã gửi quá nhiều mã. Vui lòng đợi một phút rồi thử lại.",
   },
   signup: {
     joinTeam: "Bạn sắp gia nhập Team",
