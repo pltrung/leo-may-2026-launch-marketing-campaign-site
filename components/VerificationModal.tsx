@@ -121,12 +121,19 @@ export default function VerificationModal({
         }
         onSuccess({ mode: "countdown" });
       } else {
-        const res = await fetch("/api/waitlist/me", {
+        // Link flow (e.g. "Know your cloud?"): link auth to existing waitlist row by email/phone, or get existing linked row
+        const linkRes = await fetch("/api/waitlist/link", {
+          method: "POST",
           headers: { Authorization: `Bearer ${token}` },
         });
-        const json = await res.json();
-        const hasWaitlist = !!json?.user;
-        const u = json?.user;
+        const linkJson = await linkRes.json();
+        let u = linkJson?.user;
+        if (!u) {
+          const meRes = await fetch("/api/waitlist/me", { headers: { Authorization: `Bearer ${token}` } });
+          const meJson = await meRes.json();
+          u = meJson?.user;
+        }
+        const hasWaitlist = !!u;
         onSuccess({
           mode: "lookup",
           hasWaitlist,
