@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, forwardRef } from "react";
 import { motion } from "framer-motion";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
@@ -181,7 +181,7 @@ interface TierCardProps {
   staggerIndex: number;
 }
 
-const TierCard = motion.forwardRef<HTMLDivElement, TierCardProps>(
+const TierCard = forwardRef<HTMLDivElement, TierCardProps>(
   (
     {
       tier,
