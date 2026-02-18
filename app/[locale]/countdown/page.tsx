@@ -85,8 +85,14 @@ function MascotSvgObject({
       const setFill = (el: SVGElement, value: string) => {
         el.style.setProperty("fill", value, "important");
       };
+      const mascotRightEyes = doc.getElementById("mascot-right-eyes") as SVGElement | null;
       if (eyeLeft) setFill(eyeLeft, partColors.eyeLeft);
       if (eyeRight) setFill(eyeRight, partColors.eyeRight);
+      if (mascotLeftEyes) {
+        setFill(mascotLeftEyes, partColors.eyeLeft);
+        mascotLeftEyes.setAttribute("filter", evolutionStageIndex > 0 ? "url(#mascot-eye-glow)" : "none");
+      }
+      if (mascotRightEyes) setFill(mascotRightEyes, partColors.eyeRight);
       if (mascotRibbon) setFill(mascotRibbon, partColors.nose);
       if (ribbonEl) setFill(ribbonEl, partColors.nose);
       if (mascotScarf) setFill(mascotScarf, partColors.scarf);
@@ -94,9 +100,6 @@ function MascotSvgObject({
       if (cloudOutline) {
         cloudOutline.style.setProperty("stroke", partColors.cloudOutline, "important");
         if (!cloudOutline.hasAttribute("stroke-width")) cloudOutline.setAttribute("stroke-width", "2");
-      }
-      if (mascotLeftEyes) {
-        mascotLeftEyes.setAttribute("filter", evolutionStageIndex > 0 ? "url(#mascot-eye-glow)" : "none");
       }
       if (mascotAura) mascotAura.setAttribute("opacity", String(auraOpacityForStage(evolutionStageIndex)));
       if (mascotParticles) mascotParticles.setAttribute("opacity", String(particlesOpacityForStage(evolutionStageIndex)));
@@ -135,8 +138,8 @@ function MascotSvgObject({
 /** Background + holds fade to blue (ms); hero entrance starts after this. */
 const COUNTDOWN_BG_FADE_MS = 1000;
 
-/** Countdown target: set to now so countdown shows 0 / has begun. For live event use e.g. new Date("2026-12-01T00:00:00+07:00") */
-const TARGET = new Date();
+/** Countdown target: December 1st 2026, 00:00 Vietnam (UTC+7) */
+const TARGET = new Date("2026-12-01T00:00:00+07:00");
 const REFERRAL_UNLOCK = 10;
 
 function useCountdown() {
@@ -751,28 +754,6 @@ export default function CountdownPage() {
           </p>
         </motion.div>
 
-        <motion.button
-          type="button"
-          onClick={() => {
-            const origin = typeof window !== "undefined" ? window.location.origin : "";
-            const referralUrl = referralCode ? `${origin}/${locale}?ref=${referralCode}` : `${origin}/${locale}?team=${cloud.id}`;
-            const shareMessage = buildShareMessage(locale, cloud, referralUrl);
-            navigator.clipboard?.writeText(shareMessage).then(() => {
-              setShareModal({ referralUrl, shareMessage });
-            }).catch(() => {
-              setShareToast(true);
-              setTimeout(() => setShareToast(false), 2000);
-            });
-          }}
-          className="shrink-0 px-5 py-2.5 rounded-full font-subheadline text-sm border-2 transition-colors hover:opacity-90 countdown-spacing-after-share"
-          style={{ borderColor: accentContrast, color: accentContrast }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: phase === "content" ? 1 : 0 }}
-          transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
-        >
-          {t.powerYourCloud}
-        </motion.button>
-
         <motion.div
           className="shrink-0 flex flex-col items-center gap-2 w-full countdown-spacing-after-share"
           initial={{ opacity: 0 }}
@@ -781,7 +762,24 @@ export default function CountdownPage() {
         >
           {profile.isVerified ? (
             <>
-              <p className="font-caption text-white/90 text-center text-sm">✅ {t.verified}</p>
+              <motion.button
+                type="button"
+                onClick={() => {
+                  const origin = typeof window !== "undefined" ? window.location.origin : "";
+                  const referralUrl = referralCode ? `${origin}/${locale}?ref=${referralCode}` : `${origin}/${locale}?team=${cloud.id}`;
+                  const shareMessage = buildShareMessage(locale, cloud, referralUrl);
+                  navigator.clipboard?.writeText(shareMessage).then(() => {
+                    setShareModal({ referralUrl, shareMessage });
+                  }).catch(() => {
+                    setShareToast(true);
+                    setTimeout(() => setShareToast(false), 2000);
+                  });
+                }}
+                className="shrink-0 px-5 py-2.5 rounded-full font-subheadline text-sm border-2 transition-colors hover:opacity-90"
+                style={{ borderColor: accentContrast, color: accentContrast }}
+              >
+                {t.powerYourCloud}
+              </motion.button>
               <p className="font-caption text-white/70 text-center text-xs">{t.youCanNowInvite}</p>
             </>
           ) : (
@@ -790,7 +788,7 @@ export default function CountdownPage() {
               <motion.button
                 type="button"
                 onClick={() => setVerificationOpen(true)}
-                className="px-4 py-2 rounded-full font-subheadline text-sm border-2 transition-colors hover:opacity-95"
+                className="px-5 py-2.5 rounded-full font-subheadline text-sm border-2 transition-colors hover:opacity-95"
                 style={{ borderColor: accentContrast, color: accentContrast }}
                 animate={{
                   scale: [1, 1.02, 1],
