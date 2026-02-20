@@ -32,6 +32,7 @@ import { backendTierToDisplay, ASCENSION_TIERS, getProgressToNextTier } from "@/
 import AscensionTimeline from "@/components/AscensionTimeline";
 import EvolutionCeremonyModal, { LAST_SEEN_TIER_KEY } from "@/components/EvolutionCeremonyModal";
 import VerifyToEvolveModal from "@/components/VerifyToEvolveModal";
+import CountdownIntroModal from "@/components/CountdownIntroModal";
 import AnnouncementModal from "@/components/AnnouncementModal";
 import { SOCIAL_LINKS } from "@/lib/announcementConfig";
 import { ANNOUNCEMENT_ID, LAST_SEEN_ANNOUNCEMENT_KEY } from "@/lib/announcementConfig";
@@ -40,6 +41,7 @@ import VerificationModal from "@/components/VerificationModal";
 import { createBrowserClient } from "@/lib/supabaseBrowser";
 
 const PENDING_REF_CODE_KEY = "leo_may_pending_ref_code";
+const HAS_SEEN_COUNTDOWN_INTRO_KEY = "leo_may_has_seen_countdown_intro";
 
 /** Applies species colors to mascot SVG groups via object ref when loaded. Re-applies when partColors (cloud type) changes. */
 function MascotSvgObject({
@@ -237,6 +239,7 @@ export default function CountdownPage() {
   const [levelUpFlash, setLevelUpFlash] = useState(false);
   const [evolutionCeremony, setEvolutionCeremony] = useState<{ displayTier: number } | null>(null);
   const [showVerifyToEvolve, setShowVerifyToEvolve] = useState(false);
+  const [showCountdownIntro, setShowCountdownIntro] = useState(false);
   const [showAnnouncement, setShowAnnouncement] = useState(false);
 
   useEffect(() => {
@@ -257,17 +260,30 @@ export default function CountdownPage() {
   useEffect(() => {
     if (phase !== "content") return;
     if (!profile.isVerified) {
+      let hasSeenIntro = true;
+      try {
+        if (typeof window !== "undefined") {
+          hasSeenIntro = window.localStorage.getItem(HAS_SEEN_COUNTDOWN_INTRO_KEY) === "1";
+        }
+      } catch {
+        // ignore
+      }
+      if (fromMist && !hasSeenIntro) {
+        setShowCountdownIntro(true);
+        return;
+      }
       setShowVerifyToEvolve(true);
       return;
     }
     // Verified: only show ceremony once per session; don't re-open after user dismisses.
     setShowVerifyToEvolve(false);
+    setShowCountdownIntro(false);
     if (ceremonyShownOrDismissedRef.current) return;
     if (evolutionCeremony !== null) return;
     ceremonyShownOrDismissedRef.current = true;
     const currentTier = backendTierToDisplay(profile.tierLevel);
     setEvolutionCeremony({ displayTier: currentTier });
-  }, [phase, profile.tierLevel, profile.isVerified, evolutionCeremony]);
+  }, [phase, profile.tierLevel, profile.isVerified, evolutionCeremony, fromMist]);
 
   useEffect(() => {
     const order = leaderboard.slice(0, 3).map((e) => e.id).join(",");
@@ -1175,6 +1191,26 @@ export default function CountdownPage() {
             referralCount={profile.referralCount}
             onClose={() => setShareModal(null)}
             onShareClick={() => setShareAuraPulseKey((k) => k + 1)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showCountdownIntro && cloud && (
+          <CountdownIntroModal
+            locale={locale}
+            accent={cloud.accentHex}
+            onContinue={() => {
+              try {
+                if (typeof window !== "undefined") {
+                  window.localStorage.setItem(HAS_SEEN_COUNTDOWN_INTRO_KEY, "1");
+                }
+              } catch {
+                // ignore
+              }
+              setShowCountdownIntro(false);
+              setShowVerifyToEvolve(true);
+            }}
           />
         )}
       </AnimatePresence>

@@ -77,6 +77,18 @@ const en = {
       cta: "Verify Account",
       later: "Maybe Later",
     },
+    countdownIntro: {
+      title: "Welcome to the Countdown.",
+      body:
+        "Leo Mây is Vietnam's first premium climbing gym, opening in Ho Chi Minh City in 2026.\n\n" +
+        "This experience celebrates the journey toward opening day.\n\n" +
+        "As we count down, your Cloud will evolve.\n\n" +
+        "The more you participate — through referrals or securing your founding spot — the stronger your form becomes.\n\n" +
+        "There are rewards reserved for those who rise early.\n\n" +
+        "This is more than a waitlist.\n\n" +
+        "It's the beginning of your place in Leo Mây.",
+      cta: "Continue",
+    },
     youCanNowInvite: "You can now invite others.",
     logOut: "Log out",
     aboutUs: "About Us",
@@ -356,6 +368,18 @@ const vi: Messages = {
       headline: "Xác minh tài khoản để bắt đầu và tiến hóa.",
       cta: "Xác minh tài khoản",
       later: "Để sau",
+    },
+    countdownIntro: {
+      title: "Chào Mừng Đến Hành Trình Đếm Ngược.",
+      body:
+        "Leo Mây là phòng leo núi cao cấp đầu tiên tại Việt Nam, dự kiến khai trương tại TP.HCM năm 2026.\n\n" +
+        "Trải nghiệm này được tạo ra để cùng nhau đếm ngược đến ngày mở cửa.\n\n" +
+        "Trong suốt hành trình, Cloud của bạn sẽ tiến hóa.\n\n" +
+        "Càng tham gia — thông qua giới thiệu bạn bè hoặc giữ chỗ sáng lập — hình dạng của bạn càng mạnh mẽ hơn.\n\n" +
+        "Những phần thưởng đặc biệt dành cho những người đến sớm.\n\n" +
+        "Đây không chỉ là danh sách chờ.\n\n" +
+        "Đây là bước khởi đầu của bạn tại Leo Mây.",
+      cta: "Tiếp Tục",
     },
     youCanNowInvite: "Bạn có thể mời người khác.",
     logOut: "Đăng xuất",
