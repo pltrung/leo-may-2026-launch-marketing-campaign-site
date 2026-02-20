@@ -42,6 +42,7 @@ import { createBrowserClient } from "@/lib/supabaseBrowser";
 
 const PENDING_REF_CODE_KEY = "leo_may_pending_ref_code";
 const HAS_SEEN_COUNTDOWN_INTRO_KEY = "leo_may_has_seen_countdown_intro";
+const FROM_SIGNUP_FLOW_KEY = "leo_may_from_signup_flow";
 
 /** Applies species colors to mascot SVG groups via object ref when loaded. Re-applies when partColors (cloud type) changes. */
 function MascotSvgObject({
@@ -261,18 +262,37 @@ export default function CountdownPage() {
     if (phase !== "content") return;
     if (!profile.isVerified) {
       let hasSeenIntro = true;
+      let fromSignupFlow = fromMist;
       try {
         if (typeof window !== "undefined") {
           hasSeenIntro = window.localStorage.getItem(HAS_SEEN_COUNTDOWN_INTRO_KEY) === "1";
+          if (!fromSignupFlow) {
+            fromSignupFlow = window.sessionStorage.getItem(FROM_SIGNUP_FLOW_KEY) === "1";
+          }
         }
       } catch {
         // ignore
       }
-      if (fromMist && !hasSeenIntro) {
+      if (fromSignupFlow && !hasSeenIntro) {
         setShowCountdownIntro(true);
+        setShowVerifyToEvolve(false);
+        try {
+          if (typeof window !== "undefined") {
+            window.sessionStorage.removeItem(FROM_SIGNUP_FLOW_KEY);
+          }
+        } catch {
+          // ignore
+        }
         return;
       }
       setShowVerifyToEvolve(true);
+      try {
+        if (typeof window !== "undefined") {
+          window.sessionStorage.removeItem(FROM_SIGNUP_FLOW_KEY);
+        }
+      } catch {
+        // ignore
+      }
       return;
     }
     // Verified: only show ceremony once per session; don't re-open after user dismisses.
