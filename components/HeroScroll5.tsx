@@ -2,21 +2,17 @@
 
 import { useLocale } from "./LocaleProvider";
 import { getMessages } from "@/lib/messages";
+import { withHighlights } from "@/lib/heroHighlights";
 
-/** Hero page scroll section 5: "Like clouds, no two FORMS are ever the same." / VI: emphasis below mascot */
+/** Hero page scroll section 5: Created alongside the designers behind Asia's largest climbing gyms */
 export default function HeroScroll5() {
   const locale = useLocale();
-  const { likeClouds, forms, areEverSame } = getMessages(locale).hero;
-  const emphasisBelowMascot = !forms && areEverSame;
+  const { hero5, hero5Highlights } = getMessages(locale).hero;
   return (
     <section className="hero-section hero-section-scroll hero-cloud-section relative overflow-hidden px-6">
       <div className="hero-text cloud-eyes-text">
         <div className="hero-line-primary text-white tracking-headline whitespace-pre-line">
-          {forms ? (
-            <>{likeClouds} <span className="neon-yellow">{forms}</span> {areEverSame}</>
-          ) : (
-            <>{likeClouds}</>
-          )}
+          {withHighlights(hero5, hero5Highlights ?? [], "neon-yellow")}
         </div>
       </div>
       <div className="flex items-center justify-center w-[63%] max-w-[300px] sm:w-[55%] sm:max-w-[260px] md:w-[70%] md:max-w-[400px] aspect-square mx-auto pointer-events-none">
@@ -29,13 +25,6 @@ export default function HeroScroll5() {
           fetchPriority="high"
         />
       </div>
-      {emphasisBelowMascot && (
-        <div className="hero-text philosophy-text hero-line-secondary-wrapper hero-experienced-line md:mt-20">
-          <div className="hero-line-primary text-white tracking-headline">
-            <span className="neon-green">{areEverSame}</span>.
-          </div>
-        </div>
-      )}
     </section>
   );
 }

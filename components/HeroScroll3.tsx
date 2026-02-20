@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useLocale } from "./LocaleProvider";
 import { getMessages } from "@/lib/messages";
+import { withHighlights } from "@/lib/heroHighlights";
 
 interface HeroScroll3Props {
   pose: "front" | "back";
@@ -13,21 +14,19 @@ const IMAGE_MAP: Record<string, string> = {
   back: "/brand/ip-on-cloud.svg",
 };
 
-/** Hero page scroll section 3: "Imagine a place where movement feels like breath" */
+/** Hero page scroll section 3: Imagine a climbing space designed with intention */
 export default function HeroScroll3({ pose }: HeroScroll3Props) {
   const [imgErrored, setImgErrored] = useState(false);
   const imgSrc = IMAGE_MAP[pose];
   const locale = useLocale();
-  const { imaginePlace, movement, feelsLikeBreath, hero3FeelsEmphasis } = getMessages(locale).hero;
+  const { hero3, hero3Highlights } = getMessages(locale).hero;
 
   return (
     <section className="hero-section hero-section-scroll relative overflow-hidden px-6">
       {pose === "front" && (
         <div className="hero-text philosophy-text max-w-2xl mx-auto text-center">
           <div className="hero-line-primary text-white/90 whitespace-pre-line">
-            {imaginePlace} <span className="neon-cyan">{movement}</span>
-            {feelsLikeBreath ? ` ${feelsLikeBreath}` : ""}
-            {hero3FeelsEmphasis ? <><span className="neon-red">{hero3FeelsEmphasis}</span>.</> : "."}
+            {withHighlights(hero3, hero3Highlights ?? [], "neon-cyan")}
           </div>
         </div>
       )}

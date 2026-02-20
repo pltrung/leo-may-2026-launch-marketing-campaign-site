@@ -15,10 +15,10 @@ export default function HeroScroll7({ onJoin }: HeroScroll7Props) {
   return (
     <section
       id="final-cta"
-      className="relative min-h-[120vh] flex flex-col px-6 pt-[140px] md:pt-24 pb-24"
+      className="relative min-h-[78vh] flex flex-col px-6 pt-[100px] md:pt-20 pb-20"
     >
       {/* Small top spacer: consistent with section spacing above, CTA still triggers on scroll */}
-      <div className="min-h-[18vh] flex-shrink-0" aria-hidden />
+      <div className="min-h-[12vh] flex-shrink-0" aria-hidden />
 
       {/* Title + CTA: only fade in when user has scrolled into this section (mobile + PC) */}
       <div className="flex-1 flex flex-col items-center justify-end w-full max-w-lg mx-auto min-h-0 pb-[42%] sm:pb-[32%] md:pb-[22%]">
@@ -27,7 +27,7 @@ export default function HeroScroll7({ onJoin }: HeroScroll7Props) {
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.25, margin: "-60px" }}
-          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         >
           {way ? (
             <>{climbYourWay} <span className="neon-your">{your}</span> {way}</>
@@ -41,7 +41,7 @@ export default function HeroScroll7({ onJoin }: HeroScroll7Props) {
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.25, margin: "-60px" }}
-          transition={{ duration: 0.8, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.6, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
         >
           <button
             type="button"

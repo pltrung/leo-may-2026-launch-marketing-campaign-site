@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useLocale } from "./LocaleProvider";
 import { getMessages } from "@/lib/messages";
+import { withHighlights } from "@/lib/heroHighlights";
 import type { MascotPartColors } from "@/lib/mascotSpeciesColors";
 
 /** Applies cloud part colors to ip-flying.svg loaded via object. SVG uses .cls-9 (eyes), .cls-10 (scarf/cloud), .cls-6 (nose). */
@@ -20,10 +21,10 @@ function applyFlyingColors(doc: Document | null, partColors: MascotPartColors) {
   doc.querySelectorAll(".cls-2").forEach((el) => setStroke(el as SVGElement, partColors.cloudOutline));
 }
 
-/** Hero page scroll section 4: "Where your SHAPE is never QUESTIONED. Only EXPERIENCED." */
+/** Hero page scroll section 4: World-class routes. International interior design. Curated atmosphere. */
 export default function HeroScroll4({ partColors }: { partColors?: MascotPartColors | null }) {
   const locale = useLocale();
-  const { whereShape, shape, isNever, questioned, only, experienced } = getMessages(locale).hero;
+  const { hero4, hero4Highlights } = getMessages(locale).hero;
   const objectRef = useRef<HTMLObjectElement>(null);
 
   const applyColors = useCallback(
@@ -57,16 +58,8 @@ export default function HeroScroll4({ partColors }: { partColors?: MascotPartCol
         <div className="absolute bottom-1/3 left-1/2 w-[48%] max-w-[260px] h-[48%] max-h-[260px] rounded-full bg-white/11 animate-mist-drift" style={{ filter: "blur(38px)", animationDelay: "-12s" }} />
       </div>
       <div className="hero-text philosophy-text">
-        <div className="hero-line-primary whitespace-pre-line">
-          {isNever ? (
-            <>
-              {whereShape} <span className="neon-green">{shape}</span> {isNever} <span className="neon-yellow">{questioned}</span>.
-            </>
-          ) : (
-            <>
-              {whereShape} <span className="neon-green">{shape}</span>.
-            </>
-          )}
+        <div className="hero-line-primary whitespace-pre-line text-white/90">
+          {withHighlights(hero4, hero4Highlights ?? [], ["neon-green", "neon-yellow", "neon-cyan"])}
         </div>
       </div>
       <div className="hero-ip-wrap flex items-center justify-center w-[63%] max-w-[300px] sm:w-[55%] sm:max-w-[260px] aspect-square mx-auto pointer-events-none">
@@ -88,11 +81,6 @@ export default function HeroScroll4({ partColors }: { partColors?: MascotPartCol
             fetchPriority="high"
           />
         )}
-      </div>
-      <div className="hero-text philosophy-text hero-line-secondary-wrapper hero-experienced-line md:mt-20">
-        <div className="hero-line-primary text-white/90">
-          {only} <span className={locale === "vi" ? "neon-red" : "neon-cyan"}>{experienced}</span>.
-        </div>
       </div>
     </section>
   );
