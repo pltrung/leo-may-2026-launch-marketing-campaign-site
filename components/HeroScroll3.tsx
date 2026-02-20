@@ -19,14 +19,14 @@ export default function HeroScroll3({ pose }: HeroScroll3Props) {
   const [imgErrored, setImgErrored] = useState(false);
   const imgSrc = IMAGE_MAP[pose];
   const locale = useLocale();
-  const { hero3, hero3Highlights } = getMessages(locale).hero;
+  const { hero3Above, hero3Below, hero3BelowHighlights } = getMessages(locale).hero;
 
   return (
     <section className="hero-section hero-section-scroll relative overflow-hidden px-6">
       {pose === "front" && (
         <div className="hero-text philosophy-text max-w-2xl mx-auto text-center">
           <div className="hero-line-primary text-white/90 whitespace-pre-line">
-            {withHighlights(hero3, hero3Highlights ?? [], "neon-cyan")}
+            {hero3Above}
           </div>
         </div>
       )}
@@ -45,6 +45,13 @@ export default function HeroScroll3({ pose }: HeroScroll3Props) {
           </>
         )}
       </div>
+      {pose === "front" && (
+        <div className="hero-text philosophy-text hero-line-secondary-wrapper max-w-2xl mx-auto text-center">
+          <div className="hero-line-primary text-white/90 whitespace-pre-line">
+            {withHighlights(hero3Below, hero3BelowHighlights ?? [], "neon-cyan")}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

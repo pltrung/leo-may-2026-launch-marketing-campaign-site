@@ -472,25 +472,25 @@ body.hero-ready .hero-scroll {
   }
 }
 
-/* Hero scroll sections: cinematic pacing — tightened ~35% for shorter scroll */
+/* Hero scroll sections: middle ground between original (too long) and tightened (too short) */
 .hero-section-scroll {
-  min-height: 82vh;
+  min-height: 106vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   position: relative;
-  padding-top: 9vh;
-  padding-bottom: 9vh;
-  margin-bottom: 14vh;
-  scroll-margin-top: 6vh;
+  padding-top: 12vh;
+  padding-bottom: 12vh;
+  margin-bottom: 19vh;
+  scroll-margin-top: 8vh;
 }
 .hero-section-scroll:last-of-type {
-  margin-bottom: 6vh;
+  margin-bottom: 8vh;
 }
 
 .hero-section-scroll .hero-text {
-  margin-bottom: 32px;
+  margin-bottom: 40px;
   text-align: center;
   z-index: 2;
   opacity: 0;
@@ -502,7 +502,7 @@ body.hero-ready .hero-scroll {
   margin-right: auto;
   white-space: normal;
   word-break: normal;
-  transition: opacity 500ms cubic-bezier(0.22, 1, 0.36, 1), transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 580ms cubic-bezier(0.22, 1, 0.36, 1), transform 580ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .hero-line-primary {
@@ -536,40 +536,40 @@ body.hero-ready .hero-scroll {
   isolation: isolate;
 }
 .hero-section-scroll .hero-ip {
-  margin-top: 16px;
+  margin-top: 20px;
   z-index: 1;
   opacity: 0;
   transform: translateY(calc(16px + var(--hero-ip-float, 0px)));
-  transition: opacity 520ms cubic-bezier(0.22, 1, 0.36, 1), transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 600ms cubic-bezier(0.22, 1, 0.36, 1), transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .hero-section-scroll.visible .hero-text {
   opacity: 1;
   transform: translateY(0);
-  transition: opacity 500ms cubic-bezier(0.22, 1, 0.36, 1), transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 580ms cubic-bezier(0.22, 1, 0.36, 1), transform 580ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .hero-section-scroll.visible .hero-ip {
   opacity: 1;
   transform: translateY(var(--hero-ip-float, 0px));
-  transition: opacity 520ms cubic-bezier(0.22, 1, 0.36, 1), transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
-  transition-delay: 120ms;
+  transition: opacity 600ms cubic-bezier(0.22, 1, 0.36, 1), transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: 160ms;
 }
 .hero-section-scroll .hero-line-secondary-wrapper {
   opacity: 0;
   transform: translateY(12px);
-  transition: opacity 500ms cubic-bezier(0.22, 1, 0.36, 1), transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 580ms cubic-bezier(0.22, 1, 0.36, 1), transform 580ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .hero-section-scroll.visible .hero-line-secondary-wrapper {
   opacity: 1;
   transform: translateY(0);
-  transition: opacity 500ms cubic-bezier(0.22, 1, 0.36, 1), transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
-  transition-delay: 320ms;
+  transition: opacity 580ms cubic-bezier(0.22, 1, 0.36, 1), transform 580ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: 410ms;
 }
 .hero-line-secondary-wrapper {
   margin-top: 0;
-  margin-bottom: 32px;
+  margin-bottom: 40px;
 }
 .hero-section-scroll.visible .hero-ip-city {
   transform: translateX(5%) translateY(0);

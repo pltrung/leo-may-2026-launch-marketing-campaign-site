@@ -24,7 +24,7 @@ function applyFlyingColors(doc: Document | null, partColors: MascotPartColors) {
 /** Hero page scroll section 4: World-class routes. International interior design. Curated atmosphere. */
 export default function HeroScroll4({ partColors }: { partColors?: MascotPartColors | null }) {
   const locale = useLocale();
-  const { hero4, hero4Highlights } = getMessages(locale).hero;
+  const { hero4Above, hero4AboveHighlights, hero4Below, hero4BelowHighlights } = getMessages(locale).hero;
   const objectRef = useRef<HTMLObjectElement>(null);
 
   const applyColors = useCallback(
@@ -59,7 +59,7 @@ export default function HeroScroll4({ partColors }: { partColors?: MascotPartCol
       </div>
       <div className="hero-text philosophy-text">
         <div className="hero-line-primary whitespace-pre-line text-white/90">
-          {withHighlights(hero4, hero4Highlights ?? [], ["neon-green", "neon-yellow", "neon-cyan"])}
+          {withHighlights(hero4Above, hero4AboveHighlights ?? [], ["neon-green", "neon-yellow"])}
         </div>
       </div>
       <div className="hero-ip-wrap flex items-center justify-center w-[63%] max-w-[300px] sm:w-[55%] sm:max-w-[260px] aspect-square mx-auto pointer-events-none">
@@ -81,6 +81,11 @@ export default function HeroScroll4({ partColors }: { partColors?: MascotPartCol
             fetchPriority="high"
           />
         )}
+      </div>
+      <div className="hero-text philosophy-text hero-line-secondary-wrapper">
+        <div className="hero-line-primary text-white/90">
+          {withHighlights(hero4Below, hero4BelowHighlights ?? [], "neon-cyan")}
+        </div>
       </div>
     </section>
   );

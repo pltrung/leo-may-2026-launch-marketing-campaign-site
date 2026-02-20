@@ -15,10 +15,10 @@ export default function HeroScroll7({ onJoin }: HeroScroll7Props) {
   return (
     <section
       id="final-cta"
-      className="relative min-h-[78vh] flex flex-col px-6 pt-[100px] md:pt-20 pb-20"
+      className="relative min-h-[99vh] flex flex-col px-6 pt-[120px] md:pt-24 pb-24"
     >
       {/* Small top spacer: consistent with section spacing above, CTA still triggers on scroll */}
-      <div className="min-h-[12vh] flex-shrink-0" aria-hidden />
+      <div className="min-h-[15vh] flex-shrink-0" aria-hidden />
 
       {/* Title + CTA: only fade in when user has scrolled into this section (mobile + PC) */}
       <div className="flex-1 flex flex-col items-center justify-end w-full max-w-lg mx-auto min-h-0 pb-[42%] sm:pb-[32%] md:pb-[22%]">
