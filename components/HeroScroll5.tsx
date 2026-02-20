@@ -25,7 +25,7 @@ export default function HeroScroll5() {
           fetchPriority="high"
         />
       </div>
-      <div className="hero-text philosophy-text hero-line-secondary-wrapper cloud-eyes-text">
+      <div className="hero-text philosophy-text hero-line-secondary-wrapper hero-below-image-text cloud-eyes-text">
         <div className="hero-line-primary text-white tracking-headline">
           {withHighlights(hero5Below, hero5BelowHighlights ?? [], "neon-yellow")}
         </div>

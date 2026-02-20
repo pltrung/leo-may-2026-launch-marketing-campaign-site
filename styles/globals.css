@@ -530,10 +530,20 @@ body.hero-ready .hero-scroll {
   margin-top: 0.25em;
 }
 
-/* Isolate IP from section text color (e.g. .neon-green) so mobile doesn't tint the mascot */
+/* Isolate IP from section text color (e.g. .neon-green) so mobile doesn't tint the mascot.
+   Wrapper + isolation work on desktop; on mobile some browsers still inherit section/ancestor
+   color into the <object> SVG, so we also set color on the element in HeroScroll4 and below. */
 .hero-ip-wrap {
   color: #fffef8;
   isolation: isolate;
+}
+
+/* Mobile: force mascot container and IP to neutral color so SVG is never tinted by .neon-green */
+@media (max-width: 768px) {
+  .hero-mist-section .hero-ip-wrap,
+  .hero-mist-section .hero-ip-wrap .hero-ip {
+    color: #fffef8 !important;
+  }
 }
 .hero-section-scroll .hero-ip {
   margin-top: 20px;
@@ -571,6 +581,17 @@ body.hero-ready .hero-scroll {
   margin-top: 0;
   margin-bottom: 40px;
 }
+
+/* Space between image and "text below" in scroll 3, 4, 5 — same on desktop and mobile */
+.hero-section-scroll .hero-below-image-text {
+  margin-top: 2rem;
+}
+@media (min-width: 768px) {
+  .hero-section-scroll .hero-below-image-text {
+    margin-top: 2.5rem;
+  }
+}
+
 .hero-section-scroll.visible .hero-ip-city {
   transform: translateX(5%) translateY(0);
 }

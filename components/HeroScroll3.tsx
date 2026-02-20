@@ -46,7 +46,7 @@ export default function HeroScroll3({ pose }: HeroScroll3Props) {
         )}
       </div>
       {pose === "front" && (
-        <div className="hero-text philosophy-text hero-line-secondary-wrapper max-w-2xl mx-auto text-center">
+        <div className="hero-text philosophy-text hero-line-secondary-wrapper hero-below-image-text max-w-2xl mx-auto text-center">
           <div className="hero-line-primary text-white/90 whitespace-pre-line">
             {withHighlights(hero3Below, hero3BelowHighlights ?? [], "neon-cyan")}
           </div>

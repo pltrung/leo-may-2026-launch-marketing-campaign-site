@@ -120,7 +120,7 @@ function HomeContent() {
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />
       <motion.div
-        className="fixed bottom-6 left-6 z-[60] scale-90 opacity-80 md:scale-100 md:opacity-100 [&>*]:origin-bottom-left"
+        className="fixed bottom-6 left-6 z-[100] scale-90 opacity-80 md:scale-100 md:opacity-100 [&>*]:origin-bottom-left isolate"
         initial={{ opacity: 0, y: -6 }}
         animate={{
           opacity: transitionActive ? 0 : heroReady ? 1 : 0,
@@ -136,7 +136,7 @@ function HomeContent() {
         <LanguageSwitch />
       </motion.div>
       <motion.div
-        className="fixed top-8 right-6 z-[60]"
+        className="fixed top-8 right-6 z-[100]"
         initial={{ opacity: 0, y: 12 }}
         animate={{
           opacity: transitionActive ? 0 : heroReady ? 1 : 0,
@@ -157,6 +157,7 @@ function HomeContent() {
       <AnimatePresence mode="wait">
         <motion.div
           key={showClouds ? "clouds" : "hero"}
+          className="relative z-0"
           initial={{ opacity: 0 }}
           animate={{ opacity: heroContentOpacity }}
           exit={{ opacity: 0 }}

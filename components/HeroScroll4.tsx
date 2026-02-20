@@ -62,7 +62,7 @@ export default function HeroScroll4({ partColors }: { partColors?: MascotPartCol
           {withHighlights(hero4Above, hero4AboveHighlights ?? [], ["neon-green", "neon-yellow"])}
         </div>
       </div>
-      <div className="hero-ip-wrap flex items-center justify-center w-[63%] max-w-[300px] sm:w-[55%] sm:max-w-[260px] aspect-square mx-auto pointer-events-none">
+      <div className="hero-ip-wrap flex items-center justify-center w-[63%] max-w-[300px] sm:w-[55%] sm:max-w-[260px] aspect-square mx-auto pointer-events-none" style={{ color: "#fffef8" }}>
         {partColors ? (
           <object
             ref={objectRef}
@@ -70,6 +70,7 @@ export default function HeroScroll4({ partColors }: { partColors?: MascotPartCol
             type="image/svg+xml"
             aria-hidden
             className="hero-ip w-full h-full object-contain animate-ip-bounce"
+            style={{ color: "#fffef8" }}
           />
         ) : (
           /* eslint-disable-next-line @next/next/no-img-element */
@@ -79,10 +80,11 @@ export default function HeroScroll4({ partColors }: { partColors?: MascotPartCol
             className="hero-ip w-full h-full object-contain animate-ip-bounce"
             loading="eager"
             fetchPriority="high"
+            style={{ color: "#fffef8" }}
           />
         )}
       </div>
-      <div className="hero-text philosophy-text hero-line-secondary-wrapper">
+      <div className="hero-text philosophy-text hero-line-secondary-wrapper hero-below-image-text">
         <div className="hero-line-primary text-white/90">
           {withHighlights(hero4Below, hero4BelowHighlights ?? [], "neon-cyan")}
         </div>
