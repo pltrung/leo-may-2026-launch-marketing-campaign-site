@@ -55,13 +55,6 @@ function HomeContent() {
   const handleCountdownTransitionComplete = useCallback(() => {
     setSkyTransitionForCountdown(false);
     setSelectedCloud(null);
-    try {
-      if (typeof window !== "undefined") {
-        window.sessionStorage.setItem("leo_may_from_signup_flow", "1");
-      }
-    } catch {
-      // ignore
-    }
     router.push(`/${locale}/countdown?fromMist=1`);
   }, [router, locale]);
 

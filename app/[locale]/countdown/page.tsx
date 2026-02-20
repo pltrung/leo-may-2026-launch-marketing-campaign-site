@@ -41,8 +41,8 @@ import VerificationModal from "@/components/VerificationModal";
 import { createBrowserClient } from "@/lib/supabaseBrowser";
 
 const PENDING_REF_CODE_KEY = "leo_may_pending_ref_code";
-const HAS_SEEN_COUNTDOWN_INTRO_KEY = "leo_may_has_seen_countdown_intro";
-const FROM_SIGNUP_FLOW_KEY = "leo_may_from_signup_flow";
+const COUNTDOWN_INTRO_VIEW_COUNT_KEY = "leo_may_countdown_intro_view_count";
+const COUNTDOWN_INTRO_MAX_VIEWS = 3;
 
 /** Applies species colors to mascot SVG groups via object ref when loaded. Re-applies when partColors (cloud type) changes. */
 function MascotSvgObject({
@@ -261,38 +261,22 @@ export default function CountdownPage() {
   useEffect(() => {
     if (phase !== "content") return;
     if (!profile.isVerified) {
-      let hasSeenIntro = true;
-      let fromSignupFlow = fromMist;
+      let viewCount = COUNTDOWN_INTRO_MAX_VIEWS;
       try {
         if (typeof window !== "undefined") {
-          hasSeenIntro = window.localStorage.getItem(HAS_SEEN_COUNTDOWN_INTRO_KEY) === "1";
-          if (!fromSignupFlow) {
-            fromSignupFlow = window.sessionStorage.getItem(FROM_SIGNUP_FLOW_KEY) === "1";
-          }
+          const raw = window.localStorage.getItem(COUNTDOWN_INTRO_VIEW_COUNT_KEY);
+          const n = raw != null ? parseInt(raw, 10) : 0;
+          viewCount = Number.isNaN(n) ? COUNTDOWN_INTRO_MAX_VIEWS : Math.min(COUNTDOWN_INTRO_MAX_VIEWS, Math.max(0, n));
         }
       } catch {
         // ignore
       }
-      if (fromSignupFlow && !hasSeenIntro) {
+      if (viewCount < COUNTDOWN_INTRO_MAX_VIEWS) {
         setShowCountdownIntro(true);
         setShowVerifyToEvolve(false);
-        try {
-          if (typeof window !== "undefined") {
-            window.sessionStorage.removeItem(FROM_SIGNUP_FLOW_KEY);
-          }
-        } catch {
-          // ignore
-        }
         return;
       }
       setShowVerifyToEvolve(true);
-      try {
-        if (typeof window !== "undefined") {
-          window.sessionStorage.removeItem(FROM_SIGNUP_FLOW_KEY);
-        }
-      } catch {
-        // ignore
-      }
       return;
     }
     // Verified: only show ceremony once per session; don't re-open after user dismisses.
@@ -303,7 +287,7 @@ export default function CountdownPage() {
     ceremonyShownOrDismissedRef.current = true;
     const currentTier = backendTierToDisplay(profile.tierLevel);
     setEvolutionCeremony({ displayTier: currentTier });
-  }, [phase, profile.tierLevel, profile.isVerified, evolutionCeremony, fromMist]);
+  }, [phase, profile.tierLevel, profile.isVerified, evolutionCeremony]);
 
   useEffect(() => {
     const order = leaderboard.slice(0, 3).map((e) => e.id).join(",");
@@ -1223,7 +1207,13 @@ export default function CountdownPage() {
             onContinue={() => {
               try {
                 if (typeof window !== "undefined") {
-                  window.localStorage.setItem(HAS_SEEN_COUNTDOWN_INTRO_KEY, "1");
+                  const raw = window.localStorage.getItem(COUNTDOWN_INTRO_VIEW_COUNT_KEY);
+                  const n = raw != null ? parseInt(raw, 10) : 0;
+                  const current = Number.isNaN(n) ? 0 : Math.max(0, n);
+                  window.localStorage.setItem(
+                    COUNTDOWN_INTRO_VIEW_COUNT_KEY,
+                    String(Math.min(COUNTDOWN_INTRO_MAX_VIEWS, current + 1))
+                  );
                 }
               } catch {
                 // ignore
