@@ -10,6 +10,10 @@ function applyFlyingColors(doc: Document | null, partColors: MascotPartColors) {
   if (!doc) return;
   const setFill = (el: SVGElement, value: string) => el.style.setProperty("fill", value, "important");
   const setStroke = (el: SVGElement, value: string) => el.style.setProperty("stroke", value, "important");
+  const root = doc.documentElement;
+  if (root && root instanceof SVGElement) {
+    root.style.setProperty("color", "#fffef8", "important");
+  }
   doc.querySelectorAll(".cls-9").forEach((el) => setFill(el as SVGElement, partColors.eyeLeft));
   doc.querySelectorAll(".cls-10").forEach((el) => setFill(el as SVGElement, partColors.scarf));
   doc.querySelectorAll(".cls-6").forEach((el) => setFill(el as SVGElement, partColors.nose));
@@ -65,7 +69,7 @@ export default function HeroScroll4({ partColors }: { partColors?: MascotPartCol
           )}
         </div>
       </div>
-      <div className="flex items-center justify-center w-[63%] max-w-[300px] sm:w-[55%] sm:max-w-[260px] aspect-square mx-auto pointer-events-none">
+      <div className="hero-ip-wrap flex items-center justify-center w-[63%] max-w-[300px] sm:w-[55%] sm:max-w-[260px] aspect-square mx-auto pointer-events-none">
         {partColors ? (
           <object
             ref={objectRef}

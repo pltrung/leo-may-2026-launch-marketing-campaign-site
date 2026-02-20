@@ -530,6 +530,11 @@ body.hero-ready .hero-scroll {
   margin-top: 0.25em;
 }
 
+/* Isolate IP from section text color (e.g. .neon-green) so mobile doesn't tint the mascot */
+.hero-ip-wrap {
+  color: #fffef8;
+  isolation: isolate;
+}
 .hero-section-scroll .hero-ip {
   margin-top: 24px;
   z-index: 1;
