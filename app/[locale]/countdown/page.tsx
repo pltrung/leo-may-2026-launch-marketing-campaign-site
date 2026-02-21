@@ -43,6 +43,8 @@ import { createBrowserClient } from "@/lib/supabaseBrowser";
 const PENDING_REF_CODE_KEY = "leo_may_pending_ref_code";
 const COUNTDOWN_INTRO_VIEW_COUNT_KEY = "leo_may_countdown_intro_view_count";
 const COUNTDOWN_INTRO_MAX_VIEWS = 3;
+/** Once per session: intro ("what this page is") is the first popup on countdown. */
+const COUNTDOWN_INTRO_SESSION_KEY = "leo_may_countdown_intro_seen_this_session";
 
 /** Applies species colors to mascot SVG groups via object ref when loaded. Re-applies when partColors (cloud type) changes. */
 function MascotSvgObject({
@@ -235,7 +237,6 @@ export default function CountdownPage() {
   const [prevLeaderboardOrder, setPrevLeaderboardOrder] = useState<string>("");
   const [skyUnstable, setSkyUnstable] = useState(false);
   const prevLevelIndexRef = useRef<number>(-1);
-  const announcementAfterCeremonyRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ceremonyShownOrDismissedRef = useRef(false);
   const [levelUpFlash, setLevelUpFlash] = useState(false);
   const [evolutionCeremony, setEvolutionCeremony] = useState<{ displayTier: number } | null>(null);
@@ -243,8 +244,9 @@ export default function CountdownPage() {
   const [showCountdownIntro, setShowCountdownIntro] = useState(false);
   const [showAnnouncement, setShowAnnouncement] = useState(false);
 
+  // Announcement (social) shows after the countdown intro; intro is always the first popup.
   useEffect(() => {
-    if (phase !== "content" || showAnnouncement) return;
+    if (phase !== "content" || showAnnouncement || showCountdownIntro) return;
     let lastSeen = -1;
     try {
       if (typeof window !== "undefined") {
@@ -256,30 +258,27 @@ export default function CountdownPage() {
     }
     if (Number.isNaN(lastSeen)) lastSeen = -1;
     if (ANNOUNCEMENT_ID > lastSeen) setShowAnnouncement(true);
-  }, [phase, showAnnouncement]);
+  }, [phase, showAnnouncement, showCountdownIntro]);
 
+  // Countdown intro ("what this page is") is always the first popup every time (once per session). Then announcement, then verify/ceremony.
   useEffect(() => {
     if (phase !== "content") return;
+    if (showAnnouncement) return;
+    let seenIntroThisSession = false;
+    try {
+      if (typeof window !== "undefined") seenIntroThisSession = window.sessionStorage.getItem(COUNTDOWN_INTRO_SESSION_KEY) === "1";
+    } catch {
+      // ignore
+    }
+    if (!seenIntroThisSession) {
+      setShowCountdownIntro(true);
+      setShowVerifyToEvolve(false);
+      return;
+    }
     if (!profile.isVerified) {
-      let viewCount = COUNTDOWN_INTRO_MAX_VIEWS;
-      try {
-        if (typeof window !== "undefined") {
-          const raw = window.localStorage.getItem(COUNTDOWN_INTRO_VIEW_COUNT_KEY);
-          const n = raw != null ? parseInt(raw, 10) : 0;
-          viewCount = Number.isNaN(n) ? COUNTDOWN_INTRO_MAX_VIEWS : Math.min(COUNTDOWN_INTRO_MAX_VIEWS, Math.max(0, n));
-        }
-      } catch {
-        // ignore
-      }
-      if (viewCount < COUNTDOWN_INTRO_MAX_VIEWS) {
-        setShowCountdownIntro(true);
-        setShowVerifyToEvolve(false);
-        return;
-      }
       setShowVerifyToEvolve(true);
       return;
     }
-    // Verified: only show ceremony once per session; don't re-open after user dismisses.
     setShowVerifyToEvolve(false);
     setShowCountdownIntro(false);
     if (ceremonyShownOrDismissedRef.current) return;
@@ -287,7 +286,7 @@ export default function CountdownPage() {
     ceremonyShownOrDismissedRef.current = true;
     const currentTier = backendTierToDisplay(profile.tierLevel);
     setEvolutionCeremony({ displayTier: currentTier });
-  }, [phase, profile.tierLevel, profile.isVerified, evolutionCeremony]);
+  }, [phase, profile.tierLevel, profile.isVerified, evolutionCeremony, showAnnouncement]);
 
   useEffect(() => {
     const order = leaderboard.slice(0, 3).map((e) => e.id).join(",");
@@ -301,15 +300,6 @@ export default function CountdownPage() {
 
   useEffect(() => {
     setUser(getUser());
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (announcementAfterCeremonyRef.current != null) {
-        clearTimeout(announcementAfterCeremonyRef.current);
-        announcementAfterCeremonyRef.current = null;
-      }
-    };
   }, []);
 
   useEffect(() => {
@@ -1180,6 +1170,12 @@ export default function CountdownPage() {
                 // ignore
               }
               setShowAnnouncement(false);
+              if (!profile.isVerified) setShowVerifyToEvolve(true);
+              else if (ceremonyShownOrDismissedRef.current === false) {
+                const currentTier = backendTierToDisplay(profile.tierLevel);
+                setEvolutionCeremony({ displayTier: currentTier });
+                ceremonyShownOrDismissedRef.current = true;
+              }
             }}
           />
         )}
@@ -1207,6 +1203,7 @@ export default function CountdownPage() {
             onContinue={() => {
               try {
                 if (typeof window !== "undefined") {
+                  window.sessionStorage.setItem(COUNTDOWN_INTRO_SESSION_KEY, "1");
                   const raw = window.localStorage.getItem(COUNTDOWN_INTRO_VIEW_COUNT_KEY);
                   const n = raw != null ? parseInt(raw, 10) : 0;
                   const current = Number.isNaN(n) ? 0 : Math.max(0, n);
@@ -1219,7 +1216,6 @@ export default function CountdownPage() {
                 // ignore
               }
               setShowCountdownIntro(false);
-              setShowVerifyToEvolve(true);
             }}
           />
         )}
@@ -1253,8 +1249,6 @@ export default function CountdownPage() {
                 // ignore
               }
               setEvolutionCeremony(null);
-              // Show announcement after ceremony exit animation (~200ms); use z-[71] on announcement so it always appears on top
-              announcementAfterCeremonyRef.current = setTimeout(() => setShowAnnouncement(true), 350);
             }}
           />
         )}
