@@ -59,7 +59,7 @@ export default function HeroScroll4({ partColors }: { partColors?: MascotPartCol
       </div>
       <div className="hero-text philosophy-text">
         <div className="hero-line-primary whitespace-pre-line text-white/90">
-          {withHighlights(hero4Above, hero4AboveHighlights ?? [], ["neon-green", "neon-yellow"])}
+          {withHighlights(hero4Above, hero4AboveHighlights ?? [], "neon-yellow")}
         </div>
       </div>
       <div className="hero-ip-wrap flex items-center justify-center w-[63%] max-w-[300px] sm:w-[55%] sm:max-w-[260px] aspect-square mx-auto pointer-events-none" style={{ color: "#fffef8" }}>
@@ -84,11 +84,13 @@ export default function HeroScroll4({ partColors }: { partColors?: MascotPartCol
           />
         )}
       </div>
-      <div className="hero-text philosophy-text hero-line-secondary-wrapper hero-below-image-text">
-        <div className="hero-line-primary text-white/90">
-          {withHighlights(hero4Below, hero4BelowHighlights ?? [], "neon-cyan")}
+      {hero4Below ? (
+        <div className="hero-text philosophy-text hero-line-secondary-wrapper hero-below-image-text">
+          <div className="hero-line-primary text-white/90">
+            {withHighlights(hero4Below, hero4BelowHighlights ?? [], "neon-cyan")}
+          </div>
         </div>
-      </div>
+      ) : null}
     </section>
   );
 }
