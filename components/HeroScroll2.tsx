@@ -39,6 +39,7 @@ export default function HeroScroll2() {
     hero2Row1,
     hero2Row2Line1,
     hero2Row2Line2,
+    hero2Row2Line3,
     hero2Row3,
     hero2Highlights,
   } = getMessages(locale).hero;
@@ -51,6 +52,9 @@ export default function HeroScroll2() {
         <h2 className="font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white tracking-headline leading-tight font-semibold">
           <span className="block">{lineWithHighlights(hero2Row2Line1, hero2Highlights)}</span>
           <span className="block mt-1">{lineWithHighlights(hero2Row2Line2, hero2Highlights)}</span>
+          {hero2Row2Line3 != null && hero2Row2Line3 !== "" && (
+            <span className="block mt-1">{lineWithHighlights(hero2Row2Line3, hero2Highlights)}</span>
+          )}
         </h2>
         <p className="font-body mt-4 text-white/80 text-lg sm:text-xl">
           {hero2Row3}
