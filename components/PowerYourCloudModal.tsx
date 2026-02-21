@@ -119,8 +119,7 @@ export default function PowerYourCloudModal({
     ? t.finalEvolutionReached
     : t.freePathProgress
         .replace("{current}", String(tierProgress.progressToNext))
-        .replace("{threshold}", String(tierProgress.nextTierDelta))
-        .replace("{evo}", String(tierProgress.nextTierNumber + 1));
+        .replace("{threshold}", String(tierProgress.nextTierDelta));
 
   return (
     <AnimatePresence>
