@@ -12,7 +12,7 @@ export default function HeroScroll6() {
     <section className="hero-section hero-section-scroll relative overflow-hidden px-6 flex items-center justify-center min-h-[50vh]">
       <div className="hero-text text-center">
         <div className="hero-line-primary text-white tracking-headline">
-          {withHighlights(hero6, hero6Highlights ?? [], "neon-cyan")}
+          {withHighlights(hero6, hero6Highlights ?? [], "neon-green")}
         </div>
       </div>
     </section>
