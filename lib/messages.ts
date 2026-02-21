@@ -303,7 +303,7 @@ const vi: Messages = {
     hero1Emphasis: "CÙNG MỘT NHỊP TIM",
     hero1Bao: "Bao",
     hero1Row1Right: "hình dạng,",
-    hero1Row2Right: "bao hành trình,",
+    hero1Row2Right: "hành trình,",
     hero1Row3: "một nhịp tim.",
     scroll: "Cuộn",
     hero2: "Phòng leo núi cao cấp đầu tiên tại Việt Nam — HCMC 2026",
