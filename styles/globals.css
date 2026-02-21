@@ -380,11 +380,11 @@ body.hero-ready .hero-scroll {
   font-family: inherit;
   font-weight: inherit;
   text-transform: uppercase;
-  color: #FDFF52;
+  color: #C9A227;
   text-shadow:
-    0 0 6px rgba(253,255,82,.5),
-    0 0 14px rgba(253,255,82,.35),
-    0 0 28px rgba(253,255,82,.18);
+    0 0 6px rgba(201,162,39,.4),
+    0 0 12px rgba(201,162,39,.22),
+    0 0 20px rgba(201,162,39,.12);
 }
 
 .neon-cyan {
