@@ -106,7 +106,7 @@ function CountdownScarfRibbonLayer({ partColors }: { partColors: MascotPartColor
   const applyColors = useCallback(
     (doc: Document | null) => {
       if (!doc) return;
-      const setFill = (el: HTMLElement | null, value: string) => {
+      const setFill = (el: SVGElement | null, value: string) => {
         if (el) el.style.setProperty("fill", value, "important");
       };
       setFill(doc.getElementById("ribbon"), partColors.nose);
