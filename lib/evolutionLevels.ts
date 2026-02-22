@@ -71,7 +71,7 @@ export const EVOLUTION_REWARDS = [
   { levelIndex: 2, labelEn: "Launch event invitation eligibility", labelVi: "Đủ điều kiện thư mời sự kiện ra mắt" },
   { levelIndex: 3, labelEn: "Exclusive founding merchandise eligibility", labelVi: "Đủ điều kiện hàng độc quyền sáng lập" },
   { levelIndex: 4, labelEn: "Permanent name recognition inside Leo Mây", labelVi: "Tên vinh danh lâu dài tại Leo Mây" },
-  { levelIndex: 5, labelEn: "Founding Circle access (permanent legacy engraving in our 1st gym + lifetime founding identity)", labelVi: "Quyền vào Vòng Sáng Lập (khắc danh vĩnh viễn tại gym đầu tiên + bản sắc sáng lập trọn đời)" },
+  { levelIndex: 5, labelEn: "Founding Circle access (permanent legacy engraving in our 1st gym + lifetime founding identity)", labelVi: "Quyền vào Nhóm Sáng Lập (khắc danh vĩnh viễn tại gym đầu tiên + bản sắc sáng lập trọn đời)" },
 ] as const;
 
 export function getRewardLabel(reward: (typeof EVOLUTION_REWARDS)[number], locale: Locale): string {

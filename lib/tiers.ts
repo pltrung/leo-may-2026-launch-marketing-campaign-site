@@ -23,13 +23,14 @@ export interface AscensionTierConfig {
 
 /** Canonical tier names (cinematic origin myth). Single source of truth for EN + VN. */
 /** Incremental price to reach this tier from previous (Tier 1–5): $5, $10, $15, $30, $40. Cumulative in TIER_PRICES_USD: 5, 15, 30, 60, 100. */
+/** Free path referral ladder: 0 → 3 → 8 → 15 → 25 → 40 (cumulative to reach each tier). */
 export const ASCENSION_TIERS: AscensionTierConfig[] = [
   { tier: 0, nameEn: "The Dreamer", nameVi: "Kẻ Mơ Mộng", priceUsd: 0, referralsRequired: 0, rewardEn: "Awakening phase activated", rewardVi: "Giai đoạn thức tỉnh được kích hoạt", flavorEn: "The first spark.", flavorVi: "Tia lửa đầu tiên." },
-  { tier: 1, nameEn: "The Cloud Seeker", nameVi: "Kẻ Lần Theo Mây", priceUsd: 5, referralsRequired: 4, rewardEn: "Early gym access eligibility", rewardVi: "Đủ điều kiện vào gym sớm", flavorEn: "Move before the crowd.", flavorVi: "Di chuyển trước đám đông." },
-  { tier: 2, nameEn: "The Thunder Challenger", nameVi: "Kẻ Thách Sấm", priceUsd: 10, referralsRequired: 7, rewardEn: "Launch event invitation eligibility", rewardVi: "Đủ điều kiện thư mời sự kiện ra mắt", flavorEn: "Your presence is heard.", flavorVi: "Sự hiện diện của bạn được lắng nghe." },
-  { tier: 3, nameEn: "The Sky Ascendant", nameVi: "Kẻ Vượt Tầng Trời", priceUsd: 15, referralsRequired: 12, rewardEn: "Exclusive founding merchandise eligibility", rewardVi: "Đủ điều kiện hàng độc quyền sáng lập", flavorEn: "Shape the first Leo Mây.", flavorVi: "Định hình Leo Mây đầu tiên." },
-  { tier: 4, nameEn: "The Sky Guardian", nameVi: "Kẻ Canh Giữ Bầu Trời", priceUsd: 30, referralsRequired: 20, rewardEn: "Permanent name recognition inside Leo Mây", rewardVi: "Tên vinh danh vĩnh viễn trong Leo Mây", flavorEn: "Your name becomes part of the sky.", flavorVi: "Tên bạn trở thành một phần bầu trời." },
-  { tier: 5, nameEn: "The Sky Creator", nameVi: "Kẻ Tạo Nên Thiên Không", priceUsd: 40, referralsRequired: 35, rewardEn: "Founding Circle access (permanent legacy engraving in our 1st gym + lifetime founding identity)", rewardVi: "Quyền vào Vòng Sáng Lập (khắc danh vĩnh viễn tại gym đầu tiên + bản sắc sáng lập trọn đời)", flavorEn: "Legacy, forever.", flavorVi: "Di sản, mãi mãi." },
+  { tier: 1, nameEn: "The Cloud Seeker", nameVi: "Kẻ Lần Theo Mây", priceUsd: 5, referralsRequired: 3, rewardEn: "Priority gym access before opening", rewardVi: "Ưu tiên vào gym trước ngày khai trương", flavorEn: "Move before the crowd.", flavorVi: "Di chuyển trước đám đông." },
+  { tier: 2, nameEn: "The Thunder Challenger", nameVi: "Kẻ Thách Sấm", priceUsd: 10, referralsRequired: 8, rewardEn: "Exclusive launch event invitation", rewardVi: "Thư mời độc quyền sự kiện ra mắt", flavorEn: "Your presence is heard.", flavorVi: "Sự hiện diện của bạn được lắng nghe." },
+  { tier: 3, nameEn: "The Sky Ascendant", nameVi: "Kẻ Vượt Tầng Trời", priceUsd: 15, referralsRequired: 15, rewardEn: "Founding collection access + VIP experience", rewardVi: "Bộ sưu tập sáng lập giới hạn + trải nghiệm VIP", flavorEn: "Shape the first Leo Mây.", flavorVi: "Định hình Leo Mây đầu tiên." },
+  { tier: 4, nameEn: "The Sky Guardian", nameVi: "Kẻ Canh Giữ Bầu Trời", priceUsd: 30, referralsRequired: 25, rewardEn: "Your name on the Founders’ Wall at Leo Mây", rewardVi: "Tên bạn trên Bức tường Sáng lập tại Leo Mây", flavorEn: "Your name becomes part of the sky.", flavorVi: "Tên bạn trở thành một phần bầu trời." },
+  { tier: 5, nameEn: "The Sky Creator", nameVi: "Kẻ Tạo Nên Thiên Không", priceUsd: 40, referralsRequired: 40, rewardEn: "Founding Circle: name engraved in our 1st gym + lifetime founding member + exclusive benefits", rewardVi: "Nhóm Sáng Lập: tên khắc vĩnh viễn tại gym đầu tiên + thành viên sáng lập trọn đời + đặc quyền riêng", flavorEn: "Legacy, forever.", flavorVi: "Di sản, mãi mãi." },
 ];
 
 const EVO_ROMAN: Record<number, string> = { 0: "I", 1: "II", 2: "III", 3: "IV", 4: "V", 5: "VI" };
