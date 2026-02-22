@@ -87,7 +87,7 @@ export default function HeroScroll4({ partColors }: { partColors?: MascotPartCol
       {hero4Below ? (
         <div className="hero-text philosophy-text hero-line-secondary-wrapper hero-below-image-text">
           <div className="hero-line-primary text-white/90">
-            {withHighlights(hero4Below, hero4BelowHighlights ?? [], "neon-yellow")}
+            {withHighlights(hero4Below, hero4BelowHighlights ?? [], "neon-red")}
           </div>
         </div>
       ) : null}

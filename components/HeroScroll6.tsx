@@ -20,7 +20,7 @@ export default function HeroScroll6() {
           )}
           {hero6Line3 != null && (
             <span className="block mt-1">
-              {hero6Line3Highlight ? withHighlights(hero6Line3, [hero6Line3Highlight], "neon-cyan") : hero6Line3}
+              {hero6Line3Highlight ? withHighlights(hero6Line3, [hero6Line3Highlight], "neon-red") : hero6Line3}
             </span>
           )}
         </div>
