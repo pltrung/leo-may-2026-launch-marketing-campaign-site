@@ -46,17 +46,35 @@ const COUNTDOWN_INTRO_MAX_VIEWS = 3;
 /** Once per session: intro ("what this page is") is the first popup on countdown. */
 const COUNTDOWN_INTRO_SESSION_KEY = "leo_may_countdown_intro_seen_this_session";
 
-/** Applies species colors to mascot SVG groups via object ref when loaded. Re-applies when partColors (cloud type) changes. */
+/** Mascot SVG path by evolution stage index (0–5). Evo 6 (index 5) is final form with built-in clouds. */
+const COUNTDOWN_MASCOT_BY_STAGE = [
+  "/brand/ip-sleeping.svg",
+  "/brand/ip-waking-up.svg",
+  "/brand/ip-looking-around.svg",
+  "/brand/ip-on-cloud-evo.svg",
+  "/brand/ip-energized.svg",
+  "/brand/ip-count-down.svg",
+] as const;
+
+/** Evolution stages 0 and 1 (sleeping, waking-up): left eye stays open and blue; only right eye gets species color. */
+const EVO_LEFT_EYE_FIXED_BLUE = [0, 1];
+
+/** Applies species colors to mascot SVG groups via object ref when loaded. Re-applies when partColors (cloud type) changes.
+ * For evo 0–1 (sleeping, waking-up), left eye is never recolored so it stays blue; only right eye gets partColors. */
 function MascotSvgObject({
   src,
   partColors,
   cloudId,
+  evolutionStageIndex,
 }: {
   src: string;
   partColors: MascotPartColors;
   cloudId: string;
+  /** 0–5; when 0 or 1, left eye is not recolored (stays blue). */
+  evolutionStageIndex?: number;
 }) {
   const objectRef = useRef<HTMLObjectElement>(null);
+  const leftEyeFixedBlue = evolutionStageIndex !== undefined && EVO_LEFT_EYE_FIXED_BLUE.includes(evolutionStageIndex);
 
   const applyColors = useCallback(
     (doc: Document | null) => {
@@ -76,9 +94,11 @@ function MascotSvgObject({
         el.style.setProperty("fill", value, "important");
       };
       const mascotRightEyes = doc.getElementById("mascot-right-eyes") as SVGElement | null;
-      if (eyeLeft) setFill(eyeLeft, partColors.eyeLeft);
+      if (!leftEyeFixedBlue) {
+        if (eyeLeft) setFill(eyeLeft, partColors.eyeLeft);
+        if (mascotLeftEyes) setFill(mascotLeftEyes, partColors.eyeLeft);
+      }
       if (eyeRight) setFill(eyeRight, partColors.eyeRight);
-      if (mascotLeftEyes) setFill(mascotLeftEyes, partColors.eyeLeft);
       if (mascotRightEyes) setFill(mascotRightEyes, partColors.eyeRight);
       if (mascotRibbon) setFill(mascotRibbon, partColors.nose);
       if (ribbonEl) setFill(ribbonEl, partColors.nose);
@@ -91,7 +111,7 @@ function MascotSvgObject({
       if (mascotAura) mascotAura.setAttribute("opacity", "0");
       if (mascotParticles) mascotParticles.setAttribute("opacity", "0");
     },
-    [partColors.eyeLeft, partColors.eyeRight, partColors.nose, partColors.scarf, partColors.cloudOutline]
+    [partColors.eyeLeft, partColors.eyeRight, partColors.nose, partColors.scarf, partColors.cloudOutline, leftEyeFixedBlue]
   );
 
   useEffect(() => {
@@ -115,7 +135,7 @@ function MascotSvgObject({
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [applyColors, cloudId]);
+  }, [applyColors, cloudId, evolutionStageIndex]);
 
   return (
     <object
@@ -124,6 +144,90 @@ function MascotSvgObject({
       type="image/svg+xml"
       aria-hidden
       className="w-full h-auto object-contain pointer-events-none"
+    />
+  );
+}
+
+/** Applies cloud-outline color to the countdown clouds SVG (used behind evo 1–5). */
+function CountdownCloudsLayer({ partColors }: { partColors: MascotPartColors }) {
+  const objectRef = useRef<HTMLObjectElement>(null);
+  const applyCloudOutline = useCallback(
+    (doc: Document | null) => {
+      if (!doc) return;
+      const cloudOutline = doc.getElementById("cloud-outline") as SVGElement | null;
+      if (cloudOutline) {
+        cloudOutline.style.setProperty("stroke", partColors.cloudOutline, "important");
+        if (!cloudOutline.hasAttribute("stroke-width")) cloudOutline.setAttribute("stroke-width", "2");
+      }
+    },
+    [partColors.cloudOutline]
+  );
+  useEffect(() => {
+    const el = objectRef.current;
+    if (!el) return;
+    const tryApply = () => applyCloudOutline(el.contentDocument);
+    const onLoad = () => tryApply();
+    if (el.contentDocument?.readyState === "complete") tryApply();
+    else el.addEventListener("load", onLoad);
+    tryApply();
+    const t1 = setTimeout(tryApply, 100);
+    const t2 = setTimeout(tryApply, 350);
+    return () => {
+      el.removeEventListener("load", onLoad);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [applyCloudOutline]);
+  return (
+    <object
+      ref={objectRef}
+      data="/brand/countdown-clouds.svg"
+      type="image/svg+xml"
+      className="w-full h-full min-h-full object-contain"
+      aria-hidden
+    />
+  );
+}
+
+/** Scarf and ribbon overlay for evo 1–5; applies nose/scarf colors per cloud type. */
+function CountdownScarfRibbonLayer({ partColors }: { partColors: MascotPartColors }) {
+  const objectRef = useRef<HTMLObjectElement>(null);
+  const applyColors = useCallback(
+    (doc: Document | null) => {
+      if (!doc) return;
+      const setFill = (el: HTMLElement | null, value: string) => {
+        if (el) el.style.setProperty("fill", value, "important");
+      };
+      setFill(doc.getElementById("ribbon"), partColors.nose);
+      setFill(doc.getElementById("mascot-ribbon"), partColors.nose);
+      setFill(doc.getElementById("mascot-scarf"), partColors.scarf);
+      setFill(doc.getElementById("mascot-scarf-2"), partColors.scarf);
+    },
+    [partColors.nose, partColors.scarf]
+  );
+  useEffect(() => {
+    const el = objectRef.current;
+    if (!el) return;
+    const tryApply = () => applyColors(el.contentDocument);
+    const onLoad = () => tryApply();
+    if (el.contentDocument?.readyState === "complete") tryApply();
+    else el.addEventListener("load", onLoad);
+    tryApply();
+    const t1 = setTimeout(tryApply, 100);
+    const t2 = setTimeout(tryApply, 350);
+    return () => {
+      el.removeEventListener("load", onLoad);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [applyColors]);
+  return (
+    <object
+      ref={objectRef}
+      data="/brand/countdown-scarf-ribbon.svg"
+      type="image/svg+xml"
+      className="absolute inset-0 w-full h-full min-h-full object-contain pointer-events-none"
+      aria-hidden
     />
   );
 }
@@ -535,7 +639,7 @@ export default function CountdownPage() {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/brand/ip-count-down.svg"
+                src="/brand/ip-energized.svg"
                 alt=""
                 className="w-full h-auto object-contain"
               />
@@ -641,11 +745,29 @@ export default function CountdownPage() {
                 ease: EASE_APPLE_IN_OUT,
               }}
             >
-              <MascotSvgObject
-                src="/brand/ip-count-down.svg"
-                partColors={mascotPartColors}
-                cloudId={cloud.id}
-              />
+              <div className="relative w-full">
+                {/* Clouds behind mascot (evo 1–5 only); z-0 so IP always pops on top */}
+                {evolutionStageIndex <= 4 && (
+                  <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none" aria-hidden>
+                    <CountdownCloudsLayer partColors={mascotPartColors} />
+                  </div>
+                )}
+                {/* Mascot IP on top of clouds (like ip-count-down.svg structure) */}
+                <div className="relative z-10">
+                  <MascotSvgObject
+                    src={COUNTDOWN_MASCOT_BY_STAGE[evolutionStageIndex]}
+                    partColors={mascotPartColors}
+                    cloudId={cloud.id}
+                    evolutionStageIndex={evolutionStageIndex}
+                  />
+                </div>
+                {/* Scarf/ribbon overlay on top of mascot for team colors (evo 1–5) */}
+                {evolutionStageIndex <= 4 && (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none" aria-hidden>
+                    <CountdownScarfRibbonLayer partColors={mascotPartColors} />
+                  </div>
+                )}
+              </div>
             </motion.div>
           </div>
           <motion.div
