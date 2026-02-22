@@ -51,7 +51,9 @@ export default function HeroScroll2() {
         </p>
         <h2 className="font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white tracking-headline leading-tight font-semibold">
           <span className="block">{lineWithHighlights(hero2Row2Line1, hero2Highlights)}</span>
-          <span className="block mt-1">{lineWithHighlights(hero2Row2Line2, hero2Highlights)}</span>
+          {hero2Row2Line2 != null && hero2Row2Line2 !== "" && (
+            <span className="block mt-1">{lineWithHighlights(hero2Row2Line2, hero2Highlights)}</span>
+          )}
           {hero2Row2Line3 != null && hero2Row2Line3 !== "" && (
             <span className="block mt-1">{lineWithHighlights(hero2Row2Line3, hero2Highlights)}</span>
           )}

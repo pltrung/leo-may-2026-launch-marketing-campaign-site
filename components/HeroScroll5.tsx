@@ -7,7 +7,7 @@ import { withHighlights } from "@/lib/heroHighlights";
 /** Hero page scroll section 5: Created alongside the designers behind Asia's largest climbing gyms */
 export default function HeroScroll5() {
   const locale = useLocale();
-  const { hero5Above, hero5AboveHighlights, hero5Below, hero5BelowHighlights } = getMessages(locale).hero;
+  const { hero5Above, hero5AboveHighlights, hero5BelowLine1, hero5BelowLine2, hero5BelowLine1Highlights, hero5BelowLine2Highlights } = getMessages(locale).hero;
   return (
     <section className="hero-section hero-section-scroll hero-cloud-section relative overflow-hidden px-6">
       <div className="hero-text cloud-eyes-text">
@@ -27,7 +27,16 @@ export default function HeroScroll5() {
       </div>
       <div className="hero-text philosophy-text hero-line-secondary-wrapper hero-below-image-text cloud-eyes-text">
         <div className="hero-line-primary text-white tracking-headline">
-          {withHighlights(hero5Below, hero5BelowHighlights ?? [], ["neon-green", "neon-cyan", "neon-yellow"])}
+          {hero5BelowLine1 != null && (
+            <span className="block">
+              {hero5BelowLine1Highlights?.length ? withHighlights(hero5BelowLine1, hero5BelowLine1Highlights, "neon-green") : hero5BelowLine1}
+            </span>
+          )}
+          {hero5BelowLine2 != null && (
+            <span className="block mt-1">
+              {hero5BelowLine2Highlights?.length ? withHighlights(hero5BelowLine2, hero5BelowLine2Highlights, "neon-cyan") : hero5BelowLine2}
+            </span>
+          )}
         </div>
       </div>
     </section>

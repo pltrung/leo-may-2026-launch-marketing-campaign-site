@@ -19,7 +19,7 @@ export default function HeroScroll3({ pose }: HeroScroll3Props) {
   const [imgErrored, setImgErrored] = useState(false);
   const imgSrc = IMAGE_MAP[pose];
   const locale = useLocale();
-  const { hero3Above, hero3Below, hero3BelowHighlights } = getMessages(locale).hero;
+  const { hero3Above, hero3BelowLine1, hero3BelowLine2, hero3BelowHighlights } = getMessages(locale).hero;
 
   return (
     <section className="hero-section hero-section-scroll relative overflow-hidden px-6">
@@ -45,10 +45,11 @@ export default function HeroScroll3({ pose }: HeroScroll3Props) {
           </>
         )}
       </div>
-      {pose === "front" && (
+      {pose === "front" && hero3BelowLine1 != null && hero3BelowLine2 != null && (
         <div className="hero-text philosophy-text hero-line-secondary-wrapper hero-below-image-text max-w-2xl mx-auto text-center">
           <div className="hero-line-primary text-white/90 whitespace-pre-line">
-            {withHighlights(hero3Below, hero3BelowHighlights ?? [], "neon-green")}
+            <span className="block">{withHighlights(hero3BelowLine1, hero3BelowHighlights ?? [], "neon-green")}</span>
+            <span className="block mt-1">{hero3BelowLine2}</span>
           </div>
         </div>
       )}
