@@ -189,49 +189,6 @@ function CountdownCloudsLayer({ partColors }: { partColors: MascotPartColors }) 
   );
 }
 
-/** Scarf and ribbon overlay for evo 1–5; applies nose/scarf colors per cloud type. */
-function CountdownScarfRibbonLayer({ partColors }: { partColors: MascotPartColors }) {
-  const objectRef = useRef<HTMLObjectElement>(null);
-  const applyColors = useCallback(
-    (doc: Document | null) => {
-      if (!doc) return;
-      const setFill = (el: HTMLElement | null, value: string) => {
-        if (el) el.style.setProperty("fill", value, "important");
-      };
-      setFill(doc.getElementById("ribbon"), partColors.nose);
-      setFill(doc.getElementById("mascot-ribbon"), partColors.nose);
-      setFill(doc.getElementById("mascot-scarf"), partColors.scarf);
-      setFill(doc.getElementById("mascot-scarf-2"), partColors.scarf);
-    },
-    [partColors.nose, partColors.scarf]
-  );
-  useEffect(() => {
-    const el = objectRef.current;
-    if (!el) return;
-    const tryApply = () => applyColors(el.contentDocument);
-    const onLoad = () => tryApply();
-    if (el.contentDocument?.readyState === "complete") tryApply();
-    else el.addEventListener("load", onLoad);
-    tryApply();
-    const t1 = setTimeout(tryApply, 100);
-    const t2 = setTimeout(tryApply, 350);
-    return () => {
-      el.removeEventListener("load", onLoad);
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, [applyColors]);
-  return (
-    <object
-      ref={objectRef}
-      data="/brand/countdown-scarf-ribbon.svg"
-      type="image/svg+xml"
-      className="absolute inset-0 w-full h-full min-h-full object-contain pointer-events-none"
-      aria-hidden
-    />
-  );
-}
-
 /** Background + holds fade to blue (ms); hero entrance starts after this. */
 const COUNTDOWN_BG_FADE_MS = 1000;
 
@@ -752,7 +709,7 @@ export default function CountdownPage() {
                     <CountdownCloudsLayer partColors={mascotPartColors} />
                   </div>
                 )}
-                {/* Mascot IP on top of clouds (like ip-count-down.svg structure) */}
+                {/* Mascot IP on top of clouds (like ip-count-down.svg). Colors applied in-place via MascotSvgObject (ribbon, scarf, etc. by ID), not a separate vector. */}
                 <div className="relative z-10">
                   <MascotSvgObject
                     src={COUNTDOWN_MASCOT_BY_STAGE[evolutionStageIndex]}
@@ -761,12 +718,6 @@ export default function CountdownPage() {
                     evolutionStageIndex={evolutionStageIndex}
                   />
                 </div>
-                {/* Scarf/ribbon overlay on top of mascot for team colors (evo 1–5) */}
-                {evolutionStageIndex <= 4 && (
-                  <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none" aria-hidden>
-                    <CountdownScarfRibbonLayer partColors={mascotPartColors} />
-                  </div>
-                )}
               </div>
             </motion.div>
           </div>
