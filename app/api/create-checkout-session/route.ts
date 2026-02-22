@@ -4,8 +4,6 @@ import { createServerClient } from "@/lib/supabaseServer";
 import { normalizeEmail } from "@/lib/emailNormalize";
 import { deltaUsdToReachTier, tierToMinUsd, displayTierToBackend } from "@/lib/tiers";
 
-const FOUNDING_CIRCLE_USD = 50;
-
 const stripeSecret = process.env.STRIPE_SECRET_KEY;
 const stripe = stripeSecret ? new Stripe(stripeSecret, { apiVersion: "2026-01-28.clover" }) : null;
 

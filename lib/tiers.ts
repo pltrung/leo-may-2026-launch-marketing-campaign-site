@@ -22,13 +22,14 @@ export interface AscensionTierConfig {
 }
 
 /** Canonical tier names (cinematic origin myth). Single source of truth for EN + VN. */
+/** Paid tier prices: 5 → 15 → 30 → 60 → 100 (Tier 1–5). Cumulative mins in TIER_PRICES_USD. */
 export const ASCENSION_TIERS: AscensionTierConfig[] = [
   { tier: 0, nameEn: "The Dreamer", nameVi: "Kẻ Mơ Mộng", priceUsd: 0, referralsRequired: 0, rewardEn: "Awakening phase activated", rewardVi: "Giai đoạn thức tỉnh được kích hoạt", flavorEn: "The first spark.", flavorVi: "Tia lửa đầu tiên." },
   { tier: 1, nameEn: "The Cloud Seeker", nameVi: "Kẻ Lần Theo Mây", priceUsd: 5, referralsRequired: 4, rewardEn: "Early gym access eligibility", rewardVi: "Đủ điều kiện vào gym sớm", flavorEn: "Move before the crowd.", flavorVi: "Di chuyển trước đám đông." },
-  { tier: 2, nameEn: "The Thunder Challenger", nameVi: "Kẻ Thách Sấm", priceUsd: 10, referralsRequired: 7, rewardEn: "Launch event invitation eligibility", rewardVi: "Đủ điều kiện thư mời sự kiện ra mắt", flavorEn: "Your presence is heard.", flavorVi: "Sự hiện diện của bạn được lắng nghe." },
-  { tier: 3, nameEn: "The Sky Ascendant", nameVi: "Kẻ Vượt Tầng Trời", priceUsd: 20, referralsRequired: 12, rewardEn: "Exclusive founding merchandise eligibility", rewardVi: "Đủ điều kiện hàng độc quyền sáng lập", flavorEn: "Shape the first Leo Mây.", flavorVi: "Định hình Leo Mây đầu tiên." },
-  { tier: 4, nameEn: "The Sky Guardian", nameVi: "Kẻ Canh Giữ Bầu Trời", priceUsd: 35, referralsRequired: 20, rewardEn: "Permanent name recognition inside Leo Mây", rewardVi: "Tên vinh danh vĩnh viễn trong Leo Mây", flavorEn: "Your name becomes part of the sky.", flavorVi: "Tên bạn trở thành một phần bầu trời." },
-  { tier: 5, nameEn: "The Sky Creator", nameVi: "Kẻ Tạo Nên Thiên Không", priceUsd: 50, referralsRequired: 35, rewardEn: "Founding Circle access (permanent legacy engraving in our 1st gym + lifetime founding identity)", rewardVi: "Quyền vào Vòng Sáng Lập (khắc danh vĩnh viễn tại gym đầu tiên + bản sắc sáng lập trọn đời)", flavorEn: "Legacy, forever.", flavorVi: "Di sản, mãi mãi." },
+  { tier: 2, nameEn: "The Thunder Challenger", nameVi: "Kẻ Thách Sấm", priceUsd: 15, referralsRequired: 7, rewardEn: "Launch event invitation eligibility", rewardVi: "Đủ điều kiện thư mời sự kiện ra mắt", flavorEn: "Your presence is heard.", flavorVi: "Sự hiện diện của bạn được lắng nghe." },
+  { tier: 3, nameEn: "The Sky Ascendant", nameVi: "Kẻ Vượt Tầng Trời", priceUsd: 30, referralsRequired: 12, rewardEn: "Exclusive founding merchandise eligibility", rewardVi: "Đủ điều kiện hàng độc quyền sáng lập", flavorEn: "Shape the first Leo Mây.", flavorVi: "Định hình Leo Mây đầu tiên." },
+  { tier: 4, nameEn: "The Sky Guardian", nameVi: "Kẻ Canh Giữ Bầu Trời", priceUsd: 60, referralsRequired: 20, rewardEn: "Permanent name recognition inside Leo Mây", rewardVi: "Tên vinh danh vĩnh viễn trong Leo Mây", flavorEn: "Your name becomes part of the sky.", flavorVi: "Tên bạn trở thành một phần bầu trời." },
+  { tier: 5, nameEn: "The Sky Creator", nameVi: "Kẻ Tạo Nên Thiên Không", priceUsd: 100, referralsRequired: 35, rewardEn: "Founding Circle access (permanent legacy engraving in our 1st gym + lifetime founding identity)", rewardVi: "Quyền vào Vòng Sáng Lập (khắc danh vĩnh viễn tại gym đầu tiên + bản sắc sáng lập trọn đời)", flavorEn: "Legacy, forever.", flavorVi: "Di sản, mãi mãi." },
 ];
 
 const EVO_ROMAN: Record<number, string> = { 0: "I", 1: "II", 2: "III", 3: "IV", 4: "V", 5: "VI" };
@@ -94,13 +95,14 @@ export function displayTierToBackend(displayTier: number): number {
   return Math.min(6, Math.max(1, Math.floor(displayTier) + 1));
 }
 
+/** Cumulative USD required to be at least at this backend tier (1–6). 5 → 15 → 30 → 60 → 100. */
 export const TIER_PRICES_USD: Record<number, number> = {
   1: 0,
   2: 5,
-  3: 10,
-  4: 20,
-  5: 35,
-  6: 50,
+  3: 20,
+  4: 50,
+  5: 110,
+  6: 210,
 } as const;
 
 export const TIER_LABELS_EN: Record<number, string> = {
@@ -144,13 +146,13 @@ export function tierToMinUsd(tier: number): number {
   return TIER_PRICES_USD[tier as keyof typeof TIER_PRICES_USD] ?? 0;
 }
 
-/** Compute tier level (1–6) from total contribution in whole USD. */
+/** Compute tier level (1–6) from total contribution in whole USD. Thresholds: 5, 20, 50, 110, 210. */
 export function contributionToTierLevel(totalContributionUsd: number): number {
   const n = Math.max(0, Math.floor(totalContributionUsd));
-  if (n >= 50) return 6;
-  if (n >= 35) return 5;
-  if (n >= 20) return 4;
-  if (n >= 10) return 3;
+  if (n >= 210) return 6;
+  if (n >= 110) return 5;
+  if (n >= 50) return 4;
+  if (n >= 20) return 3;
   if (n >= 5) return 2;
   return 1;
 }

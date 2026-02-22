@@ -12,7 +12,6 @@ import {
   tierToMinUsd,
 } from "@/lib/tiers";
 
-const FOUNDING_CIRCLE_USD = 50;
 import AscensionTimeline from "@/components/AscensionTimeline";
 
 /** Fallback when cloud accent is too light for contrast. */
@@ -110,7 +109,7 @@ export default function PowerYourCloudModal({
   const showProgressBar = !tierProgress.isMaxTier && tierProgress.nextTierDelta > 0;
   const modalAccent = accentHex && accentHex !== "#ffffff" && accentHex !== "#fff" ? accentHex : FALLBACK_ACCENT;
   const currentBackendTier = displayTierToBackend(currentDisplayTier);
-  const deltaToFoundingCircle = Math.max(0, FOUNDING_CIRCLE_USD - tierToMinUsd(currentBackendTier));
+  const deltaToFoundingCircle = Math.max(0, tierToMinUsd(6) - tierToMinUsd(currentBackendTier));
   const foundingCircleButtonLabel = t.becomeFoundingCirclePrice.replace("${price}", `$${deltaToFoundingCircle}`);
   const progressPct = showProgressBar
     ? Math.min(100, (tierProgress.progressToNext / tierProgress.nextTierDelta) * 100)
