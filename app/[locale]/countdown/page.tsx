@@ -612,7 +612,7 @@ export default function CountdownPage() {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/brand/ip-energized.svg"
+                src="/brand/ip-count-down.svg"
                 alt=""
                 className="w-full h-auto object-contain"
               />
