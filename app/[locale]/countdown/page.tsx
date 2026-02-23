@@ -18,7 +18,6 @@ import { useCountdownHeroEntrance, CONTENT_STAGGER_MS, EASE_APPLE_IN_OUT, EASE_A
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
 import { useLocale } from "@/components/LocaleProvider";
-import { getEvolutionStageIndex } from "@/lib/countdownEvolution";
 import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
 import {
   getEvolutionLevel,
@@ -479,8 +478,9 @@ export default function CountdownPage() {
   const nextFormName = getNextFormName(referralCount, locale);
   const currentLevelName = getLevelName(currentLevel, locale);
 
-  const evolutionStageIndex = getEvolutionStageIndex(referralCount);
   const displayTierForBadge = backendTierToDisplay(profile.tierLevel);
+  /** Mascot (IP) follows tier so it matches badge and title (e.g. 4 and 7 refs both tier 1 → same IP). */
+  const evolutionStageIndex = displayTierForBadge;
   const tierProgress = getProgressToNextTier(displayTierForBadge, referralCount);
   const progressBarPct =
     tierProgress.isMaxTier || tierProgress.nextTierDelta <= 0
