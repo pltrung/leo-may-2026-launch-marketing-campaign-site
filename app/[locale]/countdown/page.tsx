@@ -56,14 +56,14 @@ const COUNTDOWN_MASCOT_BY_STAGE = [
   "/brand/ip-count-down.svg",
 ] as const;
 
-/** Scale factors so each evo’s character appears similar size to sleeping (evo 0). Sleeping viewBox 1410×1148; evos 1–4 are 1024×1024; evo 5 is 1166×778. */
+/** Scale factors so each evo’s character appears similar size to sleeping (evo 0). Evos 2–5 scaled down slightly so they fit the circle and stay centered. */
 const MASCOT_SCALE_BY_STAGE: number[] = [
   1,
   1410 / 1024,
-  1410 / 1024,
-  1410 / 1024,
-  1410 / 1024,
-  1410 / 1166.27,
+  (1410 / 1024) * 0.88,
+  (1410 / 1024) * 0.88,
+  (1410 / 1024) * 0.88,
+  (1410 / 1166.27) * 0.88,
 ];
 
 /** Evolution stages 0 and 1 (sleeping, waking-up): left eye stays open and blue; only right eye gets species color. */
