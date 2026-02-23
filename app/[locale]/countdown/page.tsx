@@ -56,6 +56,16 @@ const COUNTDOWN_MASCOT_BY_STAGE = [
   "/brand/ip-count-down.svg",
 ] as const;
 
+/** Scale factors so each evo’s character appears similar size to sleeping (evo 0). Sleeping viewBox 1410×1148; evos 1–4 are 1024×1024; evo 5 is 1166×778. */
+const MASCOT_SCALE_BY_STAGE: number[] = [
+  1,
+  1410 / 1024,
+  1410 / 1024,
+  1410 / 1024,
+  1410 / 1024,
+  1410 / 1166.27,
+];
+
 /** Evolution stages 0 and 1 (sleeping, waking-up): left eye stays open and blue; only right eye gets species color. */
 const EVO_LEFT_EYE_FIXED_BLUE = [0, 1];
 
@@ -709,8 +719,18 @@ export default function CountdownPage() {
                     <CountdownCloudsLayer partColors={mascotPartColors} />
                   </div>
                 )}
-                {/* Mascot IP on top of clouds (like ip-count-down.svg). Colors applied in-place via MascotSvgObject (ribbon, scarf, etc. by ID), not a separate vector. */}
-                <div className="relative z-10">
+                {/* Mascot IP on top of clouds (like ip-count-down.svg). Colors applied in-place via MascotSvgObject (ribbon, scarf, etc. by ID), not a separate vector. Scale evos 1–5 so character size matches sleeping (evo 0). */}
+                <div
+                  className="relative z-10 flex items-center justify-center origin-center"
+                  style={
+                    evolutionStageIndex >= 1
+                      ? {
+                          transform: `scale(${MASCOT_SCALE_BY_STAGE[evolutionStageIndex]})`,
+                          transformOrigin: "center center",
+                        }
+                      : undefined
+                  }
+                >
                   <MascotSvgObject
                     src={COUNTDOWN_MASCOT_BY_STAGE[evolutionStageIndex]}
                     partColors={mascotPartColors}
