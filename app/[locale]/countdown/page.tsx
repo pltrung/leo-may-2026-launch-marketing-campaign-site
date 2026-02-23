@@ -45,24 +45,30 @@ const COUNTDOWN_INTRO_MAX_VIEWS = 3;
 /** Once per session: intro ("what this page is") is the first popup on countdown. */
 const COUNTDOWN_INTRO_SESSION_KEY = "leo_may_countdown_intro_seen_this_session";
 
-/** Mascot SVG path by evolution stage index (0–5). Evo 6 (index 5) is final form with built-in clouds. */
+/** Mascot SVG path by evolution stage index (0–5). Index 5 uses cloud-specific hero final (ip-hero-final-{cloud}). */
 const COUNTDOWN_MASCOT_BY_STAGE = [
   "/brand/ip-sleeping.svg",
   "/brand/ip-waking-up.svg",
   "/brand/ip-looking-around.svg",
   "/brand/ip-on-cloud-evo.svg",
   "/brand/ip-energized.svg",
-  "/brand/ip-count-down.svg",
+  "/brand/ip-count-down.svg", // fallback; tier 5 uses getFinalMascotSrc(cloudId)
 ] as const;
 
-/** Scale factors so each evo’s character appears similar size to sleeping (evo 0). Evos 2–5 scaled down slightly so they fit the circle and stay centered. */
+/** Final evolution (tier 5) per-cloud hero image: ip-hero-final-may-nhe, ip-hero-final-suong-mu, etc. */
+function getFinalMascotSrc(cloudId: string): string {
+  const slug = cloudId.replace(/_/g, "-");
+  return `/brand/ip-hero-final-${slug}.svg`;
+}
+
+/** Scale factors so each evo’s character appears similar size to sleeping (evo 0). Evos 2–5 (and final hero 1024×1024) use same scale. */
 const MASCOT_SCALE_BY_STAGE: number[] = [
   1,
   1410 / 1024,
   (1410 / 1024) * 0.88,
   (1410 / 1024) * 0.88,
   (1410 / 1024) * 0.88,
-  (1410 / 1166.27) * 0.88,
+  (1410 / 1024) * 0.88, // final hero SVGs are 1024×1024; same as evos 2–4
 ];
 
 /** Evolution stages 0 and 1 (sleeping, waking-up): left eye stays open and blue; only right eye gets species color. */
@@ -732,7 +738,7 @@ export default function CountdownPage() {
                   }
                 >
                   <MascotSvgObject
-                    src={COUNTDOWN_MASCOT_BY_STAGE[evolutionStageIndex]}
+                    src={evolutionStageIndex === 5 ? getFinalMascotSrc(cloud.id) : COUNTDOWN_MASCOT_BY_STAGE[evolutionStageIndex]}
                     partColors={mascotPartColors}
                     cloudId={cloud.id}
                     evolutionStageIndex={evolutionStageIndex}
