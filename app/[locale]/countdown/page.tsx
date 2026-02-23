@@ -678,7 +678,7 @@ export default function CountdownPage() {
         </motion.div>
 
         <motion.div
-          className="shrink-0 w-[min(90vw,200px)] sm:w-[min(85vw,240px)] md:w-[min(80vw,280px)] countdown-spacing-after-logo"
+          className="shrink-0 relative z-10 w-[min(90vw,200px)] sm:w-[min(85vw,240px)] md:w-[min(80vw,280px)] countdown-spacing-after-logo"
           initial={{ opacity: 0 }}
           animate={{ opacity: phase === "content" ? 1 : 0 }}
           transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[1] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
