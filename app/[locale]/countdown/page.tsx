@@ -50,8 +50,8 @@ const COUNTDOWN_MASCOT_BY_STAGE = [
   "/brand/ip-sleeping.svg",
   "/brand/ip-waking-up.svg",
   "/brand/ip-looking-around.svg",
-  "/brand/ip-on-cloud-evo.svg",
   "/brand/ip-energized.svg",
+  "/brand/ip-on-cloud-evo.svg",
   "/brand/ip-count-down.svg", // fallback; tier 5 uses getFinalMascotSrc(cloudId)
 ] as const;
 
