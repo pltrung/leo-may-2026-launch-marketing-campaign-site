@@ -587,7 +587,7 @@ const vi: Messages = {
     welcomeToTeam: "Chào mừng đến Team",
     positionInWaitlist: "Bạn là vị trí #",
     inWaitlist: " trong danh sách chờ.",
-    percentChoseCloud: "% người leo chọn mây này.",
+    percentChoseCloud: "người leo chọn mây này.",
     stayTuned: "Hãy theo dõi. Điều gì đó đang hình thành trong mây.",
     redirectingIn: "Chuyển hướng trong",
   },

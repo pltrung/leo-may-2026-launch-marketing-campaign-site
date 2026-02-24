@@ -98,7 +98,11 @@ function MascotSvgObject({
       const eyeRight = doc.getElementById("eye-right") as SVGElement | null;
       const ribbonEl = doc.getElementById("ribbon") as SVGElement | null;
       const mascotRibbon = doc.getElementById("mascot-ribbon") as SVGElement | null;
-      const mascotScarf = doc.getElementById("mascot-scarf") as SVGElement | null;
+      const scarfId =
+        evolutionStageIndex !== undefined && evolutionStageIndex <= 4
+          ? `mascot-scarf-${evolutionStageIndex}`
+          : "mascot-scarf";
+      const mascotScarf = doc.getElementById(scarfId) as SVGElement | null;
       const mascotScarf2 = doc.getElementById("mascot-scarf-2") as SVGElement | null;
       const cloudOutline = doc.getElementById("cloud-outline") as SVGElement | null;
       const mascotLeftEyes = doc.getElementById("mascot-left-eyes") as SVGElement | null;
@@ -126,7 +130,7 @@ function MascotSvgObject({
       if (mascotAura) mascotAura.setAttribute("opacity", "0");
       if (mascotParticles) mascotParticles.setAttribute("opacity", "0");
     },
-    [partColors.eyeLeft, partColors.eyeRight, partColors.nose, partColors.scarf, partColors.cloudOutline, leftEyeFixedBlue]
+    [partColors.eyeLeft, partColors.eyeRight, partColors.nose, partColors.scarf, partColors.cloudOutline, leftEyeFixedBlue, evolutionStageIndex]
   );
 
   useEffect(() => {
