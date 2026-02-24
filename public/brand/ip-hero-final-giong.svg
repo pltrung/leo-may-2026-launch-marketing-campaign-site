@@ -6719,7 +6719,7 @@
   Z"
 />
 </g>
-<g fill="#cbfdfe">
+<g id="mascot-left-eyes" fill="#cbfdfe">
 <path d="
   M 335.35 211.89
   L 338.90 216.33
@@ -7777,7 +7777,7 @@
   Z"
 />
 </g>
-<g fill="#0743fb">
+<g id="mascot-scarf" fill="#0743fb">
 <path d="
   M 581.24 364.53
   Q 584.36 369.39 586.73 376.95
@@ -11296,7 +11296,7 @@
   Z"
 />
 </g>
-<g fill="#90edf5">
+<g id="mascot-right-eyes" fill="#90edf5">
 <path d="
   M 764.92 346.35
   Q 760.62 354.31 757.65 363.01

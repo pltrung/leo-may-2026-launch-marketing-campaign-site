@@ -11589,7 +11589,7 @@
   Z"
 />
 </g>
-<g fill="#0240fc">
+<g id="mascot-scarf" fill="#0240fc">
 <path d="
   M 476.62 462.90
   Q 469.97 450.31 456.77 450.73
@@ -13988,7 +13988,7 @@
 />
 <ellipse cx="0.00" cy="0.00" transform="translate(347.78,388.97) rotate(-23.3)" rx="1.86" ry="0.71"/>
 </g>
-<g fill="#d0ecfd">
+<g id="mascot-left-eyes" fill="#d0ecfd">
 <path d="
   M 443.68 872.35
   C 452.19 871.58 461.28 874.45 466.04 881.97
@@ -14224,7 +14224,7 @@
   Z"
 />
 </g>
-<g fill="#02d7fe">
+<g id="mascot-scarf-2" fill="#02d7fe">
 <path d="
   M 591.07 467.23
   L 588.59 471.85

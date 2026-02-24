@@ -112,6 +112,10 @@ function MascotSvgObject({
       const setFill = (el: SVGElement, value: string) => {
         el.style.setProperty("fill", value, "important");
       };
+      const setFillRecursive = (el: SVGElement, value: string) => {
+        setFill(el, value);
+        el.querySelectorAll("path, circle, ellipse, polygon, polyline").forEach((child) => setFill(child as SVGElement, value));
+      };
       const mascotRightEyes = doc.getElementById("mascot-right-eyes") as SVGElement | null;
       if (!leftEyeFixedBlue) {
         if (eyeLeft) setFill(eyeLeft, partColors.eyeLeft);
@@ -121,8 +125,8 @@ function MascotSvgObject({
       if (mascotRightEyes) setFill(mascotRightEyes, partColors.eyeRight);
       if (mascotRibbon) setFill(mascotRibbon, partColors.nose);
       if (ribbonEl) setFill(ribbonEl, partColors.nose);
-      if (mascotScarf) setFill(mascotScarf, partColors.scarf);
-      if (mascotScarf2) setFill(mascotScarf2, partColors.scarf);
+      if (mascotScarf) setFillRecursive(mascotScarf, partColors.scarf);
+      if (mascotScarf2) setFillRecursive(mascotScarf2, partColors.scarf);
       if (cloudOutline) {
         cloudOutline.style.setProperty("stroke", partColors.cloudOutline, "important");
         if (!cloudOutline.hasAttribute("stroke-width")) cloudOutline.setAttribute("stroke-width", "2");
@@ -139,7 +143,12 @@ function MascotSvgObject({
 
     const tryApply = () => applyColors(el.contentDocument);
 
-    const onLoad = () => tryApply();
+    const onLoad = () => {
+      tryApply();
+      setTimeout(tryApply, 0);
+      setTimeout(tryApply, 50);
+      setTimeout(tryApply, 150);
+    };
     const doc = el.contentDocument;
     if (doc?.readyState === "complete") {
       tryApply();
@@ -149,10 +158,14 @@ function MascotSvgObject({
     tryApply();
     const t1 = setTimeout(tryApply, 100);
     const t2 = setTimeout(tryApply, 350);
+    const t3 = setTimeout(tryApply, 600);
+    const t4 = setTimeout(tryApply, 1000);
     return () => {
       el.removeEventListener("load", onLoad);
       clearTimeout(t1);
       clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
     };
   }, [applyColors, cloudId, evolutionStageIndex]);
 

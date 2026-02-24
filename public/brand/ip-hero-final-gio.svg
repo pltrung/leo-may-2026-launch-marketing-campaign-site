@@ -8932,7 +8932,7 @@
   Z"
 />
 </g>
-<g fill="#0441fb">
+<g id="mascot-scarf" fill="#0441fb">
 <path d="
   M 513.46 396.88
   L 513.01 395.75
@@ -9605,7 +9605,7 @@
 />
 <rect x="-9.30" y="-1.39" transform="translate(475.67,686.55) rotate(0.1)" width="18.60" height="2.78" rx="1.24"/>
 </g>
-<g fill="#d6edf4">
+<g id="mascot-left-eyes" fill="#d6edf4">
 <path d="
   M 608.25 780.24
   C 610.21 781.83 612.26 784.79 611.55 787.31
