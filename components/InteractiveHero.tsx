@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import Image from "next/image";
+import LayeredDiorama from "@/components/LayeredDiorama";
 
-const DIORAMA_SRC = "/leo-may-interactive-website-background.jpg";
-
-// Hotspot config: x, y, w, h in percentage. primary = Main Arena (breathing glow, larger tap).
+// Hotspot config: x, y, w, h in percentage. primary = Main Arena. layerId = which parallax layer it rides with.
 export interface HotspotConfig {
   id: string;
   label: string;
@@ -14,14 +12,15 @@ export interface HotspotConfig {
   w: number;
   h: number;
   primary?: boolean;
+  layerId: string;
 }
 
 const HOTSPOTS: HotspotConfig[] = [
-  { id: "main", label: "Main Arena", x: 26, y: 8, w: 48, h: 45, primary: true },
-  { id: "left", label: "Training", x: 8, y: 18, w: 28, h: 40 },
-  { id: "right", label: "Community", x: 64, y: 18, w: 28, h: 40 },
-  { id: "pads", label: "Membership", x: 20, y: 55, w: 30, h: 30 },
-  { id: "lounge", label: "Founding Circle", x: 55, y: 55, w: 35, h: 30 },
+  { id: "main", label: "Main Arena", x: 26, y: 8, w: 48, h: 45, primary: true, layerId: "center_zone" },
+  { id: "left", label: "Training", x: 8, y: 18, w: 28, h: 40, layerId: "left_zone" },
+  { id: "right", label: "Community", x: 64, y: 18, w: 28, h: 40, layerId: "right_zone" },
+  { id: "pads", label: "Membership", x: 20, y: 55, w: 30, h: 30, layerId: "floor_foreground" },
+  { id: "lounge", label: "Founding Circle", x: 55, y: 55, w: 35, h: 30, layerId: "floor_foreground" },
 ];
 
 const PRIMARY_ID = "main";
@@ -157,6 +156,41 @@ export default function InteractiveHero({ onJoin }: InteractiveHeroProps) {
   const dioramaScale = focusedId ? FOCUS_SCALE : initialZoom;
   const dioramaTransform = `translate(${focusTranslate.x}px, ${focusTranslate.y}px) scale(${dioramaScale})`;
 
+  const buildLayerContent = useCallback((): Record<string, React.ReactNode> => {
+    const byLayer: Record<string, React.ReactNode> = {};
+    const layerIds = ["sky", "shell", "left_zone", "center_zone", "right_zone", "floor_foreground"];
+    for (const layerId of layerIds) {
+      const spots = HOTSPOTS.filter((h) => h.layerId === layerId);
+      if (spots.length === 0) continue;
+      byLayer[layerId] = spots.map((h) => (
+        <HotspotButton
+          key={h.id}
+          config={h}
+          isFocused={focusedId === h.id}
+          isDimmed={focusedId !== null && focusedId !== h.id}
+          isPrimaryGlow={
+            h.primary === true &&
+            primaryGlowOn &&
+            !focusedId &&
+            (isMobile ? activeIndex === HOTSPOTS.findIndex((x) => x.id === h.id) : true)
+          }
+          isActive={
+            !isMobile && focusedId === null ? false : activeIndex === HOTSPOTS.findIndex((x) => x.id === h.id)
+          }
+          isMobile={isMobile}
+          onClick={() => handleHotspotClick(h.id)}
+        />
+      ));
+    }
+    return byLayer;
+  }, [
+    focusedId,
+    activeIndex,
+    primaryGlowOn,
+    isMobile,
+    handleHotspotClick,
+  ]);
+
   return (
     <section
       ref={sectionRef}
@@ -176,8 +210,12 @@ export default function InteractiveHero({ onJoin }: InteractiveHeroProps) {
         aria-hidden
       />
 
-      {/* Layer 2 — Diorama: grounded, float, entry zoom + fade */}
-      <div className="interactive-hero__diorama-wrap absolute inset-0 z-[1] flex items-center justify-center pointer-events-none">
+      {/* Layer 2 — Layered diorama (or fallback JPG): parallax, contact shadow, float; hotspots ride per-layer */}
+      <div
+        className="interactive-hero__diorama-wrap absolute inset-0 z-[1] flex items-center justify-center"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
         <div
           className="interactive-hero__diorama-transform relative w-full h-full flex items-center justify-center"
           style={{
@@ -187,26 +225,17 @@ export default function InteractiveHero({ onJoin }: InteractiveHeroProps) {
               : "transform 500ms ease-out",
           }}
         >
-          <div
-            className="interactive-hero__diorama-float relative w-full h-full"
-            style={{
-              opacity: dioramaReveal ? 1 : 0,
-              transition: `opacity ${DIORAMA_FADE_MS}ms ease-out`,
-            }}
-          >
-            <Image
-              src={DIORAMA_SRC}
-              alt=""
-              fill
-              className="object-contain max-w-full"
-              sizes="100vw"
-              priority
-            />
-          </div>
+          <LayeredDiorama
+            opacity={dioramaReveal ? 1 : 0}
+            transform="none"
+            transformTransition={focusedId ? `${FOCUS_DURATION_MS}ms ease-in-out` : "500ms ease-out"}
+            isMobile={isMobile}
+            layerContent={buildLayerContent()}
+          />
         </div>
       </div>
 
-      {/* Soft vignette at edges */}
+      {/* Soft vignette + radial light (over diorama) */}
       <div className="interactive-hero__vignette absolute inset-0 z-[1] pointer-events-none" aria-hidden />
 
       {/* Entry: logo fades in over 300ms */}
@@ -219,37 +248,6 @@ export default function InteractiveHero({ onJoin }: InteractiveHeroProps) {
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo-white.svg" alt="Leo Mây" className="h-8 w-auto object-contain opacity-90" />
-      </div>
-
-      {/* Layer 3 — Guided interaction: hotspots */}
-      <div
-        className="interactive-hero__hotspots absolute inset-0 z-[2] pointer-events-none"
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-      >
-        <div className="absolute inset-0 pointer-events-auto">
-          {HOTSPOTS.map((h) => (
-            <HotspotButton
-              key={h.id}
-              config={h}
-              isFocused={focusedId === h.id}
-              isDimmed={focusedId !== null && focusedId !== h.id}
-              isPrimaryGlow={
-                h.primary === true &&
-                primaryGlowOn &&
-                !focusedId &&
-                (isMobile ? activeIndex === HOTSPOTS.findIndex((x) => x.id === h.id) : true)
-              }
-              isActive={
-                !isMobile && focusedId === null
-                  ? false
-                  : activeIndex === HOTSPOTS.findIndex((x) => x.id === h.id)
-              }
-              isMobile={isMobile}
-              onClick={() => handleHotspotClick(h.id)}
-            />
-          ))}
-        </div>
       </div>
 
       {/* Mobile: "Tap to explore the gym" — fades out after 3s */}
