@@ -27,7 +27,7 @@ import { getUser } from "@/lib/userStorage";
 import type { Locale } from "@/lib/i18n";
 import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
 
-const useNewHero = process.env.NEXT_PUBLIC_NEW_HERO === "true";
+const defaultNewHero = process.env.NEXT_PUBLIC_NEW_HERO !== "false";
 
 function HomeContent() {
   const router = useRouter();
@@ -35,6 +35,7 @@ function HomeContent() {
   const locale = (params?.locale as Locale) ?? "en";
   const searchParams = useSearchParams();
   const [showClouds, setShowClouds] = useState(false);
+  const [useNewHero, setUseNewHero] = useState(defaultNewHero);
   const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
   const [skyVisible, setSkyVisible] = useState(false);
   const [skyTransitionForCountdown, setSkyTransitionForCountdown] = useState<false | "return" | "forms">(false);
@@ -123,6 +124,26 @@ function HomeContent() {
       <BrandBackground />
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />
+      {process.env.NODE_ENV === "development" && !showClouds && (
+        <div className="fixed top-4 left-4 z-[100] flex items-center gap-2 rounded-full border border-white/20 bg-black/80 text-white text-xs px-3 py-2 shadow-lg">
+          <span className="text-white/80">Hero:</span>
+          <button
+            type="button"
+            onClick={() => setUseNewHero(false)}
+            className={!useNewHero ? "font-semibold" : "opacity-70 hover:opacity-100"}
+          >
+            Legacy
+          </button>
+          <span className="text-white/50">|</span>
+          <button
+            type="button"
+            onClick={() => setUseNewHero(true)}
+            className={useNewHero ? "font-semibold" : "opacity-70 hover:opacity-100"}
+          >
+            Interactive
+          </button>
+        </div>
+      )}
       <motion.div
         className="fixed bottom-6 left-6 z-[100] scale-90 opacity-80 md:scale-100 md:opacity-100 [&>*]:origin-bottom-left isolate"
         initial={{ opacity: 0, y: -6 }}
@@ -160,7 +181,7 @@ function HomeContent() {
       </motion.div>
       <AnimatePresence mode="wait">
         <motion.div
-          key={showClouds ? "clouds" : "hero"}
+          key={showClouds ? "clouds" : useNewHero ? "interactive-hero" : "legacy-hero"}
           className="relative z-0"
           initial={{ opacity: 0 }}
           animate={{ opacity: heroContentOpacity }}
