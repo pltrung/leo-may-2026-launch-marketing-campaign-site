@@ -5,7 +5,7 @@ import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import BrandBackground from "@/components/BrandBackground";
 import LegacyHero from "@/components/LegacyHero";
-import InteractiveHero from "@/components/InteractiveHero";
+import Hero3D from "@/components/hero3d/Hero3D";
 import HeroScroll1 from "@/components/HeroScroll1";
 import HeroScroll2 from "@/components/HeroScroll2";
 import HeroScroll3 from "@/components/HeroScroll3";
@@ -27,7 +27,7 @@ import { getUser } from "@/lib/userStorage";
 import type { Locale } from "@/lib/i18n";
 import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
 
-const defaultNewHero = process.env.NEXT_PUBLIC_NEW_HERO !== "false";
+const defaultNewHero = process.env.NEXT_PUBLIC_NEW_HERO === "true";
 
 function HomeContent() {
   const router = useRouter();
@@ -181,7 +181,7 @@ function HomeContent() {
       </motion.div>
       <AnimatePresence mode="wait">
         <motion.div
-          key={showClouds ? "clouds" : useNewHero ? "interactive-hero" : "legacy-hero"}
+          key={showClouds ? "clouds" : useNewHero ? "hero3d" : "legacy-hero"}
           className="relative z-0"
           initial={{ opacity: 0 }}
           animate={{ opacity: heroContentOpacity }}
@@ -190,7 +190,7 @@ function HomeContent() {
         >
           {!showClouds ? (
             useNewHero ? (
-              <InteractiveHero onJoin={handleAscendClick} />
+              <Hero3D onJoin={handleAscendClick} />
             ) : (
               <LegacyHero partColors={heroMascotPartColors} onJoin={handleAscendClick} />
             )
