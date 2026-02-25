@@ -20,11 +20,14 @@ export default function OverlayUI({
       className="hero3d-overlay absolute inset-0 pointer-events-none z-10 flex flex-col"
       aria-hidden
     >
-      <div className="pointer-events-auto flex items-center justify-center pt-8">
+      <div
+        className="pointer-events-auto flex items-center justify-center pt-6 md:pt-8"
+        style={{ paddingTop: "max(1.5rem, env(safe-area-inset-top))" }}
+      >
         <img
           src="/logo-white.svg"
           alt="Leo Mây"
-          className="h-8 w-auto object-contain opacity-90"
+          className="h-12 md:h-14 w-auto object-contain opacity-90"
           style={{ opacity: ready ? 1 : 0, transition: "opacity 400ms ease-out" }}
         />
       </div>

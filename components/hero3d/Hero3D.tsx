@@ -43,7 +43,9 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
   const [ascendPanelOpen, setAscendPanelOpen] = useState(false);
   const [ascendTransitioning, setAscendTransitioning] = useState(false);
   const [debugUi, setDebugUi] = useState(false);
+  const [resetViewTrigger, setResetViewTrigger] = useState(0);
   const tapHintTimer = useRef<ReturnType<typeof setTimeout>>();
+  const heroStageRef = useRef<HTMLElement>(null);
 
   React.useEffect(() => {
     setDebugUi(getDebugUi());
@@ -93,6 +95,7 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
 
   const handleResetView = useCallback(() => {
     setFocusedId(null);
+    setResetViewTrigger((t) => t + 1);
   }, []);
 
   const handleCtaClick = useCallback((href: string) => {
@@ -122,10 +125,36 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  React.useEffect(() => {
+    const el = heroStageRef.current;
+    if (!el) return;
+    const onPointerDown = (e: PointerEvent) => {
+      document.body.style.overflow = "hidden";
+      if (e.pointerType === "touch") e.preventDefault();
+    };
+    const onPointerUp = () => {
+      document.body.style.overflow = "";
+    };
+    const onPointerLeave = () => {
+      document.body.style.overflow = "";
+    };
+    el.addEventListener("pointerdown", onPointerDown, { passive: false });
+    window.addEventListener("pointerup", onPointerUp, { passive: false });
+    el.addEventListener("pointerleave", onPointerLeave, { passive: false });
+    return () => {
+      el.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointerup", onPointerUp);
+      el.removeEventListener("pointerleave", onPointerLeave);
+      document.body.style.overflow = "";
+    };
+  }, []);
+
   return (
     <section
+      ref={heroStageRef}
       id="hero-stage"
       className={`hero3d relative w-full overflow-hidden isolate ${debugUi ? "debug-ui" : ""}`}
+      style={{ touchAction: "none" }}
       style={{
         width: "100%",
         height: "100dvh",
@@ -163,6 +192,7 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
           userInteracting={userInteracting}
           onUserInteractingChange={setUserInteracting}
           debugUi={debugUi}
+          resetViewTrigger={resetViewTrigger}
         />
       </Suspense>
 
