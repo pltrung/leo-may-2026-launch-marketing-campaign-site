@@ -112,7 +112,7 @@ export default function Hero3DCanvas(props: Hero3DCanvasProps) {
         near: 0.1,
         far: 1000,
       }}
-      style={{ display: "block", width: "100%", height: "100%", touchAction: "none" }}
+      style={{ display: "block", width: "100%", height: "100%", touchAction: "none", pointerEvents: "auto" }}
       shadows={false}
     >
       <Scene {...props} />
@@ -174,7 +174,14 @@ function Scene(props: Hero3DCanvasProps) {
   });
 
   const hotspotDef: HotspotDef | null = focusedId ? (hotspots.find((h) => h.id === focusedId) ?? null) : null;
-  const orbitEnabled = !hotspotDef && !cameraFocusMainWall && !resetRequested && hoveredHotspotId === null;
+  const orbitEnabled = !hotspotDef && !cameraFocusMainWall && !resetRequested;
+
+  const orbitTarget = useMemo(() => {
+    if (boundingInfo) return [boundingInfo.homeLookAt.x, boundingInfo.homeLookAt.y, boundingInfo.homeLookAt.z] as const;
+    return [DEFAULT_CINEMATIC_CAMERA.lookAt[0], DEFAULT_CINEMATIC_CAMERA.lookAt[1], DEFAULT_CINEMATIC_CAMERA.lookAt[2]] as const;
+  }, [boundingInfo]);
+  const orbitMinDist = boundingInfo ? boundingInfo.worldRadius * 0.45 : ORBIT_MIN_DISTANCE;
+  const orbitMaxDist = boundingInfo ? boundingInfo.worldRadius * 2.6 : ORBIT_MAX_DISTANCE;
 
   return (
     <>
@@ -190,20 +197,19 @@ function Scene(props: Hero3DCanvasProps) {
           <Environment preset="studio" background={false} />
         </>
       )}
-      {orbitEnabled && boundingInfo && (
+      {orbitEnabled && (
         <OrbitControls
-          target={[boundingInfo.homeLookAt.x, boundingInfo.homeLookAt.y, boundingInfo.homeLookAt.z]}
-          enablePan={isMobile ? false : true}
+          target={orbitTarget}
+          enablePan={false}
           enableRotate={true}
-          enableZoom={true}
-          minDistance={boundingInfo.worldRadius * 0.45}
-          maxDistance={boundingInfo.worldRadius * 2.6}
+          enableZoom={false}
+          minDistance={orbitMinDist}
+          maxDistance={orbitMaxDist}
           minPolarAngle={0.35}
           maxPolarAngle={Math.PI * 0.45}
           enableDamping
           dampingFactor={0.05}
           rotateSpeed={isMobile ? 0.55 : 0.75}
-          zoomSpeed={isMobile ? 0.7 : 1}
           onStart={() => onUserInteractingChange?.(true)}
           onEnd={() => onUserInteractingChange?.(false)}
         />
@@ -547,6 +553,7 @@ function HotspotBox({
   return (
     <group position={[x, y, z]} scale={[lift, lift, lift]}>
       <mesh
+        onPointerDown={(e) => e.stopPropagation()}
         onPointerOver={(e) => {
           e.stopPropagation();
           onHover(def.id);
@@ -626,14 +633,14 @@ function CameraController({
   }, [focusedHotspot, isMobile, resetRequested]);
 
   useFrame((state) => {
+    if (orbitEnabled) return;
+
     const tp = targetPos.current;
     const tl = targetLook.current;
     const t = state.clock.elapsedTime;
     const rise = 1 - Math.max(0, entranceProgress);
     const dollyIn = 0.4 * rise;
     const entranceZ = tp.z + dollyIn * 1.5;
-
-    if (orbitEnabled) return;
 
     let parallaxX = 0;
     let parallaxY = 0;

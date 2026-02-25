@@ -227,6 +227,7 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
           className="absolute inset-0 transition-opacity duration-300"
           style={{
             opacity: entranceProgress < 0.2 ? entranceProgress / 0.2 : 1,
+            pointerEvents: "none",
           }}
         >
           <Hero3DCanvas
