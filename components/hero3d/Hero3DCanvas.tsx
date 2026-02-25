@@ -167,12 +167,11 @@ export default function Hero3DCanvas(props: Hero3DCanvasProps) {
     <Canvas
       gl={{
         antialias: true,
-        alpha: true,
+        alpha: false,
         powerPreference: "high-performance",
       }}
       onCreated={({ gl, scene }) => {
         gl.setClearColor(0x111111, 1);
-        gl.setClearAlpha(1);
         scene.background = new THREE.Color(0x111111);
       }}
       dpr={[1, dpr]}
@@ -424,9 +423,9 @@ function Scene(props: Hero3DCanvasProps) {
       <ambientLight intensity={0.6} />
       <directionalLight position={[3, 5, 4]} intensity={1.0} />
       {!isMobile && <Environment preset="studio" background={false} />}
-      <axesHelper args={[2]} />
+      <axesHelper args={[5]} />
       <mesh position={[0, 0, 0]}>
-        <boxGeometry args={[0.2, 0.2, 0.2]} />
+        <boxGeometry args={[1, 1, 1]} />
         <meshBasicMaterial color="white" />
       </mesh>
       {orbitEnabled && (

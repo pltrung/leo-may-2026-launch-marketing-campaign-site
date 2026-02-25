@@ -309,14 +309,14 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
         paddingLeft: "env(safe-area-inset-left)",
         paddingRight: "env(safe-area-inset-right)",
         paddingBottom: "env(safe-area-inset-bottom)",
-        background: "#000",
+        background: "#111111",
       }}
       onMouseMove={onMouseMove}
       onMouseLeave={onMouseLeave}
     >
       <Suspense
         fallback={
-          <div className="absolute inset-0 flex items-center justify-center bg-black">
+          <div className="absolute inset-0 flex items-center justify-center bg-[#111111]">
             <div className="text-white/60 text-sm">Loading…</div>
           </div>
         }

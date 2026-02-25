@@ -31,6 +31,7 @@ export default function OverlayUI({
   glassStyle = true,
 }: OverlayUIProps) {
   const uiOpacity = ready ? (entranceProgress > 0.5 ? (entranceProgress - 0.5) / 0.5 : 0) : 0;
+  const visibleOpacity = 1;
 
   return (
     <div
@@ -39,7 +40,7 @@ export default function OverlayUI({
     >
       <div
         className="pointer-events-auto flex items-center justify-center pt-6 md:pt-8"
-        style={{ paddingTop: "max(1.5rem, env(safe-area-inset-top))", opacity: uiOpacity, transition: "opacity 400ms ease-out" }}
+        style={{ paddingTop: "max(1.5rem, env(safe-area-inset-top))", opacity: visibleOpacity, transition: "opacity 400ms ease-out" }}
       >
         <img
           src="/logo-white.svg"
@@ -51,7 +52,7 @@ export default function OverlayUI({
       {showTapHint && (
         <div
           className="absolute bottom-[18vh] left-1/2 -translate-x-1/2 text-sm tracking-wide"
-          style={{ color: "rgba(255,255,255,0.75)", opacity: uiOpacity }}
+          style={{ color: "rgba(255,255,255,0.75)", opacity: visibleOpacity }}
         >
           Tap to explore
         </div>
@@ -61,7 +62,7 @@ export default function OverlayUI({
         className={`absolute left-6 pointer-events-auto ${
           isMobile ? "bottom-6 pb-[env(safe-area-inset-bottom)]" : "bottom-6"
         }`}
-        style={{ opacity: uiOpacity, transition: "opacity 400ms ease-out" }}
+        style={{ opacity: visibleOpacity, transition: "opacity 400ms ease-out" }}
       >
         <button
           type="button"
