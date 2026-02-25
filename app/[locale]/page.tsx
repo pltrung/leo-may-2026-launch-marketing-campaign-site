@@ -4,6 +4,8 @@ import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import BrandBackground from "@/components/BrandBackground";
+import LegacyHero from "@/components/LegacyHero";
+import InteractiveHero from "@/components/InteractiveHero";
 import HeroScroll1 from "@/components/HeroScroll1";
 import HeroScroll2 from "@/components/HeroScroll2";
 import HeroScroll3 from "@/components/HeroScroll3";
@@ -24,6 +26,8 @@ import { CloudPersonality, getCloudById } from "@/lib/cloudData";
 import { getUser } from "@/lib/userStorage";
 import type { Locale } from "@/lib/i18n";
 import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
+
+const useNewHero = process.env.NEXT_PUBLIC_NEW_HERO === "true";
 
 function HomeContent() {
   const router = useRouter();
@@ -164,16 +168,11 @@ function HomeContent() {
           transition={{ duration: showClouds ? 0.4 : transitionActive ? 0.5 : 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
           {!showClouds ? (
-            <>
-              <AscentBar />
-              <HeroScroll1 />
-              <HeroScroll2 />
-              <HeroScroll3 pose="front" />
-              <HeroScroll4 partColors={heroMascotPartColors} />
-              <HeroScroll5 />
-              <HeroScroll6 />
-              <HeroScroll7 onJoin={handleAscendClick} />
-            </>
+            useNewHero ? (
+              <InteractiveHero onJoin={handleAscendClick} />
+            ) : (
+              <LegacyHero partColors={heroMascotPartColors} onJoin={handleAscendClick} />
+            )
           ) : (
             <CloudSelector onSelect={setSelectedCloud} />
           )}
@@ -182,6 +181,7 @@ function HomeContent() {
       </main>
       <motion.div
         className="flex-shrink-0 relative z-10"
+        data-hero-next
         initial={false}
         animate={{ opacity: transitionActive ? 0 : 1 }}
         transition={{
