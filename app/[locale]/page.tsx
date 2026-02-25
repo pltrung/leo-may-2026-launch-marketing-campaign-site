@@ -27,7 +27,7 @@ import { getUser } from "@/lib/userStorage";
 import type { Locale } from "@/lib/i18n";
 import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
 
-const defaultNewHero = process.env.NEXT_PUBLIC_NEW_HERO === "true";
+const defaultNewHero = process.env.NEXT_PUBLIC_NEW_HERO !== "false";
 
 function HomeContent() {
   const router = useRouter();
