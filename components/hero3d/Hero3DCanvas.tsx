@@ -255,15 +255,17 @@ function Scene(props: Hero3DCanvasProps) {
   const orbitEnabled = interactionMode === "default";
   const hotspotDef: HotspotDef | null =
     focusedId && !animatingToDefault ? (hotspots.find((h) => h.id === focusedId) ?? null) : null;
+  const focusHotspotForRotation =
+    focusedId ? hotspots.find((h) => h.id === focusedId) : null;
   const targetWorldRotationY =
     interactionMode === "animating"
       ? animatingToDefault
         ? 0
-        : focusedId
-          ? getFocusWorldRotationY(hotspots.find((h) => h.id === focusedId)!)
+        : focusHotspotForRotation
+          ? getFocusWorldRotationY(focusHotspotForRotation)
           : 0
-      : interactionMode === "focus" && focusedId
-        ? getFocusWorldRotationY(hotspots.find((h) => h.id === focusedId)!)
+      : interactionMode === "focus" && focusHotspotForRotation
+        ? getFocusWorldRotationY(focusHotspotForRotation)
         : 0;
 
   const worldRotY = useRef(0);
@@ -309,7 +311,7 @@ function Scene(props: Hero3DCanvasProps) {
   const parallaxPrev = useRef(new THREE.Vector3(0, 0, 0));
 
   useFrame((state) => {
-    if (orbitEnabled && !isMobile && radius > 0) {
+    if (orbitEnabled && !isMobile && boundingInfo && radius > 0) {
       const dt = Math.min(state.clock.getDelta(), 0.05);
       const { mouseNorm } = props;
       const target = new THREE.Vector3(
@@ -439,13 +441,13 @@ function frameScene(
   const r = sphere.radius * scale;
   const up = new THREE.Vector3(0, 1, 0);
   const forward = new THREE.Vector3(0, 0, 1);
-  const target = new THREE.Vector3(0, 0, 0).addScaledVector(up, FRAME_TARGET_UP * r);
+  const target = up.clone().multiplyScalar(FRAME_TARGET_UP * r);
   const orbitTarget = target.clone();
   const homeLookAt = target.clone();
   const homePosition = target
     .clone()
-    .addScaledVector(up, FRAME_POS_UP * r)
-    .addScaledVector(forward, FRAME_POS_FORWARD * r);
+    .add(up.clone().multiplyScalar(FRAME_POS_UP * r))
+    .add(forward.clone().multiplyScalar(FRAME_POS_FORWARD * r));
   return {
     position: [-center.x, -center.y, -center.z],
     scale,

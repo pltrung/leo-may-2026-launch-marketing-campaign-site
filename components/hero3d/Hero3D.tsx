@@ -260,7 +260,7 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
         <div
           className="absolute inset-0 transition-opacity duration-300"
           style={{
-            opacity: entranceProgress < 0.2 ? entranceProgress / 0.2 : 1,
+            opacity: entranceProgress < 0.2 ? Math.max(0.25, entranceProgress / 0.2) : 1,
             pointerEvents: "none",
           }}
         >
