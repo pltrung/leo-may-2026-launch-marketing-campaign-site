@@ -393,7 +393,7 @@ function Scene(props: Hero3DCanvasProps) {
   const debugFrameCount = useRef(0);
   useFrame((state) => {
     if (boundingInfo) {
-      const controls = state.controls as { target: THREE.Vector3; update: () => void } | undefined;
+      const controls = state.controls as unknown as { target: THREE.Vector3; update: () => void } | undefined;
       if (orbitEnabled && controls && !hasSetControlsTargetRef.current) {
         controls.target.set(
           boundingInfo.orbitTarget.x,
