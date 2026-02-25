@@ -62,9 +62,9 @@ function islandPhase2(id: string): number {
 const CLICK_MAX_MS = 260;
 const CLICK_MAX_DIST_PX = 10;
 
-/** Mobile: 2x hitbox for reliable tap. */
-const MOBILE_HITBOX_SCALE = 2.5;
-const DESKTOP_HITBOX_SCALE = 2.0;
+/** Vision Pro–style: generous hit areas so islands are easy to select. */
+const MOBILE_HITBOX_SCALE = 2.8;
+const DESKTOP_HITBOX_SCALE = 2.4;
 const MOBILE_SCALE_MULT = 1.08;
 const HALO_RADIUS = 1.8;
 const HALO_INNER = 1.2;
@@ -172,7 +172,7 @@ export default function Hero3DCanvas(props: Hero3DCanvasProps) {
         near: 0.1,
         far: 1000,
       }}
-      style={{ display: "block", width: "100%", height: "100%", touchAction: "none", pointerEvents: "auto" }}
+      style={{ display: "block", width: "100%", height: "100%", touchAction: "none", pointerEvents: "auto", cursor: "default" }}
       shadows={false}
     >
       <Scene {...props} />
@@ -259,7 +259,6 @@ function Scene(props: Hero3DCanvasProps) {
     }
   }, [boundingInfo, camera, debugUi]);
 
-  // Mount OrbitControls only after one frame with framed camera so they don't overwrite initial position.
   const hasFramedRef = useRef(false);
   useFrame(() => {
     if (boundingInfo && !hasFramedRef.current) {
@@ -345,8 +344,8 @@ function Scene(props: Hero3DCanvasProps) {
       <ambientLight intensity={0.6} />
       <directionalLight position={[3, 5, 4]} intensity={1} />
       <Environment preset="studio" background={false} />
-      {/* Canary: if you see this box, the canvas is drawing; if not, the issue is canvas/CSS. */}
-      <mesh position={[0, 0, 0]}>
+      {/* Canary: layer 1 so it never steals clicks from hotspots. */}
+      <mesh position={[0, 0, 0]} layers={1}>
         <boxGeometry args={[0.5, 0.5, 0.5]} />
         <meshBasicMaterial color="#ffffff" />
       </mesh>
@@ -522,12 +521,11 @@ function WorldModel({
   const { scene } = useGLTF(url);
   const cloned = useMemo(() => {
     const c = scene.clone();
-    c.rotation.y = MODEL_ROTATION_FIX;
-    c.updateMatrixWorld(true);
     c.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         child.castShadow = false;
         child.receiveShadow = false;
+        (child as THREE.Mesh).raycast = () => {};
       }
     });
     return c;
@@ -553,7 +551,7 @@ function WorldModel({
   const showAscendCta = onAscendCtaClick && focusedId === "main";
 
   return (
-    <group position={position} scale={[scale, scale, scale]}>
+    <group position={position} scale={[scale, scale, scale]} rotation={[0, MODEL_ROTATION_FIX, 0]}>
       <primitive object={cloned} />
       {hotspots.map((h) => (
         <IslandBreathingGroup
@@ -739,6 +737,7 @@ function HotspotBox({
     <group position={[x, y, z]} scale={[lift, lift, lift]}>
       <mesh
         onPointerDown={(e) => {
+          e.stopPropagation();
           const ev = e.nativeEvent;
           onIslandPointerDown(def.id, ev.clientX, ev.clientY);
           if (showDebugBox) console.log("[Hero] pointer down island:", def.id);
@@ -746,12 +745,12 @@ function HotspotBox({
         onPointerOver={(e) => {
           e.stopPropagation();
           onHover(def.id);
-          document.body.style.cursor = "pointer";
+          if (typeof document !== "undefined") document.body.style.cursor = "pointer";
           if (showDebugBox) console.log("[Hero] hover island:", def.id, def.label);
         }}
         onPointerOut={() => {
           onHover(null);
-          document.body.style.cursor = "default";
+          if (typeof document !== "undefined") document.body.style.cursor = "default";
         }}
       >
         <boxGeometry args={[sx * mult, sy * mult, sz * mult]} />
