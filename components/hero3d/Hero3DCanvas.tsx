@@ -144,6 +144,15 @@ export interface Hero3DCanvasProps {
   debugUi?: boolean;
   showCenterPulse?: boolean;
   entranceProgress?: number;
+  /** Debug: report GLB load status for HUD. */
+  onGlbStatus?: (status: "loading" | "loaded" | "error") => void;
+  /** Debug: report bounding/camera for HUD. */
+  onDebugInfo?: (info: {
+    radius?: number;
+    cameraPos?: [number, number, number];
+    center?: [number, number, number];
+    size?: [number, number, number];
+  }) => void;
 }
 
 export default function Hero3DCanvas(props: Hero3DCanvasProps) {
@@ -161,9 +170,10 @@ export default function Hero3DCanvas(props: Hero3DCanvasProps) {
         alpha: true,
         powerPreference: "high-performance",
       }}
-      onCreated={({ gl }) => {
-        gl.setClearColor(0x000000, 1);
+      onCreated={({ gl, scene }) => {
+        gl.setClearColor(0x111111, 1);
         gl.setClearAlpha(1);
+        scene.background = new THREE.Color(0x111111);
       }}
       dpr={[1, dpr]}
       camera={{
@@ -204,7 +214,13 @@ function Scene(props: Hero3DCanvasProps) {
     debugUi = false,
     showCenterPulse = false,
     entranceProgress = 1,
+    onGlbStatus,
+    onDebugInfo,
   } = props;
+
+  if (typeof window !== "undefined") {
+    console.log("[Hero3D] resolved GLB URL:", worldUrl);
+  }
   const groupRef = useRef<Group>(null);
   const pendingClickRef = useRef<PendingClick | null>(null);
 
@@ -238,20 +254,48 @@ function Scene(props: Hero3DCanvasProps) {
   const { camera } = useThree();
   const onBoundingReadyStable = useCallback((info: BoundingInfo) => setBoundingInfo(info), []);
 
-  // Initial camera: apply whenever bounding is ready so scene is always visible (survives remount).
+  // Initial camera: apply whenever bounding is ready. Fallback if radius is NaN/0.
   useLayoutEffect(() => {
     if (!boundingInfo) return;
+    const r = boundingInfo.worldRadius;
+    const validRadius = Number.isFinite(r) && r > 0;
+    if (!validRadius) {
+      camera.position.set(0, 2, 7);
+      camera.lookAt(0, 1, 0);
+      if (camera instanceof THREE.PerspectiveCamera) camera.updateProjectionMatrix();
+      console.warn("[Hero3D] invalid bounding radius, using fallback camera", { radius: r, center: boundingInfo.center, size: boundingInfo.size });
+      onDebugInfo?.({
+        radius: r,
+        cameraPos: [0, 2, 7],
+        center: [boundingInfo.center.x, boundingInfo.center.y, boundingInfo.center.z],
+        size: [boundingInfo.size.x, boundingInfo.size.y, boundingInfo.size.z],
+      });
+      onGlbStatus?.("loaded");
+      return;
+    }
     camera.position.copy(boundingInfo.homePosition);
     camera.lookAt(boundingInfo.homeLookAt.x, boundingInfo.homeLookAt.y, boundingInfo.homeLookAt.z);
     if (camera instanceof THREE.PerspectiveCamera) {
       camera.updateProjectionMatrix();
     }
-    if (debugUi) {
-      console.log("[Hero] camera applied:", boundingInfo.homePosition.toArray());
-    }
-  }, [boundingInfo, camera, debugUi]);
+    const centerArr: [number, number, number] = [boundingInfo.center.x, boundingInfo.center.y, boundingInfo.center.z];
+    const sizeArr: [number, number, number] = [boundingInfo.size.x, boundingInfo.size.y, boundingInfo.size.z];
+    console.log("[Hero3D] boundingInfo", {
+      center: centerArr,
+      size: sizeArr,
+      radius: boundingInfo.radius,
+      worldRadius: boundingInfo.worldRadius,
+      homePosition: boundingInfo.homePosition.toArray(),
+    });
+    onDebugInfo?.({
+      radius: boundingInfo.worldRadius,
+      cameraPos: [camera.position.x, camera.position.y, camera.position.z],
+      center: centerArr,
+      size: sizeArr,
+    });
+    onGlbStatus?.("loaded");
+  }, [boundingInfo, camera, debugUi, onDebugInfo, onGlbStatus]);
 
-  // Allow OrbitControls only after camera has been framed for one frame (stops controls from overwriting and causing black screen).
   const hasFramedRef = useRef(false);
   useFrame(() => {
     if (boundingInfo && !hasFramedRef.current) {
@@ -260,7 +304,7 @@ function Scene(props: Hero3DCanvasProps) {
     }
   });
 
-  const orbitEnabled = interactionMode === "default" && cameraFramed;
+  const orbitEnabled = interactionMode === "default";
   const hotspotDef: HotspotDef | null =
     focusedId && !animatingToDefault ? (hotspots.find((h) => h.id === focusedId) ?? null) : null;
   const focusHotspotForRotation =
@@ -345,20 +389,46 @@ function Scene(props: Hero3DCanvasProps) {
     }
   }, 1);
 
+  const hasSetControlsTargetRef = useRef(false);
+  const debugFrameCount = useRef(0);
+  useFrame((state) => {
+    if (boundingInfo) {
+      const controls = state.controls as { target: THREE.Vector3; update: () => void } | undefined;
+      if (orbitEnabled && controls && !hasSetControlsTargetRef.current) {
+        controls.target.set(
+          boundingInfo.orbitTarget.x,
+          boundingInfo.orbitTarget.y,
+          boundingInfo.orbitTarget.z
+        );
+        controls.update();
+        hasSetControlsTargetRef.current = true;
+      }
+      if (onDebugInfo) {
+        debugFrameCount.current += 1;
+        if (debugFrameCount.current % 30 === 0) {
+          const cam = state.camera;
+          onDebugInfo({
+            radius: boundingInfo.worldRadius,
+            cameraPos: [cam.position.x, cam.position.y, cam.position.z],
+            center: [boundingInfo.center.x, boundingInfo.center.y, boundingInfo.center.z],
+            size: [boundingInfo.size.x, boundingInfo.size.y, boundingInfo.size.z],
+          });
+        }
+      }
+    }
+  });
+
   return (
     <>
-      {isMobile ? (
-        <>
-          <ambientLight intensity={0.7} />
-          <directionalLight position={[5, 8, 5]} intensity={0.6} />
-        </>
-      ) : (
-        <>
-          <ambientLight intensity={0.6} />
-          <directionalLight position={[5, 8, 5]} intensity={0.8} />
-          <Environment preset="studio" background={false} />
-        </>
-      )}
+      <color attach="background" args={["#111111"]} />
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[3, 5, 4]} intensity={1.0} />
+      {!isMobile && <Environment preset="studio" background={false} />}
+      <axesHelper args={[2]} />
+      <mesh position={[0, 0, 0]}>
+        <boxGeometry args={[0.2, 0.2, 0.2]} />
+        <meshBasicMaterial color="white" />
+      </mesh>
       {orbitEnabled && (
         <OrbitControls
           target={orbitTargetVec}
