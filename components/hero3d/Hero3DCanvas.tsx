@@ -2,7 +2,7 @@
 
 import React, { useRef, useMemo, useEffect } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useGLTF, Environment } from "@react-three/drei";
+import { useGLTF, Environment, Html } from "@react-three/drei";
 import * as THREE from "three";
 import type { Group } from "three";
 import type { HotspotDef } from "./hotspots";
@@ -27,15 +27,22 @@ const MOBILE_DRIFT_FREQ = 0.15;
 const MOBILE_HITBOX_SCALE = 1.35;
 /** frameScene: slightly larger scale on mobile so GLB fills screen. */
 const MOBILE_SCALE_MULT = 1.08;
+/** Tune halo size here — outer and inner radius of the ring under each zone. */
+const HALO_RADIUS = 1.8;
+const HALO_INNER = 1.2;
+/** Slight lift/scale when hotspot is hovered or selected. */
+const HOTSPOT_HOVER_SCALE = 1.02;
 
 export interface Hero3DCanvasProps {
   worldUrl: string;
   hotspots: HotspotDef[];
   focusedId: string | null;
+  hoveredHotspotId: string | null;
   isMobile: boolean;
   mouseNorm: { x: number; y: number };
   onFocus: (id: string | null) => void;
-  onHover: (label: string | null) => void;
+  onHover: (id: string | null) => void;
+  onCtaClick?: (href: string) => void;
   onReady: () => void;
 }
 
@@ -69,7 +76,7 @@ export default function Hero3DCanvas(props: Hero3DCanvasProps) {
 }
 
 function Scene(props: Hero3DCanvasProps) {
-  const { worldUrl, hotspots, focusedId, isMobile, mouseNorm, onFocus, onHover, onReady } = props;
+  const { worldUrl, hotspots, focusedId, hoveredHotspotId, isMobile, mouseNorm, onFocus, onHover, onCtaClick, onReady } = props;
   const groupRef = useRef<Group>(null);
   const hasCalledReady = useRef(false);
 
@@ -81,7 +88,7 @@ function Scene(props: Hero3DCanvasProps) {
     g.scale.setScalar(1 + BREATHE_AMP * Math.sin(t * BREATHE_FREQ));
   });
 
-  const hotspotDef = focusedId ? hotspots.find((h) => h.id === focusedId) : null;
+  const hotspotDef: HotspotDef | null = focusedId ? (hotspots.find((h) => h.id === focusedId) ?? null) : null;
 
   return (
     <>
@@ -106,8 +113,10 @@ function Scene(props: Hero3DCanvasProps) {
           hasCalledReady={hasCalledReady}
           hotspots={hotspots}
           focusedId={focusedId}
+          hoveredHotspotId={hoveredHotspotId}
           onHover={onHover}
           onFocus={onFocus}
+          onCtaClick={onCtaClick}
         />
       </group>
       <CameraController
@@ -148,8 +157,10 @@ function WorldModel({
   hasCalledReady,
   hotspots,
   focusedId,
+  hoveredHotspotId,
   onHover,
   onFocus,
+  onCtaClick,
 }: {
   url: string;
   isMobile: boolean;
@@ -157,8 +168,10 @@ function WorldModel({
   hasCalledReady: React.MutableRefObject<boolean>;
   hotspots: HotspotDef[];
   focusedId: string | null;
-  onHover: (label: string | null) => void;
+  hoveredHotspotId: string | null;
+  onHover: (id: string | null) => void;
   onFocus: (id: string | null) => void;
+  onCtaClick?: (href: string) => void;
 }) {
   const { scene } = useGLTF(url);
   const cloned = useMemo(() => {
@@ -187,56 +200,137 @@ function WorldModel({
     <group position={position} scale={[scale, scale, scale]}>
       <primitive object={cloned} />
       {hotspots.map((h) => (
-        <HotspotBox
-          key={h.id}
-          def={h}
-          isFocused={focusedId === h.id}
-          isMobile={isMobile}
-          onHover={onHover}
-          onFocus={onFocus}
-        />
+        <React.Fragment key={h.id}>
+          <HotspotHalo def={h} visible={hoveredHotspotId === h.id || focusedId === h.id} />
+          <HotspotBox
+            def={h}
+            isFocused={focusedId === h.id}
+            isHovered={hoveredHotspotId === h.id}
+            isMobile={isMobile}
+            onHover={onHover}
+            onFocus={onFocus}
+          />
+          <HotspotPill
+            def={h}
+            show={(isMobile && focusedId === h.id) || (!isMobile && (hoveredHotspotId === h.id || focusedId === h.id))}
+            isMobile={isMobile}
+            onCtaClick={onCtaClick}
+          />
+        </React.Fragment>
       ))}
     </group>
+  );
+}
+
+/** Billboard ring/halo under the zone; only visible when hovered or selected. */
+function HotspotHalo({ def, visible }: { def: HotspotDef; visible: boolean }) {
+  const [x, y, z] = def.position;
+  const accent = def.accent ?? "#4FA3FF";
+
+  if (!visible) return null;
+
+  return (
+    <group position={[x, y - 0.1, z]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh>
+        <ringGeometry args={[HALO_INNER, HALO_RADIUS, 32]} />
+        <meshBasicMaterial
+          color={accent}
+          transparent
+          opacity={0.2}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+/** Tune hotspot Html offset here — vertical offset of the pill above the hotspot center. */
+const PILL_OFFSET_Y = 0.6;
+
+function HotspotPill({
+  def,
+  show,
+  isMobile,
+  onCtaClick,
+}: {
+  def: HotspotDef;
+  show: boolean;
+  isMobile: boolean;
+  onCtaClick?: (href: string) => void;
+}) {
+  const [x, y, z] = def.position;
+  if (!show) return null;
+
+  return (
+    <Html
+      position={[x, y + PILL_OFFSET_Y, z]}
+      center
+      distanceFactor={8}
+      style={{ pointerEvents: "auto", transition: "opacity 0.2s ease, transform 0.2s ease" }}
+    >
+      <div
+        className="flex items-center gap-2 rounded-full bg-white/90 backdrop-blur-md px-3 py-2 shadow-lg border border-white/50"
+        style={{ whiteSpace: "nowrap" }}
+      >
+        <span className="text-storm text-sm font-medium">{def.label}</span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCtaClick?.(def.href);
+          }}
+          className="rounded-full bg-storm text-white text-xs font-medium px-3 py-1.5 hover:bg-storm/90 transition-colors"
+          aria-label={def.ctaLabel}
+        >
+          {def.ctaLabel} →
+        </button>
+      </div>
+    </Html>
   );
 }
 
 function HotspotBox({
   def,
   isFocused,
+  isHovered,
   isMobile,
   onHover,
   onFocus,
 }: {
   def: HotspotDef;
   isFocused: boolean;
+  isHovered: boolean;
   isMobile: boolean;
-  onHover: (label: string | null) => void;
+  onHover: (id: string | null) => void;
   onFocus: (id: string | null) => void;
 }) {
   const [x, y, z] = def.position;
   const [sx, sy, sz] = def.size;
   const mult = isMobile ? MOBILE_HITBOX_SCALE : 1;
+  const lift = isHovered || isFocused ? HOTSPOT_HOVER_SCALE : 1;
 
   return (
-    <mesh
-      position={[x, y, z]}
-      onPointerOver={(e) => {
-        e.stopPropagation();
-        onHover(def.label);
-        document.body.style.cursor = "pointer";
-      }}
-      onPointerOut={() => {
-        onHover(null);
-        document.body.style.cursor = "default";
-      }}
-      onClick={(e) => {
-        e.stopPropagation();
-        onFocus(isFocused ? null : def.id);
-      }}
-    >
-      <boxGeometry args={[sx * mult, sy * mult, sz * mult]} />
-      <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-    </mesh>
+    <group position={[x, y, z]} scale={[lift, lift, lift]}>
+      <mesh
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          onHover(def.id);
+          document.body.style.cursor = "pointer";
+        }}
+        onPointerOut={() => {
+          onHover(null);
+          document.body.style.cursor = "default";
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onFocus(isFocused ? null : def.id);
+        }}
+      >
+        <boxGeometry args={[sx * mult, sy * mult, sz * mult]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+    </group>
   );
 }
 

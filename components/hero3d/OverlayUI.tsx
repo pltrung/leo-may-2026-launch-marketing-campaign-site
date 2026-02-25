@@ -6,7 +6,6 @@ export interface OverlayUIProps {
   onAscend: () => void;
   onResetView: () => void;
   showTapHint: boolean;
-  hoverLabel: string | null;
   ready: boolean;
   isMobile?: boolean;
 }
@@ -15,7 +14,6 @@ export default function OverlayUI({
   onAscend,
   onResetView,
   showTapHint,
-  hoverLabel,
   ready,
   isMobile = false,
 }: OverlayUIProps) {
@@ -34,16 +32,7 @@ export default function OverlayUI({
         />
       </div>
 
-      {/* Hover label pill — center-bottom of overlay when hovering a hotspot */}
-      {hoverLabel && ready && (
-        <div className="absolute bottom-[22vh] left-1/2 -translate-x-1/2 pointer-events-none">
-          <span className="rounded-full bg-black/50 backdrop-blur-sm text-white/95 text-sm font-medium px-4 py-2 whitespace-nowrap">
-            {hoverLabel}
-          </span>
-        </div>
-      )}
-
-      {/* Tap to explore — mobile only, fades after a few seconds via parent */}
+      {/* Tap to explore — mobile only, fades after 2s via parent */}
       {showTapHint && (
         <div className="absolute bottom-[18vh] left-1/2 -translate-x-1/2 text-white/70 text-sm tracking-wide">
           Tap to explore
@@ -68,6 +57,7 @@ export default function OverlayUI({
           type="button"
           onClick={onAscend}
           className="rounded-full bg-white/90 text-storm font-medium px-6 py-3 text-sm tracking-wide hover:bg-white transition-colors"
+          aria-label="Ascend With Us — Founding Circle"
         >
           Ascend With Us
         </button>

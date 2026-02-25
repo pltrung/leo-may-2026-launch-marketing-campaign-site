@@ -1,21 +1,28 @@
 /**
- * Hotspot definitions for the 3D hero.
- * Tweak position, size, focusCam, and lookAt after previewing the scene in the browser.
- * - position: [x, y, z] center of the invisible hitbox in scene space
- * - size: [x, y, z] half-extents or full size for BoxGeometry (we use as full width/height/depth)
- * - focusCam: camera position when this hotspot is focused
- * - lookAt: point the camera looks at when focused
+ * Hotspot definitions for the 3D hero (Imaginary Ones–style CTA zones).
+ * Tweak position, size, focusCam, lookAt after previewing the scene.
+ * - ctaLabel: button text for the zone CTA
+ * - href: anchor or route for CTA (e.g. /#arena → scroll to id="arena")
+ * - shortDescription: one sentence for panel/sheet
+ * - accent: optional hex for subtle UI tint
  */
 
 export interface HotspotDef {
   id: string;
   label: string;
+  /** CTA button label e.g. "Explore The Arena" */
+  ctaLabel: string;
+  /** Anchor or route e.g. "/#arena" */
+  href: string;
+  /** One sentence for panel */
+  shortDescription: string;
+  /** Optional tint for pill/halo (e.g. "#4FA3FF") */
+  accent?: string;
   position: [number, number, number];
   size: [number, number, number];
   focusCam: [number, number, number];
   lookAt: [number, number, number];
   description: string;
-  /** 2–3 bullet highlights for mobile bottom sheet */
   highlights?: string[];
 }
 
@@ -23,6 +30,9 @@ export const HOTSPOTS: HotspotDef[] = [
   {
     id: "main",
     label: "Main Arena",
+    ctaLabel: "Explore The Arena",
+    href: "/#arena",
+    shortDescription: "The heart of the gym. Climb, connect, and ascend.",
     position: [0, 1.5, 0],
     size: [3, 2, 2],
     focusCam: [0, 2, 6],
@@ -32,7 +42,10 @@ export const HOTSPOTS: HotspotDef[] = [
   },
   {
     id: "training",
-    label: "Training",
+    label: "Training Zone",
+    ctaLabel: "Train With Us",
+    href: "/#training",
+    shortDescription: "Boards, hang training, and focused practice stations.",
     position: [-4, 1, 1],
     size: [2, 2, 2],
     focusCam: [-3, 2, 5],
@@ -43,6 +56,9 @@ export const HOTSPOTS: HotspotDef[] = [
   {
     id: "lounge",
     label: "Lounge",
+    ctaLabel: "Join The Community",
+    href: "/#community",
+    shortDescription: "Rest, recharge, and connect.",
     position: [3, 0.8, 1],
     size: [2, 1.5, 2],
     focusCam: [4, 1.5, 5],
@@ -52,7 +68,11 @@ export const HOTSPOTS: HotspotDef[] = [
   },
   {
     id: "monument",
-    label: "Monument",
+    label: "Founding Circle",
+    ctaLabel: "Ascend (Founding Circle)",
+    href: "/#founding",
+    shortDescription: "Your name becomes part of Leo Mây.",
+    accent: "#4FA3FF",
     position: [0, 2.5, -0.5],
     size: [1.5, 2, 1],
     focusCam: [0, 2.5, 4],
@@ -62,7 +82,10 @@ export const HOTSPOTS: HotspotDef[] = [
   },
   {
     id: "construction",
-    label: "Construction",
+    label: "Opening 2026",
+    ctaLabel: "See Opening Plan",
+    href: "/#opening",
+    shortDescription: "What we're building, together.",
     position: [-2, 0.5, -2],
     size: [2, 1.5, 2],
     focusCam: [-2, 1, 3],

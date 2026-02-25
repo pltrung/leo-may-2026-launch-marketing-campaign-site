@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import OverlayUI from "./OverlayUI";
 import { HOTSPOTS, type HotspotDef } from "./hotspots";
 import { useResponsiveHero } from "./useResponsiveHero";
+import { navigateToHotspotHref } from "./navigateToHotspot";
 
 const WORLD_GLB = "/hero_glb/world.glb";
 
@@ -25,7 +26,7 @@ export interface Hero3DProps {
 export default function Hero3D({ onJoin }: Hero3DProps) {
   const { heightVh, isMobile } = useResponsiveHero();
   const [focusedId, setFocusedId] = useState<string | null>(null);
-  const [hoverLabel, setHoverLabel] = useState<string | null>(null);
+  const [hoveredHotspotId, setHoveredHotspotId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [showTapHint, setShowTapHint] = useState(isMobile);
   const [mouseNorm, setMouseNorm] = useState({ x: 0, y: 0 });
@@ -44,9 +45,10 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
     setFocusedId(id);
   }, []);
 
-  const handleHover = useCallback((label: string | null) => {
-    setHoverLabel(label);
-  }, []);
+  const handleHover = useCallback((id: string | null) => {
+    if (isMobile) return;
+    setHoveredHotspotId(id);
+  }, [isMobile]);
 
   const handleAscend = useCallback(() => {
     setFocusedId("monument");
@@ -54,6 +56,11 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
   }, [onJoin]);
 
   const handleResetView = useCallback(() => {
+    setFocusedId(null);
+  }, []);
+
+  const handleCtaClick = useCallback((href: string) => {
+    navigateToHotspotHref(href);
     setFocusedId(null);
   }, []);
 
@@ -96,10 +103,12 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
           worldUrl={WORLD_GLB}
           hotspots={HOTSPOTS}
           focusedId={focusedId}
+          hoveredHotspotId={hoveredHotspotId}
           isMobile={isMobile}
           mouseNorm={mouseNorm}
           onFocus={handleFocus}
           onHover={handleHover}
+          onCtaClick={handleCtaClick}
           onReady={() => setReady(true)}
         />
       </Suspense>
@@ -108,12 +117,19 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
         onAscend={handleAscend}
         onResetView={handleResetView}
         showTapHint={showTapHint}
-        hoverLabel={hoverLabel}
         ready={ready}
         isMobile={isMobile}
       />
 
-      {/* Backdrop when panel open — click to close */}
+      {/* Selection vignette: subtle dim on rest of scene when a hotspot is selected */}
+      {focusedHotspot && (
+        <div
+          className="pointer-events-none fixed inset-0 z-[17]"
+          style={{ background: "radial-gradient(ellipse 80% 80% at 50% 50%, transparent 40%, rgba(0,0,0,0.35) 100%)" }}
+          aria-hidden
+        />
+      )}
+      {/* Backdrop when panel open — tap/click to close */}
       {focusedHotspot && (
         <button
           type="button"
@@ -122,7 +138,6 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
           aria-label="Close"
         />
       )}
-      {/* Info panel: desktop right-side; mobile bottom sheet 60–70% with handle + buttons */}
       {focusedHotspot && (
         <InfoPanel
           hotspot={focusedHotspot}
@@ -130,6 +145,7 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
           onClose={() => setFocusedId(null)}
           onAscend={handleAscend}
           onResetView={handleResetView}
+          onCtaClick={() => handleCtaClick(focusedHotspot.href)}
         />
       )}
     </section>
@@ -142,14 +158,20 @@ function InfoPanel({
   onClose,
   onAscend,
   onResetView,
+  onCtaClick,
 }: {
   hotspot: HotspotDef;
   isMobile: boolean;
   onClose: () => void;
   onAscend: () => void;
   onResetView: () => void;
+  onCtaClick: () => void;
 }) {
   const bullets = hotspot.highlights ?? [];
+
+  const primaryCta = () => {
+    onCtaClick();
+  };
 
   if (isMobile) {
     return (
@@ -176,7 +198,7 @@ function InfoPanel({
               ×
             </button>
           </div>
-          <p className="mt-2 text-storm/80 text-sm">{hotspot.description}</p>
+          <p className="mt-2 text-storm/80 text-sm">{hotspot.shortDescription}</p>
           {bullets.length > 0 && (
             <ul className="mt-4 space-y-2">
               {bullets.map((item, i) => (
@@ -190,15 +212,17 @@ function InfoPanel({
           <div className="mt-6 flex flex-col gap-3">
             <button
               type="button"
-              onClick={() => { onAscend(); onClose(); }}
+              onClick={primaryCta}
               className="w-full rounded-full bg-storm text-white font-medium py-3 text-sm"
+              aria-label={hotspot.ctaLabel}
             >
-              Ascend With Us
+              {hotspot.ctaLabel}
             </button>
             <button
               type="button"
               onClick={() => { onResetView(); onClose(); }}
               className="w-full rounded-full border border-storm/30 text-storm font-medium py-3 text-sm"
+              aria-label="Reset view"
             >
               Reset View
             </button>
@@ -213,7 +237,7 @@ function InfoPanel({
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="font-headline text-lg text-storm">{hotspot.label}</h3>
-          <p className="mt-2 text-storm/80 text-sm">{hotspot.description}</p>
+          <p className="mt-2 text-storm/80 text-sm">{hotspot.shortDescription}</p>
         </div>
         <button
           type="button"
@@ -222,6 +246,24 @@ function InfoPanel({
           aria-label="Close"
         >
           ×
+        </button>
+      </div>
+      <div className="mt-4 flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={primaryCta}
+          className="w-full rounded-full bg-storm text-white font-medium py-2.5 text-sm"
+          aria-label={hotspot.ctaLabel}
+        >
+          {hotspot.ctaLabel}
+        </button>
+        <button
+          type="button"
+          onClick={() => { onResetView(); onClose(); }}
+          className="w-full rounded-full border border-storm/30 text-storm font-medium py-2.5 text-sm"
+          aria-label="Reset view"
+        >
+          Reset View
         </button>
       </div>
     </div>
