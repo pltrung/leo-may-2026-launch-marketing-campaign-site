@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useRef, Suspense, Component } from "react";
+import React, { useState, useCallback, useRef, Suspense } from "react";
 import dynamic from "next/dynamic";
 import OverlayUI from "./OverlayUI";
 import type { HeroInteractionMode } from "./Hero3DCanvas";
@@ -9,50 +9,6 @@ import { useResponsiveHero } from "./useResponsiveHero";
 import { navigateToHotspotHref } from "./navigateToHotspot";
 
 const WORLD_GLB = "/hero_glb/world.glb";
-
-type GlbStatus = "loading" | "loaded" | "error";
-
-/** Debug: 3D load status + bounding/camera info. Remove when black screen is resolved. */
-export interface HeroDebugInfo {
-  glbStatus: GlbStatus;
-  errorMessage?: string;
-  radius?: number;
-  cameraPos?: [number, number, number];
-  center?: [number, number, number];
-  size?: [number, number, number];
-}
-
-class Hero3DErrorBoundary extends Component<
-  { children: React.ReactNode; onError: (message: string) => void },
-  { hasError: boolean; errorMessage: string }
-> {
-  state = { hasError: false, errorMessage: "" };
-
-  static getDerivedStateFromError(error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { hasError: true, errorMessage: message };
-  }
-
-  componentDidCatch(error: unknown) {
-    this.props.onError(error instanceof Error ? error.message : String(error));
-    console.error("[Hero3D] ErrorBoundary caught:", error);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div
-          className="absolute inset-0 z-[5] flex flex-col items-center justify-center bg-black/90 text-white p-6"
-          role="alert"
-        >
-          <p className="font-semibold text-lg">3D failed to load</p>
-          <p className="mt-2 text-sm text-red-300 font-mono max-w-md break-words">{this.state.errorMessage}</p>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 /** Toggle to show hero outline, safe-area, and hotspot hitboxes. Use ?debug=1 in URL. */
 function getDebugUi(): boolean {
@@ -90,8 +46,6 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
   const [showCenterPulse, setShowCenterPulse] = useState(false);
   const [panelRevealed, setPanelRevealed] = useState(false);
   const [entranceProgress, setEntranceProgress] = useState(0);
-  const [glbStatus, setGlbStatus] = useState<GlbStatus>("loading");
-  const [debugInfo, setDebugInfo] = useState<HeroDebugInfo>({ glbStatus: "loading" });
   const tapHintTimer = useRef<ReturnType<typeof setTimeout>>();
   const centerPulseTimer = useRef<ReturnType<typeof setTimeout>>();
   const heroStageRef = useRef<HTMLElement>(null);
@@ -100,24 +54,6 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
 
   React.useEffect(() => {
     setDebugUi(getDebugUi());
-  }, []);
-
-  React.useEffect(() => {
-    console.log("[Hero3D] GLB URL (absolute):", WORLD_GLB);
-  }, []);
-
-  const handleGlbError = useCallback((message: string) => {
-    setGlbStatus("error");
-    setDebugInfo((prev) => ({ ...prev, glbStatus: "error", errorMessage: message }));
-  }, []);
-
-  const handleGlbStatus = useCallback((status: GlbStatus) => {
-    setGlbStatus(status);
-    setDebugInfo((prev) => ({ ...prev, glbStatus: status }));
-  }, []);
-
-  const handleDebugInfo = useCallback((info: Partial<HeroDebugInfo>) => {
-    setDebugInfo((prev) => ({ ...prev, ...info }));
   }, []);
 
   const onMouseMove = useCallback((e: React.MouseEvent<HTMLElement>) => {
@@ -309,71 +245,48 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
         paddingLeft: "env(safe-area-inset-left)",
         paddingRight: "env(safe-area-inset-right)",
         paddingBottom: "env(safe-area-inset-bottom)",
-        background: "#111111",
+        background: "#000",
       }}
       onMouseMove={onMouseMove}
       onMouseLeave={onMouseLeave}
     >
       <Suspense
         fallback={
-          <div className="absolute inset-0 flex items-center justify-center bg-[#111111]">
+          <div className="absolute inset-0 flex items-center justify-center bg-black">
             <div className="text-white/60 text-sm">Loading…</div>
           </div>
         }
       >
         <div
-          className="absolute inset-0 z-0 transition-opacity duration-300"
+          className="absolute inset-0 transition-opacity duration-300"
           style={{
-            opacity: 1,
+            opacity: entranceProgress < 0.2 ? Math.max(0.25, entranceProgress / 0.2) : 1,
             pointerEvents: "none",
           }}
         >
-          <Hero3DErrorBoundary onError={handleGlbError}>
-            <Hero3DCanvasLazy
-              worldUrl={WORLD_GLB}
-              hotspots={HOTSPOTS}
-              interactionMode={interactionMode}
-              focusedId={focusedId}
-              animatingToDefault={animatingToDefault}
-              hoveredHotspotId={hoveredHotspotId}
-              isMobile={isMobile}
-              mouseNorm={mouseNorm}
-              onFocus={handleFocus}
-              onHover={handleHover}
-              onCtaClick={handleCtaClick}
-              onAscendCtaClick={handleAscendCtaClick}
-              onReady={() => setReady(true)}
-              onAnimationSettled={handleAnimationSettled}
-              userInteracting={userInteracting}
-              onUserInteractingChange={setUserInteracting}
-              debugUi={debugUi}
-              showCenterPulse={showCenterPulse}
-              entranceProgress={entranceProgress}
-              onGlbStatus={handleGlbStatus}
-              onDebugInfo={handleDebugInfo}
-            />
-          </Hero3DErrorBoundary>
+          <Hero3DCanvasLazy
+            worldUrl={WORLD_GLB}
+            hotspots={HOTSPOTS}
+            interactionMode={interactionMode}
+            focusedId={focusedId}
+            animatingToDefault={animatingToDefault}
+            hoveredHotspotId={hoveredHotspotId}
+            isMobile={isMobile}
+            mouseNorm={mouseNorm}
+            onFocus={handleFocus}
+            onHover={handleHover}
+            onCtaClick={handleCtaClick}
+            onAscendCtaClick={handleAscendCtaClick}
+            onReady={() => setReady(true)}
+            onAnimationSettled={handleAnimationSettled}
+            userInteracting={userInteracting}
+            onUserInteractingChange={setUserInteracting}
+            debugUi={debugUi}
+            showCenterPulse={showCenterPulse}
+            entranceProgress={entranceProgress}
+          />
         </div>
       </Suspense>
-
-      {/* Debug HUD: GLB status, bounding radius, camera position. Remove when black screen is resolved. */}
-      <div
-        className="fixed bottom-4 left-4 z-[10] font-mono text-xs text-white/90 bg-black/70 backdrop-blur rounded px-3 py-2 space-y-0.5 pointer-events-none"
-        aria-live="polite"
-      >
-        <div>GLB: {glbStatus}</div>
-        <div>URL: {WORLD_GLB}</div>
-        {debugInfo.radius != null && <div>radius: {debugInfo.radius.toFixed(3)}</div>}
-        {debugInfo.cameraPos && (
-          <div>cam: [{debugInfo.cameraPos.map((n) => n.toFixed(2)).join(", ")}]</div>
-        )}
-        {debugInfo.center && (
-          <div>center: [{debugInfo.center.map((n) => n.toFixed(2)).join(", ")}]</div>
-        )}
-        {debugInfo.size && (
-          <div>size: [{debugInfo.size.map((n) => n.toFixed(2)).join(", ")}]</div>
-        )}
-      </div>
 
       <OverlayUI
         onResetView={handleResetView}
