@@ -245,7 +245,7 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
         paddingLeft: "env(safe-area-inset-left)",
         paddingRight: "env(safe-area-inset-right)",
         paddingBottom: "env(safe-area-inset-bottom)",
-        background: "#000",
+        background: "#111111",
       }}
       onMouseMove={onMouseMove}
       onMouseLeave={onMouseLeave}
@@ -260,7 +260,7 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
         <div
           className="absolute inset-0 transition-opacity duration-300"
           style={{
-            opacity: entranceProgress < 0.2 ? Math.max(0.25, entranceProgress / 0.2) : 1,
+            opacity: 1,
             pointerEvents: "none",
           }}
         >

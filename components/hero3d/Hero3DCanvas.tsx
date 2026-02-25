@@ -158,12 +158,12 @@ export default function Hero3DCanvas(props: Hero3DCanvasProps) {
     <Canvas
       gl={{
         antialias: true,
-        alpha: true,
+        alpha: false,
         powerPreference: "high-performance",
       }}
-      onCreated={({ gl }) => {
-        gl.setClearColor(0x000000, 1);
-        gl.setClearAlpha(1);
+      onCreated={({ gl, scene }) => {
+        gl.setClearColor(0x111111, 1);
+        scene.background = new THREE.Color(0x111111);
       }}
       dpr={[1, dpr]}
       camera={{
@@ -373,9 +373,15 @@ function Scene(props: Hero3DCanvasProps) {
 
   return (
     <>
+      <color attach="background" args={["#111111"]} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[3, 5, 4]} intensity={1} />
       <Environment preset="studio" background={false} />
+      {/* Canary: if you see this box, the canvas is drawing; if not, the issue is canvas/CSS. */}
+      <mesh position={[0, 0, 0]}>
+        <boxGeometry args={[0.5, 0.5, 0.5]} />
+        <meshBasicMaterial color="#ffffff" />
+      </mesh>
       {orbitEnabled && (
         <OrbitControls
           target={orbitTargetVec}
