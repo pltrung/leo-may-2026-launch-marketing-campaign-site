@@ -234,6 +234,7 @@ function Scene(props: Hero3DCanvasProps) {
   );
   const hasCalledReady = useRef(false);
   const [boundingInfo, setBoundingInfo] = useState<BoundingInfo | null>(null);
+  const [cameraFramed, setCameraFramed] = useState(false);
   const { camera } = useThree();
   const onBoundingReadyStable = useCallback((info: BoundingInfo) => setBoundingInfo(info), []);
 
@@ -250,7 +251,16 @@ function Scene(props: Hero3DCanvasProps) {
     }
   }, [boundingInfo, camera, debugUi]);
 
-  const orbitEnabled = interactionMode === "default";
+  // Allow OrbitControls only after camera has been framed for one frame (stops controls from overwriting and causing black screen).
+  const hasFramedRef = useRef(false);
+  useFrame(() => {
+    if (boundingInfo && !hasFramedRef.current) {
+      hasFramedRef.current = true;
+      setCameraFramed(true);
+    }
+  });
+
+  const orbitEnabled = interactionMode === "default" && cameraFramed;
   const hotspotDef: HotspotDef | null =
     focusedId && !animatingToDefault ? (hotspots.find((h) => h.id === focusedId) ?? null) : null;
   const focusHotspotForRotation =
