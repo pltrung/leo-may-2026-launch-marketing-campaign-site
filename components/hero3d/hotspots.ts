@@ -20,8 +20,12 @@ export interface HotspotDef {
   accent?: string;
   position: [number, number, number];
   size: [number, number, number];
+  /** Camera position when focused on this island. */
   focusCam: [number, number, number];
+  /** Camera lookAt when focused. */
   lookAt: [number, number, number];
+  /** World group rotation Y (rad) so this island faces camera. Default: atan2(position[0], position[2]). */
+  focusWorldRotationY?: number;
   description: string;
   highlights?: string[];
 }
@@ -37,6 +41,7 @@ export const HOTSPOTS: HotspotDef[] = [
     size: [3, 2, 2],
     focusCam: [0, 2, 6],
     lookAt: [0, 1, 0],
+    focusWorldRotationY: 0,
     description: "The heart of the gym. Climb, connect, and ascend.",
     highlights: ["Premium climbing terrain", "Community events", "Open to all levels"],
   },
@@ -50,6 +55,7 @@ export const HOTSPOTS: HotspotDef[] = [
     size: [2, 2, 2],
     focusCam: [-3, 2, 5],
     lookAt: [-4, 1, 0],
+    focusWorldRotationY: Math.atan2(-4, 1),
     description: "Where technique meets intention.",
     highlights: ["Coaching sessions", "Skill workshops", "Structured programs"],
   },
@@ -63,6 +69,7 @@ export const HOTSPOTS: HotspotDef[] = [
     size: [2, 1.5, 2],
     focusCam: [4, 1.5, 5],
     lookAt: [3, 0.8, 0],
+    focusWorldRotationY: Math.atan2(3, 1),
     description: "Rest, recharge, and connect.",
     highlights: ["Comfortable seating", "Café area", "Social space"],
   },
@@ -77,6 +84,7 @@ export const HOTSPOTS: HotspotDef[] = [
     size: [1.5, 2, 1],
     focusCam: [0, 2.5, 4],
     lookAt: [0, 2.5, 0],
+    focusWorldRotationY: Math.atan2(0, -0.5),
     description: "Founding Circle. Your name becomes part of Leo Mây.",
     highlights: ["Founding member recognition", "Exclusive benefits", "Name on the wall"],
   },
@@ -90,6 +98,7 @@ export const HOTSPOTS: HotspotDef[] = [
     size: [2, 1.5, 2],
     focusCam: [-2, 1, 3],
     lookAt: [-2, 0.5, -1],
+    focusWorldRotationY: Math.atan2(-2, -2),
     description: "What we're building, together.",
     highlights: ["Opening 2026", "Ho Chi Minh City", "Built with the community"],
   },

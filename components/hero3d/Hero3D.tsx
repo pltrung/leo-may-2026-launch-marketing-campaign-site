@@ -19,8 +19,8 @@ function getDebugUi(): boolean {
 const Hero3DCanvas = dynamic(() => import("./Hero3DCanvas"), {
   ssr: false,
   loading: () => (
-    <div className="absolute inset-0 flex items-center justify-center bg-[#0e1623]">
-      <div className="text-white/60 text-sm">Loading…</div>
+    <div className="absolute inset-0 flex items-center justify-center bg-black">
+      <div className="text-white/70 text-sm">Loading…</div>
     </div>
   ),
 });
@@ -71,7 +71,7 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
     if (id) {
       setPanelRevealed(false);
       if (panelRevealTimer.current) clearTimeout(panelRevealTimer.current);
-      panelRevealTimer.current = setTimeout(() => setPanelRevealed(true), 700);
+      panelRevealTimer.current = setTimeout(() => setPanelRevealed(true), 900);
     } else {
       setPanelRevealed(false);
       if (panelRevealTimer.current) clearTimeout(panelRevealTimer.current);
@@ -204,7 +204,7 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
       style={{
         touchAction: "none",
         width: "100%",
-        height: "100dvh",
+        height: "100vh",
         minHeight: 640,
         overflow: "hidden",
         position: "relative",
@@ -265,7 +265,7 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
       {focusedHotspot && (
         <div
           className="pointer-events-none fixed inset-0 z-[16]"
-          style={{ background: "rgba(0,0,0,0.2)" }}
+          style={{ background: "rgba(0,0,0,0.28)" }}
           aria-hidden
         />
       )}
