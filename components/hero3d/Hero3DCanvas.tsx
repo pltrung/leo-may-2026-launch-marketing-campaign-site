@@ -1,88 +1,49 @@
 "use client";
 
-import React, { useRef, useMemo, useEffect, useLayoutEffect, useState, useCallback } from "react";
+import React, { useRef, useMemo, useEffect, useState, useCallback } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useGLTF, Environment, Html, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import type { Group } from "three";
 import type { HotspotDef } from "./hotspots";
 
-/** Single source of truth for camera, controls, and UI. Exported for Hero3D. */
 export type HeroInteractionMode = "default" | "animating" | "focus";
 
-/** Rotate worldGroup so climbing wall faces camera. */
+/** Align world so climbing wall faces camera. */
 const MODEL_ROTATION_FIX = Math.PI / 2;
 
-// ---------- Experience constants (intentional motion, no patches) ----------
-/** Desktop: 45–50 for composition. */
 const DESKTOP_FOV = 48;
-/** Mobile: wider FOV so all islands visible. */
 const MOBILE_FOV = 58;
 
+const MOBILE_CAM_FALLBACK = { position: [0, 1.2, 8] as const, fov: MOBILE_FOV };
 const DEFAULT_CINEMATIC_CAMERA = {
   position: [0, 1.0, 6.8] as const,
   lookAt: [0, 1.4, -0.3] as const,
   fov: DESKTOP_FOV,
 };
 
-const MOBILE_CAM_FALLBACK = { position: [0, 1.2, 8] as const, fov: MOBILE_FOV };
-
-/** Vision Pro–style: deterministic framing from radius r only. */
-const FRAME_TARGET_UP = 0.2;
-const FRAME_POS_UP = 0.9;
-const FRAME_POS_FORWARD = 2.7;
-
-/** Critically damped spring: ζ=1, ω in [10,14]. */
-const SPRING_ZETA = 1;
-const SPRING_OMEGA_CAMERA = 12;
-const SPRING_OMEGA_WORLD = 10;
-const SPRING_OMEGA_PARALLAX = 11;
-
-/** Island breathing: A=0.03r, A2=0.01r, second freq 0.13. */
-const BREATH_A_FAC = 0.03;
-const BREATH_A2_FAC = 0.01;
-const BREATH_OMEGA = 0.5;
-const BREATH_OMEGA2 = 0.13;
-
-/** Desktop parallax: kx~0.1r, ky~0.07r. */
-const PARALLAX_KX = 0.1;
-const PARALLAX_KY = 0.07;
-
-function islandPhase(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h << 5) - h + id.charCodeAt(i);
-  return (h % 100) / 100 * Math.PI * 2;
-}
-function islandPhase2(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h << 3) + h + id.charCodeAt(i);
-  return (h % 100) / 100 * Math.PI * 2;
-}
-/** Click vs drag: only treat as island click when release within time and movement. */
-const CLICK_MAX_MS = 260;
-const CLICK_MAX_DIST_PX = 10;
-
-/** Vision Pro–style: generous hit areas so islands are easy to select. */
+const MOBILE_SCALE_MULT = 1.08;
 const MOBILE_HITBOX_SCALE = 2.8;
 const DESKTOP_HITBOX_SCALE = 2.4;
-const MOBILE_SCALE_MULT = 1.08;
 const HALO_RADIUS = 1.8;
 const HALO_INNER = 1.2;
 const HOTSPOT_HOVER_SCALE = 1.02;
-
-/** Orbit limits when bounding not yet available. */
 const ORBIT_RADIUS_FALLBACK = 4;
-const ANIMATION_SETTLE_THRESHOLD = 0.015;
-const ANIMATION_SETTLE_VEL_THRESHOLD = 0.002;
+const SPRING_ZETA = 1;
+const SPRING_OMEGA_CAMERA = 12;
+const SPRING_OMEGA_WORLD = 10;
+const ANIMATION_SETTLE_THRESHOLD = 0.02;
+const ANIMATION_SETTLE_VEL_THRESHOLD = 0.003;
+const ASCEND_CTA_Y_FRAC = 0.55;
+const PILL_OFFSET_Y = 0.6;
+const DEBUG_HOTSPOTS = false;
 
-/** Get world group rotation Y so this island faces camera. */
 function getFocusWorldRotationY(h: HotspotDef): number {
   if (h.focusWorldRotationY !== undefined) return h.focusWorldRotationY;
   const [x, , z] = h.position;
   return x === 0 && z === 0 ? 0 : Math.atan2(x, z);
 }
 
-/** Critically damped spring step (ζ=1). Returns new x, new v. */
 function springStep(
   x: number,
   v: number,
@@ -97,7 +58,6 @@ function springStep(
   return [xNew, vNew];
 }
 
-/** 3D spring step for Vector3 position. */
 function springStep3(
   x: THREE.Vector3,
   v: THREE.Vector3,
@@ -117,310 +77,31 @@ function springStep3(
   x.z += v.z * dt;
 }
 
-/** Hitboxes shown only when ?debug=1 (debugUi). Set true to always show for development. */
-const DEBUG_HOTSPOTS = false;
-
-export interface Hero3DCanvasProps {
-  worldUrl: string;
-  hotspots: HotspotDef[];
-  /** Single source of truth: default (orbit) | animating (lerp) | focus (static). */
-  interactionMode: HeroInteractionMode;
-  focusedId: string | null;
-  /** When interactionMode === "animating", true = transitioning to default view. */
-  animatingToDefault: boolean;
-  hoveredHotspotId: string | null;
-  isMobile: boolean;
-  mouseNorm: { x: number; y: number };
-  onFocus: (id: string | null) => void;
-  onHover: (id: string | null) => void;
-  onCtaClick?: (href: string) => void;
-  onAscendCtaClick?: () => void;
-  onReady: () => void;
-  onBoundingReady?: (info: BoundingInfo) => void;
-  /** Called when focus/default animation has settled; arg = true if we transitioned to default. */
-  onAnimationSettled: (wasAnimatingToDefault: boolean) => void;
-  userInteracting?: boolean;
-  onUserInteractingChange?: (v: boolean) => void;
-  debugUi?: boolean;
-  showCenterPulse?: boolean;
-  entranceProgress?: number;
-}
-
-export default function Hero3DCanvas(props: Hero3DCanvasProps) {
-  const { isMobile } = props;
-  const dpr = typeof window !== "undefined"
-    ? (isMobile ? 1 : Math.min(window.devicePixelRatio, 1.5))
-    : 1;
-  const [px, py, pz] = isMobile ? MOBILE_CAM_FALLBACK.position : DEFAULT_CINEMATIC_CAMERA.position;
-  const fov = isMobile ? MOBILE_FOV : DESKTOP_FOV;
-
-  return (
-    <Canvas
-      gl={{
-        antialias: true,
-        alpha: false,
-        powerPreference: "high-performance",
-      }}
-      onCreated={({ gl, scene }) => {
-        gl.setClearColor(0x111111, 1);
-        scene.background = new THREE.Color(0x111111);
-      }}
-      dpr={[1, dpr]}
-      camera={{
-        position: [px, py, pz],
-        fov,
-        near: 0.1,
-        far: 1000,
-      }}
-      style={{ display: "block", width: "100%", height: "100%", touchAction: "none", pointerEvents: "auto", cursor: "default" }}
-      shadows={false}
-    >
-      <Scene {...props} />
-    </Canvas>
-  );
-}
-
-
-type PendingClick = { id: string; downTime: number; downX: number; downY: number; cancelled: boolean };
-
-function Scene(props: Hero3DCanvasProps) {
-  const {
-    worldUrl,
-    hotspots,
-    interactionMode,
-    focusedId,
-    animatingToDefault,
-    hoveredHotspotId,
-    isMobile,
-    onFocus,
-    onHover,
-    onCtaClick,
-    onAscendCtaClick,
-    onReady,
-    onBoundingReady,
-    onAnimationSettled,
-    userInteracting = false,
-    onUserInteractingChange,
-    debugUi = false,
-    showCenterPulse = false,
-    entranceProgress = 1,
-  } = props;
-  const groupRef = useRef<Group>(null);
-  const pendingClickRef = useRef<PendingClick | null>(null);
-
-  const onIslandPointerDown = useCallback(
-    (id: string, clientX: number, clientY: number) => {
-      const downTime = Date.now();
-      pendingClickRef.current = { id, downTime, downX: clientX, downY: clientY, cancelled: false };
-      const onMove = (e: PointerEvent) => {
-        if (!pendingClickRef.current || pendingClickRef.current.id !== id) return;
-        const dx = e.clientX - pendingClickRef.current.downX;
-        const dy = e.clientY - pendingClickRef.current.downY;
-        if (dx * dx + dy * dy > CLICK_MAX_DIST_PX * CLICK_MAX_DIST_PX) pendingClickRef.current.cancelled = true;
-      };
-      const onUp = () => {
-        document.removeEventListener("pointermove", onMove);
-        document.removeEventListener("pointerup", onUp);
-        const pending = pendingClickRef.current;
-        pendingClickRef.current = null;
-        if (pending && !pending.cancelled && Date.now() - pending.downTime < CLICK_MAX_MS) {
-          onFocus(pending.id);
-        }
-      };
-      document.addEventListener("pointermove", onMove, { passive: true });
-      document.addEventListener("pointerup", onUp, { passive: true });
-    },
-    [onFocus]
-  );
-  const hasCalledReady = useRef(false);
-  const hasSetInitialCamera = useRef(false);
-  const [boundingInfo, setBoundingInfo] = useState<BoundingInfo | null>(null);
-  const [cameraFramed, setCameraFramed] = useState(false);
-  const { camera } = useThree();
-  const onBoundingReadyStable = useCallback((info: BoundingInfo) => setBoundingInfo(info), []);
-
-  // Initial camera: set in useLayoutEffect so it runs before paint and is never overwritten by a stale frame.
-  useLayoutEffect(() => {
-    if (!boundingInfo || hasSetInitialCamera.current) return;
-    hasSetInitialCamera.current = true;
-    const r = boundingInfo.worldRadius;
-    if (!Number.isFinite(r) || r <= 0) {
-      camera.position.set(0, 2, 7);
-      camera.lookAt(0, 1, 0);
-    } else {
-      camera.position.copy(boundingInfo.homePosition);
-      camera.lookAt(boundingInfo.homeLookAt.x, boundingInfo.homeLookAt.y, boundingInfo.homeLookAt.z);
-    }
-    if (camera instanceof THREE.PerspectiveCamera) {
-      camera.updateProjectionMatrix();
-    }
-    if (debugUi) {
-      console.log("[Hero] default camera set:", boundingInfo.homePosition.toArray());
-    }
-  }, [boundingInfo, camera, debugUi]);
-
-  const hasFramedRef = useRef(false);
-  useFrame(() => {
-    if (boundingInfo && !hasFramedRef.current) {
-      hasFramedRef.current = true;
-      setCameraFramed(true);
-    }
-  });
-
-  const orbitEnabled = interactionMode === "default";
-  const hotspotDef: HotspotDef | null =
-    focusedId && !animatingToDefault ? (hotspots.find((h) => h.id === focusedId) ?? null) : null;
-  const focusHotspotForRotation =
-    focusedId ? hotspots.find((h) => h.id === focusedId) : null;
-  const targetWorldRotationY =
-    interactionMode === "animating"
-      ? animatingToDefault
-        ? 0
-        : focusHotspotForRotation
-          ? getFocusWorldRotationY(focusHotspotForRotation)
-          : 0
-      : interactionMode === "focus" && focusHotspotForRotation
-        ? getFocusWorldRotationY(focusHotspotForRotation)
-        : 0;
-
-  const worldRotY = useRef(0);
-  const worldRotVel = useRef(0);
-
-  useFrame((state) => {
-    const g = groupRef.current;
-    if (!g) return;
-    const dt = Math.min(state.clock.getDelta(), 0.05);
-    if (interactionMode === "animating" || (interactionMode === "focus" && focusedId)) {
-      let diff = targetWorldRotationY - worldRotY.current;
-      while (diff > Math.PI) diff -= 2 * Math.PI;
-      while (diff < -Math.PI) diff += 2 * Math.PI;
-      const [next, vNext] = springStep(
-        worldRotY.current,
-        worldRotVel.current,
-        worldRotY.current + diff,
-        SPRING_OMEGA_WORLD,
-        SPRING_ZETA,
-        dt
-      );
-      worldRotY.current = next;
-      worldRotVel.current = vNext;
-      g.rotation.y = worldRotY.current;
-    } else {
-      worldRotY.current = g.rotation.y;
-      worldRotVel.current = 0;
-    }
-  });
-
-
-  const orbitTargetVec: [number, number, number] = useMemo(() => {
-    if (boundingInfo?.orbitTarget) return [boundingInfo.orbitTarget.x, boundingInfo.orbitTarget.y, boundingInfo.orbitTarget.z];
-    if (boundingInfo) return [boundingInfo.homeLookAt.x, boundingInfo.homeLookAt.y, boundingInfo.homeLookAt.z];
-    return [0, 1, 0];
-  }, [boundingInfo]);
-  const radius = boundingInfo?.worldRadius ?? ORBIT_RADIUS_FALLBACK;
-  const orbitMinDist = isMobile ? radius * 1.5 : radius * 1.4;
-  const orbitMaxDist = radius * 5;
-
-  // Parallax removed: it was added in f06dede and modifies camera every frame; pre-f06dede (working) had no parallax.
-
-  const hasSyncedControlsTarget = useRef(false);
-  useFrame((state) => {
-    if (!boundingInfo) return;
-    const controls = state.controls as unknown as { target: THREE.Vector3; update: () => void } | undefined;
-    if (orbitEnabled && controls && !hasSyncedControlsTarget.current) {
-      controls.target.set(
-        boundingInfo.orbitTarget.x,
-        boundingInfo.orbitTarget.y,
-        boundingInfo.orbitTarget.z
-      );
-      controls.update();
-      hasSyncedControlsTarget.current = true;
-    }
-  });
-
-  return (
-    <>
-      <color attach="background" args={["#111111"]} />
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[3, 5, 4]} intensity={1} />
-      <Environment preset="studio" background={false} />
-      {/* Canary: layer 1 so it never steals clicks from hotspots. */}
-      <mesh position={[0, 0, 0]} layers={1}>
-        <boxGeometry args={[0.5, 0.5, 0.5]} />
-        <meshBasicMaterial color="#ffffff" />
-      </mesh>
-      {orbitEnabled && (
-        <OrbitControls
-          target={orbitTargetVec}
-          enablePan={false}
-          enableRotate={true}
-          enableZoom={true}
-          minDistance={orbitMinDist}
-          maxDistance={orbitMaxDist}
-          minPolarAngle={0.35}
-          maxPolarAngle={1.55}
-          enableDamping
-          dampingFactor={isMobile ? 0.08 : 0.1}
-          rotateSpeed={isMobile ? 0.75 : 0.7}
-          zoomSpeed={isMobile ? 0.9 : 0.75}
-          onStart={() => onUserInteractingChange?.(true)}
-          onEnd={() => onUserInteractingChange?.(false)}
-        />
-      )}
-      {/* worldGroup: hotspots are children so they scale and rotate with the model */}
-      <group ref={groupRef} position={[0, 0, 0]} scale={[1, 1, 1]}>
-        <WorldModel
-          url={worldUrl}
-          isMobile={isMobile}
-          onLoaded={onReady}
-          onBoundingReady={onBoundingReadyStable}
-          hasCalledReady={hasCalledReady}
-          hotspots={hotspots}
-          focusedId={focusedId}
-          hoveredHotspotId={hoveredHotspotId}
-          onHover={onHover}
-          onIslandPointerDown={onIslandPointerDown}
-          onCtaClick={onCtaClick}
-          onAscendCtaClick={onAscendCtaClick}
-          debugUi={debugUi}
-          showCenterPulse={showCenterPulse}
-        />
-      </group>
-      <CameraController
-        interactionMode={interactionMode}
-        animatingToDefault={animatingToDefault}
-        focusedId={focusedId}
-        hotspots={hotspots}
-        boundingInfo={boundingInfo}
-        isMobile={isMobile}
-        onAnimationSettled={onAnimationSettled}
-      />
-    </>
-  );
-}
-
 export interface BoundingInfo {
   size: THREE.Vector3;
   scale: number;
   radius: number;
-  /** World-space radius (radius * scale). */
   worldRadius: number;
-  /** World-space center (after centering) = origin. */
   center: THREE.Vector3;
   homePosition: THREE.Vector3;
   homeLookAt: THREE.Vector3;
-  /** OrbitControls target (same as homeLookAt for compatibility). */
   orbitTarget: THREE.Vector3;
 }
 
-/**
- * Center the world at origin and scale to fit. Same formula as 94239ba (working).
- * Desktop: distance 2.4*radius, target slightly above center. Mobile: further back.
- */
 function frameScene(
   object: THREE.Object3D,
   isMobile: boolean
-): { position: [number, number, number]; scale: number; size: THREE.Vector3; radius: number; worldRadius: number; center: THREE.Vector3; homePosition: THREE.Vector3; homeLookAt: THREE.Vector3; orbitTarget: THREE.Vector3 } {
+): {
+  position: [number, number, number];
+  scale: number;
+  size: THREE.Vector3;
+  radius: number;
+  worldRadius: number;
+  center: THREE.Vector3;
+  homePosition: THREE.Vector3;
+  homeLookAt: THREE.Vector3;
+  orbitTarget: THREE.Vector3;
+} {
   const box = new THREE.Box3().setFromObject(object);
   const center = new THREE.Vector3();
   box.getCenter(center);
@@ -460,31 +141,222 @@ function frameScene(
   };
 }
 
-/** Ascend CTA: fraction of bounding size.y for center-island top. Tune if needed. */
-const ASCEND_CTA_Y_FRAC = 0.55;
+export interface Hero3DCanvasProps {
+  worldUrl: string;
+  hotspots: HotspotDef[];
+  interactionMode: HeroInteractionMode;
+  focusedId: string | null;
+  animatingToDefault: boolean;
+  hoveredHotspotId: string | null;
+  isMobile: boolean;
+  mouseNorm: { x: number; y: number };
+  onFocus: (id: string | null) => void;
+  onHover: (id: string | null) => void;
+  onCtaClick?: (href: string) => void;
+  onAscendCtaClick?: () => void;
+  onReady: () => void;
+  onBoundingReady?: (info: BoundingInfo) => void;
+  onAnimationSettled: (wasAnimatingToDefault: boolean) => void;
+  userInteracting?: boolean;
+  onUserInteractingChange?: (v: boolean) => void;
+  debugUi?: boolean;
+  showCenterPulse?: boolean;
+  entranceProgress?: number;
+}
 
-/** Ambient hover: y(t)=A*sin(wt+phi)+A2*sin(0.13t+phi2), A=0.03r, A2=0.01r. Camera never floats. */
-function IslandBreathingGroup({
-  worldRadius,
-  phase,
-  phase2,
-  children,
-}: {
-  worldRadius: number;
-  phase: number;
-  phase2: number;
-  children: React.ReactNode;
-}) {
-  const ref = useRef<Group>(null);
-  useFrame((state) => {
-    const g = ref.current;
+export default function Hero3DCanvas(props: Hero3DCanvasProps) {
+  const { isMobile } = props;
+  const dpr =
+    typeof window !== "undefined"
+      ? (isMobile ? 1 : Math.min(window.devicePixelRatio, 1.5))
+      : 1;
+  const [px, py, pz] = isMobile
+    ? MOBILE_CAM_FALLBACK.position
+    : DEFAULT_CINEMATIC_CAMERA.position;
+  const fov = isMobile ? MOBILE_FOV : DESKTOP_FOV;
+
+  return (
+    <Canvas
+      gl={{ antialias: true, alpha: false }}
+      camera={{ position: [px, py, pz], fov, near: 0.1, far: 1000 }}
+      dpr={dpr}
+      style={{ display: "block", width: "100%", height: "100%", pointerEvents: "auto" }}
+    >
+      <Scene {...props} />
+    </Canvas>
+  );
+}
+
+function Scene(props: Hero3DCanvasProps) {
+  const {
+    worldUrl,
+    hotspots,
+    interactionMode,
+    focusedId,
+    animatingToDefault,
+    hoveredHotspotId,
+    isMobile,
+    onFocus,
+    onHover,
+    onCtaClick,
+    onAscendCtaClick,
+    onReady,
+    onAnimationSettled,
+    onUserInteractingChange,
+    onBoundingReady,
+    debugUi = false,
+    showCenterPulse = false,
+  } = props;
+
+  const [boundingInfo, setBoundingInfo] = useState<BoundingInfo | null>(null);
+  const groupRef = useRef<Group>(null);
+  const hasCalledReady = useRef(false);
+  const onBoundingReadyStable = useCallback((info: BoundingInfo) => {
+    setBoundingInfo(info);
+    onBoundingReady?.(info);
+  }, [onBoundingReady]);
+
+  const orbitEnabled = interactionMode === "default";
+  const focusHotspot =
+    focusedId ? hotspots.find((h) => h.id === focusedId) : null;
+  const targetWorldRotationY =
+    interactionMode === "animating"
+      ? animatingToDefault
+        ? 0
+        : focusHotspot
+          ? getFocusWorldRotationY(focusHotspot)
+          : 0
+      : interactionMode === "focus" && focusHotspot
+        ? getFocusWorldRotationY(focusHotspot)
+        : 0;
+
+  const worldRotY = useRef(0);
+  const worldRotVel = useRef(0);
+
+  useFrame((state: { clock: { getDelta: () => number } }) => {
+    const g = groupRef.current;
     if (!g) return;
-    const t = state.clock.elapsedTime;
-    const A = BREATH_A_FAC * worldRadius;
-    const A2 = BREATH_A2_FAC * worldRadius;
-    g.position.y = A * Math.sin(BREATH_OMEGA * t + phase) + A2 * Math.sin(BREATH_OMEGA2 * t + phase2);
+    const dt = Math.min(state.clock.getDelta(), 0.05);
+    if (
+      interactionMode === "animating" ||
+      (interactionMode === "focus" && focusedId)
+    ) {
+      let diff = targetWorldRotationY - worldRotY.current;
+      while (diff > Math.PI) diff -= 2 * Math.PI;
+      while (diff < -Math.PI) diff += 2 * Math.PI;
+      const [next, vNext] = springStep(
+        worldRotY.current,
+        worldRotVel.current,
+        worldRotY.current + diff,
+        SPRING_OMEGA_WORLD,
+        SPRING_ZETA,
+        dt
+      );
+      worldRotY.current = next;
+      worldRotVel.current = vNext;
+      g.rotation.y = worldRotY.current;
+    } else {
+      worldRotY.current = g.rotation.y;
+      worldRotVel.current = 0;
+    }
   });
-  return <group ref={ref}>{children}</group>;
+
+  const orbitTargetVec: [number, number, number] = useMemo(() => {
+    if (boundingInfo?.orbitTarget)
+      return [
+        boundingInfo.orbitTarget.x,
+        boundingInfo.orbitTarget.y,
+        boundingInfo.orbitTarget.z,
+      ];
+    if (boundingInfo)
+      return [
+        boundingInfo.homeLookAt.x,
+        boundingInfo.homeLookAt.y,
+        boundingInfo.homeLookAt.z,
+      ];
+    return [0, 1, 0];
+  }, [boundingInfo]);
+
+  const radius = boundingInfo?.worldRadius ?? ORBIT_RADIUS_FALLBACK;
+  const orbitMinDist = isMobile ? radius * 1.5 : radius * 1.4;
+  const orbitMaxDist = radius * 5;
+
+  const hasSyncedControlsTarget = useRef(false);
+  useFrame((state: { controls: unknown }) => {
+    if (!orbitEnabled) hasSyncedControlsTarget.current = false;
+    if (!boundingInfo) return;
+    const controls = state.controls as unknown as
+      | { target: THREE.Vector3; update: () => void }
+      | undefined;
+    if (orbitEnabled && controls && !hasSyncedControlsTarget.current) {
+      controls.target.set(
+        boundingInfo.orbitTarget.x,
+        boundingInfo.orbitTarget.y,
+        boundingInfo.orbitTarget.z
+      );
+      controls.update();
+      hasSyncedControlsTarget.current = true;
+    }
+  });
+
+  return (
+    <>
+      <color attach="background" args={["#111111"]} />
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[3, 5, 4]} intensity={1} />
+      <Environment preset="studio" background={false} />
+      {/* Invisible canary on layer 1 so it never receives rays */}
+      <mesh position={[0, 0, 0]} layers={1}>
+        <boxGeometry args={[0.5, 0.5, 0.5]} />
+        <meshBasicMaterial color="#111111" visible={false} />
+      </mesh>
+      {orbitEnabled && (
+        <OrbitControls
+          target={orbitTargetVec}
+          enablePan={false}
+          enableRotate={true}
+          enableZoom={true}
+          minDistance={orbitMinDist}
+          maxDistance={orbitMaxDist}
+          minPolarAngle={0.35}
+          maxPolarAngle={1.55}
+          enableDamping
+          dampingFactor={isMobile ? 0.08 : 0.1}
+          rotateSpeed={isMobile ? 0.75 : 0.7}
+          zoomSpeed={isMobile ? 0.9 : 0.75}
+          onStart={() => onUserInteractingChange?.(true)}
+          onEnd={() => onUserInteractingChange?.(false)}
+        />
+      )}
+      <group ref={groupRef} position={[0, 0, 0]} scale={[1, 1, 1]}>
+        <WorldModel
+          url={worldUrl}
+          isMobile={isMobile}
+          onLoaded={onReady}
+          onBoundingReady={onBoundingReadyStable}
+          hasCalledReady={hasCalledReady}
+          hotspots={hotspots}
+          focusedId={focusedId}
+          hoveredHotspotId={hoveredHotspotId}
+          onFocus={onFocus}
+          onHover={onHover}
+          onCtaClick={onCtaClick}
+          onAscendCtaClick={onAscendCtaClick}
+          debugUi={debugUi}
+          showCenterPulse={showCenterPulse}
+        />
+      </group>
+      <CameraController
+        interactionMode={interactionMode}
+        animatingToDefault={animatingToDefault}
+        focusedId={focusedId}
+        hotspots={hotspots}
+        boundingInfo={boundingInfo}
+        isMobile={isMobile}
+        onAnimationSettled={onAnimationSettled}
+      />
+    </>
+  );
 }
 
 function WorldModel({
@@ -496,8 +368,8 @@ function WorldModel({
   hotspots,
   focusedId,
   hoveredHotspotId,
+  onFocus,
   onHover,
-  onIslandPointerDown,
   onCtaClick,
   onAscendCtaClick,
   debugUi,
@@ -511,8 +383,8 @@ function WorldModel({
   hotspots: HotspotDef[];
   focusedId: string | null;
   hoveredHotspotId: string | null;
+  onFocus: (id: string | null) => void;
   onHover: (id: string | null) => void;
-  onIslandPointerDown: (id: string, clientX: number, clientY: number) => void;
   onCtaClick?: (href: string) => void;
   onAscendCtaClick?: () => void;
   debugUi?: boolean;
@@ -521,7 +393,7 @@ function WorldModel({
   const { scene } = useGLTF(url);
   const cloned = useMemo(() => {
     const c = scene.clone();
-    c.traverse((child) => {
+    c.traverse((child: THREE.Object3D) => {
       if (child instanceof THREE.Mesh) {
         child.castShadow = false;
         child.receiveShadow = false;
@@ -535,11 +407,39 @@ function WorldModel({
     () => frameScene(cloned, isMobile),
     [cloned, isMobile]
   );
-  const { position, scale, size, radius, worldRadius, center, homePosition, homeLookAt, orbitTarget } = framed;
+  const {
+    position,
+    scale,
+    size,
+    worldRadius,
+    center,
+    homePosition,
+    homeLookAt,
+    orbitTarget,
+  } = framed;
 
   useEffect(() => {
-    onBoundingReady?.({ size, scale, radius, worldRadius, center, homePosition, homeLookAt, orbitTarget });
-  }, [onBoundingReady, size, scale, radius, worldRadius, center, homePosition, homeLookAt, orbitTarget]);
+    onBoundingReady?.({
+      size,
+      scale,
+      radius: framed.radius,
+      worldRadius,
+      center,
+      homePosition,
+      homeLookAt,
+      orbitTarget,
+    });
+  }, [
+    onBoundingReady,
+    size,
+    scale,
+    framed.radius,
+    worldRadius,
+    center,
+    homePosition,
+    homeLookAt,
+    orbitTarget,
+  ]);
 
   useFrame(() => {
     if (hasCalledReady.current) return;
@@ -547,40 +447,53 @@ function WorldModel({
     onLoaded();
   });
 
-  const ascendCtaPosition: [number, number, number] = [0, size.y * ASCEND_CTA_Y_FRAC, 0];
+  const ascendCtaPosition: [number, number, number] = [
+    0,
+    size.y * ASCEND_CTA_Y_FRAC,
+    0,
+  ];
   const showAscendCta = onAscendCtaClick && focusedId === "main";
 
   return (
-    <group position={position} scale={[scale, scale, scale]} rotation={[0, MODEL_ROTATION_FIX, 0]}>
+    <group
+      position={position}
+      scale={[scale, scale, scale]}
+      rotation={[0, MODEL_ROTATION_FIX, 0]}
+    >
       <primitive object={cloned} />
       {hotspots.map((h) => (
-        <IslandBreathingGroup
-          key={h.id}
-          worldRadius={worldRadius}
-          phase={islandPhase(h.id)}
-          phase2={islandPhase2(h.id)}
-        >
-          <HotspotHalo def={h} visible={hoveredHotspotId === h.id || focusedId === h.id} isHovered={hoveredHotspotId === h.id} />
+        <React.Fragment key={h.id}>
+          <HotspotHalo
+            def={h}
+            visible={hoveredHotspotId === h.id || focusedId === h.id}
+            isHovered={hoveredHotspotId === h.id}
+          />
           <HotspotBox
             def={h}
             isFocused={focusedId === h.id}
             isHovered={hoveredHotspotId === h.id}
             isMobile={isMobile}
+            onFocus={onFocus}
             onHover={onHover}
-            onIslandPointerDown={onIslandPointerDown}
             showDebugBox={DEBUG_HOTSPOTS || debugUi === true}
           />
           <HotspotPill
             def={h}
-            show={(isMobile && focusedId === h.id) || (!isMobile && (hoveredHotspotId === h.id || focusedId === h.id))}
+            show={
+              (isMobile && focusedId === h.id) ||
+              (!isMobile &&
+                (hoveredHotspotId === h.id || focusedId === h.id))
+            }
             isMobile={isMobile}
             onCtaClick={onCtaClick}
           />
-        </IslandBreathingGroup>
+        </React.Fragment>
       ))}
       {isMobile && showCenterPulse && !focusedId && (() => {
         const centerIsland = hotspots.find((h) => h.id === "main");
-        return centerIsland ? <CenterPulseRing position={centerIsland.position} /> : null;
+        return centerIsland ? (
+          <CenterPulseRing position={centerIsland.position} />
+        ) : null;
       })()}
       {showAscendCta && (
         <Html
@@ -589,22 +502,23 @@ function WorldModel({
           sprite
           center
           distanceFactor={isMobile ? 5 : 6}
-          style={{ pointerEvents: "auto", animation: "hero-ascend-fade-in 0.35s ease-out forwards" }}
+          style={{
+            pointerEvents: "auto",
+            animation: "hero-ascend-fade-in 0.35s ease-out forwards",
+          }}
         >
           <button
             type="button"
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent) => {
               e.stopPropagation();
-              onAscendCtaClick();
+              onAscendCtaClick?.();
             }}
             className={`ascend-cta-pill rounded-full bg-white/90 backdrop-blur-md text-storm font-medium border border-white/50 shadow-lg transition-transform duration-200 ${
               isMobile
                 ? "px-4 py-2 text-xs scale-90 active:scale-95"
                 : "px-5 py-2.5 text-sm hover:scale-[1.04] active:scale-100"
             }`}
-            style={{
-              boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
-            }}
+            style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.12)" }}
             aria-label="Ascend With Us"
           >
             Ascend With Us
@@ -615,20 +529,23 @@ function WorldModel({
   );
 }
 
-/** Subtle pulse ring on center island for discoverability (mobile, after idle). */
 function CenterPulseRing({ position: pos }: { position: [number, number, number] }) {
   const meshRef = useRef<THREE.Mesh>(null);
-  useFrame((state) => {
+  useFrame((state: { clock: { elapsedTime: number } }) => {
     const m = meshRef.current;
     if (!m) return;
     const t = state.clock.elapsedTime;
     const scale = 1 + 0.12 * Math.sin(t * 1.2);
     m.scale.setScalar(scale);
     const mat = m.material as THREE.MeshBasicMaterial;
-    if (mat.opacity !== undefined) mat.opacity = 0.15 + 0.08 * Math.sin(t * 1.2);
+    if (mat.opacity !== undefined)
+      mat.opacity = 0.15 + 0.08 * Math.sin(t * 1.2);
   });
   return (
-    <group position={[pos[0], pos[1] - 0.1, pos[2]]} rotation={[-Math.PI / 2, 0, 0]}>
+    <group
+      position={[pos[0], pos[1] - 0.1, pos[2]]}
+      rotation={[-Math.PI / 2, 0, 0]}
+    >
       <mesh ref={meshRef}>
         <ringGeometry args={[1.0, 2.2, 32]} />
         <meshBasicMaterial
@@ -643,15 +560,23 @@ function CenterPulseRing({ position: pos }: { position: [number, number, number]
   );
 }
 
-/** Billboard ring/halo under the zone; only visible when hovered or selected. */
-function HotspotHalo({ def, visible, isHovered }: { def: HotspotDef; visible: boolean; isHovered?: boolean }) {
+function HotspotHalo({
+  def,
+  visible,
+  isHovered,
+}: {
+  def: HotspotDef;
+  visible: boolean;
+  isHovered?: boolean;
+}) {
   const [x, y, z] = def.position;
   const accent = def.accent ?? "#4FA3FF";
-
   if (!visible) return null;
-
   return (
-    <group position={[x, y - 0.1, z]} rotation={[-Math.PI / 2, 0, 0]}>
+    <group
+      position={[x, y - 0.1, z]}
+      rotation={[-Math.PI / 2, 0, 0]}
+    >
       <mesh>
         <ringGeometry args={[HALO_INNER, HALO_RADIUS, 32]} />
         <meshBasicMaterial
@@ -666,9 +591,6 @@ function HotspotHalo({ def, visible, isHovered }: { def: HotspotDef; visible: bo
   );
 }
 
-/** Tune hotspot Html offset here — vertical offset of the pill above the hotspot center. */
-const PILL_OFFSET_Y = 0.6;
-
 function HotspotPill({
   def,
   show,
@@ -682,7 +604,6 @@ function HotspotPill({
 }) {
   const [x, y, z] = def.position;
   if (!show) return null;
-
   return (
     <Html
       position={[x, y + PILL_OFFSET_Y, z]}
@@ -697,7 +618,7 @@ function HotspotPill({
         <span className="text-storm text-sm font-medium">{def.label}</span>
         <button
           type="button"
-          onClick={(e) => {
+          onClick={(e: React.MouseEvent) => {
             e.stopPropagation();
             onCtaClick?.(def.href);
           }}
@@ -716,16 +637,16 @@ function HotspotBox({
   isFocused,
   isHovered,
   isMobile,
+  onFocus,
   onHover,
-  onIslandPointerDown,
   showDebugBox,
 }: {
   def: HotspotDef;
   isFocused: boolean;
   isHovered: boolean;
   isMobile: boolean;
+  onFocus: (id: string | null) => void;
   onHover: (id: string | null) => void;
-  onIslandPointerDown: (id: string, clientX: number, clientY: number) => void;
   showDebugBox?: boolean;
 }) {
   const [x, y, z] = def.position;
@@ -736,21 +657,20 @@ function HotspotBox({
   return (
     <group position={[x, y, z]} scale={[lift, lift, lift]}>
       <mesh
-        onPointerDown={(e) => {
+        onClick={(e: React.MouseEvent) => {
           e.stopPropagation();
-          const ev = e.nativeEvent;
-          onIslandPointerDown(def.id, ev.clientX, ev.clientY);
-          if (showDebugBox) console.log("[Hero] pointer down island:", def.id);
+          onFocus(def.id);
         }}
-        onPointerOver={(e) => {
+        onPointerOver={(e: React.PointerEvent) => {
           e.stopPropagation();
           onHover(def.id);
-          if (typeof document !== "undefined") document.body.style.cursor = "pointer";
-          if (showDebugBox) console.log("[Hero] hover island:", def.id, def.label);
+          if (typeof document !== "undefined")
+            document.body.style.cursor = "pointer";
         }}
         onPointerOut={() => {
           onHover(null);
-          if (typeof document !== "undefined") document.body.style.cursor = "default";
+          if (typeof document !== "undefined")
+            document.body.style.cursor = "default";
         }}
       >
         <boxGeometry args={[sx * mult, sy * mult, sz * mult]} />
@@ -794,6 +714,7 @@ function CameraController({
   const targetFov = useRef(defaultFov);
   const fovVel = useRef(0);
   const hasFiredSettled = useRef(false);
+  const hasInitializedFromBounds = useRef(false);
 
   useEffect(() => {
     if (interactionMode !== "animating") return;
@@ -811,8 +732,14 @@ function CameraController({
           boundingInfo.homeLookAt.z
         );
       } else {
-        const fallback = isMobile ? MOBILE_CAM_FALLBACK : DEFAULT_CINEMATIC_CAMERA;
-        targetPos.current.set(fallback.position[0], fallback.position[1], fallback.position[2]);
+        const fallback = isMobile
+          ? MOBILE_CAM_FALLBACK
+          : DEFAULT_CINEMATIC_CAMERA;
+        targetPos.current.set(
+          fallback.position[0],
+          fallback.position[1],
+          fallback.position[2]
+        );
         targetLook.current.set(
           DEFAULT_CINEMATIC_CAMERA.lookAt[0],
           DEFAULT_CINEMATIC_CAMERA.lookAt[1],
@@ -835,9 +762,28 @@ function CameraController({
     posVel.current.set(0, 0, 0);
     lookVel.current.set(0, 0, 0);
     fovVel.current = 0;
-  }, [interactionMode, animatingToDefault, focusedId, hotspots, boundingInfo, isMobile, defaultFov, camera]);
+  }, [
+    interactionMode,
+    animatingToDefault,
+    focusedId,
+    hotspots,
+    boundingInfo,
+    isMobile,
+    defaultFov,
+    camera,
+  ]);
 
-  useFrame((state) => {
+  useFrame((state: { clock: { getDelta: () => number } }) => {
+    if (boundingInfo && !hasInitializedFromBounds.current) {
+      hasInitializedFromBounds.current = true;
+      camera.position.copy(boundingInfo.homePosition);
+      camera.lookAt(boundingInfo.homeLookAt);
+      if (camera instanceof THREE.PerspectiveCamera) {
+        camera.fov = defaultFov;
+        camera.updateProjectionMatrix();
+      }
+    }
+
     if (interactionMode !== "animating") return;
 
     const dt = Math.min(state.clock.getDelta(), 0.05);
