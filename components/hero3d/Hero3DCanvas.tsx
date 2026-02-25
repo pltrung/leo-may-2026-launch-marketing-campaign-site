@@ -267,7 +267,7 @@ function Scene(props: Hero3DCanvasProps) {
     }
   });
 
-  const orbitEnabled = interactionMode === "default" && cameraFramed;
+  const orbitEnabled = interactionMode === "default";
   const hotspotDef: HotspotDef | null =
     focusedId && !animatingToDefault ? (hotspots.find((h) => h.id === focusedId) ?? null) : null;
   const focusHotspotForRotation =
@@ -325,9 +325,9 @@ function Scene(props: Hero3DCanvasProps) {
 
   const hasSyncedControlsTarget = useRef(false);
   useFrame((state) => {
-    if (!orbitEnabled || !boundingInfo || hasSyncedControlsTarget.current) return;
+    if (!boundingInfo) return;
     const controls = state.controls as unknown as { target: THREE.Vector3; update: () => void } | undefined;
-    if (controls) {
+    if (orbitEnabled && controls && !hasSyncedControlsTarget.current) {
       controls.target.set(
         boundingInfo.orbitTarget.x,
         boundingInfo.orbitTarget.y,
