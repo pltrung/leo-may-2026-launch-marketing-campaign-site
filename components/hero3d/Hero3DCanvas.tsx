@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useMemo, useEffect, useState, useCallback } from "react";
+import React, { useRef, useMemo, useEffect, useLayoutEffect, useState, useCallback } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useGLTF, Environment, Html, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
@@ -233,22 +233,20 @@ function Scene(props: Hero3DCanvasProps) {
     [onFocus]
   );
   const hasCalledReady = useRef(false);
-  const hasSetInitialCamera = useRef(false);
   const [boundingInfo, setBoundingInfo] = useState<BoundingInfo | null>(null);
   const { camera } = useThree();
   const onBoundingReadyStable = useCallback((info: BoundingInfo) => setBoundingInfo(info), []);
 
-  // Initial camera: set once when bounding is ready. No reposition on resize (R3F updates aspect only).
-  useEffect(() => {
-    if (!boundingInfo || hasSetInitialCamera.current) return;
-    hasSetInitialCamera.current = true;
+  // Initial camera: apply whenever bounding is ready so scene is always visible (survives remount).
+  useLayoutEffect(() => {
+    if (!boundingInfo) return;
     camera.position.copy(boundingInfo.homePosition);
     camera.lookAt(boundingInfo.homeLookAt.x, boundingInfo.homeLookAt.y, boundingInfo.homeLookAt.z);
     if (camera instanceof THREE.PerspectiveCamera) {
       camera.updateProjectionMatrix();
     }
     if (debugUi) {
-      console.log("[Hero] default camera set once:", boundingInfo.homePosition.toArray());
+      console.log("[Hero] camera applied:", boundingInfo.homePosition.toArray());
     }
   }, [boundingInfo, camera, debugUi]);
 
@@ -310,6 +308,7 @@ function Scene(props: Hero3DCanvasProps) {
   const parallaxVel = useRef(new THREE.Vector3(0, 0, 0));
   const parallaxPrev = useRef(new THREE.Vector3(0, 0, 0));
 
+  // Parallax: skip applying to camera so initial framing is never overwritten (fixes black screen).
   useFrame((state) => {
     if (orbitEnabled && !isMobile && boundingInfo && radius > 0) {
       const dt = Math.min(state.clock.getDelta(), 0.05);
@@ -327,13 +326,9 @@ function Scene(props: Hero3DCanvasProps) {
         SPRING_ZETA,
         dt
       );
-      const cam = state.camera;
-      cam.position.sub(parallaxPrev.current);
-      cam.position.add(parallaxOffset.current);
       parallaxPrev.current.copy(parallaxOffset.current);
+      // Do not apply to camera: cam.position.sub/add was overwriting initial camera and causing black screen.
     } else {
-      const cam = state.camera;
-      cam.position.sub(parallaxPrev.current);
       parallaxPrev.current.set(0, 0, 0);
       parallaxOffset.current.set(0, 0, 0);
       parallaxVel.current.set(0, 0, 0);
@@ -438,7 +433,9 @@ function frameScene(
   const maxDim = Math.max(size.x, size.y, size.z);
   const fitScale = maxDim > 0 ? 4 / maxDim : 1;
   const scale = isMobile ? fitScale * MOBILE_SCALE_MULT : fitScale;
-  const r = sphere.radius * scale;
+  const rawR = sphere.radius * scale;
+  const r = Number.isFinite(rawR) && rawR > 0 ? rawR : 2;
+  const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
   const up = new THREE.Vector3(0, 1, 0);
   const forward = new THREE.Vector3(0, 0, 1);
   const target = up.clone().multiplyScalar(FRAME_TARGET_UP * r);
@@ -450,7 +447,7 @@ function frameScene(
     .add(forward.clone().multiplyScalar(FRAME_POS_FORWARD * r));
   return {
     position: [-center.x, -center.y, -center.z],
-    scale,
+    scale: safeScale,
     size,
     radius: sphere.radius,
     worldRadius: r,
