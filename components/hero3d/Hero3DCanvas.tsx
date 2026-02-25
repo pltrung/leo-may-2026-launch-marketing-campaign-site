@@ -322,39 +322,7 @@ function Scene(props: Hero3DCanvasProps) {
   const orbitMinDist = isMobile ? radius * 1.5 : radius * 1.4;
   const orbitMaxDist = radius * 5;
 
-  const parallaxOffset = useRef(new THREE.Vector3(0, 0, 0));
-  const parallaxVel = useRef(new THREE.Vector3(0, 0, 0));
-  const parallaxPrev = useRef(new THREE.Vector3(0, 0, 0));
-
-  useFrame((state) => {
-    if (orbitEnabled && !isMobile && boundingInfo && radius > 0) {
-      const dt = Math.min(state.clock.getDelta(), 0.05);
-      const { mouseNorm } = props;
-      const target = new THREE.Vector3(
-        mouseNorm.x * PARALLAX_KX * radius,
-        mouseNorm.y * PARALLAX_KY * radius,
-        0
-      );
-      springStep3(
-        parallaxOffset.current,
-        parallaxVel.current,
-        target,
-        SPRING_OMEGA_PARALLAX,
-        SPRING_ZETA,
-        dt
-      );
-      const cam = state.camera;
-      cam.position.sub(parallaxPrev.current);
-      cam.position.add(parallaxOffset.current);
-      parallaxPrev.current.copy(parallaxOffset.current);
-    } else {
-      const cam = state.camera;
-      cam.position.sub(parallaxPrev.current);
-      parallaxPrev.current.set(0, 0, 0);
-      parallaxOffset.current.set(0, 0, 0);
-      parallaxVel.current.set(0, 0, 0);
-    }
-  }, 1);
+  // Parallax removed: it was added in f06dede and modifies camera every frame; pre-f06dede (working) had no parallax.
 
   const hasSyncedControlsTarget = useRef(false);
   useFrame((state) => {
@@ -440,17 +408,15 @@ export interface BoundingInfo {
   worldRadius: number;
   /** World-space center (after centering) = origin. */
   center: THREE.Vector3;
-  /** Default camera: pos = target + up*0.9r + forward*2.7r. */
   homePosition: THREE.Vector3;
-  /** LookAt = target = center + up*0.2r. */
   homeLookAt: THREE.Vector3;
-  /** OrbitControls target = center + up*0.2r. */
+  /** OrbitControls target (same as homeLookAt for compatibility). */
   orbitTarget: THREE.Vector3;
 }
 
 /**
- * Deterministic framing from bounds only. Compute bounds → center world → use r.
- * target = center + up*(0.2r), pos = target + up*(0.9r) + forward*(2.7r). No magic numbers.
+ * Center the world at origin and scale to fit. Same formula as 94239ba (working).
+ * Desktop: distance 2.4*radius, target slightly above center. Mobile: further back.
  */
 function frameScene(
   object: THREE.Object3D,
@@ -467,27 +433,31 @@ function frameScene(
   const fitScale = maxDim > 0 ? 4 / maxDim : 1;
   const scale = isMobile ? fitScale * MOBILE_SCALE_MULT : fitScale;
   const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
-  const rawR = sphere.radius * safeScale;
-  const r = Number.isFinite(rawR) && rawR > 0 ? rawR : 2;
-  const up = new THREE.Vector3(0, 1, 0);
-  const forward = new THREE.Vector3(0, 0, 1);
-  const target = up.clone().multiplyScalar(FRAME_TARGET_UP * r);
-  const orbitTarget = target.clone();
-  const homeLookAt = target.clone();
-  const homePosition = target
-    .clone()
-    .add(up.clone().multiplyScalar(FRAME_POS_UP * r))
-    .add(forward.clone().multiplyScalar(FRAME_POS_FORWARD * r));
+  const worldRadius = sphere.radius * safeScale;
+  const r = Number.isFinite(worldRadius) && worldRadius > 0 ? worldRadius : 2;
+  const boundingCenter = new THREE.Vector3(0, 0, 0);
+  let homePosition: THREE.Vector3;
+  let homeLookAt: THREE.Vector3;
+  if (isMobile) {
+    const distance = r * 2.8;
+    const camY = r * 0.7;
+    homePosition = new THREE.Vector3(0, camY, distance);
+    homeLookAt = boundingCenter.clone();
+  } else {
+    const distance = r * 2.4;
+    homePosition = new THREE.Vector3(0, r * 0.6, distance);
+    homeLookAt = new THREE.Vector3(0, r * 0.6, -r * 0.2);
+  }
   return {
     position: [-center.x, -center.y, -center.z],
     scale: safeScale,
     size,
     radius: sphere.radius,
     worldRadius: r,
-    center: new THREE.Vector3(0, 0, 0),
+    center: boundingCenter,
     homePosition,
     homeLookAt,
-    orbitTarget,
+    orbitTarget: homeLookAt.clone(),
   };
 }
 
