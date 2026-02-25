@@ -154,8 +154,8 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
       ref={heroStageRef}
       id="hero-stage"
       className={`hero3d relative w-full overflow-hidden isolate ${debugUi ? "debug-ui" : ""}`}
-      style={{ touchAction: "none" }}
       style={{
+        touchAction: "none",
         width: "100%",
         height: "100dvh",
         minHeight: 640,
