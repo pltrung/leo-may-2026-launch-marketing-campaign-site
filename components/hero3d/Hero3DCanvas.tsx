@@ -422,7 +422,7 @@ function Scene(props: Hero3DCanvasProps) {
       <color attach="background" args={["#111111"]} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[3, 5, 4]} intensity={1.0} />
-      {!isMobile && <Environment preset="studio" background={false} />}
+      <Environment preset="studio" background={false} />
       <axesHelper args={[5]} />
       <mesh position={[0, 0, 0]}>
         <boxGeometry args={[1, 1, 1]} />
@@ -598,6 +598,8 @@ function WorldModel({
   const { scene } = useGLTF(url);
   const cloned = useMemo(() => {
     const c = scene.clone();
+    c.rotation.y = MODEL_ROTATION_FIX;
+    c.updateMatrixWorld(true);
     c.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         child.castShadow = false;
@@ -627,7 +629,7 @@ function WorldModel({
   const showAscendCta = onAscendCtaClick && focusedId === "main";
 
   return (
-    <group position={position} scale={[scale, scale, scale]} rotation={[0, MODEL_ROTATION_FIX, 0]}>
+    <group position={position} scale={[scale, scale, scale]}>
       <primitive object={cloned} />
       {hotspots.map((h) => (
         <IslandBreathingGroup
