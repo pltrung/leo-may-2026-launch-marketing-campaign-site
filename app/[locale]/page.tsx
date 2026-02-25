@@ -27,7 +27,8 @@ import { getUser } from "@/lib/userStorage";
 import type { Locale } from "@/lib/i18n";
 import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
 
-const defaultNewHero = process.env.NEXT_PUBLIC_NEW_HERO !== "false";
+/** Use legacy hero (scroll sections) by default; set NEXT_PUBLIC_NEW_HERO=true for 3D hero. */
+const defaultNewHero = process.env.NEXT_PUBLIC_NEW_HERO === "true";
 
 function HomeContent() {
   const router = useRouter();
