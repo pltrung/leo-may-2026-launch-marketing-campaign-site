@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useMemo, useEffect, useState, useCallback } from "react";
+import React, { useRef, useMemo, useEffect, useLayoutEffect, useState, useCallback } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useGLTF, Environment, Html, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
@@ -239,21 +239,27 @@ function Scene(props: Hero3DCanvasProps) {
   const { camera } = useThree();
   const onBoundingReadyStable = useCallback((info: BoundingInfo) => setBoundingInfo(info), []);
 
-  // Initial camera: set once when bounding is ready. No reposition on resize (R3F updates aspect only).
-  useEffect(() => {
+  // Initial camera: set in useLayoutEffect so it runs before paint and is never overwritten by a stale frame.
+  useLayoutEffect(() => {
     if (!boundingInfo || hasSetInitialCamera.current) return;
     hasSetInitialCamera.current = true;
-    camera.position.copy(boundingInfo.homePosition);
-    camera.lookAt(boundingInfo.homeLookAt.x, boundingInfo.homeLookAt.y, boundingInfo.homeLookAt.z);
+    const r = boundingInfo.worldRadius;
+    if (!Number.isFinite(r) || r <= 0) {
+      camera.position.set(0, 2, 7);
+      camera.lookAt(0, 1, 0);
+    } else {
+      camera.position.copy(boundingInfo.homePosition);
+      camera.lookAt(boundingInfo.homeLookAt.x, boundingInfo.homeLookAt.y, boundingInfo.homeLookAt.z);
+    }
     if (camera instanceof THREE.PerspectiveCamera) {
       camera.updateProjectionMatrix();
     }
     if (debugUi) {
-      console.log("[Hero] default camera set once:", boundingInfo.homePosition.toArray());
+      console.log("[Hero] default camera set:", boundingInfo.homePosition.toArray());
     }
   }, [boundingInfo, camera, debugUi]);
 
-  // Mount OrbitControls only after one frame with framed camera so they don't overwrite initial position (root cause of black screen).
+  // Mount OrbitControls only after one frame with framed camera so they don't overwrite initial position.
   const hasFramedRef = useRef(false);
   useFrame(() => {
     if (boundingInfo && !hasFramedRef.current) {
@@ -350,20 +356,26 @@ function Scene(props: Hero3DCanvasProps) {
     }
   }, 1);
 
+  const hasSyncedControlsTarget = useRef(false);
+  useFrame((state) => {
+    if (!orbitEnabled || !boundingInfo || hasSyncedControlsTarget.current) return;
+    const controls = state.controls as unknown as { target: THREE.Vector3; update: () => void } | undefined;
+    if (controls) {
+      controls.target.set(
+        boundingInfo.orbitTarget.x,
+        boundingInfo.orbitTarget.y,
+        boundingInfo.orbitTarget.z
+      );
+      controls.update();
+      hasSyncedControlsTarget.current = true;
+    }
+  });
+
   return (
     <>
-      {isMobile ? (
-        <>
-          <ambientLight intensity={0.7} />
-          <directionalLight position={[5, 8, 5]} intensity={0.6} />
-        </>
-      ) : (
-        <>
-          <ambientLight intensity={0.6} />
-          <directionalLight position={[5, 8, 5]} intensity={0.8} />
-          <Environment preset="studio" background={false} />
-        </>
-      )}
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[3, 5, 4]} intensity={1} />
+      <Environment preset="studio" background={false} />
       {orbitEnabled && (
         <OrbitControls
           target={orbitTargetVec}
@@ -448,7 +460,9 @@ function frameScene(
   const maxDim = Math.max(size.x, size.y, size.z);
   const fitScale = maxDim > 0 ? 4 / maxDim : 1;
   const scale = isMobile ? fitScale * MOBILE_SCALE_MULT : fitScale;
-  const r = sphere.radius * scale;
+  const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  const rawR = sphere.radius * safeScale;
+  const r = Number.isFinite(rawR) && rawR > 0 ? rawR : 2;
   const up = new THREE.Vector3(0, 1, 0);
   const forward = new THREE.Vector3(0, 0, 1);
   const target = up.clone().multiplyScalar(FRAME_TARGET_UP * r);
@@ -460,7 +474,7 @@ function frameScene(
     .add(forward.clone().multiplyScalar(FRAME_POS_FORWARD * r));
   return {
     position: [-center.x, -center.y, -center.z],
-    scale,
+    scale: safeScale,
     size,
     radius: sphere.radius,
     worldRadius: r,
@@ -532,6 +546,8 @@ function WorldModel({
   const { scene } = useGLTF(url);
   const cloned = useMemo(() => {
     const c = scene.clone();
+    c.rotation.y = MODEL_ROTATION_FIX;
+    c.updateMatrixWorld(true);
     c.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         child.castShadow = false;
@@ -561,7 +577,7 @@ function WorldModel({
   const showAscendCta = onAscendCtaClick && focusedId === "main";
 
   return (
-    <group position={position} scale={[scale, scale, scale]} rotation={[0, MODEL_ROTATION_FIX, 0]}>
+    <group position={position} scale={[scale, scale, scale]}>
       <primitive object={cloned} />
       {hotspots.map((h) => (
         <IslandBreathingGroup
