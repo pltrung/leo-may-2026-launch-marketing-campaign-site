@@ -1,16 +1,24 @@
 "use client";
 
-import React, { useRef, useMemo, useEffect } from "react";
+import React, { useRef, useMemo, useEffect, useState, useCallback } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useGLTF, Environment, Html } from "@react-three/drei";
+import { useGLTF, Environment, Html, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import type { Group } from "three";
 import type { HotspotDef } from "./hotspots";
 
-/** Desktop camera preset — tune position/fov to frame the scene. */
-const DESKTOP_CAM = { position: [0, 1.2, 6.5] as const, fov: 35 };
-/** Mobile camera preset — slightly closer, higher fov for small screens. */
-const MOBILE_CAM = { position: [0, 1.6, 5.2] as const, fov: 45 };
+/** Tune this if model faces wrong way (e.g. Math.PI = 180°, -Math.PI/2 = -90°). */
+const MODEL_ROTATION_FIX = Math.PI;
+
+/** Desktop camera preset — position and fov after framing. */
+const DESKTOP_CAM = { position: [0, 1.2, 6.8] as const, fov: 35 };
+/** Mobile fallback when bounding not yet available. */
+const MOBILE_CAM_FALLBACK = { position: [0, 1.5, 5.6] as const, fov: 50 };
+/** Mobile camera derived from bounding size; tune multipliers if needed. */
+const MOBILE_CAM_Y_POS_MULT = 0.6;
+const MOBILE_CAM_Z_POS_MULT = 2.2;
+const MOBILE_CAM_LOOKAT_Y_MULT = 0.3;
+const MOBILE_FOV = 50;
 
 const DEFAULT_LOOKAT: [number, number, number] = [0, 1, 0];
 const CAM_LERP = 0.04;
@@ -20,18 +28,23 @@ const FLOAT_FREQ = 0.4;
 const BREATHE_AMP = 0.008;
 const BREATHE_FREQ = 0.5;
 const PARALLAX_STRENGTH = 0.15;
-/** Very subtle auto-drift on mobile (no parallax). */
 const MOBILE_DRIFT_STRENGTH = 0.02;
 const MOBILE_DRIFT_FREQ = 0.15;
-/** Mobile hitbox scale multiplier for larger tap targets. */
 const MOBILE_HITBOX_SCALE = 1.35;
-/** frameScene: slightly larger scale on mobile so GLB fills screen. */
 const MOBILE_SCALE_MULT = 1.08;
-/** Tune halo size here — outer and inner radius of the ring under each zone. */
 const HALO_RADIUS = 1.8;
 const HALO_INNER = 1.2;
-/** Slight lift/scale when hotspot is hovered or selected. */
 const HOTSPOT_HOVER_SCALE = 1.02;
+
+/** OrbitControls: premium constrained range. */
+const ORBIT_MIN_DISTANCE = 5.2;
+const ORBIT_MAX_DISTANCE = 8.5;
+const ORBIT_MIN_POLAR = 0.9;
+const ORBIT_MAX_POLAR = 1.35;
+const ORBIT_ROTATE_SPEED = 0.5;
+
+/** TODO: set to false before production. Renders semi-transparent hitbox meshes for tuning. */
+const DEBUG_HOTSPOTS = true;
 
 export interface Hero3DCanvasProps {
   worldUrl: string;
@@ -43,7 +56,11 @@ export interface Hero3DCanvasProps {
   onFocus: (id: string | null) => void;
   onHover: (id: string | null) => void;
   onCtaClick?: (href: string) => void;
+  onAscend?: () => void;
   onReady: () => void;
+  onBoundingReady?: (info: BoundingInfo) => void;
+  userInteracting?: boolean;
+  onUserInteractingChange?: (v: boolean) => void;
 }
 
 export default function Hero3DCanvas(props: Hero3DCanvasProps) {
@@ -51,7 +68,7 @@ export default function Hero3DCanvas(props: Hero3DCanvasProps) {
   const dpr = typeof window !== "undefined"
     ? (isMobile ? 1 : Math.min(window.devicePixelRatio, 1.5))
     : 1;
-  const initialCam = isMobile ? MOBILE_CAM : DESKTOP_CAM;
+  const initialCam = isMobile ? MOBILE_CAM_FALLBACK : DESKTOP_CAM;
 
   return (
     <Canvas
@@ -75,20 +92,47 @@ export default function Hero3DCanvas(props: Hero3DCanvasProps) {
   );
 }
 
+/** Soft blue-gray background; removes black void. */
+const SCENE_BG = "#0e1623";
+
 function Scene(props: Hero3DCanvasProps) {
-  const { worldUrl, hotspots, focusedId, hoveredHotspotId, isMobile, mouseNorm, onFocus, onHover, onCtaClick, onReady } = props;
+  const {
+    worldUrl,
+    hotspots,
+    focusedId,
+    hoveredHotspotId,
+    isMobile,
+    mouseNorm,
+    onFocus,
+    onHover,
+    onCtaClick,
+    onAscend,
+    onReady,
+    onBoundingReady,
+    userInteracting = false,
+    onUserInteractingChange,
+  } = props;
   const groupRef = useRef<Group>(null);
   const hasCalledReady = useRef(false);
+  const [boundingInfo, setBoundingInfo] = useState<BoundingInfo | null>(null);
+  const { scene } = useThree();
+  const onBoundingReadyStable = useCallback((info: BoundingInfo) => setBoundingInfo(info), []);
+
+  useEffect(() => {
+    scene.background = new THREE.Color(SCENE_BG);
+  }, [scene]);
 
   useFrame((state) => {
     const g = groupRef.current;
     if (!g) return;
+    if (userInteracting) return;
     const t = state.clock.elapsedTime;
     g.position.y = FLOAT_AMP * Math.sin(t * FLOAT_FREQ);
     g.scale.setScalar(1 + BREATHE_AMP * Math.sin(t * BREATHE_FREQ));
   });
 
   const hotspotDef: HotspotDef | null = focusedId ? (hotspots.find((h) => h.id === focusedId) ?? null) : null;
+  const orbitEnabled = !isMobile && !hotspotDef;
 
   return (
     <>
@@ -104,12 +148,25 @@ function Scene(props: Hero3DCanvasProps) {
           <Environment preset="apartment" />
         </>
       )}
-      <fog attach="fog" args={["#0a1628", 8, 22]} />
+      <fog attach="fog" args={["#0e1a2e", 10, 24]} />
+      {orbitEnabled && (
+        <OrbitControls
+          enablePan={false}
+          minDistance={ORBIT_MIN_DISTANCE}
+          maxDistance={ORBIT_MAX_DISTANCE}
+          minPolarAngle={ORBIT_MIN_POLAR}
+          maxPolarAngle={ORBIT_MAX_POLAR}
+          rotateSpeed={ORBIT_ROTATE_SPEED}
+          onStart={() => onUserInteractingChange?.(true)}
+          onEnd={() => onUserInteractingChange?.(false)}
+        />
+      )}
       <group ref={groupRef} position={[0, 0, 0]} scale={[1, 1, 1]}>
         <WorldModel
           url={worldUrl}
           isMobile={isMobile}
           onLoaded={onReady}
+          onBoundingReady={onBoundingReadyStable}
           hasCalledReady={hasCalledReady}
           hotspots={hotspots}
           focusedId={focusedId}
@@ -117,43 +174,62 @@ function Scene(props: Hero3DCanvasProps) {
           onHover={onHover}
           onFocus={onFocus}
           onCtaClick={onCtaClick}
+          onAscend={onAscend}
         />
       </group>
       <CameraController
         focusedHotspot={hotspotDef}
         isMobile={isMobile}
         mouseNorm={mouseNorm}
+        orbitEnabled={orbitEnabled}
+        userInteracting={userInteracting}
+        boundingInfo={boundingInfo}
       />
     </>
   );
 }
 
+export interface BoundingInfo {
+  size: THREE.Vector3;
+  scale: number;
+  radius: number;
+}
+
 /**
  * Center the world at origin and scale to fit based on bounding box.
- * Use a slightly larger scale on mobile (MOBILE_SCALE_MULT, e.g. 1.05–1.12) so GLB fills screen.
+ * worldGroup.position should be set to -center so scene is centered at origin.
+ * Returns size and bounding sphere radius for dynamic camera framing.
  */
 function frameScene(
   object: THREE.Object3D,
   isMobile: boolean
-): { position: [number, number, number]; scale: number } {
+): { position: [number, number, number]; scale: number; size: THREE.Vector3; radius: number } {
   const box = new THREE.Box3().setFromObject(object);
   const center = new THREE.Vector3();
   box.getCenter(center);
   const size = new THREE.Vector3();
   box.getSize(size);
+  const sphere = new THREE.Sphere();
+  box.getBoundingSphere(sphere);
   const maxDim = Math.max(size.x, size.y, size.z);
   const fitScale = maxDim > 0 ? 4 / maxDim : 1;
   const scale = isMobile ? fitScale * MOBILE_SCALE_MULT : fitScale;
   return {
     position: [-center.x, -center.y, -center.z],
     scale,
+    size,
+    radius: sphere.radius,
   };
 }
+
+/** Ascend CTA: fraction of bounding size.y for center-island top. Tune if needed. */
+const ASCEND_CTA_Y_FRAC = 0.55;
 
 function WorldModel({
   url,
   isMobile,
   onLoaded,
+  onBoundingReady,
   hasCalledReady,
   hotspots,
   focusedId,
@@ -161,10 +237,12 @@ function WorldModel({
   onHover,
   onFocus,
   onCtaClick,
+  onAscend,
 }: {
   url: string;
   isMobile: boolean;
   onLoaded: () => void;
+  onBoundingReady?: (info: BoundingInfo) => void;
   hasCalledReady: React.MutableRefObject<boolean>;
   hotspots: HotspotDef[];
   focusedId: string | null;
@@ -172,6 +250,7 @@ function WorldModel({
   onHover: (id: string | null) => void;
   onFocus: (id: string | null) => void;
   onCtaClick?: (href: string) => void;
+  onAscend?: () => void;
 }) {
   const { scene } = useGLTF(url);
   const cloned = useMemo(() => {
@@ -185,10 +264,15 @@ function WorldModel({
     return c;
   }, [scene]);
 
-  const { position, scale } = useMemo(
+  const framed = useMemo(
     () => frameScene(cloned, isMobile),
     [cloned, isMobile]
   );
+  const { position, scale, size, radius } = framed;
+
+  useEffect(() => {
+    onBoundingReady?.({ size, scale, radius });
+  }, [onBoundingReady, size, scale, radius]);
 
   useFrame(() => {
     if (hasCalledReady.current) return;
@@ -196,8 +280,10 @@ function WorldModel({
     onLoaded();
   });
 
+  const ascendCtaPosition: [number, number, number] = [0, size.y * ASCEND_CTA_Y_FRAC, 0];
+
   return (
-    <group position={position} scale={[scale, scale, scale]}>
+    <group position={position} scale={[scale, scale, scale]} rotation={[0, MODEL_ROTATION_FIX, 0]}>
       <primitive object={cloned} />
       {hotspots.map((h) => (
         <React.Fragment key={h.id}>
@@ -218,6 +304,34 @@ function WorldModel({
           />
         </React.Fragment>
       ))}
+      {onAscend && (
+        <Html
+          position={ascendCtaPosition}
+          transform
+          sprite
+          center
+          distanceFactor={isMobile ? 5 : 6}
+          style={{ pointerEvents: "auto" }}
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onFocus("monument");
+              onAscend();
+            }}
+            className={`ascend-cta-pill rounded-full bg-white/90 backdrop-blur-md text-storm font-medium border border-white/50 shadow-lg hover:scale-105 active:scale-100 transition-transform duration-200 ${
+              isMobile ? "px-4 py-2 text-xs scale-90" : "px-5 py-2.5 text-sm"
+            }`}
+            style={{
+              boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
+            }}
+            aria-label="Ascend With Us — Founding Circle"
+          >
+            Ascend With Us
+          </button>
+        </Html>
+      )}
     </group>
   );
 }
@@ -328,7 +442,13 @@ function HotspotBox({
         }}
       >
         <boxGeometry args={[sx * mult, sy * mult, sz * mult]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        <meshBasicMaterial
+          transparent
+          opacity={DEBUG_HOTSPOTS ? 0.25 : 0}
+          depthWrite={false}
+          color={DEBUG_HOTSPOTS ? "#4FA3FF" : undefined}
+          wireframe={false}
+        />
       </mesh>
     </group>
   );
@@ -338,40 +458,62 @@ function CameraController({
   focusedHotspot,
   isMobile,
   mouseNorm,
+  orbitEnabled,
+  userInteracting,
+  boundingInfo,
 }: {
   focusedHotspot: HotspotDef | null;
   isMobile: boolean;
   mouseNorm: { x: number; y: number };
+  orbitEnabled: boolean;
+  userInteracting: boolean;
+  boundingInfo: BoundingInfo | null;
 }) {
   const { camera } = useThree();
   const targetPos = useRef({ x: 0, y: 0, z: 0 });
   const targetLook = useRef({ x: DEFAULT_LOOKAT[0], y: DEFAULT_LOOKAT[1], z: DEFAULT_LOOKAT[2] });
-  const targetFov = useRef(isMobile ? MOBILE_CAM.fov : DESKTOP_CAM.fov);
+  const targetFov = useRef(isMobile ? MOBILE_FOV : DESKTOP_CAM.fov);
 
-  // When isMobile or focusedHotspot changes, set targets (smooth transition, no jump)
   useEffect(() => {
     if (focusedHotspot) {
       const [px, py, pz] = focusedHotspot.focusCam;
       const [lx, ly, lz] = focusedHotspot.lookAt;
       targetPos.current = { x: px, y: py, z: pz };
       targetLook.current = { x: lx, y: ly, z: lz };
-      targetFov.current = isMobile ? MOBILE_CAM.fov : DESKTOP_CAM.fov;
-    } else {
-      const preset = isMobile ? MOBILE_CAM : DESKTOP_CAM;
+      targetFov.current = isMobile ? MOBILE_FOV : DESKTOP_CAM.fov;
+    } else if (isMobile && boundingInfo) {
+      const { size, scale } = boundingInfo;
+      const wy = size.y * scale;
+      const wz = size.z * scale;
+      targetPos.current = {
+        x: 0,
+        y: wy * MOBILE_CAM_Y_POS_MULT,
+        z: wz * MOBILE_CAM_Z_POS_MULT,
+      };
+      targetLook.current = { x: 0, y: wy * MOBILE_CAM_LOOKAT_Y_MULT, z: 0 };
+      targetFov.current = MOBILE_FOV;
+    } else if (isMobile) {
+      const preset = MOBILE_CAM_FALLBACK;
       targetPos.current = { x: preset.position[0], y: preset.position[1], z: preset.position[2] };
       targetLook.current = { x: DEFAULT_LOOKAT[0], y: DEFAULT_LOOKAT[1], z: DEFAULT_LOOKAT[2] };
-      targetFov.current = preset.fov;
+      targetFov.current = MOBILE_FOV;
+    } else {
+      targetPos.current = { x: DESKTOP_CAM.position[0], y: DESKTOP_CAM.position[1], z: DESKTOP_CAM.position[2] };
+      targetLook.current = { x: DEFAULT_LOOKAT[0], y: DEFAULT_LOOKAT[1], z: DEFAULT_LOOKAT[2] };
+      targetFov.current = DESKTOP_CAM.fov;
     }
-  }, [focusedHotspot, isMobile]);
+  }, [focusedHotspot, isMobile, boundingInfo]);
 
   useFrame((state) => {
+    if (orbitEnabled) return;
+
     const tp = targetPos.current;
     const tl = targetLook.current;
     const t = state.clock.elapsedTime;
 
     let parallaxX = 0;
     let parallaxY = 0;
-    if (!focusedHotspot) {
+    if (!focusedHotspot && !userInteracting) {
       if (isMobile) {
         parallaxX = MOBILE_DRIFT_STRENGTH * Math.sin(t * MOBILE_DRIFT_FREQ);
         parallaxY = MOBILE_DRIFT_STRENGTH * 0.5 * Math.sin(t * MOBILE_DRIFT_FREQ * 0.7);

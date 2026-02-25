@@ -13,7 +13,7 @@ const WORLD_GLB = "/hero_glb/world.glb";
 const Hero3DCanvas = dynamic(() => import("./Hero3DCanvas"), {
   ssr: false,
   loading: () => (
-    <div className="absolute inset-0 flex items-center justify-center bg-[#0a1628]">
+    <div className="absolute inset-0 flex items-center justify-center bg-[#0e1623]">
       <div className="text-white/60 text-sm">Loading…</div>
     </div>
   ),
@@ -30,6 +30,7 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
   const [ready, setReady] = useState(false);
   const [showTapHint, setShowTapHint] = useState(isMobile);
   const [mouseNorm, setMouseNorm] = useState({ x: 0, y: 0 });
+  const [userInteracting, setUserInteracting] = useState(false);
   const tapHintTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const onMouseMove = useCallback((e: React.MouseEvent<HTMLElement>) => {
@@ -83,18 +84,24 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
 
   return (
     <section
-      className="hero3d relative w-full overflow-hidden bg-[#0a1628]"
+      className="hero3d relative w-full overflow-hidden isolate"
       style={{
-        height: `${heightVh}vh`,
+        width: "100%",
+        height: isMobile ? "80vh" : "clamp(520px, 75vh, 860px)",
+        minHeight: isMobile ? 520 : undefined,
+        overflow: "hidden",
         paddingLeft: "env(safe-area-inset-left)",
         paddingRight: "env(safe-area-inset-right)",
+        paddingBottom: "env(safe-area-inset-bottom)",
+        background:
+          "linear-gradient(180deg, #0c1829 0%, #0e1f33 35%, #122640 70%, #0e2438 100%), url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E\")",
       }}
       onMouseMove={onMouseMove}
       onMouseLeave={onMouseLeave}
     >
       <Suspense
         fallback={
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0a1628]">
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0e1623]">
             <div className="text-white/60 text-sm">Loading…</div>
           </div>
         }
@@ -109,12 +116,14 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
           onFocus={handleFocus}
           onHover={handleHover}
           onCtaClick={handleCtaClick}
+          onAscend={handleAscend}
           onReady={() => setReady(true)}
+          userInteracting={userInteracting}
+          onUserInteractingChange={setUserInteracting}
         />
       </Suspense>
 
       <OverlayUI
-        onAscend={handleAscend}
         onResetView={handleResetView}
         showTapHint={showTapHint}
         ready={ready}
