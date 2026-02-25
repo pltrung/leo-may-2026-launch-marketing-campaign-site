@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useMemo, useEffect, useState, useCallback } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { useGLTF, Environment, Html, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import type { Group } from "three";
@@ -657,11 +657,11 @@ function HotspotBox({
   return (
     <group position={[x, y, z]} scale={[lift, lift, lift]}>
       <mesh
-        onClick={(e: React.MouseEvent) => {
+        onClick={(e: ThreeEvent<MouseEvent>) => {
           e.stopPropagation();
           onFocus(def.id);
         }}
-        onPointerOver={(e: React.PointerEvent) => {
+        onPointerOver={(e: ThreeEvent<PointerEvent>) => {
           e.stopPropagation();
           onHover(def.id);
           if (typeof document !== "undefined")
