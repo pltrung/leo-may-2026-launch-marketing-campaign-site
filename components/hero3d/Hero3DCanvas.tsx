@@ -32,15 +32,11 @@ const WORLD_DRIFT_Y_RAD = 0.008;
 const WORLD_DRIFT_FREQ = 0.12;
 const ISLAND_PHASE_AMP = 0.012;
 const ISLAND_PHASE_FREQ = 0.5;
-const PARALLAX_STRENGTH = 0.07;
-
 function islandPhase(id: string): number {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h << 5) - h + id.charCodeAt(i);
   return (h % 100) / 100 * Math.PI * 2;
 }
-const MOBILE_DRIFT_STRENGTH = 0.015;
-const MOBILE_DRIFT_FREQ = 0.12;
 const MOBILE_HITBOX_SCALE = 1.8;
 const DESKTOP_HITBOX_SCALE = 1.2;
 const MOBILE_SCALE_MULT = 1.08;
@@ -48,14 +44,9 @@ const HALO_RADIUS = 1.8;
 const HALO_INNER = 1.2;
 const HOTSPOT_HOVER_SCALE = 1.02;
 
-/** OrbitControls: small range so wall stays facing camera. */
-const ORBIT_MIN_DISTANCE = 5.2;
-const ORBIT_MAX_DISTANCE = 8.5;
-const ORBIT_MIN_POLAR = 0.9;
-const ORBIT_MAX_POLAR = 1.35;
-const ORBIT_MIN_AZIMUTH = -0.25;
-const ORBIT_MAX_AZIMUTH = 0.25;
-const ORBIT_ROTATE_SPEED = 0.5;
+/** Orbit limits when bounding not yet available. */
+const ORBIT_RADIUS_FALLBACK = 4;
+const ANIMATION_SETTLE_THRESHOLD = 0.02;
 
 /** Hitboxes shown only when ?debug=1 (debugUi). Set true to always show for development. */
 const DEBUG_HOTSPOTS = false;
@@ -176,12 +167,13 @@ function Scene(props: Hero3DCanvasProps) {
   const hotspotDef: HotspotDef | null = focusedId ? (hotspots.find((h) => h.id === focusedId) ?? null) : null;
   const orbitEnabled = !hotspotDef && !cameraFocusMainWall && !resetRequested;
 
-  const orbitTarget = useMemo(() => {
-    if (boundingInfo) return [boundingInfo.homeLookAt.x, boundingInfo.homeLookAt.y, boundingInfo.homeLookAt.z] as const;
-    return [DEFAULT_CINEMATIC_CAMERA.lookAt[0], DEFAULT_CINEMATIC_CAMERA.lookAt[1], DEFAULT_CINEMATIC_CAMERA.lookAt[2]] as const;
-  }, [boundingInfo]);
-  const orbitMinDist = boundingInfo ? boundingInfo.worldRadius * 0.45 : ORBIT_MIN_DISTANCE;
-  const orbitMaxDist = boundingInfo ? boundingInfo.worldRadius * 2.6 : ORBIT_MAX_DISTANCE;
+  const orbitTarget: [number, number, number] = useMemo(
+    () => [DEFAULT_CINEMATIC_CAMERA.lookAt[0], DEFAULT_CINEMATIC_CAMERA.lookAt[1], DEFAULT_CINEMATIC_CAMERA.lookAt[2]],
+    []
+  );
+  const radius = boundingInfo?.worldRadius ?? ORBIT_RADIUS_FALLBACK;
+  const orbitMinDist = radius * 1.4;
+  const orbitMaxDist = radius * 5;
 
   return (
     <>
@@ -202,14 +194,15 @@ function Scene(props: Hero3DCanvasProps) {
           target={orbitTarget}
           enablePan={false}
           enableRotate={true}
-          enableZoom={false}
+          enableZoom={true}
           minDistance={orbitMinDist}
           maxDistance={orbitMaxDist}
-          minPolarAngle={0.35}
-          maxPolarAngle={Math.PI * 0.45}
+          minPolarAngle={0.5}
+          maxPolarAngle={1.6}
           enableDamping
           dampingFactor={0.05}
           rotateSpeed={isMobile ? 0.55 : 0.75}
+          zoomSpeed={isMobile ? 0.8 : 1}
           onStart={() => onUserInteractingChange?.(true)}
           onEnd={() => onUserInteractingChange?.(false)}
         />
@@ -236,13 +229,8 @@ function Scene(props: Hero3DCanvasProps) {
       <CameraController
         focusedHotspot={hotspotDef}
         isMobile={isMobile}
-        mouseNorm={mouseNorm}
         orbitEnabled={orbitEnabled}
-        userInteracting={userInteracting}
-        boundingInfo={boundingInfo}
-        cameraFocusMainWall={cameraFocusMainWall}
         resetRequested={resetRequested}
-        entranceProgress={entranceProgress}
       />
     </>
   );
@@ -584,28 +572,20 @@ function HotspotBox({
 function CameraController({
   focusedHotspot,
   isMobile,
-  mouseNorm,
   orbitEnabled,
-  userInteracting,
-  boundingInfo,
-  cameraFocusMainWall = false,
   resetRequested = false,
-  entranceProgress = 1,
 }: {
   focusedHotspot: HotspotDef | null;
   isMobile: boolean;
-  mouseNorm: { x: number; y: number };
   orbitEnabled: boolean;
-  userInteracting: boolean;
-  boundingInfo: BoundingInfo | null;
-  cameraFocusMainWall?: boolean;
   resetRequested?: boolean;
-  entranceProgress?: number;
 }) {
   const { camera } = useThree();
   const targetPos = useRef({ x: 0, y: 0, z: 0 });
   const targetLook = useRef({ x: 0, y: 0, z: 0 });
   const targetFov = useRef(DEFAULT_CINEMATIC_CAMERA.fov);
+  const isAnimating = useRef(false);
+
   useEffect(() => {
     const dx = isMobile ? MOBILE_CAM_FALLBACK.position[0] : DEFAULT_CINEMATIC_CAMERA.position[0];
     const dy = isMobile ? MOBILE_CAM_FALLBACK.position[1] : DEFAULT_CINEMATIC_CAMERA.position[1];
@@ -617,6 +597,7 @@ function CameraController({
       targetPos.current = { x: dx, y: dy, z: dz };
       targetLook.current = { x: lx, y: ly, z: lz };
       targetFov.current = DEFAULT_CINEMATIC_CAMERA.fov;
+      isAnimating.current = true;
       return;
     }
     if (focusedHotspot) {
@@ -625,48 +606,46 @@ function CameraController({
       targetPos.current = { x: px, y: py, z: pz };
       targetLook.current = { x: tlx, y: tly, z: tlz };
       targetFov.current = DEFAULT_CINEMATIC_CAMERA.fov;
+      isAnimating.current = true;
     } else {
       targetPos.current = { x: dx, y: dy, z: dz };
       targetLook.current = { x: lx, y: ly, z: lz };
       targetFov.current = DEFAULT_CINEMATIC_CAMERA.fov;
+      isAnimating.current = false;
     }
   }, [focusedHotspot, isMobile, resetRequested]);
 
-  useFrame((state) => {
+  useFrame(() => {
     if (orbitEnabled) return;
+    if (!isAnimating.current) return;
 
     const tp = targetPos.current;
     const tl = targetLook.current;
-    const t = state.clock.elapsedTime;
-    const rise = 1 - Math.max(0, entranceProgress);
-    const dollyIn = 0.4 * rise;
-    const entranceZ = tp.z + dollyIn * 1.5;
-
-    let parallaxX = 0;
-    let parallaxY = 0;
-    if (!focusedHotspot && !userInteracting) {
-      if (isMobile) {
-        parallaxX = MOBILE_DRIFT_STRENGTH * Math.sin(t * MOBILE_DRIFT_FREQ);
-        parallaxY = MOBILE_DRIFT_STRENGTH * 0.5 * Math.sin(t * MOBILE_DRIFT_FREQ * 0.7);
-      } else {
-        parallaxX = mouseNorm.x * PARALLAX_STRENGTH;
-        parallaxY = mouseNorm.y * PARALLAX_STRENGTH;
-      }
-    }
-
-    const px = tp.x + parallaxX;
-    const py = tp.y + parallaxY;
-    const pz = rise > 0 ? entranceZ : tp.z;
-
     const lerp = focusedHotspot ? FOCUS_CAM_LERP : CAM_LERP;
-    camera.position.x += (px - camera.position.x) * lerp;
-    camera.position.y += (py - camera.position.y) * lerp;
-    camera.position.z += (pz - camera.position.z) * lerp;
+
+    camera.position.x += (tp.x - camera.position.x) * lerp;
+    camera.position.y += (tp.y - camera.position.y) * lerp;
+    camera.position.z += (tp.z - camera.position.z) * lerp;
     camera.lookAt(tl.x, tl.y, tl.z);
 
     if (camera instanceof THREE.PerspectiveCamera) {
       camera.fov += (targetFov.current - camera.fov) * FOV_LERP;
       camera.updateProjectionMatrix();
+    }
+
+    const dist = Math.hypot(
+      camera.position.x - tp.x,
+      camera.position.y - tp.y,
+      camera.position.z - tp.z
+    );
+    if (dist < ANIMATION_SETTLE_THRESHOLD) {
+      camera.position.set(tp.x, tp.y, tp.z);
+      camera.lookAt(tl.x, tl.y, tl.z);
+      if (camera instanceof THREE.PerspectiveCamera) {
+        camera.fov = targetFov.current;
+        camera.updateProjectionMatrix();
+      }
+      isAnimating.current = false;
     }
   });
 
