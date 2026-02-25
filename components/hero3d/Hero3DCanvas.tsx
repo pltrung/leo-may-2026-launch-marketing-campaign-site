@@ -7,11 +7,15 @@ import * as THREE from "three";
 import type { Group } from "three";
 import type { HotspotDef } from "./hotspots";
 
+/** Single source of truth for camera, controls, and UI. Exported for Hero3D. */
+export type HeroInteractionMode = "default" | "animating" | "focus";
+
 /** Rotate worldGroup so climbing wall faces camera. */
 const MODEL_ROTATION_FIX = Math.PI / 2;
 
-/** Desktop: cinematic default FOV. */
-const DESKTOP_FOV = 45;
+// ---------- Experience constants (intentional motion, no patches) ----------
+/** Desktop: 45–50 for composition. */
+const DESKTOP_FOV = 48;
 /** Mobile: wider FOV so all islands visible. */
 const MOBILE_FOV = 58;
 
@@ -23,23 +27,41 @@ const DEFAULT_CINEMATIC_CAMERA = {
 
 const MOBILE_CAM_FALLBACK = { position: [0, 1.2, 8] as const, fov: MOBILE_FOV };
 
-const DEFAULT_LOOKAT: [number, number, number] = [0, 1, 0];
-const CAM_LERP = 0.04;
-const FOCUS_CAM_LERP = 0.022;
-const FOV_LERP = 0.03;
-const FLOAT_AMP = 0.025;
-const FLOAT_FREQ = 0.35;
-const BREATHE_AMP = 0.006;
-const BREATHE_FREQ = 0.4;
-const WORLD_DRIFT_Y_RAD = 0.008;
-const WORLD_DRIFT_FREQ = 0.12;
-const ISLAND_PHASE_AMP = 0.012;
-const ISLAND_PHASE_FREQ = 0.5;
+/** Vision Pro–style: deterministic framing from radius r only. */
+const FRAME_TARGET_UP = 0.2;
+const FRAME_POS_UP = 0.9;
+const FRAME_POS_FORWARD = 2.7;
+
+/** Critically damped spring: ζ=1, ω in [10,14]. */
+const SPRING_ZETA = 1;
+const SPRING_OMEGA_CAMERA = 12;
+const SPRING_OMEGA_WORLD = 10;
+const SPRING_OMEGA_PARALLAX = 11;
+
+/** Island breathing: A=0.03r, A2=0.01r, second freq 0.13. */
+const BREATH_A_FAC = 0.03;
+const BREATH_A2_FAC = 0.01;
+const BREATH_OMEGA = 0.5;
+const BREATH_OMEGA2 = 0.13;
+
+/** Desktop parallax: kx~0.1r, ky~0.07r. */
+const PARALLAX_KX = 0.1;
+const PARALLAX_KY = 0.07;
+
 function islandPhase(id: string): number {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h << 5) - h + id.charCodeAt(i);
   return (h % 100) / 100 * Math.PI * 2;
 }
+function islandPhase2(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h << 3) + h + id.charCodeAt(i);
+  return (h % 100) / 100 * Math.PI * 2;
+}
+/** Click vs drag: only treat as island click when release within time and movement. */
+const CLICK_MAX_MS = 260;
+const CLICK_MAX_DIST_PX = 10;
+
 /** Mobile: 2x hitbox for reliable tap. */
 const MOBILE_HITBOX_SCALE = 2.5;
 const DESKTOP_HITBOX_SCALE = 2.0;
@@ -50,9 +72,8 @@ const HOTSPOT_HOVER_SCALE = 1.02;
 
 /** Orbit limits when bounding not yet available. */
 const ORBIT_RADIUS_FALLBACK = 4;
-const ANIMATION_SETTLE_THRESHOLD = 0.02;
-/** World rotation lerp for focus choreography (~600ms to settle). */
-const WORLD_ROTATION_LERP = 0.03;
+const ANIMATION_SETTLE_THRESHOLD = 0.015;
+const ANIMATION_SETTLE_VEL_THRESHOLD = 0.002;
 
 /** Get world group rotation Y so this island faces camera. */
 function getFocusWorldRotationY(h: HotspotDef): number {
@@ -61,34 +82,67 @@ function getFocusWorldRotationY(h: HotspotDef): number {
   return x === 0 && z === 0 ? 0 : Math.atan2(x, z);
 }
 
+/** Critically damped spring step (ζ=1). Returns new x, new v. */
+function springStep(
+  x: number,
+  v: number,
+  target: number,
+  omega: number,
+  zeta: number,
+  dt: number
+): [number, number] {
+  const acc = omega * omega * (target - x) - 2 * zeta * omega * v;
+  const vNew = v + acc * dt;
+  const xNew = x + vNew * dt;
+  return [xNew, vNew];
+}
+
+/** 3D spring step for Vector3 position. */
+function springStep3(
+  x: THREE.Vector3,
+  v: THREE.Vector3,
+  target: THREE.Vector3,
+  omega: number,
+  zeta: number,
+  dt: number
+): void {
+  const ax = omega * omega * (target.x - x.x) - 2 * zeta * omega * v.x;
+  const ay = omega * omega * (target.y - x.y) - 2 * zeta * omega * v.y;
+  const az = omega * omega * (target.z - x.z) - 2 * zeta * omega * v.z;
+  v.x += ax * dt;
+  v.y += ay * dt;
+  v.z += az * dt;
+  x.x += v.x * dt;
+  x.y += v.y * dt;
+  x.z += v.z * dt;
+}
+
 /** Hitboxes shown only when ?debug=1 (debugUi). Set true to always show for development. */
 const DEBUG_HOTSPOTS = false;
 
 export interface Hero3DCanvasProps {
   worldUrl: string;
   hotspots: HotspotDef[];
+  /** Single source of truth: default (orbit) | animating (lerp) | focus (static). */
+  interactionMode: HeroInteractionMode;
   focusedId: string | null;
+  /** When interactionMode === "animating", true = transitioning to default view. */
+  animatingToDefault: boolean;
   hoveredHotspotId: string | null;
   isMobile: boolean;
   mouseNorm: { x: number; y: number };
   onFocus: (id: string | null) => void;
   onHover: (id: string | null) => void;
   onCtaClick?: (href: string) => void;
-  /** In-scene Ascend CTA click: opens confirm panel (does not call onJoin). */
   onAscendCtaClick?: () => void;
-  /** When true, camera focuses toward main wall (e.g. when Ascend panel is open). */
-  cameraFocusMainWall?: boolean;
   onReady: () => void;
   onBoundingReady?: (info: BoundingInfo) => void;
+  /** Called when focus/default animation has settled; arg = true if we transitioned to default. */
+  onAnimationSettled: (wasAnimatingToDefault: boolean) => void;
   userInteracting?: boolean;
   onUserInteractingChange?: (v: boolean) => void;
-  /** Show hotspot hitboxes when true (?debug=1). */
   debugUi?: boolean;
-  /** Increment to trigger reset camera to home framing. */
-  resetViewTrigger?: number;
-  /** Mobile: show subtle pulse on center island after idle (discoverability). */
   showCenterPulse?: boolean;
-  /** 0..1 entrance progress for dolly + rise animation. */
   entranceProgress?: number;
 }
 
@@ -109,6 +163,7 @@ export default function Hero3DCanvas(props: Hero3DCanvasProps) {
       }}
       onCreated={({ gl }) => {
         gl.setClearColor(0x000000, 1);
+        gl.setClearAlpha(1);
       }}
       dpr={[1, dpr]}
       camera={{
@@ -126,36 +181,64 @@ export default function Hero3DCanvas(props: Hero3DCanvasProps) {
 }
 
 
+type PendingClick = { id: string; downTime: number; downX: number; downY: number; cancelled: boolean };
+
 function Scene(props: Hero3DCanvasProps) {
   const {
     worldUrl,
     hotspots,
+    interactionMode,
     focusedId,
+    animatingToDefault,
     hoveredHotspotId,
     isMobile,
-    mouseNorm,
     onFocus,
     onHover,
     onCtaClick,
     onAscendCtaClick,
-    cameraFocusMainWall = false,
     onReady,
     onBoundingReady,
+    onAnimationSettled,
     userInteracting = false,
     onUserInteractingChange,
     debugUi = false,
-    resetViewTrigger = 0,
     showCenterPulse = false,
     entranceProgress = 1,
   } = props;
   const groupRef = useRef<Group>(null);
+  const pendingClickRef = useRef<PendingClick | null>(null);
+
+  const onIslandPointerDown = useCallback(
+    (id: string, clientX: number, clientY: number) => {
+      const downTime = Date.now();
+      pendingClickRef.current = { id, downTime, downX: clientX, downY: clientY, cancelled: false };
+      const onMove = (e: PointerEvent) => {
+        if (!pendingClickRef.current || pendingClickRef.current.id !== id) return;
+        const dx = e.clientX - pendingClickRef.current.downX;
+        const dy = e.clientY - pendingClickRef.current.downY;
+        if (dx * dx + dy * dy > CLICK_MAX_DIST_PX * CLICK_MAX_DIST_PX) pendingClickRef.current.cancelled = true;
+      };
+      const onUp = () => {
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+        const pending = pendingClickRef.current;
+        pendingClickRef.current = null;
+        if (pending && !pending.cancelled && Date.now() - pending.downTime < CLICK_MAX_MS) {
+          onFocus(pending.id);
+        }
+      };
+      document.addEventListener("pointermove", onMove, { passive: true });
+      document.addEventListener("pointerup", onUp, { passive: true });
+    },
+    [onFocus]
+  );
   const hasCalledReady = useRef(false);
   const hasSetInitialCamera = useRef(false);
   const [boundingInfo, setBoundingInfo] = useState<BoundingInfo | null>(null);
-  const [resetRequested, setResetRequested] = useState(false);
   const { camera } = useThree();
   const onBoundingReadyStable = useCallback((info: BoundingInfo) => setBoundingInfo(info), []);
 
+  // Initial camera: set once when bounding is ready. No reposition on resize (R3F updates aspect only).
   useEffect(() => {
     if (!boundingInfo || hasSetInitialCamera.current) return;
     hasSetInitialCamera.current = true;
@@ -165,54 +248,95 @@ function Scene(props: Hero3DCanvasProps) {
       camera.updateProjectionMatrix();
     }
     if (debugUi) {
-      console.log("[Hero] fit-to-model default camera position:", boundingInfo.homePosition.toArray(), "target:", boundingInfo.homeLookAt.toArray());
+      console.log("[Hero] default camera set once:", boundingInfo.homePosition.toArray());
     }
   }, [boundingInfo, camera, debugUi]);
 
-  useEffect(() => {
-    if (resetViewTrigger > 0) {
-      setResetRequested(true);
-      const t = setTimeout(() => setResetRequested(false), 650);
-      return () => clearTimeout(t);
-    }
-  }, [resetViewTrigger]);
+  const orbitEnabled = interactionMode === "default";
+  const hotspotDef: HotspotDef | null =
+    focusedId && !animatingToDefault ? (hotspots.find((h) => h.id === focusedId) ?? null) : null;
+  const targetWorldRotationY =
+    interactionMode === "animating"
+      ? animatingToDefault
+        ? 0
+        : focusedId
+          ? getFocusWorldRotationY(hotspots.find((h) => h.id === focusedId)!)
+          : 0
+      : interactionMode === "focus" && focusedId
+        ? getFocusWorldRotationY(hotspots.find((h) => h.id === focusedId)!)
+        : 0;
 
-  const hotspotDef: HotspotDef | null = focusedId ? (hotspots.find((h) => h.id === focusedId) ?? null) : null;
-  const orbitEnabled = !hotspotDef && !cameraFocusMainWall && !resetRequested;
-  const targetWorldRotationY = hotspotDef ? getFocusWorldRotationY(hotspotDef) : 0;
+  const worldRotY = useRef(0);
+  const worldRotVel = useRef(0);
 
-  const mobileViewYOffset = isMobile ? 0.12 : 0;
   useFrame((state) => {
     const g = groupRef.current;
     if (!g) return;
-    const t = state.clock.elapsedTime;
-    const rise = 1 - Math.max(0, entranceProgress);
-    const entranceY = -0.15 * rise;
-    const baseY = mobileViewYOffset + entranceY;
-    if (!orbitEnabled) {
-      let diff = targetWorldRotationY - g.rotation.y;
+    const dt = Math.min(state.clock.getDelta(), 0.05);
+    if (interactionMode === "animating" || (interactionMode === "focus" && focusedId)) {
+      let diff = targetWorldRotationY - worldRotY.current;
       while (diff > Math.PI) diff -= 2 * Math.PI;
       while (diff < -Math.PI) diff += 2 * Math.PI;
-      g.rotation.y += diff * WORLD_ROTATION_LERP;
-    } else if (!userInteracting) {
-      g.rotation.y += WORLD_DRIFT_Y_RAD * Math.sin(t * WORLD_DRIFT_FREQ);
-    }
-    if (!userInteracting) {
-      g.position.y = baseY + FLOAT_AMP * Math.sin(t * FLOAT_FREQ);
-      g.scale.setScalar(1 + BREATHE_AMP * Math.sin(t * BREATHE_FREQ));
+      const [next, vNext] = springStep(
+        worldRotY.current,
+        worldRotVel.current,
+        worldRotY.current + diff,
+        SPRING_OMEGA_WORLD,
+        SPRING_ZETA,
+        dt
+      );
+      worldRotY.current = next;
+      worldRotVel.current = vNext;
+      g.rotation.y = worldRotY.current;
     } else {
-      g.position.y = baseY;
+      worldRotY.current = g.rotation.y;
+      worldRotVel.current = 0;
     }
   });
 
 
-  const orbitTarget: [number, number, number] = useMemo(() => {
+  const orbitTargetVec: [number, number, number] = useMemo(() => {
+    if (boundingInfo?.orbitTarget) return [boundingInfo.orbitTarget.x, boundingInfo.orbitTarget.y, boundingInfo.orbitTarget.z];
     if (boundingInfo) return [boundingInfo.homeLookAt.x, boundingInfo.homeLookAt.y, boundingInfo.homeLookAt.z];
-    return [DEFAULT_CINEMATIC_CAMERA.lookAt[0], DEFAULT_CINEMATIC_CAMERA.lookAt[1], DEFAULT_CINEMATIC_CAMERA.lookAt[2]];
+    return [0, 1, 0];
   }, [boundingInfo]);
   const radius = boundingInfo?.worldRadius ?? ORBIT_RADIUS_FALLBACK;
   const orbitMinDist = isMobile ? radius * 1.5 : radius * 1.4;
   const orbitMaxDist = radius * 5;
+
+  const parallaxOffset = useRef(new THREE.Vector3(0, 0, 0));
+  const parallaxVel = useRef(new THREE.Vector3(0, 0, 0));
+  const parallaxPrev = useRef(new THREE.Vector3(0, 0, 0));
+
+  useFrame((state) => {
+    if (orbitEnabled && !isMobile && radius > 0) {
+      const dt = Math.min(state.clock.getDelta(), 0.05);
+      const { mouseNorm } = props;
+      const target = new THREE.Vector3(
+        mouseNorm.x * PARALLAX_KX * radius,
+        mouseNorm.y * PARALLAX_KY * radius,
+        0
+      );
+      springStep3(
+        parallaxOffset.current,
+        parallaxVel.current,
+        target,
+        SPRING_OMEGA_PARALLAX,
+        SPRING_ZETA,
+        dt
+      );
+      const cam = state.camera;
+      cam.position.sub(parallaxPrev.current);
+      cam.position.add(parallaxOffset.current);
+      parallaxPrev.current.copy(parallaxOffset.current);
+    } else {
+      const cam = state.camera;
+      cam.position.sub(parallaxPrev.current);
+      parallaxPrev.current.set(0, 0, 0);
+      parallaxOffset.current.set(0, 0, 0);
+      parallaxVel.current.set(0, 0, 0);
+    }
+  }, 1);
 
   return (
     <>
@@ -230,18 +354,18 @@ function Scene(props: Hero3DCanvasProps) {
       )}
       {orbitEnabled && (
         <OrbitControls
-          target={orbitTarget}
+          target={orbitTargetVec}
           enablePan={false}
           enableRotate={true}
           enableZoom={true}
           minDistance={orbitMinDist}
           maxDistance={orbitMaxDist}
-          minPolarAngle={0.5}
-          maxPolarAngle={1.6}
+          minPolarAngle={0.35}
+          maxPolarAngle={1.55}
           enableDamping
           dampingFactor={isMobile ? 0.08 : 0.1}
-          rotateSpeed={isMobile ? 0.9 : 0.85}
-          zoomSpeed={isMobile ? 1.0 : 0.8}
+          rotateSpeed={isMobile ? 0.75 : 0.7}
+          zoomSpeed={isMobile ? 0.9 : 0.75}
           onStart={() => onUserInteractingChange?.(true)}
           onEnd={() => onUserInteractingChange?.(false)}
         />
@@ -258,7 +382,7 @@ function Scene(props: Hero3DCanvasProps) {
           focusedId={focusedId}
           hoveredHotspotId={hoveredHotspotId}
           onHover={onHover}
-          onFocus={onFocus}
+          onIslandPointerDown={onIslandPointerDown}
           onCtaClick={onCtaClick}
           onAscendCtaClick={onAscendCtaClick}
           debugUi={debugUi}
@@ -266,11 +390,13 @@ function Scene(props: Hero3DCanvasProps) {
         />
       </group>
       <CameraController
-        focusedHotspot={hotspotDef}
-        isMobile={isMobile}
-        orbitEnabled={orbitEnabled}
-        resetRequested={resetRequested}
+        interactionMode={interactionMode}
+        animatingToDefault={animatingToDefault}
+        focusedId={focusedId}
+        hotspots={hotspots}
         boundingInfo={boundingInfo}
+        isMobile={isMobile}
+        onAnimationSettled={onAnimationSettled}
       />
     </>
   );
@@ -284,21 +410,22 @@ export interface BoundingInfo {
   worldRadius: number;
   /** World-space center (after centering) = origin. */
   center: THREE.Vector3;
-  /** Camera home position: distance = radius*2.4, lower angle. */
+  /** Default camera: pos = target + up*0.9r + forward*2.7r. */
   homePosition: THREE.Vector3;
-  /** Camera home lookAt: cinematic tilt (0, radius*0.6, -radius*0.2). */
+  /** LookAt = target = center + up*0.2r. */
   homeLookAt: THREE.Vector3;
+  /** OrbitControls target = center + up*0.2r. */
+  orbitTarget: THREE.Vector3;
 }
 
 /**
- * Center the world at origin and scale to fit. Bounding computed AFTER GLB loads.
- * Desktop: distance 2.4*radius, target slightly above center.
- * Mobile: further back (2.8*radius), camera Y raised (0.7*radius), target = bounding center (0,0,0).
+ * Deterministic framing from bounds only. Compute bounds → center world → use r.
+ * target = center + up*(0.2r), pos = target + up*(0.9r) + forward*(2.7r). No magic numbers.
  */
 function frameScene(
   object: THREE.Object3D,
   isMobile: boolean
-): { position: [number, number, number]; scale: number; size: THREE.Vector3; radius: number; worldRadius: number; center: THREE.Vector3; homePosition: THREE.Vector3; homeLookAt: THREE.Vector3 } {
+): { position: [number, number, number]; scale: number; size: THREE.Vector3; radius: number; worldRadius: number; center: THREE.Vector3; homePosition: THREE.Vector3; homeLookAt: THREE.Vector3; orbitTarget: THREE.Vector3 } {
   const box = new THREE.Box3().setFromObject(object);
   const center = new THREE.Vector3();
   box.getCenter(center);
@@ -309,42 +436,52 @@ function frameScene(
   const maxDim = Math.max(size.x, size.y, size.z);
   const fitScale = maxDim > 0 ? 4 / maxDim : 1;
   const scale = isMobile ? fitScale * MOBILE_SCALE_MULT : fitScale;
-  const worldRadius = sphere.radius * scale;
-  const boundingCenter = new THREE.Vector3(0, 0, 0);
-  let homePosition: THREE.Vector3;
-  let homeLookAt: THREE.Vector3;
-  if (isMobile) {
-    const distance = worldRadius * 2.8;
-    const camY = worldRadius * 0.7;
-    homePosition = new THREE.Vector3(0, camY, distance);
-    homeLookAt = boundingCenter.clone();
-  } else {
-    const distance = worldRadius * 2.4;
-    homePosition = new THREE.Vector3(0, worldRadius * 0.6, distance);
-    homeLookAt = new THREE.Vector3(0, worldRadius * 0.6, -worldRadius * 0.2);
-  }
+  const r = sphere.radius * scale;
+  const up = new THREE.Vector3(0, 1, 0);
+  const forward = new THREE.Vector3(0, 0, 1);
+  const target = new THREE.Vector3(0, 0, 0).addScaledVector(up, FRAME_TARGET_UP * r);
+  const orbitTarget = target.clone();
+  const homeLookAt = target.clone();
+  const homePosition = target
+    .clone()
+    .addScaledVector(up, FRAME_POS_UP * r)
+    .addScaledVector(forward, FRAME_POS_FORWARD * r);
   return {
     position: [-center.x, -center.y, -center.z],
     scale,
     size,
     radius: sphere.radius,
-    worldRadius,
-    center: boundingCenter,
+    worldRadius: r,
+    center: new THREE.Vector3(0, 0, 0),
     homePosition,
     homeLookAt,
+    orbitTarget,
   };
 }
 
 /** Ascend CTA: fraction of bounding size.y for center-island top. Tune if needed. */
 const ASCEND_CTA_Y_FRAC = 0.55;
 
-function IslandBreathingGroup({ phase, children }: { phase: number; children: React.ReactNode }) {
+/** Ambient hover: y(t)=A*sin(wt+phi)+A2*sin(0.13t+phi2), A=0.03r, A2=0.01r. Camera never floats. */
+function IslandBreathingGroup({
+  worldRadius,
+  phase,
+  phase2,
+  children,
+}: {
+  worldRadius: number;
+  phase: number;
+  phase2: number;
+  children: React.ReactNode;
+}) {
   const ref = useRef<Group>(null);
   useFrame((state) => {
     const g = ref.current;
     if (!g) return;
     const t = state.clock.elapsedTime;
-    g.position.y = ISLAND_PHASE_AMP * Math.sin(t * ISLAND_PHASE_FREQ + phase);
+    const A = BREATH_A_FAC * worldRadius;
+    const A2 = BREATH_A2_FAC * worldRadius;
+    g.position.y = A * Math.sin(BREATH_OMEGA * t + phase) + A2 * Math.sin(BREATH_OMEGA2 * t + phase2);
   });
   return <group ref={ref}>{children}</group>;
 }
@@ -359,7 +496,7 @@ function WorldModel({
   focusedId,
   hoveredHotspotId,
   onHover,
-  onFocus,
+  onIslandPointerDown,
   onCtaClick,
   onAscendCtaClick,
   debugUi,
@@ -374,7 +511,7 @@ function WorldModel({
   focusedId: string | null;
   hoveredHotspotId: string | null;
   onHover: (id: string | null) => void;
-  onFocus: (id: string | null) => void;
+  onIslandPointerDown: (id: string, clientX: number, clientY: number) => void;
   onCtaClick?: (href: string) => void;
   onAscendCtaClick?: () => void;
   debugUi?: boolean;
@@ -396,11 +533,11 @@ function WorldModel({
     () => frameScene(cloned, isMobile),
     [cloned, isMobile]
   );
-  const { position, scale, size, radius, worldRadius, center, homePosition, homeLookAt } = framed;
+  const { position, scale, size, radius, worldRadius, center, homePosition, homeLookAt, orbitTarget } = framed;
 
   useEffect(() => {
-    onBoundingReady?.({ size, scale, radius, worldRadius, center, homePosition, homeLookAt });
-  }, [onBoundingReady, size, scale, radius, worldRadius, center, homePosition, homeLookAt]);
+    onBoundingReady?.({ size, scale, radius, worldRadius, center, homePosition, homeLookAt, orbitTarget });
+  }, [onBoundingReady, size, scale, radius, worldRadius, center, homePosition, homeLookAt, orbitTarget]);
 
   useFrame(() => {
     if (hasCalledReady.current) return;
@@ -409,14 +546,18 @@ function WorldModel({
   });
 
   const ascendCtaPosition: [number, number, number] = [0, size.y * ASCEND_CTA_Y_FRAC, 0];
-  const centerIsland = hotspots.find((h) => h.id === "main");
-  const showAscendCta = onAscendCtaClick && (focusedId === "main" || (!isMobile && hoveredHotspotId === "main"));
+  const showAscendCta = onAscendCtaClick && focusedId === "main";
 
   return (
     <group position={position} scale={[scale, scale, scale]} rotation={[0, MODEL_ROTATION_FIX, 0]}>
       <primitive object={cloned} />
       {hotspots.map((h) => (
-        <IslandBreathingGroup key={h.id} phase={islandPhase(h.id)}>
+        <IslandBreathingGroup
+          key={h.id}
+          worldRadius={worldRadius}
+          phase={islandPhase(h.id)}
+          phase2={islandPhase2(h.id)}
+        >
           <HotspotHalo def={h} visible={hoveredHotspotId === h.id || focusedId === h.id} isHovered={hoveredHotspotId === h.id} />
           <HotspotBox
             def={h}
@@ -424,7 +565,7 @@ function WorldModel({
             isHovered={hoveredHotspotId === h.id}
             isMobile={isMobile}
             onHover={onHover}
-            onFocus={onFocus}
+            onIslandPointerDown={onIslandPointerDown}
             showDebugBox={DEBUG_HOTSPOTS || debugUi === true}
           />
           <HotspotPill
@@ -435,9 +576,10 @@ function WorldModel({
           />
         </IslandBreathingGroup>
       ))}
-      {isMobile && showCenterPulse && !focusedId && centerIsland && (
-        <CenterPulseRing position={centerIsland.position} />
-      )}
+      {isMobile && showCenterPulse && !focusedId && (() => {
+        const centerIsland = hotspots.find((h) => h.id === "main");
+        return centerIsland ? <CenterPulseRing position={centerIsland.position} /> : null;
+      })()}
       {showAscendCta && (
         <Html
           position={ascendCtaPosition}
@@ -445,7 +587,7 @@ function WorldModel({
           sprite
           center
           distanceFactor={isMobile ? 5 : 6}
-          style={{ pointerEvents: "auto" }}
+          style={{ pointerEvents: "auto", animation: "hero-ascend-fade-in 0.35s ease-out forwards" }}
         >
           <button
             type="button"
@@ -573,7 +715,7 @@ function HotspotBox({
   isHovered,
   isMobile,
   onHover,
-  onFocus,
+  onIslandPointerDown,
   showDebugBox,
 }: {
   def: HotspotDef;
@@ -581,7 +723,7 @@ function HotspotBox({
   isHovered: boolean;
   isMobile: boolean;
   onHover: (id: string | null) => void;
-  onFocus: (id: string | null) => void;
+  onIslandPointerDown: (id: string, clientX: number, clientY: number) => void;
   showDebugBox?: boolean;
 }) {
   const [x, y, z] = def.position;
@@ -592,7 +734,11 @@ function HotspotBox({
   return (
     <group position={[x, y, z]} scale={[lift, lift, lift]}>
       <mesh
-        onPointerDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => {
+          const ev = e.nativeEvent;
+          onIslandPointerDown(def.id, ev.clientX, ev.clientY);
+          if (showDebugBox) console.log("[Hero] pointer down island:", def.id);
+        }}
         onPointerOver={(e) => {
           e.stopPropagation();
           onHover(def.id);
@@ -602,12 +748,6 @@ function HotspotBox({
         onPointerOut={() => {
           onHover(null);
           document.body.style.cursor = "default";
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          const nextId = isFocused ? null : def.id;
-          onFocus(nextId);
-          if (showDebugBox) console.log("[Hero] click island:", def.id, "→ focus:", nextId);
         }}
       >
         <boxGeometry args={[sx * mult, sy * mult, sz * mult]} />
@@ -624,86 +764,118 @@ function HotspotBox({
 }
 
 function CameraController({
-  focusedHotspot,
-  isMobile,
-  orbitEnabled,
-  resetRequested = false,
+  interactionMode,
+  animatingToDefault,
+  focusedId,
+  hotspots,
   boundingInfo = null,
+  isMobile,
+  onAnimationSettled,
 }: {
-  focusedHotspot: HotspotDef | null;
-  isMobile: boolean;
-  orbitEnabled: boolean;
-  resetRequested?: boolean;
+  interactionMode: HeroInteractionMode;
+  animatingToDefault: boolean;
+  focusedId: string | null;
+  hotspots: HotspotDef[];
   boundingInfo?: BoundingInfo | null;
+  isMobile: boolean;
+  onAnimationSettled: (wasAnimatingToDefault: boolean) => void;
 }) {
   const { camera } = useThree();
-  const targetPos = useRef({ x: 0, y: 0, z: 0 });
-  const targetLook = useRef({ x: 0, y: 0, z: 0 });
+  const targetPos = useRef(new THREE.Vector3(0, 0, 0));
+  const targetLook = useRef(new THREE.Vector3(0, 0, 0));
+  const pos = useRef(new THREE.Vector3(0, 0, 0));
+  const posVel = useRef(new THREE.Vector3(0, 0, 0));
+  const look = useRef(new THREE.Vector3(0, 0, 0));
+  const lookVel = useRef(new THREE.Vector3(0, 0, 0));
   const defaultFov = isMobile ? MOBILE_FOV : DESKTOP_FOV;
   const targetFov = useRef(defaultFov);
-  const isAnimating = useRef(false);
+  const fovVel = useRef(0);
+  const hasFiredSettled = useRef(false);
 
   useEffect(() => {
-    const useBounding = boundingInfo && (resetRequested || !focusedHotspot);
-    const dx = useBounding ? boundingInfo.homePosition.x : (isMobile ? MOBILE_CAM_FALLBACK.position[0] : DEFAULT_CINEMATIC_CAMERA.position[0]);
-    const dy = useBounding ? boundingInfo.homePosition.y : (isMobile ? MOBILE_CAM_FALLBACK.position[1] : DEFAULT_CINEMATIC_CAMERA.position[1]);
-    const dz = useBounding ? boundingInfo.homePosition.z : (isMobile ? MOBILE_CAM_FALLBACK.position[2] : DEFAULT_CINEMATIC_CAMERA.position[2]);
-    const lx = useBounding ? boundingInfo.homeLookAt.x : DEFAULT_CINEMATIC_CAMERA.lookAt[0];
-    const ly = useBounding ? boundingInfo.homeLookAt.y : DEFAULT_CINEMATIC_CAMERA.lookAt[1];
-    const lz = useBounding ? boundingInfo.homeLookAt.z : DEFAULT_CINEMATIC_CAMERA.lookAt[2];
-    if (resetRequested) {
-      targetPos.current = { x: dx, y: dy, z: dz };
-      targetLook.current = { x: lx, y: ly, z: lz };
+    if (interactionMode !== "animating") return;
+    hasFiredSettled.current = false;
+    if (animatingToDefault) {
+      if (boundingInfo) {
+        targetPos.current.set(
+          boundingInfo.homePosition.x,
+          boundingInfo.homePosition.y,
+          boundingInfo.homePosition.z
+        );
+        targetLook.current.set(
+          boundingInfo.homeLookAt.x,
+          boundingInfo.homeLookAt.y,
+          boundingInfo.homeLookAt.z
+        );
+      } else {
+        const fallback = isMobile ? MOBILE_CAM_FALLBACK : DEFAULT_CINEMATIC_CAMERA;
+        targetPos.current.set(fallback.position[0], fallback.position[1], fallback.position[2]);
+        targetLook.current.set(
+          DEFAULT_CINEMATIC_CAMERA.lookAt[0],
+          DEFAULT_CINEMATIC_CAMERA.lookAt[1],
+          DEFAULT_CINEMATIC_CAMERA.lookAt[2]
+        );
+      }
       targetFov.current = defaultFov;
-      isAnimating.current = true;
-      return;
+    } else if (focusedId) {
+      const hotspot = hotspots.find((h) => h.id === focusedId);
+      if (hotspot) {
+        const [px, py, pz] = hotspot.focusCam;
+        const [lx, ly, lz] = hotspot.lookAt;
+        targetPos.current.set(px, py, pz);
+        targetLook.current.set(lx, ly, lz);
+        targetFov.current = defaultFov;
+      }
     }
-    if (focusedHotspot) {
-      const [px, py, pz] = focusedHotspot.focusCam;
-      const [tlx, tly, tlz] = focusedHotspot.lookAt;
-      targetPos.current = { x: px, y: py, z: pz };
-      targetLook.current = { x: tlx, y: tly, z: tlz };
-      targetFov.current = defaultFov;
-      isAnimating.current = true;
-    } else {
-      targetPos.current = { x: dx, y: dy, z: dz };
-      targetLook.current = { x: lx, y: ly, z: lz };
-      targetFov.current = defaultFov;
-      isAnimating.current = false;
-    }
-  }, [focusedHotspot, isMobile, resetRequested, boundingInfo, defaultFov]);
+    pos.current.copy(camera.position);
+    look.current.copy(targetLook.current);
+    posVel.current.set(0, 0, 0);
+    lookVel.current.set(0, 0, 0);
+    fovVel.current = 0;
+  }, [interactionMode, animatingToDefault, focusedId, hotspots, boundingInfo, isMobile, defaultFov, camera]);
 
-  useFrame(() => {
-    if (orbitEnabled) return;
-    if (!isAnimating.current) return;
+  useFrame((state) => {
+    if (interactionMode !== "animating") return;
 
+    const dt = Math.min(state.clock.getDelta(), 0.05);
     const tp = targetPos.current;
     const tl = targetLook.current;
-    const lerp = focusedHotspot ? FOCUS_CAM_LERP : CAM_LERP;
 
-    camera.position.x += (tp.x - camera.position.x) * lerp;
-    camera.position.y += (tp.y - camera.position.y) * lerp;
-    camera.position.z += (tp.z - camera.position.z) * lerp;
-    camera.lookAt(tl.x, tl.y, tl.z);
+    springStep3(pos.current, posVel.current, tp, SPRING_OMEGA_CAMERA, SPRING_ZETA, dt);
+    springStep3(look.current, lookVel.current, tl, SPRING_OMEGA_CAMERA, SPRING_ZETA, dt);
+
+    camera.position.copy(pos.current);
+    camera.lookAt(look.current);
 
     if (camera instanceof THREE.PerspectiveCamera) {
-      camera.fov += (targetFov.current - camera.fov) * FOV_LERP;
+      const [fovNext, fovVNext] = springStep(
+        camera.fov,
+        fovVel.current,
+        targetFov.current,
+        SPRING_OMEGA_CAMERA,
+        SPRING_ZETA,
+        dt
+      );
+      camera.fov = fovNext;
+      fovVel.current = fovVNext;
       camera.updateProjectionMatrix();
     }
 
-    const dist = Math.hypot(
-      camera.position.x - tp.x,
-      camera.position.y - tp.y,
-      camera.position.z - tp.z
-    );
-    if (dist < ANIMATION_SETTLE_THRESHOLD) {
-      camera.position.set(tp.x, tp.y, tp.z);
+    const dist = pos.current.distanceTo(tp);
+    const velMag = posVel.current.length();
+    if (
+      dist < ANIMATION_SETTLE_THRESHOLD &&
+      velMag < ANIMATION_SETTLE_VEL_THRESHOLD &&
+      !hasFiredSettled.current
+    ) {
+      hasFiredSettled.current = true;
+      camera.position.copy(tp);
       camera.lookAt(tl.x, tl.y, tl.z);
       if (camera instanceof THREE.PerspectiveCamera) {
         camera.fov = targetFov.current;
         camera.updateProjectionMatrix();
       }
-      isAnimating.current = false;
+      onAnimationSettled(animatingToDefault);
     }
   });
 

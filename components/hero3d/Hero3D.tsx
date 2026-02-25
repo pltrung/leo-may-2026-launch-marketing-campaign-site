@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useRef, Suspense } from "react";
 import dynamic from "next/dynamic";
 import OverlayUI from "./OverlayUI";
+import type { HeroInteractionMode } from "./Hero3DCanvas";
 import { HOTSPOTS, type HotspotDef } from "./hotspots";
 import { useResponsiveHero } from "./useResponsiveHero";
 import { navigateToHotspotHref } from "./navigateToHotspot";
@@ -16,7 +17,7 @@ function getDebugUi(): boolean {
 }
 
 // Lazy-load Canvas and 3D scene to avoid SSR and reduce initial bundle
-const Hero3DCanvas = dynamic(() => import("./Hero3DCanvas"), {
+const Hero3DCanvasLazy = dynamic(() => import("./Hero3DCanvas"), {
   ssr: false,
   loading: () => (
     <div className="absolute inset-0 flex items-center justify-center bg-black">
@@ -31,7 +32,9 @@ export interface Hero3DProps {
 
 export default function Hero3D({ onJoin }: Hero3DProps) {
   const { isMobile } = useResponsiveHero();
+  const [interactionMode, setInteractionMode] = useState<HeroInteractionMode>("default");
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [animatingToDefault, setAnimatingToDefault] = useState(false);
   const [hoveredHotspotId, setHoveredHotspotId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [showTapHint, setShowTapHint] = useState(isMobile);
@@ -40,13 +43,11 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
   const [ascendPanelOpen, setAscendPanelOpen] = useState(false);
   const [ascendTransitioning, setAscendTransitioning] = useState(false);
   const [debugUi, setDebugUi] = useState(false);
-  const [resetViewTrigger, setResetViewTrigger] = useState(0);
   const [showCenterPulse, setShowCenterPulse] = useState(false);
   const [panelRevealed, setPanelRevealed] = useState(false);
   const [entranceProgress, setEntranceProgress] = useState(0);
   const tapHintTimer = useRef<ReturnType<typeof setTimeout>>();
   const centerPulseTimer = useRef<ReturnType<typeof setTimeout>>();
-  const panelRevealTimer = useRef<ReturnType<typeof setTimeout>>();
   const heroStageRef = useRef<HTMLElement>(null);
   const entranceStart = useRef<number | null>(null);
   const entranceRaf = useRef<number>(0);
@@ -64,19 +65,44 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
   }, [isMobile]);
   const onMouseLeave = useCallback(() => setMouseNorm({ x: 0, y: 0 }), []);
 
+  const handleAnimationSettled = useCallback((wasAnimatingToDefault: boolean) => {
+    if (wasAnimatingToDefault) {
+      setFocusedId(null);
+      setPanelRevealed(false);
+      setAnimatingToDefault(false);
+      setInteractionMode("default");
+    } else {
+      setAnimatingToDefault(false);
+      setInteractionMode("focus");
+      setTimeout(() => setPanelRevealed(true), 120);
+    }
+  }, []);
+
   const handleFocus = useCallback((id: string | null) => {
     setShowCenterPulse(false);
     if (centerPulseTimer.current) clearTimeout(centerPulseTimer.current);
-    setFocusedId(id);
-    if (id) {
+    if (id === null) return;
+    if (interactionMode === "default") {
+      setFocusedId(id);
+      setAnimatingToDefault(false);
       setPanelRevealed(false);
-      if (panelRevealTimer.current) clearTimeout(panelRevealTimer.current);
-      panelRevealTimer.current = setTimeout(() => setPanelRevealed(true), 900);
-    } else {
-      setPanelRevealed(false);
-      if (panelRevealTimer.current) clearTimeout(panelRevealTimer.current);
+      setInteractionMode("animating");
+      return;
     }
-  }, []);
+    if (interactionMode === "focus" && focusedId === id) {
+      setAnimatingToDefault(true);
+      setPanelRevealed(false);
+      setInteractionMode("animating");
+      return;
+    }
+    if (interactionMode === "focus" && focusedId !== id) {
+      setFocusedId(id);
+      setAnimatingToDefault(false);
+      setPanelRevealed(false);
+      setInteractionMode("animating");
+      return;
+    }
+  }, [interactionMode, focusedId]);
 
   const handleHover = useCallback((id: string | null) => {
     if (isMobile) return;
@@ -108,13 +134,17 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
   }, []);
 
   const handleResetView = useCallback(() => {
+    setPanelRevealed(false);
+    setAnimatingToDefault(true);
+    setInteractionMode("animating");
     setFocusedId(null);
-    setResetViewTrigger((t) => t + 1);
   }, []);
 
   const handleCtaClick = useCallback((href: string) => {
     navigateToHotspotHref(href);
     setFocusedId(null);
+    setPanelRevealed(false);
+    setInteractionMode("default");
   }, []);
 
   // Mobile: hide "Tap to explore" after 2s
@@ -137,7 +167,6 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
 
   React.useEffect(() => {
     return () => {
-      if (panelRevealTimer.current) clearTimeout(panelRevealTimer.current);
       if (entranceRaf.current) cancelAnimationFrame(entranceRaf.current);
     };
   }, []);
@@ -164,13 +193,18 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setFocusedId(null);
+        if (interactionMode === "focus") {
+          setPanelRevealed(false);
+          setAnimatingToDefault(true);
+          setInteractionMode("animating");
+          setFocusedId(null);
+        }
         setAscendPanelOpen(false);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [interactionMode]);
 
   React.useEffect(() => {
     const el = heroStageRef.current;
@@ -230,10 +264,12 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
             pointerEvents: "none",
           }}
         >
-          <Hero3DCanvas
+          <Hero3DCanvasLazy
             worldUrl={WORLD_GLB}
             hotspots={HOTSPOTS}
+            interactionMode={interactionMode}
             focusedId={focusedId}
+            animatingToDefault={animatingToDefault}
             hoveredHotspotId={hoveredHotspotId}
             isMobile={isMobile}
             mouseNorm={mouseNorm}
@@ -241,12 +277,11 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
             onHover={handleHover}
             onCtaClick={handleCtaClick}
             onAscendCtaClick={handleAscendCtaClick}
-            cameraFocusMainWall={ascendPanelOpen}
             onReady={() => setReady(true)}
+            onAnimationSettled={handleAnimationSettled}
             userInteracting={userInteracting}
             onUserInteractingChange={setUserInteracting}
             debugUi={debugUi}
-            resetViewTrigger={resetViewTrigger}
             showCenterPulse={showCenterPulse}
             entranceProgress={entranceProgress}
           />
@@ -275,7 +310,12 @@ export default function Hero3D({ onJoin }: Hero3DProps) {
         <button
           type="button"
           className="fixed inset-0 z-[18] bg-black/30 backdrop-blur-sm"
-          onClick={() => setFocusedId(null)}
+          onClick={() => {
+            setPanelRevealed(false);
+            setAnimatingToDefault(true);
+            setInteractionMode("animating");
+            setFocusedId(null);
+          }}
           aria-label="Close"
         />
       )}
