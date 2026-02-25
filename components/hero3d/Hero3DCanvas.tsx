@@ -7,17 +7,22 @@ import * as THREE from "three";
 import type { Group } from "three";
 import type { HotspotDef } from "./hotspots";
 
-/** Tune this if model faces wrong way (e.g. Math.PI = 180°, -Math.PI/2 = -90°). */
-const MODEL_ROTATION_FIX = Math.PI;
+/** Rotate worldGroup so climbing wall faces camera. Try Math.PI/2 or -Math.PI/2 if holds not front. */
+const MODEL_ROTATION_FIX = Math.PI / 2;
 
-/** Desktop camera preset — position and fov after framing. */
-const DESKTOP_CAM = { position: [0, 1.2, 6.8] as const, fov: 35 };
+/** Desktop camera preset fallback when bounding not yet available. */
+const DESKTOP_CAM_FALLBACK = { position: [0, 1.2, 6.8] as const, fov: 35 };
 /** Mobile fallback when bounding not yet available. */
 const MOBILE_CAM_FALLBACK = { position: [0, 1.5, 5.6] as const, fov: 50 };
-/** Mobile camera derived from bounding size; tune multipliers if needed. */
-const MOBILE_CAM_Y_POS_MULT = 0.6;
-const MOBILE_CAM_Z_POS_MULT = 2.2;
-const MOBILE_CAM_LOOKAT_Y_MULT = 0.3;
+/** Desktop: camera.position.set(0, size.y*scale*Y, size.z*scale*Z), lookAt(0, size.y*scale*0.5, 0). */
+const DESKTOP_CAM_Y_POS_MULT = 0.7;
+const DESKTOP_CAM_Z_POS_MULT = 1.8;
+const DESKTOP_LOOKAT_Y_MULT = 0.5;
+const DESKTOP_FOV = 35;
+/** Mobile: same pattern; tune multipliers if needed. */
+const MOBILE_CAM_Y_POS_MULT = 0.9;
+const MOBILE_CAM_Z_POS_MULT = 2.3;
+const MOBILE_CAM_LOOKAT_Y_MULT = 0.5;
 const MOBILE_FOV = 50;
 
 const DEFAULT_LOOKAT: [number, number, number] = [0, 1, 0];
@@ -36,14 +41,16 @@ const HALO_RADIUS = 1.8;
 const HALO_INNER = 1.2;
 const HOTSPOT_HOVER_SCALE = 1.02;
 
-/** OrbitControls: premium constrained range. */
+/** OrbitControls: small range so wall stays facing camera. */
 const ORBIT_MIN_DISTANCE = 5.2;
 const ORBIT_MAX_DISTANCE = 8.5;
 const ORBIT_MIN_POLAR = 0.9;
 const ORBIT_MAX_POLAR = 1.35;
+const ORBIT_MIN_AZIMUTH = -0.25;
+const ORBIT_MAX_AZIMUTH = 0.25;
 const ORBIT_ROTATE_SPEED = 0.5;
 
-/** TODO: set to false before production. Renders semi-transparent hitbox meshes for tuning. */
+/** TODO: set to false before production. When true (or debugUi), show hotspot hitboxes. */
 const DEBUG_HOTSPOTS = true;
 
 export interface Hero3DCanvasProps {
@@ -56,11 +63,16 @@ export interface Hero3DCanvasProps {
   onFocus: (id: string | null) => void;
   onHover: (id: string | null) => void;
   onCtaClick?: (href: string) => void;
-  onAscend?: () => void;
+  /** In-scene Ascend CTA click: opens confirm panel (does not call onJoin). */
+  onAscendCtaClick?: () => void;
+  /** When true, camera focuses toward main wall (e.g. when Ascend panel is open). */
+  cameraFocusMainWall?: boolean;
   onReady: () => void;
   onBoundingReady?: (info: BoundingInfo) => void;
   userInteracting?: boolean;
   onUserInteractingChange?: (v: boolean) => void;
+  /** Show hotspot hitboxes when true (?debug=1). */
+  debugUi?: boolean;
 }
 
 export default function Hero3DCanvas(props: Hero3DCanvasProps) {
@@ -68,7 +80,7 @@ export default function Hero3DCanvas(props: Hero3DCanvasProps) {
   const dpr = typeof window !== "undefined"
     ? (isMobile ? 1 : Math.min(window.devicePixelRatio, 1.5))
     : 1;
-  const initialCam = isMobile ? MOBILE_CAM_FALLBACK : DESKTOP_CAM;
+  const initialCam = isMobile ? MOBILE_CAM_FALLBACK : DESKTOP_CAM_FALLBACK;
 
   return (
     <Canvas
@@ -106,11 +118,13 @@ function Scene(props: Hero3DCanvasProps) {
     onFocus,
     onHover,
     onCtaClick,
-    onAscend,
+    onAscendCtaClick,
+    cameraFocusMainWall = false,
     onReady,
     onBoundingReady,
     userInteracting = false,
     onUserInteractingChange,
+    debugUi = false,
   } = props;
   const groupRef = useRef<Group>(null);
   const hasCalledReady = useRef(false);
@@ -132,7 +146,7 @@ function Scene(props: Hero3DCanvasProps) {
   });
 
   const hotspotDef: HotspotDef | null = focusedId ? (hotspots.find((h) => h.id === focusedId) ?? null) : null;
-  const orbitEnabled = !isMobile && !hotspotDef;
+  const orbitEnabled = !isMobile && !hotspotDef && !cameraFocusMainWall;
 
   return (
     <>
@@ -156,11 +170,14 @@ function Scene(props: Hero3DCanvasProps) {
           maxDistance={ORBIT_MAX_DISTANCE}
           minPolarAngle={ORBIT_MIN_POLAR}
           maxPolarAngle={ORBIT_MAX_POLAR}
+          minAzimuthAngle={ORBIT_MIN_AZIMUTH}
+          maxAzimuthAngle={ORBIT_MAX_AZIMUTH}
           rotateSpeed={ORBIT_ROTATE_SPEED}
           onStart={() => onUserInteractingChange?.(true)}
           onEnd={() => onUserInteractingChange?.(false)}
         />
       )}
+      {/* worldGroup: hotspots are children so they scale and rotate with the model */}
       <group ref={groupRef} position={[0, 0, 0]} scale={[1, 1, 1]}>
         <WorldModel
           url={worldUrl}
@@ -174,7 +191,8 @@ function Scene(props: Hero3DCanvasProps) {
           onHover={onHover}
           onFocus={onFocus}
           onCtaClick={onCtaClick}
-          onAscend={onAscend}
+          onAscendCtaClick={onAscendCtaClick}
+          debugUi={debugUi}
         />
       </group>
       <CameraController
@@ -184,6 +202,7 @@ function Scene(props: Hero3DCanvasProps) {
         orbitEnabled={orbitEnabled}
         userInteracting={userInteracting}
         boundingInfo={boundingInfo}
+        cameraFocusMainWall={cameraFocusMainWall}
       />
     </>
   );
@@ -237,7 +256,8 @@ function WorldModel({
   onHover,
   onFocus,
   onCtaClick,
-  onAscend,
+  onAscendCtaClick,
+  debugUi,
 }: {
   url: string;
   isMobile: boolean;
@@ -250,7 +270,8 @@ function WorldModel({
   onHover: (id: string | null) => void;
   onFocus: (id: string | null) => void;
   onCtaClick?: (href: string) => void;
-  onAscend?: () => void;
+  onAscendCtaClick?: () => void;
+  debugUi?: boolean;
 }) {
   const { scene } = useGLTF(url);
   const cloned = useMemo(() => {
@@ -295,6 +316,7 @@ function WorldModel({
             isMobile={isMobile}
             onHover={onHover}
             onFocus={onFocus}
+            showDebugBox={DEBUG_HOTSPOTS || debugUi === true}
           />
           <HotspotPill
             def={h}
@@ -304,7 +326,7 @@ function WorldModel({
           />
         </React.Fragment>
       ))}
-      {onAscend && (
+      {onAscendCtaClick && (
         <Html
           position={ascendCtaPosition}
           transform
@@ -317,16 +339,17 @@ function WorldModel({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              onFocus("monument");
-              onAscend();
+              onAscendCtaClick();
             }}
-            className={`ascend-cta-pill rounded-full bg-white/90 backdrop-blur-md text-storm font-medium border border-white/50 shadow-lg hover:scale-105 active:scale-100 transition-transform duration-200 ${
-              isMobile ? "px-4 py-2 text-xs scale-90" : "px-5 py-2.5 text-sm"
+            className={`ascend-cta-pill rounded-full bg-white/90 backdrop-blur-md text-storm font-medium border border-white/50 shadow-lg transition-transform duration-200 ${
+              isMobile
+                ? "px-4 py-2 text-xs scale-90 active:scale-95"
+                : "px-5 py-2.5 text-sm hover:scale-[1.04] active:scale-100"
             }`}
             style={{
               boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
             }}
-            aria-label="Ascend With Us — Founding Circle"
+            aria-label="Ascend With Us"
           >
             Ascend With Us
           </button>
@@ -381,11 +404,11 @@ function HotspotPill({
       position={[x, y + PILL_OFFSET_Y, z]}
       center
       distanceFactor={8}
-      style={{ pointerEvents: "auto", transition: "opacity 0.2s ease, transform 0.2s ease" }}
+      style={{ pointerEvents: "auto" }}
     >
       <div
-        className="flex items-center gap-2 rounded-full bg-white/90 backdrop-blur-md px-3 py-2 shadow-lg border border-white/50"
-        style={{ whiteSpace: "nowrap" }}
+        className="flex items-center gap-2 rounded-full bg-white/90 backdrop-blur-md px-3 py-2 shadow-lg border border-white/50 transition-transform duration-150 ease-out hover:scale-105"
+        style={{ whiteSpace: "nowrap", transform: "scale(1.02)" }}
       >
         <span className="text-storm text-sm font-medium">{def.label}</span>
         <button
@@ -411,6 +434,7 @@ function HotspotBox({
   isMobile,
   onHover,
   onFocus,
+  showDebugBox,
 }: {
   def: HotspotDef;
   isFocused: boolean;
@@ -418,6 +442,7 @@ function HotspotBox({
   isMobile: boolean;
   onHover: (id: string | null) => void;
   onFocus: (id: string | null) => void;
+  showDebugBox?: boolean;
 }) {
   const [x, y, z] = def.position;
   const [sx, sy, sz] = def.size;
@@ -444,14 +469,21 @@ function HotspotBox({
         <boxGeometry args={[sx * mult, sy * mult, sz * mult]} />
         <meshBasicMaterial
           transparent
-          opacity={DEBUG_HOTSPOTS ? 0.25 : 0}
+          opacity={showDebugBox ? 0.25 : 0}
           depthWrite={false}
-          color={DEBUG_HOTSPOTS ? "#4FA3FF" : undefined}
+          color={showDebugBox ? "#4FA3FF" : undefined}
           wireframe={false}
         />
       </mesh>
     </group>
   );
+}
+
+/** Intro zoom duration (ms); ease-in toward main island. */
+const INTRO_ZOOM_MS = 800;
+/** Ease-in: 1 - (1-t)^3 */
+function easeInCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
 }
 
 function CameraController({
@@ -461,6 +493,7 @@ function CameraController({
   orbitEnabled,
   userInteracting,
   boundingInfo,
+  cameraFocusMainWall = false,
 }: {
   focusedHotspot: HotspotDef | null;
   isMobile: boolean;
@@ -468,11 +501,13 @@ function CameraController({
   orbitEnabled: boolean;
   userInteracting: boolean;
   boundingInfo: BoundingInfo | null;
+  cameraFocusMainWall?: boolean;
 }) {
   const { camera } = useThree();
   const targetPos = useRef({ x: 0, y: 0, z: 0 });
   const targetLook = useRef({ x: DEFAULT_LOOKAT[0], y: DEFAULT_LOOKAT[1], z: DEFAULT_LOOKAT[2] });
-  const targetFov = useRef(isMobile ? MOBILE_FOV : DESKTOP_CAM.fov);
+  const targetFov = useRef(isMobile ? MOBILE_FOV : DESKTOP_FOV);
+  const introStartTime = useRef<number | null>(null);
 
   useEffect(() => {
     if (focusedHotspot) {
@@ -480,36 +515,73 @@ function CameraController({
       const [lx, ly, lz] = focusedHotspot.lookAt;
       targetPos.current = { x: px, y: py, z: pz };
       targetLook.current = { x: lx, y: ly, z: lz };
-      targetFov.current = isMobile ? MOBILE_FOV : DESKTOP_CAM.fov;
-    } else if (isMobile && boundingInfo) {
+      targetFov.current = isMobile ? MOBILE_FOV : DESKTOP_FOV;
+    } else if (boundingInfo) {
       const { size, scale } = boundingInfo;
       const wy = size.y * scale;
       const wz = size.z * scale;
-      targetPos.current = {
-        x: 0,
-        y: wy * MOBILE_CAM_Y_POS_MULT,
-        z: wz * MOBILE_CAM_Z_POS_MULT,
-      };
-      targetLook.current = { x: 0, y: wy * MOBILE_CAM_LOOKAT_Y_MULT, z: 0 };
-      targetFov.current = MOBILE_FOV;
+      const lookY = wy * (isMobile ? MOBILE_CAM_LOOKAT_Y_MULT : DESKTOP_LOOKAT_Y_MULT);
+      targetLook.current = { x: 0, y: lookY, z: 0 };
+      targetFov.current = isMobile ? MOBILE_FOV : DESKTOP_FOV;
+      if (isMobile) {
+        targetPos.current = {
+          x: 0,
+          y: wy * MOBILE_CAM_Y_POS_MULT,
+          z: wz * MOBILE_CAM_Z_POS_MULT,
+        };
+      } else {
+        targetPos.current = {
+          x: 0,
+          y: wy * DESKTOP_CAM_Y_POS_MULT,
+          z: wz * DESKTOP_CAM_Z_POS_MULT,
+        };
+      }
+      if (introStartTime.current === null) introStartTime.current = performance.now();
     } else if (isMobile) {
       const preset = MOBILE_CAM_FALLBACK;
       targetPos.current = { x: preset.position[0], y: preset.position[1], z: preset.position[2] };
       targetLook.current = { x: DEFAULT_LOOKAT[0], y: DEFAULT_LOOKAT[1], z: DEFAULT_LOOKAT[2] };
       targetFov.current = MOBILE_FOV;
     } else {
-      targetPos.current = { x: DESKTOP_CAM.position[0], y: DESKTOP_CAM.position[1], z: DESKTOP_CAM.position[2] };
+      const preset = DESKTOP_CAM_FALLBACK;
+      targetPos.current = { x: preset.position[0], y: preset.position[1], z: preset.position[2] };
       targetLook.current = { x: DEFAULT_LOOKAT[0], y: DEFAULT_LOOKAT[1], z: DEFAULT_LOOKAT[2] };
-      targetFov.current = DESKTOP_CAM.fov;
+      targetFov.current = DESKTOP_FOV;
     }
   }, [focusedHotspot, isMobile, boundingInfo]);
 
   useFrame((state) => {
-    if (orbitEnabled) return;
-
     const tp = targetPos.current;
     const tl = targetLook.current;
     const t = state.clock.elapsedTime;
+
+    if (orbitEnabled) return;
+
+    // Intro zoom-in toward main island (800ms ease-in) when bounding first available
+    if (
+      !focusedHotspot &&
+      boundingInfo &&
+      introStartTime.current !== null
+    ) {
+      const elapsed = performance.now() - introStartTime.current;
+      if (elapsed >= INTRO_ZOOM_MS) {
+        introStartTime.current = null;
+      } else {
+        const introT = easeInCubic(elapsed / INTRO_ZOOM_MS);
+        const startY = tp.y * 1.2;
+        const startZ = tp.z * 1.4;
+        const px = tp.x;
+        const py = tp.y + (startY - tp.y) * (1 - introT);
+        const pz = tp.z + (startZ - tp.z) * (1 - introT);
+        camera.position.set(px, py, pz);
+        camera.lookAt(tl.x, tl.y, tl.z);
+        if (camera instanceof THREE.PerspectiveCamera) {
+          camera.fov += (targetFov.current - camera.fov) * FOV_LERP;
+          camera.updateProjectionMatrix();
+        }
+        return;
+      }
+    }
 
     let parallaxX = 0;
     let parallaxY = 0;

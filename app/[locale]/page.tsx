@@ -201,6 +201,7 @@ function HomeContent() {
       </AnimatePresence>
       </main>
       <motion.div
+        id="know-your-cloud"
         className="flex-shrink-0 relative z-10"
         data-hero-next
         initial={false}
