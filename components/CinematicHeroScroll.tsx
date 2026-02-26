@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
+import AscentBar from "@/components/AscentBar";
 import type { MascotPartColors } from "@/lib/mascotSpeciesColors";
 
 const ENABLE_HERO_SOUND = false;
@@ -74,8 +75,16 @@ export default function CinematicHeroScroll({
   const introT = useIntroProgress(isMobile);
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(typeof window !== "undefined" ? window.innerHeight : 700);
   const [userInteracted, setUserInteracted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const onResize = () => setViewportHeight(window.innerHeight);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const introDuration = isMobile ? MOBILE_INTRO_MS : DESKTOP_INTRO_MS;
   const f1 = isMobile ? MOBILE_FRAME1_MS : DESKTOP_FRAME1_MS;
@@ -91,13 +100,11 @@ export default function CinematicHeroScroll({
   const frame4Progress = introT <= t3 ? 0 : Math.min((introT - t3) / (1 - t3), 1);
 
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
     const viewportHeight = window.innerHeight;
-    const scrollActivation = viewportHeight * 0.2;
+    const scrollRange = Math.max(viewportHeight * 0.6, 400);
     const onScroll = () => {
       const y = window.scrollY;
-      setScrollProgress(Math.min(y / scrollActivation, 1));
+      setScrollProgress(Math.min(y / scrollRange, 1));
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -156,7 +163,7 @@ export default function CinematicHeroScroll({
   const auraOpacity = useMemo(() => {
     if (introT < t2) return 0;
     const p = frame3Progress;
-    const maxAura = isMobile ? 0.2 : 0.3;
+    const maxAura = isMobile ? 0.28 : 0.3;
     return p * maxAura;
   }, [introT, t2, frame3Progress, isMobile]);
 
@@ -168,16 +175,31 @@ export default function CinematicHeroScroll({
 
   const holdsOpacity = useMemo(() => {
     if (introT < t3) return 0;
-    return 0.5 + scrollProgress * 0.2;
+    const fadeIn = Math.min((introT - t3) / 0.25, 1);
+    return 0.15 * fadeIn + (0.35 + scrollProgress * 0.2) * fadeIn;
   }, [introT, t3, scrollProgress]);
 
   const headlineOpacity = useMemo(() => (introT >= t3 ? Math.min(1, frame4Progress * 2) : 0), [introT, t3, frame4Progress]);
   const sublineOpacity = useMemo(() => (introT >= t3 ? Math.min(0.8, (frame4Progress - 0.3) * 2) : 0), [introT, t3, frame4Progress]);
 
-  const auraScaleScroll = 1 + scrollProgress * 0.15;
-  const mascotYScroll = -scrollProgress * (isMobile ? 3 : 5);
-  const headlineScaleScroll = 1 - scrollProgress * 0.08;
   const particleDensity = 0.5 + scrollProgress * 0.5;
+
+  const scrollPhase1 = Math.min(scrollProgress / 0.25, 1);
+  const scrollPhase2 = scrollProgress <= 0.25 ? 0 : Math.min((scrollProgress - 0.25) / 0.25, 1);
+
+  const mascotLift1 = isMobile ? viewportHeight * 0.17 : 120;
+  const mascotLift2 = isMobile ? viewportHeight * 0.086 : 60;
+  const mascotTranslateY = scrollPhase1 < 1
+    ? -mascotLift1 * scrollPhase1
+    : -mascotLift1 - mascotLift2 * scrollPhase2;
+  const mascotScaleScroll = scrollPhase1 < 1 ? 1 + 0.03 * scrollPhase1 : 1.03 + 0.02 * scrollPhase2;
+  const headline1Y = isMobile ? -10 * scrollPhase1 : -12 * scrollPhase1;
+  const headline2Y = isMobile ? 10 * (1 - scrollPhase1) : 12 * (1 - scrollPhase1);
+  const headline1Opacity = 1 - scrollPhase1;
+  const headline2Opacity = scrollPhase1;
+  const auraOpacityScroll = scrollPhase2 * 0.15;
+  const auraScaleScroll = 1 + scrollPhase2 * 0.05;
+  const subcopyOneLine = scrollPhase2 >= 0.5;
 
   const breathingScale = isMobile ? 1.015 : 1.02;
   const breathDuration = 5;
@@ -194,6 +216,7 @@ export default function CinematicHeroScroll({
       tabIndex={0}
       aria-label="Start experience"
     >
+      <AscentBar />
       <div className="sticky top-0 min-h-[100dvh] flex flex-col items-center justify-center overflow-hidden">
         {/* Background layers */}
         <div
@@ -230,41 +253,47 @@ export default function CinematicHeroScroll({
             x: "-50%",
             y: "-50%",
             background: "radial-gradient(circle, rgba(120,130,150,0.12) 0%, transparent 65%)",
-            scale: 1 + (auraScaleScroll - 1) * 0.5,
-            opacity: auraOpacity * (0.6 + 0.4 * (1 - scrollProgress)),
+            scale: 1 + scrollPhase2 * 0.05,
+            opacity: auraOpacity * (0.6 + 0.4 * (1 - scrollProgress)) + auraOpacityScroll,
             filter: "blur(40px)",
           }}
         />
 
-        {/* Frame 4: Wall + holds */}
+        {/* Frame 4: Wall + holds — fade in smoothly */}
         <div
           className="absolute inset-0 pointer-events-none flex items-center justify-center"
-          style={{ opacity: wallOpacity }}
+          style={{
+            opacity: wallOpacity,
+            transition: "opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1)",
+          }}
         >
           <div
             className="absolute inset-0"
             style={{
               background: "linear-gradient(160deg, rgba(30,45,70,0.4) 0%, rgba(15,20,35,0.3) 50%, transparent 100%)",
-              filter: "saturate(0.7) blur(0px)",
+              filter: "saturate(0.7)",
             }}
           />
           <div
-            className="absolute inset-0 flex items-center justify-center opacity-[0.5]"
-            style={{ opacity: holdsOpacity }}
+            className="absolute inset-0 flex items-center justify-center"
+            style={{
+              opacity: holdsOpacity,
+              transition: "opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
+            }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/brand/holds.svg"
               alt=""
               className="max-w-[90%] max-h-[70%] object-contain"
-              style={{ filter: "blur(2px)", opacity: 0.5 }}
+              style={{ filter: "blur(2px)" }}
             />
           </div>
         </div>
 
-        {/* Particles */}
+        {/* Particles — same density feel: 12 mobile, 16 desktop */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {Array.from({ length: isMobile ? 8 : 16 }).map((_, i) => (
+          {Array.from({ length: isMobile ? 12 : 16 }).map((_, i) => (
             <motion.div
               key={i}
               className="absolute rounded-full bg-white"
@@ -287,127 +316,152 @@ export default function CinematicHeroScroll({
           ))}
         </div>
 
-        {/* Frame 1 + 2: Logo + Tagline */}
+        {/* Logo: top-left, small, reduced opacity — separate from headline */}
         <motion.div
-          className="absolute flex flex-col items-center justify-center z-10"
+          className="absolute top-6 left-6 md:top-8 md:left-8 z-20 flex flex-col"
           style={{
-            opacity: logoOpacity,
+            opacity: logoOpacity * 0.85,
             scale: logoScale,
-            y: introT >= t3 ? -40 : 0,
           }}
         >
           <Image
             src="/logo-white.svg"
             alt="Leo Mây"
-            width={200}
-            height={80}
-            className="w-[140px] md:w-[200px] h-auto object-contain"
+            width={120}
+            height={48}
+            className="w-[100px] md:w-[120px] h-auto object-contain"
             priority
-            style={{ letterSpacing: "0.04em" }}
           />
           <motion.span
-            className="mt-4 text-white uppercase tracking-[0.04em] font-medium"
+            className="mt-2 text-white/70 uppercase tracking-[0.04em] font-medium"
             style={{
               opacity: taglineOpacity,
-              fontSize: "clamp(12px, 1.2vw, 14px)",
+              fontSize: "clamp(10px, 1vw, 12px)",
             }}
           >
             CLIMB THE CLOUDS
           </motion.span>
         </motion.div>
 
-        {/* Frame 2: Mascot + breathing */}
-        <motion.div
-          className="absolute z-10 flex items-center justify-center"
-          style={{
-            opacity: mascotOpacity,
-            y: mascotY + mascotYScroll,
-            scale: 1,
-          }}
-          animate={
-            introT >= t1
-              ? {
-                  scale: [1, breathingScale, 1],
-                  transition: {
-                    duration: breathDuration,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  },
-                }
-              : undefined
-          }
-        >
-          {partColors ? (
-            <object
-              data="/brand/ip-flying.svg"
-              type="image/svg+xml"
-              aria-hidden
-              className="w-[45vw] max-w-[320px] h-auto aspect-square object-contain"
-              style={{ color: "#fffef8" }}
-            />
-          ) : (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src="/brand/ip-flying.svg"
-              alt=""
-              className="w-[45vw] max-w-[320px] h-auto aspect-square object-contain"
-            />
-          )}
-        </motion.div>
+        {/* Split layout: headline left, mascot right; on small mobile stack (headline first), sm+ side-by-side like desktop */}
+        <div className="absolute inset-0 flex flex-col sm:flex-row items-center justify-center sm:justify-between px-4 sm:px-6 md:px-10 lg:px-16 pt-16 sm:pt-16 pb-24 z-10 pointer-events-none gap-6 sm:gap-4 md:gap-0">
+          <div className="pointer-events-auto flex flex-col justify-center w-full max-w-[min(100%,1100px)] sm:max-w-[48%] md:max-w-[50%] order-1">
+            {/* Headline block: max-width, generous spacing, no collision with mascot */}
+            <div
+              className="max-w-[min(100%,1100px)] mt-6 sm:mt-8 md:mt-12"
+              style={{ opacity: headlineOpacity }}
+            >
+              <h1
+                className="font-bold text-white tracking-[-0.02em] leading-[1.18] sm:leading-[1.15] md:leading-[1.12] text-[clamp(28px,6.5vw,40px)] sm:text-[clamp(32px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,96px)]"
+                style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
+              >
+                <span
+                  className="block"
+                  style={{
+                    opacity: headline1Opacity,
+                    transform: `translateY(${headline1Y}px)`,
+                  }}
+                >
+                  CLIMB WITH INTENTION.
+                </span>
+                <span
+                  className="block mt-0"
+                  style={{
+                    opacity: headline2Opacity,
+                    transform: `translateY(${headline2Y}px)`,
+                  }}
+                >
+                  ASCEND TOGETHER.
+                </span>
+              </h1>
+              <p
+                className="mt-4 sm:mt-4 md:mt-5 text-white/80 font-normal text-[clamp(13px,1.4vw,15px)] sm:text-[clamp(13px,1.1vw,16px)] md:text-[clamp(14px,1.2vw,18px)] leading-snug"
+                style={{
+                  opacity: sublineOpacity,
+                  fontFamily: "MiSans-Regular, sans-serif",
+                }}
+              >
+                {subcopyOneLine ? (
+                  "Premium Climbing Experience — Ho Chi Minh City — 2026"
+                ) : (
+                  <>
+                    Premium Climbing Experience
+                    <br />
+                    Ho Chi Minh City — 2026
+                  </>
+                )}
+              </p>
+            </div>
+            {/* CTA: consistent spacing below text */}
+            <motion.div
+              className="mt-6 sm:mt-8 md:mt-10"
+              style={{ opacity: headlineOpacity }}
+            >
+              <motion.button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onJoin();
+                }}
+                className="px-6 py-3 sm:px-7 sm:py-3 md:px-8 md:py-3.5 rounded-full border border-white/70 text-white text-xs sm:text-sm font-medium tracking-wider uppercase bg-transparent shadow-lg"
+                style={{
+                  letterSpacing: "0.05em",
+                  boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
+                }}
+                whileHover={{
+                  scale: 1.05,
+                  y: -2,
+                  boxShadow: "0 6px 24px rgba(0,0,0,0.3)",
+                }}
+                whileTap={{ scale: 1.02 }}
+              >
+                JOIN THE FOUNDING ASCENT
+              </motion.button>
+            </motion.div>
+          </div>
 
-        {/* Frame 4: Headline + subline */}
-        <motion.div
-          className="absolute bottom-[18%] left-0 right-0 flex flex-col items-center justify-center text-center px-6 z-20"
-          style={{
-            opacity: headlineOpacity,
-            scale: headlineScaleScroll,
-          }}
-        >
-          <h1
-            className="font-bold text-white tracking-[-0.02em] text-[clamp(36px,8vw,56px)] md:text-[clamp(48px,6vw,96px)]"
-            style={{ lineHeight: 1.1 }}
-          >
-            CLIMB WITH INTENTION.
-          </h1>
-          <p
-            className="mt-3 text-white/80 font-normal"
+          {/* Mascot: right (sm+), below headline (xs); elevates on scroll; proportional size */}
+          <motion.div
+            className="flex items-center justify-center flex-shrink-0 w-[44%] max-w-[260px] sm:w-[42%] sm:max-w-[320px] md:w-[42%] md:max-w-[380px] order-2"
             style={{
-              fontSize: "clamp(14px, 1.2vw, 18px)",
-              opacity: sublineOpacity,
+              opacity: mascotOpacity,
+              transform: `translateY(${mascotY + mascotTranslateY}px) scale(${mascotScaleScroll})`,
             }}
           >
-            Premium Climbing Experience
-            <br />
-            Ho Chi Minh City — 2026
-          </p>
-        </motion.div>
-
-        {/* CTA */}
-        <motion.div
-          className="absolute bottom-[8%] left-1/2 -translate-x-1/2 z-20"
-          style={{ opacity: headlineOpacity }}
-        >
-          <motion.button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onJoin();
-            }}
-            className="px-8 py-3.5 rounded-full border border-white/70 text-white text-sm font-medium tracking-wider uppercase bg-transparent shadow-lg"
-            style={{
-              letterSpacing: "0.05em",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
-            }}
-            whileHover={{
-              scale: 1.05,
-              y: -2,
-              boxShadow: "0 6px 24px rgba(0,0,0,0.3)",
-            }}
-            whileTap={{ scale: 1.02 }}
-          >
-            JOIN THE FOUNDING ASCENT
-          </motion.button>
-        </motion.div>
+            <motion.div
+              animate={
+                introT >= t1
+                  ? {
+                      scale: [1, breathingScale, 1],
+                      transition: {
+                        duration: breathDuration,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      },
+                    }
+                  : undefined
+              }
+              className="w-full aspect-square"
+            >
+              {partColors ? (
+                <object
+                  data="/brand/ip-flying.svg"
+                  type="image/svg+xml"
+                  aria-hidden
+                  className="w-full h-full object-contain"
+                  style={{ color: "#fffef8" }}
+                />
+              ) : (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src="/brand/ip-flying.svg"
+                  alt=""
+                  className="w-full h-full object-contain"
+                />
+              )}
+            </motion.div>
+          </motion.div>
+        </div>
 
         {/* Scroll hint */}
         <motion.div
