@@ -264,7 +264,7 @@ export default function CinematicHeroScroll({
   const glbRotationSpeed = p >= 0.95 ? 0.8 : 1;
   const narrativeTranslateYBase = -FADE_Y_PX * smoothstep(0.82, 0.98, p);
   const narrativeTranslateY =
-    isMobile ? narrativeTranslateYBase + 32 * smoothstep(0.88, 1, p) : narrativeTranslateYBase;
+    isMobile ? narrativeTranslateYBase + 56 * smoothstep(0.88, 1, p) : narrativeTranslateYBase;
   const heroFooterOpacity = 1 - smoothstep(0.86, 0.98, p);
   const heroFooterTranslateY = -16 * smoothstep(0.86, 0.98, p);
 
