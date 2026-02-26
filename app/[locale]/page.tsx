@@ -121,7 +121,7 @@ function HomeContent() {
   useEffect(() => {
     if (!USE_CINEMATIC_HERO || showClouds) return;
     const vh = typeof window !== "undefined" ? window.innerHeight : 700;
-    const heroEnd = (vh * 320) / 100;
+    const heroEnd = (vh * 280) / 100;
     let raf = 0;
     const onScroll = () => {
       if (raf) return;
@@ -142,8 +142,7 @@ function HomeContent() {
   const heroContentOpacity = showClouds ? 1 : (transitionActive ? 0 : heroOpacity);
   const heroEase = [0.22, 1, 0.36, 1] as const;
 
-  const HERO_WRAPPER_VH = 320;
-  const HERO_SPACER_VH = 80;
+  const HERO_WRAPPER_VH = 280;
   const HERO_HEADER_PX = 64;
   const HERO_FOOTER_PX = 56;
   const showCinematicLayers = USE_CINEMATIC_HERO && !showClouds;
@@ -232,14 +231,6 @@ function HomeContent() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Spacer after hero (transparent; persistent background shows). Next section does not enter viewport until hero wrapper ends. */}
-      {showCinematicLayers && (
-        <div
-          className="w-full flex-shrink-0"
-          style={{ height: `${HERO_SPACER_VH}vh`, minHeight: 300 }}
-          aria-hidden
-        />
-      )}
       </main>
 
       <motion.div
