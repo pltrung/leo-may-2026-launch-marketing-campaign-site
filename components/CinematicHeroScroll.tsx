@@ -250,10 +250,8 @@ export default function CinematicHeroScroll({
 
   const ISLAND_FADE_IN_START = 0.52;
   const ISLAND_FADE_IN_END = 0.78;
-  const ISLAND_FADE_OUT_START = 0.88;
   const islandFadeIn = useMemo(() => smoothstep(ISLAND_FADE_IN_START, ISLAND_FADE_IN_END, heroProgress), [heroProgress]);
-  const islandFadeOut = useMemo(() => 1 - smoothstep(ISLAND_FADE_OUT_START, 1, heroProgress), [heroProgress]);
-  const islandOpacity = useMemo(() => islandFadeIn * islandFadeOut, [islandFadeIn, islandFadeOut]);
+  const islandOpacity = islandFadeIn;
 
   const holdsOpacity = useMemo(() => {
     const base = isMobile ? revealT * 0.9 : introT < t3 ? 0 : Math.min(0.85, Math.min((introT - t3) / 0.3, 1) * 0.2 + revealT * 0.9);
