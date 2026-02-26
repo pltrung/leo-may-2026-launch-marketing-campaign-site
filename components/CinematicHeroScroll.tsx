@@ -64,25 +64,22 @@ export default function CinematicHeroScroll({
   footerMessages,
 }: CinematicHeroScrollProps) {
   const [heroProgress, setHeroProgress] = useState(0);
-  const [mounted, setMounted] = useState(false);
+  const [glbMounted, setGlbMounted] = useState(false);
   const rafRef = useRef<number>(0);
   const pendingRef = useRef<number | null>(null);
 
-  const isMobile = useIsMobile();
   const headlines = locale === "vi" ? HEADLINES_VI : HEADLINES_EN;
-  // Locked frame: stage sticky 100dvh. Only left narrative and center visual change; header, footer, CTA stay fixed.
-  const stageHeight = "100dvh";
 
   useEffect(() => {
     preloadHeroIslandGLB();
   }, []);
 
   useEffect(() => {
-    const vh = typeof window !== "undefined" ? window.innerHeight : 700;
-    const maxScroll = (vh * wrapperVh) / 100;
     const onScroll = () => {
-      const y = window.scrollY;
-      pendingRef.current = Math.min(1, y / maxScroll);
+      const vh = typeof window !== "undefined" ? window.innerHeight : 700;
+      const maxScroll = (vh * wrapperVh) / 100;
+      const y = typeof window !== "undefined" ? window.scrollY : 0;
+      pendingRef.current = Math.max(0, Math.min(1, y / maxScroll));
       if (rafRef.current) return;
       rafRef.current = requestAnimationFrame(() => {
         rafRef.current = 0;
@@ -99,240 +96,214 @@ export default function CinematicHeroScroll({
   }, [wrapperVh]);
 
   useEffect(() => {
-    if (heroProgress >= 0.2) setMounted(true);
+    if (heroProgress >= 0.5) setGlbMounted(true);
   }, [heroProgress]);
 
   const p = heroProgress;
 
-  const headline1Opacity = useMemo(() => {
-    if (p < 0.15) return 1;
-    if (p < 0.25) return 1 - smoothstep(0.15, 0.25, p);
+  // STEP 1 (0–0.25): Headline 1. STEP 2 (0.25–0.5): Headline 2. STEP 3 (0.5–0.75): Headline 3. STEP 4 (0.75–0.9): Headline 4. FINAL (0.9–1): narrative out.
+  const h1 = useMemo(() => (p < 0.25 ? 1 - smoothstep(0.22, 0.25, p) : 0), [p]);
+  const h2 = useMemo(() => {
+    if (p < 0.23) return 0;
+    if (p < 0.25) return smoothstep(0.23, 0.25, p);
+    if (p < 0.5) return 1 - smoothstep(0.47, 0.5, p);
     return 0;
   }, [p]);
-  const headline2Opacity = useMemo(() => {
-    if (p < 0.2) return 0;
-    if (p < 0.35) return smoothstep(0.2, 0.35, p);
-    if (p < 0.45) return 1;
-    if (p < 0.55) return 1 - smoothstep(0.45, 0.55, p);
+  const h3 = useMemo(() => {
+    if (p < 0.48) return 0;
+    if (p < 0.5) return smoothstep(0.48, 0.5, p);
+    if (p < 0.75) return 1 - smoothstep(0.72, 0.75, p);
     return 0;
   }, [p]);
-  const headline3Opacity = useMemo(() => {
-    if (p < 0.5) return 0;
-    if (p < 0.65) return smoothstep(0.5, 0.65, p);
-    if (p < 0.75) return 1;
-    if (p < 0.85) return 1 - smoothstep(0.75, 0.85, p);
-    return 0;
-  }, [p]);
-  const headline4Opacity = useMemo(() => {
-    if (p < 0.8) return 0;
-    if (p < 0.9) return smoothstep(0.8, 0.9, p);
+  const h4 = useMemo(() => {
+    if (p < 0.73) return 0;
+    if (p < 0.75) return smoothstep(0.73, 0.75, p);
+    if (p < 0.9) return 1;
     return 1 - smoothstep(0.9, 1, p);
   }, [p]);
+  const narrativeOut = 1 - smoothstep(0.9, 1, p);
+  const headlineOpacities = [h1, h2, h3, h4];
 
-  // Final 10%: headline out, CTA remains, GLB zooms in and fills screen; stage still locked.
-  const narrativeStackOpacity = 1 - smoothstep(0.9, 1, p);
-  const headlineOpacities = [headline1Opacity, headline2Opacity, headline3Opacity, headline4Opacity];
+  // STEP 1: Mascot. STEP 2 (0.25–0.5): Mascot exits up, wall+holds in.
+  const mascotOpacity = useMemo(() => 1 - smoothstep(0.25, 0.5, p), [p]);
+  const mascotY = useMemo(() => -80 * smoothstep(0.25, 0.5, p), [p]);
+  const wallHoldsOpacity = useMemo(
+    () => smoothstep(0.25, 0.5, p) * (1 - smoothstep(0.5, 0.75, p)),
+    [p]
+  );
 
-  const mascotOpacity = 1 - smoothstep(0.15, 0.3, p);
-  const mascotLift = smoothstep(0.15, 0.3, p);
-  const mascotTranslateY = -80 * mascotLift;
-
-  const wallOpacity = smoothstep(0.2, 0.35, p) * (1 - smoothstep(0.75, 0.95, p) * 0.6);
-  const holdsOpacity = smoothstep(0.2, 0.35, p) * (1 - smoothstep(0.75, 0.95, p) * 0.7);
-
-  const glbOpacity = smoothstep(0.4, 0.6, p);
+  // STEP 3 (0.5–0.75): GLB fades in. STEP 4: GLB slightly larger. FINAL (0.9–1): dolly in, FOV down, GLB dominant.
+  const glbOpacity = useMemo(() => smoothstep(0.5, 0.75, p), [p]);
   const zoomT = smoothstep(0.9, 1, p);
-  const glbScaleBase = 0.7 + 0.3 * smoothstep(0.4, 0.65, Math.min(p, 0.9));
-  const glbScaleFinal = isMobile ? 3.5 : 4.2;
-  const glbScale = p < 0.9 ? glbScaleBase : glbScaleBase + zoomT * (glbScaleFinal - glbScaleBase);
+  const glbScale = useMemo(() => {
+    const base = 0.7 + 0.3 * smoothstep(0.5, 0.75, Math.min(p, 0.9));
+    if (p < 0.9) return base;
+    return base + zoomT * (4 - base);
+  }, [p, zoomT]);
   const cameraDistance = p < 0.9 ? 9 : 9 - zoomT * (9 - 2.4);
   const cameraFov = p < 0.9 ? 45 : 45 - zoomT * (45 - 28);
 
-  const metaOpacity = smoothstep(0.05, 0.2, p) * narrativeStackOpacity;
+  const isMobile = useIsMobile();
 
   return (
     <div
-      className="cinematic-hero relative"
+      className="cinematic-hero"
       style={{
         height: `${wrapperVh}vh`,
         background: HERO_BG,
-        transform: "none",
       }}
-      aria-label="Cinematic hero — scroll drives animation only; frame is fixed"
     >
       <div
-        className="sticky w-full flex flex-col overflow-hidden"
+        className="sticky w-full overflow-hidden"
         style={{
           top: 0,
           left: 0,
           right: 0,
-          height: stageHeight,
+          height: "100dvh",
           minHeight: "100dvh",
           background: HERO_BG,
         }}
       >
+        {/* Single continuous background — no change during hero */}
         <div
-          className="flex-1 min-h-0 relative flex flex-col items-center justify-center"
+          className="absolute inset-0 pointer-events-none"
           style={{
-            paddingTop: `${headerHeight}px`,
-            paddingBottom: `${footerHeight}px`,
+            background: `radial-gradient(ellipse 80% 70% at 50% 50%, rgba(18,18,24,0.5) 0%, ${HERO_BG} 70%)`,
           }}
+        />
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{ boxShadow: "inset 0 0 20vh 10vh rgba(0,0,0,0.25)" }}
+        />
+
+        {/* Wall + holds: STEP 2 in, STEP 3 out */}
+        <div
+          className="absolute inset-0 pointer-events-none flex items-center justify-center"
+          style={{ opacity: wallHoldsOpacity }}
         >
           <div
-            className="absolute inset-0 pointer-events-none"
+            className="absolute inset-0"
             style={{
-              background: `radial-gradient(ellipse 80% 70% at 50% 50%, rgba(18,18,24,0.5) 0%, ${HERO_BG} 70%)`,
+              background: "linear-gradient(160deg, rgba(18,18,24,0.5) 0%, rgba(11,11,15,0.35) 50%, transparent 100%)",
             }}
           />
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              boxShadow: isMobile
-                ? "inset 0 0 15vh 8vh rgba(0,0,0,0.3)"
-                : "inset 0 0 20vh 10vh rgba(0,0,0,0.25)",
-            }}
-          />
-
-          <div
-            className="absolute inset-0 pointer-events-none flex items-center justify-center"
-            style={{ opacity: wallOpacity }}
-          >
-            <div
-              className="absolute inset-0"
-              style={{
-                background: "linear-gradient(160deg, rgba(18,18,24,0.5) 0%, rgba(11,11,15,0.35) 50%, transparent 100%)",
-              }}
+          <div className="absolute inset-0 flex items-center justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/holds.svg"
+              alt=""
+              className="max-w-[90%] max-h-[70%] object-contain"
+              style={{ filter: "blur(2px)" }}
             />
-            <div className="absolute inset-0 flex items-center justify-center" style={{ opacity: holdsOpacity }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/brand/holds.svg"
-                alt=""
-                className="max-w-[90%] max-h-[70%] object-contain"
-                style={{ filter: "blur(2px)" }}
-              />
-            </div>
-          </div>
-
-          <div className="absolute inset-0 z-[5] pointer-events-none">
-            <HeroIslandCanvas
-              opacity={glbOpacity}
-              scale={Math.min(glbScale, isMobile ? 3.5 : 4.5)}
-              cameraDistance={cameraDistance}
-              fov={cameraFov}
-              shouldMount={mounted}
-            />
-          </div>
-
-          {/* Left narrative (desktop) / top narrative (mobile): fixed region; only headline + meta opacity change. */}
-          <div
-            className={`absolute z-10 pointer-events-none ${isMobile ? "left-4 right-4 top-[16%] text-center max-w-[90%]" : "left-4 sm:left-6 md:left-8 top-[18%] w-[min(42%,420px)]"}`}
-            style={{ paddingTop: headerHeight }}
-          >
-            <div style={{ opacity: narrativeStackOpacity }} className="pointer-events-none">
-              <h1
-                className={`relative font-bold text-white tracking-tight overflow-hidden leading-[1.2] ${isMobile ? "text-[clamp(36px,11vw,52px)] text-center min-h-[2.4em]" : "text-[clamp(28px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,72px)] min-h-[2.8em]"}`}
-                style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
-              >
-                {headlines.map((line, i) => (
-                  <span
-                    key={i}
-                    className={`absolute top-0 block w-full ${isMobile ? "left-0 right-0 text-center" : "left-0 right-0"}`}
-                    style={{ opacity: headlineOpacities[i] ?? 0 }}
-                    aria-hidden={(headlineOpacities[i] ?? 0) < 0.01}
-                  >
-                    {line}
-                  </span>
-                ))}
-              </h1>
-              <p
-                className={`text-white/80 mt-4 leading-snug ${isMobile ? "text-[15px] text-center" : "text-[clamp(13px,1.2vw,16px)]"}`}
-                style={{ opacity: metaOpacity, fontFamily: "MiSans-Regular, sans-serif" }}
-              >
-                Premium Climbing Experience — HCMC — 2026
-              </p>
-            </div>
-          </div>
-
-          {/* CTA: fixed position for entire hero; does not move. Same locked frame on mobile and desktop. */}
-          <div
-            className={`absolute z-20 pointer-events-auto ${isMobile ? "left-4 right-4 flex justify-center bottom-[130px] sm:bottom-[140px]" : "left-4 sm:left-6 md:left-8 bottom-[120px]"}`}
-            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-          >
-            <motion.button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onJoin();
-              }}
-              className="px-6 py-3 sm:px-8 sm:py-3.5 rounded-full border border-white/70 text-white text-xs sm:text-sm font-medium tracking-wider uppercase bg-transparent"
-              style={{ letterSpacing: "0.05em", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 1.02 }}
-            >
-              JOIN THE FOUNDING ASCENT
-            </motion.button>
-          </div>
-
-          {/* Center visual: mascot → holds → GLB; fixed in frame center on both mobile and desktop. */}
-          <motion.div
-            className={`absolute left-1/2 top-1/2 flex items-center justify-center pointer-events-none ${isMobile ? "w-[70%] max-w-[280px]" : "w-[38%] max-w-[320px] left-[54%]"}`}
-            style={{
-              opacity: mascotOpacity,
-              transform: `translate(-50%, calc(-50% + ${mascotTranslateY}px))`,
-            }}
-          >
-              {partColors ? (
-                <object
-                  data="/brand/ip-flying.svg"
-                  type="image/svg+xml"
-                  aria-hidden
-                  className="w-full h-full object-contain aspect-square"
-                  style={{ color: "#fffef8" }}
-                />
-              ) : (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src="/brand/ip-flying.svg"
-                  alt=""
-                  className="w-full aspect-square object-contain"
-                />
-              )}
-          </motion.div>
-
-          {/* Progress bar: same heroProgress on mobile and desktop; slightly thicker on mobile for visibility. */}
-          <div
-            className={`absolute top-0 bottom-0 z-20 flex flex-col pointer-events-none ${isMobile ? "right-2 w-0.5" : "right-3 w-px"}`}
-            style={{
-              paddingTop: headerHeight,
-              paddingBottom: footerHeight + 16,
-            }}
-            aria-hidden
-          >
-            <div className="flex-1 min-h-0 flex flex-col justify-end" style={{ height: "100%" }}>
-              <div
-                className="w-full rounded-full bg-white/50"
-                style={{
-                  height: `${heroProgress * 100}%`,
-                  minHeight: 2,
-                  transition: "height 0.08s ease-out",
-                }}
-              />
-            </div>
           </div>
         </div>
 
-        {/* Footer: fixed overlay at bottom of stage; does not move. */}
+        {/* GLB: STEP 3 in, FINAL zoom */}
+        <div className="absolute inset-0 z-[5] pointer-events-none">
+          <HeroIslandCanvas
+            opacity={glbOpacity}
+            scale={Math.min(glbScale, isMobile ? 3.2 : 4)}
+            cameraDistance={cameraDistance}
+            fov={cameraFov}
+            shouldMount={glbMounted}
+          />
+        </div>
+
+        {/* One headline — four options, opacity per step; fixed position */}
+        <div
+          className={`absolute z-10 pointer-events-none top-[18%] ${isMobile ? "left-4 right-4 text-center" : "left-4 sm:left-6 md:left-8 w-[min(42%,420px)]"}`}
+          style={{ paddingTop: headerHeight }}
+        >
+          <div style={{ opacity: narrativeOut }}>
+            <h1
+              className={`relative font-bold text-white tracking-tight overflow-hidden min-h-[2.8em] leading-[1.2] ${isMobile ? "text-[clamp(32px,10vw,48px)]" : "text-[clamp(28px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,72px)]"}`}
+              style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
+            >
+              {headlines.map((line, i) => (
+                <span
+                  key={i}
+                  className="absolute top-0 left-0 right-0 block"
+                  style={{ opacity: headlineOpacities[i] ?? 0 }}
+                  aria-hidden={(headlineOpacities[i] ?? 0) < 0.01}
+                >
+                  {line}
+                </span>
+              ))}
+            </h1>
+          </div>
+        </div>
+
+        {/* CTA: always visible, fixed position, never moves */}
+        <div
+          className={`absolute z-20 bottom-[120px] ${isMobile ? "left-4 right-4 flex justify-center" : "left-4 sm:left-6 md:left-8"}`}
+          style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        >
+          <motion.button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onJoin();
+            }}
+            className="px-6 py-3 sm:px-8 sm:py-3.5 rounded-full border border-white/70 text-white text-xs sm:text-sm font-medium tracking-wider uppercase bg-transparent"
+            style={{ letterSpacing: "0.05em", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 1.02 }}
+          >
+            JOIN THE FOUNDING ASCENT
+          </motion.button>
+        </div>
+
+        {/* Mascot: STEP 1 visible, STEP 2 exits up */}
+        <div
+          className={`absolute left-1/2 top-1/2 z-10 flex items-center justify-center pointer-events-none ${isMobile ? "w-[70%] max-w-[280px]" : "w-[38%] max-w-[320px]"}`}
+          style={{
+            transform: `translate(-50%, calc(-50% + ${mascotY}px))`,
+            opacity: mascotOpacity,
+          }}
+        >
+          {partColors ? (
+            <object
+              data="/brand/ip-flying.svg"
+              type="image/svg+xml"
+              aria-hidden
+              className="w-full h-full object-contain aspect-square"
+              style={{ color: "#fffef8" }}
+            />
+          ) : (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src="/brand/ip-flying.svg" alt="" className="w-full aspect-square object-contain" />
+          )}
+        </div>
+
+        {/* Vertical progress bar — same heroProgress */}
+        <div
+          className="absolute right-3 top-0 bottom-0 w-px z-20 flex flex-col pointer-events-none"
+          style={{
+            paddingTop: headerHeight,
+            paddingBottom: footerHeight + 16,
+          }}
+        >
+          <div className="flex-1 min-h-0 flex flex-col justify-end">
+            <div
+              className="w-full rounded-full bg-white/50"
+              style={{
+                height: `${heroProgress * 100}%`,
+                minHeight: 2,
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Footer overlay — inside stage, bottom anchored, same background */}
         {footerMessages && (
           <div
-            className="absolute bottom-0 left-0 right-0 w-full flex flex-col items-center justify-center gap-0.5 py-3 px-4 text-center z-10 pointer-events-none"
+            className="absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center justify-center gap-0.5 py-3 px-4 text-center pointer-events-none"
             style={{
               height: footerHeight,
               minHeight: footerHeight,
               paddingBottom: "max(12px, env(safe-area-inset-bottom))",
               background: HERO_BG,
             }}
-            aria-label="Site footer"
           >
             <p className="text-white/80 text-xs tracking-wide" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
               {footerMessages.ethos}
