@@ -3,6 +3,7 @@
 import React, { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
+import * as THREE from "three";
 import type { Group, Mesh, Material } from "three";
 
 const GLB_URL = "/glb-rotating-bouldering-island.glb";
@@ -22,6 +23,7 @@ function IslandModel({ opacity, rotationSpeedMultiplier = 1 }: { opacity: number
   const { scene } = useGLTF(GLB_URL);
   const materialsRef = useRef<Material[]>([]);
   const initialized = useRef(false);
+  const centered = useRef(false);
 
   if (!initialized.current) {
     scene.traverse((obj) => {
@@ -34,6 +36,13 @@ function IslandModel({ opacity, rotationSpeedMultiplier = 1 }: { opacity: number
         });
       }
     });
+    if (!centered.current) {
+      const box = new THREE.Box3().setFromObject(scene);
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+      scene.position.sub(center);
+      centered.current = true;
+    }
     initialized.current = true;
   }
 
@@ -55,16 +64,14 @@ function IslandModel({ opacity, rotationSpeedMultiplier = 1 }: { opacity: number
 export default function HeroIslandGLB({
   opacity,
   scale = 1,
-  positionY = 0,
   rotationSpeedMultiplier = 1,
 }: {
   opacity: number;
   scale?: number;
-  positionY?: number;
   rotationSpeedMultiplier?: number;
 }) {
   return (
-    <group scale={scale} position={[0, positionY, 0]}>
+    <group scale={scale} position={[0, 0, 0]}>
       <IslandModel opacity={opacity} rotationSpeedMultiplier={rotationSpeedMultiplier} />
     </group>
   );

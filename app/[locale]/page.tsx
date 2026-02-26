@@ -123,7 +123,7 @@ function HomeContent() {
     const vh = typeof window !== "undefined" ? window.innerHeight : 700;
     const wrapperHeight = (vh * HERO_WRAPPER_VH) / 100;
     const heroEnd = Math.max(1, wrapperHeight - vh);
-    const scrollBufferPx = 40;
+    const scrollBufferPx = Math.max(100, vh * 0.12);
     let raf = 0;
     const onScroll = () => {
       if (raf) return;
@@ -236,21 +236,23 @@ function HomeContent() {
 
       </main>
 
-      <motion.div
-        id="know-your-cloud"
-        className="flex-shrink-0 relative z-10 pt-1"
-        style={{
-          pointerEvents: transitionActive ? "none" : (showCinematicLayers && !heroScrollComplete ? "none" : "auto"),
-        }}
-        data-hero-next
-        initial={false}
-        animate={{
-          opacity: transitionActive ? 0 : (showCinematicLayers ? (heroScrollComplete ? 1 : 0) : 1),
-        }}
-        transition={{ duration: 0.7, delay: transitionActive ? 0 : 0.4, ease: [0.22, 1, 0.36, 1] }}
-      >
-        <CloudFooter />
-      </motion.div>
+      {!showCinematicLayers && (
+        <motion.div
+          id="know-your-cloud"
+          className="flex-shrink-0 relative z-10 pt-1"
+          style={{
+            pointerEvents: transitionActive ? "none" : "auto",
+          }}
+          data-hero-next
+          initial={false}
+          animate={{
+            opacity: transitionActive ? 0 : 1,
+          }}
+          transition={{ duration: 0.7, delay: transitionActive ? 0 : 0.4, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <CloudFooter />
+        </motion.div>
+      )}
 
       {selectedCloud && (
         <SignupModal

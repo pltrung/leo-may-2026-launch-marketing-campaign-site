@@ -175,20 +175,21 @@ export default function CinematicHeroScroll({
   const mascotLift = smoothstep(0.15, 0.3, p);
   const mascotTranslateY = -80 * mascotLift;
 
-  const wallOpacity = smoothstep(0.2, 0.35, p) * (1 - smoothstep(0.75, 0.95, p) * 0.6);
-  const holdsOpacity = smoothstep(0.2, 0.35, p) * (1 - smoothstep(0.75, 0.95, p) * 0.7);
+  const climbsFadeOut = 1 - smoothstep(0.4, 0.6, p);
+  const wallOpacity = smoothstep(0.2, 0.35, p) * climbsFadeOut;
+  const holdsOpacity = smoothstep(0.2, 0.35, p) * climbsFadeOut;
 
   const glbOpacity = smoothstep(0.4, 0.6, p);
   const glbScaleBase = 0.7 + 0.3 * smoothstep(0.4, 0.65, Math.min(p, 0.82));
   const glbScale = glbScaleBase;
-  const CAMERA_Z_MIN = 6.2;
+  const CAMERA_Z_MIN = 6;
   const cameraZStart = 9;
-  const cameraDollyAmount = (cameraZStart - CAMERA_Z_MIN) * 0.4;
+  const cameraDollyAmount = (cameraZStart - CAMERA_Z_MIN) * 0.5;
   const cameraDistanceEnd = Math.max(CAMERA_Z_MIN, cameraZStart - cameraDollyAmount);
   const cameraDistance = p < 0.82 ? cameraZStart : Math.max(CAMERA_Z_MIN, cameraZStart - zoomT * (cameraZStart - cameraDistanceEnd));
   const cameraFov = 45;
-  const glbOffsetY = zoomT * (isMobile ? -0.03 : 0.12);
   const glbRotationSpeed = p >= 0.95 ? 0.8 : 1;
+  const heroFooterOpacity = 1 - smoothstep(0.88, 0.98, p);
 
   const metaOpacity = smoothstep(0.05, 0.2, p) * narrativeStackOpacity;
 
@@ -249,7 +250,6 @@ export default function CinematicHeroScroll({
               scale={glbScale}
               cameraDistance={cameraDistance}
               fov={cameraFov}
-              modelOffsetY={glbOffsetY}
               rotationSpeedMultiplier={glbRotationSpeed}
               shouldMount={glbMounted}
             />
@@ -354,12 +354,13 @@ export default function CinematicHeroScroll({
 
         {footerMessages && (
           <div
-            className="absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center justify-center gap-0.5 py-3 px-4 text-center pointer-events-none"
+            className="absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center justify-center gap-0.5 py-3 px-4 text-center pointer-events-none transition-opacity duration-300"
             style={{
               height: footerHeight,
               minHeight: footerHeight,
               paddingBottom: "max(12px, env(safe-area-inset-bottom))",
               background: HERO_BG,
+              opacity: heroFooterOpacity,
             }}
           >
             <p className="text-white/80 text-xs tracking-wide" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>

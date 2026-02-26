@@ -7,13 +7,12 @@ import HeroIslandGLB from "./HeroIslandGLB";
 
 const DEFAULT_CAMERA_Z = 8;
 
-/** Drives camera Z and FOV for cinematic push-in (last 20% of hero). */
+/** Drives camera Z only; target is always (0,0,0). Dolly toward center only. */
 function CameraPushIn({ cameraDistance, fov }: { cameraDistance: number; fov: number }) {
   const { camera } = useThree();
   useFrame(() => {
-    if (camera.position.z !== cameraDistance) {
-      camera.position.z = cameraDistance;
-    }
+    camera.position.set(0, 0, cameraDistance);
+    camera.lookAt(0, 0, 0);
     const pCamera = camera as THREE.PerspectiveCamera;
     if (pCamera.fov !== fov) {
       pCamera.fov = fov;
@@ -29,7 +28,6 @@ export default function HeroIslandCanvas({
   scale,
   cameraDistance = DEFAULT_CAMERA_Z,
   fov = 45,
-  modelOffsetY = 0,
   rotationSpeedMultiplier = 1,
   shouldMount,
   className,
@@ -38,7 +36,6 @@ export default function HeroIslandCanvas({
   scale: number;
   cameraDistance?: number;
   fov?: number;
-  modelOffsetY?: number;
   rotationSpeedMultiplier?: number;
   shouldMount?: boolean;
   className?: string;
@@ -70,7 +67,7 @@ export default function HeroIslandCanvas({
           <ambientLight intensity={0.6} />
           <directionalLight position={[5, 5, 5]} intensity={1} />
           <directionalLight position={[-3, 2, 2]} intensity={0.4} />
-          <HeroIslandGLB opacity={opacity} scale={scale} positionY={modelOffsetY} rotationSpeedMultiplier={rotationSpeedMultiplier} />
+          <HeroIslandGLB opacity={opacity} scale={scale} rotationSpeedMultiplier={rotationSpeedMultiplier} />
         </Canvas>
       )}
     </div>
