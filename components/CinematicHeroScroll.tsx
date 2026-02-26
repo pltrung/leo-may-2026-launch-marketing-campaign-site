@@ -344,9 +344,9 @@ export default function CinematicHeroScroll({
                 paddingRight: "1rem",
               }}
             >
-              {/* Mascot — margin-bottom 24–32px */}
+              {/* Logo — margin-bottom 24–32px; floats when load complete */}
               <div
-                className="flex shrink-0 items-center justify-center w-[65%] max-w-[260px] max-h-[28vh] pointer-events-none"
+                className="flex shrink-0 items-center justify-center w-[65%] max-w-[260px] max-h-[20vh] pointer-events-none"
                 style={{
                   marginBottom: "28px",
                   opacity: mascotOpacityFinal,
@@ -354,18 +354,8 @@ export default function CinematicHeroScroll({
                 }}
               >
                 <div className={`w-full h-full flex items-center justify-center ${loadComplete ? "hero-mascot-float" : ""}`}>
-                  {partColors ? (
-                    <object
-                      data="/brand/ip-flying.svg"
-                      type="image/svg+xml"
-                      aria-hidden
-                      className="w-full h-full object-contain aspect-square"
-                      style={{ color: "#fffef8" }}
-                    />
-                  ) : (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src="/brand/ip-flying.svg" alt="" className="w-full h-full object-contain aspect-square" />
-                  )}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/logo-white.svg" alt="Leo Mây" className="w-full h-full object-contain object-center" />
                 </div>
               </div>
               {/* Headline (one line) + meta — headline margin-bottom 12–16px; meta margin-bottom 20–24px; meta directly under headline */}
@@ -436,7 +426,7 @@ export default function CinematicHeroScroll({
             </div>
           )}
 
-          {/* Desktop: narrative, CTA, mascot — z-30 so above GLB layer (z-25) for CTA clicks */}
+          {/* Desktop: narrative, CTA, logo — z-30 so above GLB layer (z-25) for CTA clicks */}
           {!isMobile && (
             <>
               <div
@@ -500,25 +490,15 @@ export default function CinematicHeroScroll({
                 </motion.button>
               </div>
               <div
-                className="absolute left-1/2 top-1/2 z-30 flex items-center justify-center pointer-events-none w-[38%] max-w-[320px]"
+                className="absolute left-1/2 top-1/2 z-30 flex items-center justify-center pointer-events-none w-[38%] max-w-[280px]"
                 style={{
                   opacity: mascotOpacityFinal,
                   transform: `translate(-50%, calc(-50% + ${mascotTranslateYFinal}px))`,
                 }}
               >
                 <div className={loadComplete ? "hero-mascot-float w-full h-full flex items-center justify-center" : "w-full h-full"}>
-                  {partColors ? (
-                    <object
-                      data="/brand/ip-flying.svg"
-                      type="image/svg+xml"
-                      aria-hidden
-                      className="w-full h-full object-contain aspect-square"
-                      style={{ color: "#fffef8" }}
-                    />
-                  ) : (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src="/brand/ip-flying.svg" alt="" className="w-full aspect-square object-contain" />
-                  )}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/logo-white.svg" alt="Leo Mây" className="w-full h-full object-contain object-center" />
                 </div>
               </div>
             </>
