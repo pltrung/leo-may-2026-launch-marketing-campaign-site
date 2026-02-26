@@ -67,6 +67,7 @@ export default function CinematicHeroScroll({
   const [glbMounted, setGlbMounted] = useState(false);
   const rafRef = useRef<number>(0);
   const pendingRef = useRef<number | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   const headlines = locale === "vi" ? HEADLINES_VI : HEADLINES_EN;
 
@@ -75,11 +76,19 @@ export default function CinematicHeroScroll({
   }, []);
 
   useEffect(() => {
-    const onScroll = () => {
-      const vh = typeof window !== "undefined" ? window.innerHeight : 700;
-      const maxScroll = (vh * wrapperVh) / 100;
-      const y = typeof window !== "undefined" ? window.scrollY : 0;
-      pendingRef.current = Math.max(0, Math.min(1, y / maxScroll));
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    const updateProgress = () => {
+      const rect = wrapper.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const travel = rect.height - vh;
+      if (travel <= 0) {
+        pendingRef.current = rect.top <= 0 ? 1 : 0;
+      } else {
+        const raw = -rect.top / travel;
+        pendingRef.current = Math.max(0, Math.min(1, raw));
+      }
       if (rafRef.current) return;
       rafRef.current = requestAnimationFrame(() => {
         rafRef.current = 0;
@@ -87,13 +96,16 @@ export default function CinematicHeroScroll({
         if (p != null) setHeroProgress(p);
       });
     };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
+
+    updateProgress();
+    window.addEventListener("scroll", updateProgress, { passive: true });
+    window.addEventListener("resize", updateProgress);
     return () => {
-      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("scroll", updateProgress);
+      window.removeEventListener("resize", updateProgress);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [wrapperVh]);
+  }, []);
 
   useEffect(() => {
     if (heroProgress >= 0.5) setGlbMounted(true);
@@ -101,26 +113,11 @@ export default function CinematicHeroScroll({
 
   const p = heroProgress;
 
-  // STEP 1 (0–0.25): Headline 1. STEP 2 (0.25–0.5): Headline 2. STEP 3 (0.5–0.75): Headline 3. STEP 4 (0.75–0.9): Headline 4. FINAL (0.9–1): narrative out.
-  const h1 = useMemo(() => (p < 0.25 ? 1 - smoothstep(0.22, 0.25, p) : 0), [p]);
-  const h2 = useMemo(() => {
-    if (p < 0.23) return 0;
-    if (p < 0.25) return smoothstep(0.23, 0.25, p);
-    if (p < 0.5) return 1 - smoothstep(0.47, 0.5, p);
-    return 0;
-  }, [p]);
-  const h3 = useMemo(() => {
-    if (p < 0.48) return 0;
-    if (p < 0.5) return smoothstep(0.48, 0.5, p);
-    if (p < 0.75) return 1 - smoothstep(0.72, 0.75, p);
-    return 0;
-  }, [p]);
-  const h4 = useMemo(() => {
-    if (p < 0.73) return 0;
-    if (p < 0.75) return smoothstep(0.73, 0.75, p);
-    if (p < 0.9) return 1;
-    return 1 - smoothstep(0.9, 1, p);
-  }, [p]);
+  // Only one headline visible at a time; no overlapping fade bands. Step bands: 0–0.25, 0.25–0.5, 0.5–0.75, 0.75–0.9; final 0.9–1 narrative out.
+  const h1 = useMemo(() => (p >= 0 && p < 0.25 ? 1 : 0), [p]);
+  const h2 = useMemo(() => (p >= 0.25 && p < 0.5 ? 1 : 0), [p]);
+  const h3 = useMemo(() => (p >= 0.5 && p < 0.75 ? 1 : 0), [p]);
+  const h4 = useMemo(() => (p >= 0.75 && p < 0.9 ? 1 : 0), [p]);
   const narrativeOut = 1 - smoothstep(0.9, 1, p);
   const headlineOpacities = [h1, h2, h3, h4];
 
@@ -147,6 +144,7 @@ export default function CinematicHeroScroll({
 
   return (
     <div
+      ref={wrapperRef}
       className="cinematic-hero"
       style={{
         height: `${wrapperVh}vh`,
@@ -156,11 +154,11 @@ export default function CinematicHeroScroll({
       <div
         className="sticky w-full overflow-hidden"
         style={{
-          top: 0,
+          top: headerHeight,
           left: 0,
           right: 0,
-          height: "100dvh",
-          minHeight: "100dvh",
+          height: `calc(100dvh - ${headerHeight}px)`,
+          minHeight: `calc(100dvh - ${headerHeight}px)`,
           background: HERO_BG,
         }}
       >

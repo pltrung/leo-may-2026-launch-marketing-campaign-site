@@ -2,15 +2,15 @@
 
 ## Core idea
 
-The hero feels like a **locked cinematic frame**. The page does not appear to scroll. Scroll only drives animation progress inside a fixed stage. Header, footer, and CTA never move. Only the headline and the visual change.
+The hero feels like a **locked cinematic frame**. The page does not appear to scroll. Scroll only drives animation progress inside a fixed stage. Header, footer, and CTA never move. Only the headline and the visual change.pus
 
 ## Structure
 
 1. **Header (fixed)** — Logo, language toggle, login. Always visible. No animation. Rendered by page.
 
 2. **Hero wrapper** — Height 350vh. Inside it: one sticky **hero stage**.
-   - `position: sticky; top: 0; height: 100dvh; overflow: hidden`
-   - Single continuous background. No background changes during hero.
+   - `position: sticky; top: headerHeight; height: calc(100dvh - headerHeight); overflow: hidden` so the stage height accounts for the header.
+   - Single continuous background. No gradient shifts or background changes during hero.
 
 3. **Footer overlay** — Inside hero stage, bottom anchored. "Climb the Clouds. Build a Culture." + copyright. Does not scroll in/out. Same background as hero.
 
@@ -20,14 +20,13 @@ The hero feels like a **locked cinematic frame**. The page does not appear to sc
 
 ## Scroll driver
 
-One value only:
+One value only; **no global scrollY**. Progress is computed from the hero wrapper’s position:
 
-`heroProgress = clamp(scrollY / maxScroll, 0, 1)`
-
-- No time-based animations.
-- No multiple drivers.
-- No mount/unmount at thresholds.
-- Everything interpolates from heroProgress.
+- Measure the wrapper (outer 350vh div) with `getBoundingClientRect()`.
+- `heroProgress = 0` when wrapper top hits viewport top.
+- `heroProgress = 1` when wrapper bottom hits viewport bottom.
+- Formula: `progress = clamp(-rect.top / (rect.height - viewportHeight), 0, 1)`. Progress is not updated after the wrapper finishes scrolling (stays at 1).
+- No time-based animations. No multiple drivers. Everything interpolates from heroProgress.
 
 ## Sequence (4 segments + final)
 
@@ -39,7 +38,7 @@ One value only:
 | 0.75 – 0.90 | 4 | GLB slightly larger | LEO MÂY — 2026. |
 | 0.90 – 1.00 | Final | Headline out; CTA stays; camera dolly in; FOV down; GLB dominant | (faded out) |
 
-Text and visual change at the same time at each step. One headline component (four options, opacity per step). No overlapping progress bands. Next section appears when hero wrapper finishes scrolling; no conditional unlock logic.
+Text and visual change at the same time at each step. One headline component (four options, opacity per step). **Only one headline has opacity > 0 at a time;** no overlapping headline fade bands. Next section appears when hero wrapper finishes scrolling; no conditional unlock logic.
 
 ## Strict rules
 
