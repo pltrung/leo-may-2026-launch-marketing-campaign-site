@@ -4,8 +4,8 @@ import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import BrandBackground from "@/components/BrandBackground";
-import LegacyHero from "@/components/LegacyHero";
-import Hero3D from "@/components/hero3d/Hero3D";
+import LegacyHeroScroll from "@/components/LegacyHeroScroll";
+import CinematicHeroScroll from "@/components/CinematicHeroScroll";
 import HeroScroll1 from "@/components/HeroScroll1";
 import HeroScroll2 from "@/components/HeroScroll2";
 import HeroScroll3 from "@/components/HeroScroll3";
@@ -27,8 +27,7 @@ import { getUser } from "@/lib/userStorage";
 import type { Locale } from "@/lib/i18n";
 import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
 
-/** Use legacy hero (scroll sections) by default; set NEXT_PUBLIC_NEW_HERO=true for 3D hero. */
-const defaultNewHero = process.env.NEXT_PUBLIC_NEW_HERO === "true";
+const USE_CINEMATIC_HERO = true;
 
 function HomeContent() {
   const router = useRouter();
@@ -36,7 +35,6 @@ function HomeContent() {
   const locale = (params?.locale as Locale) ?? "en";
   const searchParams = useSearchParams();
   const [showClouds, setShowClouds] = useState(false);
-  const [useNewHero, setUseNewHero] = useState(defaultNewHero);
   const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
   const [skyVisible, setSkyVisible] = useState(false);
   const [skyTransitionForCountdown, setSkyTransitionForCountdown] = useState<false | "return" | "forms">(false);
@@ -125,26 +123,6 @@ function HomeContent() {
       <BrandBackground />
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />
-      {process.env.NODE_ENV === "development" && !showClouds && (
-        <div className="fixed top-4 left-4 z-[100] flex items-center gap-2 rounded-full border border-white/20 bg-black/80 text-white text-xs px-3 py-2 shadow-lg">
-          <span className="text-white/80">Hero:</span>
-          <button
-            type="button"
-            onClick={() => setUseNewHero(false)}
-            className={!useNewHero ? "font-semibold" : "opacity-70 hover:opacity-100"}
-          >
-            Legacy
-          </button>
-          <span className="text-white/50">|</span>
-          <button
-            type="button"
-            onClick={() => setUseNewHero(true)}
-            className={useNewHero ? "font-semibold" : "opacity-70 hover:opacity-100"}
-          >
-            Interactive
-          </button>
-        </div>
-      )}
       <motion.div
         className="fixed bottom-6 left-6 z-[100] scale-90 opacity-80 md:scale-100 md:opacity-100 [&>*]:origin-bottom-left isolate"
         initial={{ opacity: 0, y: -6 }}
@@ -182,7 +160,7 @@ function HomeContent() {
       </motion.div>
       <AnimatePresence mode="wait">
         <motion.div
-          key={showClouds ? "clouds" : useNewHero ? "hero3d" : "legacy-hero"}
+          key={showClouds ? "clouds" : USE_CINEMATIC_HERO ? "cinematic-hero" : "legacy-hero"}
           className="relative z-0"
           initial={{ opacity: 0 }}
           animate={{ opacity: heroContentOpacity }}
@@ -190,10 +168,10 @@ function HomeContent() {
           transition={{ duration: showClouds ? 0.4 : transitionActive ? 0.5 : 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
           {!showClouds ? (
-            useNewHero ? (
-              <Hero3D onJoin={handleAscendClick} />
+            USE_CINEMATIC_HERO ? (
+              <CinematicHeroScroll partColors={heroMascotPartColors} onJoin={handleAscendClick} />
             ) : (
-              <LegacyHero partColors={heroMascotPartColors} onJoin={handleAscendClick} />
+              <LegacyHeroScroll partColors={heroMascotPartColors} onJoin={handleAscendClick} />
             )
           ) : (
             <CloudSelector onSelect={setSelectedCloud} />

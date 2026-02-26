@@ -10,13 +10,13 @@ import HeroScroll6 from "@/components/HeroScroll6";
 import HeroScroll7 from "@/components/HeroScroll7";
 import type { MascotPartColors } from "@/lib/mascotSpeciesColors";
 
-export interface LegacyHeroProps {
+export interface LegacyHeroScrollProps {
   partColors: MascotPartColors | null;
   onJoin: () => void;
 }
 
 /** Original hero: scroll sections 1–7 + ascent bar. Kept for rollback. */
-export default function LegacyHero({ partColors, onJoin }: LegacyHeroProps) {
+export default function LegacyHeroScroll({ partColors, onJoin }: LegacyHeroScrollProps) {
   return (
     <>
       <AscentBar />
