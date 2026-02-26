@@ -7,11 +7,18 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import AscentBar from "@/components/AscentBar";
 import type { Locale } from "@/lib/i18n";
 import type { MascotPartColors } from "@/lib/mascotSpeciesColors";
+import { preloadHeroIslandGLB } from "@/components/HeroIslandGLB";
+
+const HeroIslandCanvas = dynamic(
+  () => import("@/components/HeroIslandCanvas"),
+  { ssr: false }
+);
 
 const SCROLL_HEADLINES_EN: string[] = [
   "CLIMB WITH INTENTION.",
@@ -60,7 +67,7 @@ const MOBILE_FRAME3_MS = 4500;
  * Premium narrative scroll (same sequence logic desktop + mobile, responsive layout only).
  * Layout zones: top-left = logo (sticky, never fades); top-right = login/language (page); bottom-left = CTA.
  * Moment A (top): logo in, mascot hook, headline "CLIMB WITH INTENTION.", CTA stable bottom-left.
- * Moment B (early scroll): mascot rises + fades; headline fades; sky brightens; holds + particles crossfade in (synced scrollReveal).
+ * Moment B (early scroll): mascot rises + fades; holds + particles + headline crossfade all driven by one heroProgress / revealT.
  * Moment C (mid–late scroll): holds revealed; headline crossfades; CTA + logo unchanged.
  * Moment D: hero background contained to sticky viewport; footer on its own background.
  */
@@ -167,6 +174,10 @@ export default function CinematicHeroScroll({
     };
   }, [isMobile]);
 
+  useEffect(() => {
+    preloadHeroIslandGLB();
+  }, []);
+
   const handleInteraction = useCallback(() => {
     setUserInteracted(true);
     if (ENABLE_HERO_SOUND && audioRef.current) {
@@ -204,14 +215,10 @@ export default function CinematicHeroScroll({
 
   const mascotOpacity = useMemo(() => {
     if (introT < t1) return 0;
-    const p = frame2Progress;
-    const introOpacity = Math.min(1, p * 1.2);
-    if (isMobile) {
-      const scrollFade = 1 - smoothstep(0.15, 0.48, scrollProgress);
-      return introOpacity * scrollFade;
-    }
-    return introOpacity * (1 - scrollProgress);
-  }, [introT, t1, frame2Progress, scrollProgress, isMobile]);
+    const introOpacity = Math.min(1, frame2Progress * 1.2);
+    const scrollFade = 1 - revealT;
+    return introOpacity * scrollFade;
+  }, [introT, t1, frame2Progress, revealT]);
 
   const mascotY = useMemo(() => {
     if (introT < t1) return 10;
@@ -226,135 +233,64 @@ export default function CinematicHeroScroll({
     return p * maxAura;
   }, [introT, t2, frame3Progress, isMobile]);
 
-  // Unified scroll-driven reveal: same curve for holds + particles + headlines (synced). Mobile: slightly later start so progression isn't rushed.
-  const scrollReveal = useMemo(
-    () =>
-      isMobile
-        ? smoothstep(0.1, 0.58, scrollProgress)
-        : smoothstep(0.12, 0.52, scrollProgress),
-    [scrollProgress, isMobile]
+  // ——— Single source of truth: heroProgress (0..1). One eased curve drives all layers. ———
+  const heroProgress = scrollProgress;
+  const REVEAL_START = 0.08;
+  const REVEAL_END = 0.5;
+  const revealT = useMemo(
+    () => smoothstep(REVEAL_START, REVEAL_END, heroProgress),
+    [heroProgress]
   );
 
   const wallOpacity = useMemo(() => {
-    if (isMobile) return Math.min(0.65, scrollReveal * 0.5 + scrollProgress * 0.15);
+    if (isMobile) return Math.min(0.65, revealT * 0.55 + heroProgress * 0.1);
     const base = introT >= t3 ? 0.15 + frame4Progress * 0.4 : 0;
-    return Math.min(0.7, base + scrollReveal * 0.5);
-  }, [introT, t3, frame4Progress, scrollProgress, scrollReveal, isMobile]);
+    return Math.min(0.7, base + revealT * 0.5);
+  }, [introT, t3, frame4Progress, heroProgress, revealT, isMobile]);
+
+  const ISLAND_FADE_IN_START = 0.52;
+  const ISLAND_FADE_IN_END = 0.78;
+  const ISLAND_FADE_OUT_START = 0.88;
+  const islandFadeIn = useMemo(() => smoothstep(ISLAND_FADE_IN_START, ISLAND_FADE_IN_END, heroProgress), [heroProgress]);
+  const islandFadeOut = useMemo(() => 1 - smoothstep(ISLAND_FADE_OUT_START, 1, heroProgress), [heroProgress]);
+  const islandOpacity = useMemo(() => islandFadeIn * islandFadeOut, [islandFadeIn, islandFadeOut]);
 
   const holdsOpacity = useMemo(() => {
-    const reveal = scrollReveal * 0.9;
-    if (isMobile) return reveal;
-    if (introT < t3) return 0;
-    const introHolds = Math.min((introT - t3) / 0.3, 1) * 0.2;
-    return Math.min(0.85, introHolds + reveal);
-  }, [introT, t3, scrollReveal, isMobile]);
+    const base = isMobile ? revealT * 0.9 : introT < t3 ? 0 : Math.min(0.85, Math.min((introT - t3) / 0.3, 1) * 0.2 + revealT * 0.9);
+    return base * (1 - islandFadeIn);
+  }, [introT, t3, revealT, isMobile, islandFadeIn]);
 
-  const holdsBlurPx = isMobile ? Math.max(0, 3 - 3 * smoothstep(0.12, 0.5, scrollProgress)) : 2;
-  const holdsScaleMobile = isMobile ? 1.4 + 0.2 * smoothstep(0.15, 0.52, scrollProgress) : 1;
+  const holdsBlurPx = isMobile ? Math.max(0, 3 - 3 * revealT) : 2;
+  const holdsScaleMobile = isMobile ? 1.4 + 0.2 * revealT : 1;
 
-  const headlineOpacity = useMemo(() => {
+  const headlineBlockOpacity = useMemo(() => {
     if (introT < t2) return 0;
-    const start = t2;
-    const end = t3 + 0.08;
-    return Math.min(1, (introT - start) / (end - start));
-  }, [introT, t2, t3]);
-
-  // Single continuous meta-line opacity: fades in once with headline, then stays steady (no duplicate fade)
-  const metaLineOpacity = useMemo(() => {
-    if (introT < t2) return 0;
-    const inDur = 0.25;
-    return Math.min(1, (introT - t2) / inDur);
+    return Math.min(1, (introT - t2) / 0.2);
   }, [introT, t2]);
 
-  const particleDensity = useMemo(
-    () => 0.4 + scrollReveal * 0.5,
-    [scrollReveal]
-  );
+  const metaLineOpacity = useMemo(() => smoothstep(0.02, 0.18, heroProgress), [heroProgress]);
 
-  const scrollPhase1 = isMobile ? Math.min(scrollProgress / 0.45, 1) : Math.min(scrollProgress / 0.35, 1);
-  const scrollPhase2 = isMobile
-    ? scrollProgress <= 0.45 ? 0 : Math.min((scrollProgress - 0.45) / 0.4, 1)
-    : scrollProgress <= 0.35 ? 0 : Math.min((scrollProgress - 0.35) / 0.35, 1);
+  const scrollPhase1 = Math.min(heroProgress / (REVEAL_END + 0.02), 1);
+  const scrollPhase2 = heroProgress <= REVEAL_END ? 0 : Math.min((heroProgress - REVEAL_END) / 0.35, 1);
 
   const SCROLL_HEADLINES: string[] = locale === "vi" ? SCROLL_HEADLINES_VI : SCROLL_HEADLINES_EN;
   const N = SCROLL_HEADLINES.length;
-
-  // Desktop: same scroll band as scrollReveal (0.12–0.55) so text crossfade is synced with particles/holds
-  const DESKTOP_SCROLL_START = 0.12;
-  const DESKTOP_SCROLL_END = 0.55;
-  const DESKTOP_CROSSFADE = 0.16; // wider overlap so transitions feel slow and synced
-  const desktopPeak = (i: number) => DESKTOP_SCROLL_START + (i / Math.max(1, N - 1)) * (DESKTOP_SCROLL_END - DESKTOP_SCROLL_START);
-
-  const MOBILE_SCROLL_START = 0.1;
-  const MOBILE_SCROLL_END = 0.58;
-  const MOBILE_CROSSFADE = 0.2;
-  const mobilePeak = (i: number) => MOBILE_SCROLL_START + (i / Math.max(1, N - 1)) * (MOBILE_SCROLL_END - MOBILE_SCROLL_START);
-
-  const headlineOpacities = isMobile
-    ? SCROLL_HEADLINES.map((_, i) => {
-        if (i === 0) {
-          const out = 1 - smoothstep(0.1, 0.32, scrollProgress);
-          return out * headlineOpacity;
-        }
-        const peak = mobilePeak(i);
-        const inStart = peak - MOBILE_CROSSFADE;
-        const inEnd = peak;
-        const outStart = peak;
-        const outEnd = peak + MOBILE_CROSSFADE;
-        const inVal = smoothstep(inStart, inEnd, scrollProgress);
-        const outVal = i < N - 1 ? 1 - smoothstep(outStart, outEnd, scrollProgress) : 1;
-        return inVal * outVal * headlineOpacity;
-      })
-    : SCROLL_HEADLINES.map((_, i) => {
-        const peak = desktopPeak(i);
-        const inStart = peak - DESKTOP_CROSSFADE;
-        const inEnd = peak;
-        const outStart = peak;
-        const outEnd = peak + DESKTOP_CROSSFADE;
-        const inVal = smoothstep(inStart, inEnd, scrollProgress);
-        const outVal = i < N - 1 ? 1 - smoothstep(outStart, outEnd, scrollProgress) : 1;
-        return inVal * outVal;
-      });
-
-  const headlineYs = SCROLL_HEADLINES.map((_, i) => {
-    if (isMobile) {
-      if (i === 0) {
-        const fadeOut = 1 - smoothstep(0.1, 0.32, scrollProgress);
-        return fadeOut < 1 ? -6 * (1 - fadeOut) : 0;
-      }
-      const peak = mobilePeak(i);
-      const inStart = peak - MOBILE_CROSSFADE;
-      const inEnd = peak;
-      const outStart = peak;
-      const outEnd = peak + MOBILE_CROSSFADE;
-      const fadeIn = smoothstep(inStart, inEnd, scrollProgress);
-      const fadeOut = i < N - 1 ? 1 - smoothstep(outStart, outEnd, scrollProgress) : 1;
-      if (fadeIn < 1) return 8 * (1 - fadeIn);
-      if (fadeOut < 1) return -8 * (1 - fadeOut);
-      return 0;
-    }
-    const peak = desktopPeak(i);
-    const inStart = peak - DESKTOP_CROSSFADE;
-    const inEnd = peak;
-    const outStart = peak;
-    const outEnd = peak + DESKTOP_CROSSFADE;
-    const fadeIn = smoothstep(inStart, inEnd, scrollProgress);
-    const fadeOut = i < N - 1 ? 1 - smoothstep(outStart, outEnd, scrollProgress) : 1;
-    if (fadeIn < 1) return 8 * (1 - fadeIn);
-    if (fadeOut < 1) return -8 * (1 - fadeOut);
-    return 0;
-  });
+  const headlineSegment = revealT * Math.max(0, N - 1);
+  const headlineIndexA = Math.min(Math.floor(headlineSegment), N - 1);
+  const headlineIndexB = Math.min(headlineIndexA + 1, N - 1);
+  const headlineCrossfadeT = headlineIndexA === headlineIndexB ? 0 : headlineSegment - Math.floor(headlineSegment);
+  const headlineOpacityA = headlineIndexA === headlineIndexB ? 1 : 1 - headlineCrossfadeT;
+  const headlineOpacityB = headlineIndexA === headlineIndexB ? 0 : headlineCrossfadeT;
 
   const mascotLift1 = isMobile ? viewportHeight * 0.1 : 72;
   const mascotLift2 = isMobile ? viewportHeight * 0.05 : 36;
   const mascotTranslateY = -mascotLift1 * Math.min(1, scrollPhase1 * 1.2) - mascotLift2 * scrollPhase2;
   const mascotScaleScroll = 1 + 0.018 * scrollPhase1 + 0.012 * scrollPhase2;
   const auraOpacityScroll = scrollPhase2 * 0.15;
-  const auraScaleScroll = 1 + scrollPhase2 * 0.05;
-  const subcopyOneLine = scrollProgress >= 0.5;
 
   const breathingScale = isMobile ? 1.015 : 1.02;
   const breathDuration = 5;
+  const islandScale = isMobile ? 0.85 : 1.1;
 
   return (
     <div
@@ -408,7 +344,7 @@ export default function CinematicHeroScroll({
             y: "-50%",
             background: "radial-gradient(circle, rgba(120,130,150,0.12) 0%, transparent 65%)",
             scale: 1 + scrollPhase2 * 0.05,
-            opacity: auraOpacity * (0.6 + 0.4 * (1 - scrollProgress)) + auraOpacityScroll,
+            opacity: auraOpacity * (0.6 + 0.4 * (1 - heroProgress)) + auraOpacityScroll,
             filter: "blur(40px)",
           }}
         />
@@ -449,10 +385,15 @@ export default function CinematicHeroScroll({
           </div>
         </div>
 
-        {/* Particles — synced with scrollReveal so they intensify with holds crossfade */}
+        {/* STATE C: GLB island — fades in as holds fade out; same heroProgress driver */}
+        <div className="absolute inset-0 z-[5] pointer-events-none" aria-hidden>
+          <HeroIslandCanvas opacity={islandOpacity} scale={islandScale} />
+        </div>
+
+        {/* Floating particles — intensity from revealT (same curve); subtle ambient only */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           {Array.from({ length: isMobile ? 12 : 16 }).map((_, i) => (
-            <motion.div
+            <div
               key={i}
               className="absolute rounded-full bg-white"
               style={{
@@ -460,15 +401,7 @@ export default function CinematicHeroScroll({
                 height: 4,
                 left: `${10 + (i * 5) % 80}%`,
                 top: `${20 + (i * 7) % 60}%`,
-                opacity: 0,
-              }}
-              animate={{
-                opacity: introT >= t2 ? Math.min(0.32, frame3Progress * 0.25 * particleDensity) : 0,
-                y: [0, -30],
-              }}
-              transition={{
-                opacity: { duration: 1.2 },
-                y: { duration: 8 + (i % 4), repeat: Infinity, ease: "linear" },
+                opacity: introT >= t2 ? Math.min(0.3, frame3Progress * 0.2 * (0.4 + revealT * 0.5)) : 0,
               }}
             />
           ))}
@@ -510,35 +443,37 @@ export default function CinematicHeroScroll({
           }
         >
           <div className={`pointer-events-auto flex flex-col justify-center w-full max-w-[min(100%,520px)] ${isMobile ? "order-2 items-start text-left max-w-[85%]" : "relative z-10 max-w-[min(42%,420px)]"}`}>
-            {/* Headline block: mobile = larger type, 1–2 words/row; CTA directly under meta */}
+            {/* Single text stack: two states (A/B) crossfade only; one meta line; no duplicated layers */}
             <div
               className={`max-w-[min(100%,1100px)] mt-6 sm:mt-8 md:mt-12 ${isMobile ? "text-left w-full" : ""}`}
-              style={{ opacity: headlineOpacity }}
+              style={{ opacity: headlineBlockOpacity }}
             >
               <h1
-                className={`relative font-bold text-white tracking-[-0.02em] leading-[1.18] sm:leading-[1.15] md:leading-[1.12] min-h-[1.2em] ${isMobile ? "text-left text-[clamp(36px,11vw,52px)] leading-[1.2] tracking-tight" : "text-[clamp(28px,6.5vw,40px)] sm:text-[clamp(32px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,96px)]"}`}
+                className={`relative font-bold text-white tracking-[-0.02em] leading-[1.18] sm:leading-[1.15] md:leading-[1.12] overflow-hidden ${isMobile ? "text-left text-[clamp(36px,11vw,52px)] leading-[1.2] tracking-tight min-h-[2.5em]" : "text-[clamp(28px,6.5vw,40px)] sm:text-[clamp(32px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,96px)] min-h-[1.2em]"}`}
                 style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
               >
-                {SCROLL_HEADLINES.map((line, i) => (
-                  <span
-                    key={`${line}-${i}`}
-                    className={`absolute top-0 block ${isMobile ? "left-0 right-auto" : "inset-x-0"}`}
-                    style={{
-                      opacity: headlineOpacities[i],
-                      transform: `translateY(${headlineYs[i]}px)`,
-                    }}
-                  >
-                    {isMobile ? (
-                      mobileHeadlineLines(line).map((ln, j) => (
-                        <span key={j} className="block">
-                          {ln}
-                        </span>
+                <span
+                  key="headline-a"
+                  className={`absolute top-0 block ${isMobile ? "left-0 right-auto" : "inset-x-0"}`}
+                  style={{ opacity: headlineOpacityA }}
+                >
+                  {isMobile
+                    ? mobileHeadlineLines(SCROLL_HEADLINES[headlineIndexA]).map((ln, j) => (
+                        <span key={j} className="block">{ln}</span>
                       ))
-                    ) : (
-                      line
-                    )}
-                  </span>
-                ))}
+                    : SCROLL_HEADLINES[headlineIndexA]}
+                </span>
+                <span
+                  key="headline-b"
+                  className={`absolute top-0 block ${isMobile ? "left-0 right-auto" : "inset-x-0"}`}
+                  style={{ opacity: headlineOpacityB }}
+                >
+                  {isMobile
+                    ? mobileHeadlineLines(SCROLL_HEADLINES[headlineIndexB]).map((ln, j) => (
+                        <span key={j} className="block">{ln}</span>
+                      ))
+                    : SCROLL_HEADLINES[headlineIndexB]}
+                </span>
               </h1>
               <p
                 className={`text-white/80 font-normal leading-snug ${isMobile ? "mt-3 text-[15px] sm:text-base" : "mt-4 sm:mt-4 md:mt-5 text-[clamp(13px,1.4vw,15px)] sm:text-[clamp(13px,1.1vw,16px)] md:text-[clamp(14px,1.2vw,18px)]"}`}
@@ -547,15 +482,7 @@ export default function CinematicHeroScroll({
                   fontFamily: "MiSans-Regular, sans-serif",
                 }}
               >
-                {subcopyOneLine ? (
-                  "Premium Climbing Experience — HCMC — 2026"
-                ) : (
-                  <>
-                    Premium Climbing Experience
-                    <br />
-                    Ho Chi Minh City — 2026
-                  </>
-                )}
+                Premium Climbing Experience — HCMC — 2026
               </p>
               {/* CTA: mobile = directly under meta (minimal gap); desktop = below with spacing */}
               {isMobile ? (
@@ -581,7 +508,7 @@ export default function CinematicHeroScroll({
             {!isMobile && (
               <motion.div
                 className="mt-6 sm:mt-8 md:mt-10"
-                style={{ opacity: headlineOpacity }}
+                style={{ opacity: headlineBlockOpacity }}
               >
                 <motion.button
                   type="button"
@@ -607,14 +534,15 @@ export default function CinematicHeroScroll({
             )}
           </div>
 
-          {/* Mascot: mobile = order-1 (top); desktop = viewport-centered via absolute so it stays anchored in hero */}
+          {/* Mascot: mobile = order-1, self-center; desktop = viewport-centered (absolute 50% + translate -50%) */}
           <motion.div
             className={
               isMobile
-                ? "flex items-center justify-center flex-shrink-0 w-[70%] max-w-[300px] order-1"
-                : "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-[38%] max-w-[320px] md:max-w-[340px] pointer-events-none"
+                ? "flex items-center justify-center flex-shrink-0 w-[70%] max-w-[300px] order-1 self-center"
+                : "absolute flex items-center justify-center w-[38%] max-w-[320px] md:max-w-[340px] pointer-events-none"
             }
             style={{
+              ...(isMobile ? {} : { left: "50%", top: "50%" }),
               opacity: mascotOpacity,
               transform: isMobile
                 ? `translateY(${mascotY + mascotTranslateY}px) scale(${mascotScaleScroll})`
@@ -656,25 +584,24 @@ export default function CinematicHeroScroll({
           </motion.div>
         </div>
 
-        {/* Right-edge scroll particle indicator — driven by scrollReveal only (no CSS transition so it stays in sync) */}
+        {/* Right-edge particle column — scroll-driven position and intensity (same heroProgress / revealT) */}
         <div
           className="absolute right-2 sm:right-3 top-0 bottom-0 w-px z-10 pointer-events-none overflow-hidden"
-          style={{ opacity: 0.15 + scrollReveal * 0.5 }}
+          style={{ opacity: 0.15 + revealT * 0.55 }}
           aria-hidden
         >
-          <div className="absolute inset-0 flex flex-col items-center justify-start pt-[10%]" style={{ gap: 18 }}>
+          <div
+            className="absolute left-0 w-full flex flex-col items-center justify-start"
+            style={{
+              gap: 18,
+              transform: `translateY(calc(10vh - ${heroProgress * 70}vh))`,
+            }}
+          >
             {[0, 1, 2, 3, 4, 5].map((i) => (
-              <motion.div
+              <div
                 key={i}
                 className="rounded-full bg-white flex-shrink-0"
-                style={{ width: 2, height: 2, opacity: 0.5 }}
-                animate={{ y: [0, -32] }}
-                transition={{
-                  duration: 5 + i * 0.6,
-                  repeat: Infinity,
-                  ease: "linear",
-                  delay: i * 0.5,
-                }}
+                style={{ width: 2, height: 2, opacity: 0.4 + revealT * 0.35 }}
               />
             ))}
           </div>
@@ -684,7 +611,7 @@ export default function CinematicHeroScroll({
         <motion.div
           className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-10"
           style={{
-            opacity: introT >= t3 ? 0.6 - scrollProgress * 0.6 : 0,
+            opacity: introT >= t3 ? 0.6 - heroProgress * 0.6 : 0,
             fontSize: "clamp(12px, 1vw, 14px)",
             color: "rgba(255,255,255,0.7)",
           }}
