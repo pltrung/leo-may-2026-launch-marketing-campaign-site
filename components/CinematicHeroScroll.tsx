@@ -402,7 +402,7 @@ export default function CinematicHeroScroll({
                 <p
                   className="text-white/80 leading-snug text-[13px] text-center"
                   style={{
-                    marginBottom: isMobile ? "36px" : "22px",
+                    marginBottom: isMobile ? "44px" : "22px",
                     opacity: metaOpacity,
                     fontFamily: "MiSans-Regular, sans-serif",
                   }}
