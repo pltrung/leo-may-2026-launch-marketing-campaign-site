@@ -436,7 +436,7 @@ export default function CinematicHeroScroll({
               <div
                 className="absolute z-30 pointer-events-none left-4 sm:left-6 md:left-8 w-[min(42%,420px)]"
                 style={{
-                  top: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 3rem)`,
+                  top: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 5rem)`,
                 }}
               >
                 <div
