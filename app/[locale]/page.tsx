@@ -145,27 +145,29 @@ function HomeContent() {
       <BrandBackground />
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />
-      {/* Top-right: login + language toggle (stable header cluster; leaves bottom-left for CTA) */}
-      <motion.div
-        className="fixed top-8 right-6 z-[100] flex items-center gap-3"
-        initial={{ opacity: 0, y: 12 }}
-        animate={{
-          opacity: transitionActive ? 0 : heroReady ? 1 : 0,
-          y: transitionActive ? 12 : heroReady ? 0 : 12,
-        }}
-        transition={{
-          duration: 0.8,
-          delay: transitionActive ? 0 : heroReady ? 0.5 : 0,
-          ease: heroEase,
-        }}
-        style={{ pointerEvents: transitionActive ? "none" : "auto", willChange: "transform, opacity" }}
-      >
-        <LanguageSwitch />
-        <KnowYourTeamButton
-          show
-          onFoundTeam={() => transitionToCountdown("return")}
-        />
-      </motion.div>
+      {/* Top-right: login + language (only when NOT cinematic hero; cinematic hero has its own top bar) */}
+      {!(USE_CINEMATIC_HERO && !showClouds) && (
+        <motion.div
+          className="fixed top-8 right-6 z-[100] flex items-center gap-3"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{
+            opacity: transitionActive ? 0 : heroReady ? 1 : 0,
+            y: transitionActive ? 12 : heroReady ? 0 : 12,
+          }}
+          transition={{
+            duration: 0.8,
+            delay: transitionActive ? 0 : heroReady ? 0.5 : 0,
+            ease: heroEase,
+          }}
+          style={{ pointerEvents: transitionActive ? "none" : "auto", willChange: "transform, opacity" }}
+        >
+          <LanguageSwitch />
+          <KnowYourTeamButton
+            show
+            onFoundTeam={() => transitionToCountdown("return")}
+          />
+        </motion.div>
+      )}
       <AnimatePresence mode="wait">
         <motion.div
           key={showClouds ? "clouds" : USE_CINEMATIC_HERO ? "cinematic-hero" : "legacy-hero"}
@@ -177,7 +179,20 @@ function HomeContent() {
         >
           {!showClouds ? (
             USE_CINEMATIC_HERO ? (
-              <CinematicHeroScroll partColors={heroMascotPartColors} onJoin={handleAscendClick} locale={locale} />
+              <CinematicHeroScroll
+                partColors={heroMascotPartColors}
+                onJoin={handleAscendClick}
+                locale={locale}
+                topRightSlot={
+                  <>
+                    <LanguageSwitch />
+                    <KnowYourTeamButton
+                      show
+                      onFoundTeam={() => transitionToCountdown("return")}
+                    />
+                  </>
+                }
+              />
             ) : (
               <LegacyHeroScroll partColors={heroMascotPartColors} onJoin={handleAscendClick} />
             )

@@ -2,18 +2,22 @@
 
 import React, { useState, useEffect } from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
+import * as THREE from "three";
 import HeroIslandGLB from "./HeroIslandGLB";
 
 const DEFAULT_CAMERA_Z = 8;
-const ZOOMED_CAMERA_Z = 4.2;
 
-/** Drives camera Z for cinematic push-in (last 20% of hero). */
-function CameraPushIn({ cameraDistance }: { cameraDistance: number }) {
+/** Drives camera Z and FOV for cinematic push-in (last 20% of hero). */
+function CameraPushIn({ cameraDistance, fov }: { cameraDistance: number; fov: number }) {
   const { camera } = useThree();
   useFrame(() => {
     if (camera.position.z !== cameraDistance) {
       camera.position.z = cameraDistance;
-      camera.updateProjectionMatrix();
+    }
+    const pCamera = camera as THREE.PerspectiveCamera;
+    if (pCamera.fov !== fov) {
+      pCamera.fov = fov;
+      pCamera.updateProjectionMatrix();
     }
   });
   return null;
@@ -24,12 +28,14 @@ export default function HeroIslandCanvas({
   opacity,
   scale,
   cameraDistance = DEFAULT_CAMERA_Z,
+  fov = 45,
   shouldMount,
   className,
 }: {
   opacity: number;
   scale: number;
   cameraDistance?: number;
+  fov?: number;
   shouldMount?: boolean;
   className?: string;
 }) {
@@ -56,7 +62,7 @@ export default function HeroIslandCanvas({
           gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
           frameloop="always"
         >
-          <CameraPushIn cameraDistance={cameraDistance} />
+          <CameraPushIn cameraDistance={cameraDistance} fov={fov} />
           <ambientLight intensity={0.6} />
           <directionalLight position={[5, 5, 5]} intensity={1} />
           <directionalLight position={[-3, 2, 2]} intensity={0.4} />
