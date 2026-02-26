@@ -112,86 +112,113 @@ export default function CinematicHeroScroll({
   const p = heroProgress;
   const headlines = locale === "vi" ? HEADLINES_VI : HEADLINES_EN;
 
-  // Cross-fade headlines: each has opacity + translateY (slide); overlapping bands so text crossfades as you scroll
-  const slidePx = 20;
+  const FADE_Y_PX = 20;
+  const HOLD = 0.02;
+
+  // Sequential headlines: fade out old fully → hold → fade in new. Wider windows, smoothstep, translateY during fade.
   const headline1Opacity = useMemo(() => {
-    if (p < 0.15) return 1;
-    if (p < 0.25) return 1 - smoothstep(0.15, 0.25, p);
+    if (p < 0.06) return smoothstep(0, 0.06, p);
+    if (p < 0.12) return 1;
+    if (p < 0.22) return 1 - smoothstep(0.12, 0.22, p);
     return 0;
   }, [p]);
   const headline1TranslateY = useMemo(() => {
-    if (p < 0.15) return 0;
-    if (p < 0.25) return -slidePx * smoothstep(0.15, 0.25, p);
-    return -slidePx;
+    if (p < 0.06) return FADE_Y_PX * (1 - smoothstep(0, 0.06, p));
+    if (p < 0.12) return 0;
+    if (p < 0.22) return -FADE_Y_PX * smoothstep(0.12, 0.22, p);
+    return -FADE_Y_PX;
   }, [p]);
   const headline2Opacity = useMemo(() => {
-    if (p < 0.2) return 0;
-    if (p < 0.35) return smoothstep(0.2, 0.35, p);
-    if (p < 0.45) return 1;
-    if (p < 0.55) return 1 - smoothstep(0.45, 0.55, p);
+    if (p < 0.24) return 0;
+    if (p < 0.36) return smoothstep(0.24, 0.36, p);
+    if (p < 0.46) return 1;
+    if (p < 0.56) return 1 - smoothstep(0.46, 0.56, p);
     return 0;
   }, [p]);
   const headline2TranslateY = useMemo(() => {
-    if (p < 0.2) return slidePx;
-    if (p < 0.35) return slidePx * (1 - smoothstep(0.2, 0.35, p));
-    if (p < 0.45) return 0;
-    if (p < 0.55) return -slidePx * smoothstep(0.45, 0.55, p);
-    return -slidePx;
+    if (p < 0.24) return FADE_Y_PX;
+    if (p < 0.36) return FADE_Y_PX * (1 - smoothstep(0.24, 0.36, p));
+    if (p < 0.46) return 0;
+    if (p < 0.56) return -FADE_Y_PX * smoothstep(0.46, 0.56, p);
+    return -FADE_Y_PX;
   }, [p]);
   const headline3Opacity = useMemo(() => {
-    if (p < 0.5) return 0;
-    if (p < 0.65) return smoothstep(0.5, 0.65, p);
-    if (p < 0.75) return 1;
-    if (p < 0.85) return 1 - smoothstep(0.75, 0.85, p);
+    if (p < 0.58) return 0;
+    if (p < 0.70) return smoothstep(0.58, 0.70, p);
+    if (p < 0.76) return 1;
+    if (p < 0.86) return 1 - smoothstep(0.76, 0.86, p);
     return 0;
   }, [p]);
   const headline3TranslateY = useMemo(() => {
-    if (p < 0.5) return slidePx;
-    if (p < 0.65) return slidePx * (1 - smoothstep(0.5, 0.65, p));
-    if (p < 0.75) return 0;
-    if (p < 0.85) return -slidePx * smoothstep(0.75, 0.85, p);
-    return -slidePx;
+    if (p < 0.58) return FADE_Y_PX;
+    if (p < 0.70) return FADE_Y_PX * (1 - smoothstep(0.58, 0.70, p));
+    if (p < 0.76) return 0;
+    if (p < 0.86) return -FADE_Y_PX * smoothstep(0.76, 0.86, p);
+    return -FADE_Y_PX;
   }, [p]);
   const headline4Opacity = useMemo(() => {
-    if (p < 0.8) return 0;
-    if (p < 0.9) return smoothstep(0.8, 0.9, p);
-    return 1 - smoothstep(0.9, 1, p);
+    if (p < 0.88) return 0;
+    if (p < 0.96) return smoothstep(0.88, 0.96, p);
+    return 1 - smoothstep(0.96, 1, p);
   }, [p]);
   const headline4TranslateY = useMemo(() => {
-    if (p < 0.8) return slidePx;
-    if (p < 0.9) return slidePx * (1 - smoothstep(0.8, 0.9, p));
-    if (p < 1) return -slidePx * smoothstep(0.9, 1, p);
-    return -slidePx;
+    if (p < 0.88) return FADE_Y_PX;
+    if (p < 0.96) return FADE_Y_PX * (1 - smoothstep(0.88, 0.96, p));
+    if (p < 1) return -FADE_Y_PX * smoothstep(0.96, 1, p);
+    return -FADE_Y_PX;
   }, [p]);
+
+  const headlineOpacities = [headline1Opacity, headline2Opacity, headline3Opacity, headline4Opacity];
+  const headlineTranslateYs = [headline1TranslateY, headline2TranslateY, headline3TranslateY, headline4TranslateY];
 
   // Zoom 0.82 → 0.95 only; smoothstep easing; lock at 0.95 (no pop). Progress reaches 1 at 95% of scroll.
   const pZoom = Math.min(p, 0.95);
   const zoomT = smoothstep(0.82, 0.95, pZoom);
-  const narrativeStackOpacity = 1 - smoothstep(0.82, 0.95, p);
-  const headlineOpacities = [headline1Opacity, headline2Opacity, headline3Opacity, headline4Opacity];
-  const headlineTranslateYs = [headline1TranslateY, headline2TranslateY, headline3TranslateY, headline4TranslateY];
+  const narrativeStackOpacity = 1 - smoothstep(0.82, 0.98, p);
 
-  const mascotOpacity = 1 - smoothstep(0.15, 0.3, p);
-  const mascotLift = smoothstep(0.15, 0.3, p);
-  const mascotTranslateY = -80 * mascotLift;
+  // Initial sequence (0–0.15): Headline → Mascot → CTA staggered. Wider fade, smoothstep, small translateY.
+  const mascotOpacity = useMemo(() => {
+    if (p < 0.04) return 0;
+    if (p < 0.11) return smoothstep(0.04, 0.11, p);
+    if (p < 0.14) return 1;
+    return 1 - smoothstep(0.14, 0.28, p);
+  }, [p]);
+  const mascotLift = smoothstep(0.14, 0.28, p);
+  const mascotTranslateY =
+    p < 0.11
+      ? FADE_Y_PX * (1 - smoothstep(0.04, 0.11, p))
+      : -75 * mascotLift;
 
-  const climbsFadeOut = 1 - smoothstep(0.4, 0.6, p);
-  const wallOpacity = smoothstep(0.2, 0.35, p) * climbsFadeOut;
-  const holdsOpacity = smoothstep(0.2, 0.35, p) * climbsFadeOut;
+  const ctaOpacity = useMemo(() => {
+    if (p < 0.08) return 0;
+    return smoothstep(0.08, 0.16, p);
+  }, [p]);
+  const ctaTranslateY = useMemo(() => {
+    if (p < 0.08) return 18;
+    return 18 * (1 - smoothstep(0.08, 0.16, p));
+  }, [p]);
 
-  const glbOpacity = smoothstep(0.4, 0.6, p);
+  const climbsFadeOut = 1 - smoothstep(0.38, 0.62, p);
+  const climbsTranslateY = -18 * smoothstep(0.38, 0.62, p);
+  const wallOpacity = smoothstep(0.18, 0.38, p) * climbsFadeOut;
+  const holdsOpacity = smoothstep(0.18, 0.38, p) * climbsFadeOut;
+
+  const glbOpacity = smoothstep(0.38, 0.62, p);
   const glbScaleBase = 0.7 + 0.3 * smoothstep(0.4, 0.65, Math.min(p, 0.82));
   const glbScale = glbScaleBase;
-  const CAMERA_Z_MIN = 6;
   const cameraZStart = 9;
-  const cameraDollyAmount = (cameraZStart - CAMERA_Z_MIN) * 0.5;
-  const cameraDistanceEnd = Math.max(CAMERA_Z_MIN, cameraZStart - cameraDollyAmount);
-  const cameraDistance = p < 0.82 ? cameraZStart : Math.max(CAMERA_Z_MIN, cameraZStart - zoomT * (cameraZStart - cameraDistanceEnd));
+  const cameraDistanceEnd = 7;
+  const FRAMING_CLAMP_Z = 6.2;
+  const cameraDistance = p < 0.82
+    ? cameraZStart
+    : Math.max(FRAMING_CLAMP_Z, cameraZStart - zoomT * (cameraZStart - cameraDistanceEnd));
   const cameraFov = 45;
   const glbRotationSpeed = p >= 0.95 ? 0.8 : 1;
-  const heroFooterOpacity = 1 - smoothstep(0.88, 0.98, p);
+  const narrativeTranslateY = -FADE_Y_PX * smoothstep(0.82, 0.98, p);
+  const heroFooterOpacity = 1 - smoothstep(0.86, 0.98, p);
+  const heroFooterTranslateY = -16 * smoothstep(0.86, 0.98, p);
 
-  const metaOpacity = smoothstep(0.05, 0.2, p) * narrativeStackOpacity;
+  const metaOpacity = smoothstep(0.06, 0.2, p) * narrativeStackOpacity;
 
   return (
     <div
@@ -228,7 +255,10 @@ export default function CinematicHeroScroll({
             }}
           />
 
-          <div className="absolute inset-0 pointer-events-none flex items-center justify-center" style={{ opacity: wallOpacity }}>
+          <div
+            className="absolute inset-0 pointer-events-none flex items-center justify-center"
+            style={{ opacity: wallOpacity, transform: `translateY(${climbsTranslateY}px)` }}
+          >
             <div
               className="absolute inset-0"
               style={{
@@ -255,82 +285,179 @@ export default function CinematicHeroScroll({
             />
           </div>
 
-          {/* Narrative: below header + safe-area; mobile headline clamped so no overlap with header */}
-          <div
-            className={`absolute z-10 pointer-events-none ${isMobile ? "left-4 right-4 text-center max-w-[90%]" : "left-4 sm:left-6 md:left-8 w-[min(42%,420px)]"}`}
-            style={{
-              top: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 1rem)`,
-            }}
-          >
-            <div style={{ opacity: narrativeStackOpacity }} className="pointer-events-none">
-              <h1
-                className={`relative font-bold text-white tracking-tight ${isMobile ? "text-center min-h-[3.5em] leading-[1.15] text-[clamp(26px,7.5vw,42px)]" : "leading-[1.2] text-[clamp(28px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,72px)] min-h-[4.5em]"}`}
-                style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
-              >
-                {headlines.map((line, i) => (
-                  <span
-                    key={i}
-                    className={`absolute top-0 block w-full ${isMobile ? "left-0 right-0 text-center" : "left-0 right-0"}`}
-                    style={{
-                      opacity: headlineOpacities[i] ?? 0,
-                      transform: `translateY(${headlineTranslateYs[i] ?? 0}px)`,
-                    }}
-                    aria-hidden={(headlineOpacities[i] ?? 0) < 0.01}
-                  >
-                    {line}
-                  </span>
-                ))}
-              </h1>
-              <p
-                className={`text-white/80 mt-4 leading-snug ${isMobile ? "text-[15px] text-center" : "text-[clamp(13px,1.2vw,16px)]"}`}
-                style={{ opacity: metaOpacity, fontFamily: "MiSans-Regular, sans-serif" }}
-              >
-                Premium Climbing Experience — HCMC — 2026
-              </p>
-            </div>
-          </div>
-
-          {/* CTA: fixed position for entire hero; does not move; always in the right place */}
-          <div
-            className={`absolute z-20 pointer-events-auto ${isMobile ? "left-4 right-4 flex justify-center bottom-[130px] sm:bottom-[140px]" : "left-4 sm:left-6 md:left-8 bottom-[120px]"}`}
-            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-          >
-            <motion.button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onJoin();
+          {/* Mobile: vertical stack — Mascot → Headline → CTA, centered, with spacing and safe-area */}
+          {isMobile && (
+            <div
+              className="absolute inset-x-0 top-0 bottom-0 z-10 flex flex-col items-center justify-start overflow-auto"
+              style={{
+                paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 1rem)`,
+                paddingBottom: `calc(1.5rem + env(safe-area-inset-bottom, 0px))`,
+                paddingLeft: "1rem",
+                paddingRight: "1rem",
+                gap: "1.75rem",
               }}
-              className="px-6 py-3 sm:px-8 sm:py-3.5 rounded-full border border-white/70 text-white text-xs sm:text-sm font-medium tracking-wider uppercase bg-transparent"
-              style={{ letterSpacing: "0.05em", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 1.02 }}
             >
-              JOIN THE FOUNDING ASCENT
-            </motion.button>
-          </div>
+              <div
+                className="flex shrink-0 items-center justify-center w-[70%] max-w-[280px] pointer-events-none"
+                style={{
+                  opacity: mascotOpacity,
+                  transform: `translateY(${mascotTranslateY}px)`,
+                }}
+              >
+                {partColors ? (
+                  <object
+                    data="/brand/ip-flying.svg"
+                    type="image/svg+xml"
+                    aria-hidden
+                    className="w-full h-full object-contain aspect-square"
+                    style={{ color: "#fffef8" }}
+                  />
+                ) : (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src="/brand/ip-flying.svg" alt="" className="w-full aspect-square object-contain" />
+                )}
+              </div>
+              <div
+                className="flex shrink-0 flex-col items-center justify-center text-center max-w-[90%] pointer-events-none"
+                style={{
+                  opacity: narrativeStackOpacity,
+                  transform: `translateY(${narrativeTranslateY}px)`,
+                }}
+              >
+                <h1
+                  className="relative font-bold text-white tracking-tight text-center min-h-[3.5em] leading-[1.15] text-[clamp(26px,7.5vw,42px)]"
+                  style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
+                >
+                  {headlines.map((line, i) => (
+                    <span
+                      key={i}
+                      className="absolute top-0 left-0 right-0 block w-full text-center"
+                      style={{
+                        opacity: headlineOpacities[i] ?? 0,
+                        transform: `translateY(${headlineTranslateYs[i] ?? 0}px)`,
+                      }}
+                      aria-hidden={(headlineOpacities[i] ?? 0) < 0.01}
+                    >
+                      {line}
+                    </span>
+                  ))}
+                </h1>
+                <p
+                  className="text-white/80 mt-4 leading-snug text-[15px] text-center"
+                  style={{ opacity: metaOpacity, fontFamily: "MiSans-Regular, sans-serif" }}
+                >
+                  Premium Climbing Experience — HCMC — 2026
+                </p>
+              </div>
+              <div
+                className="flex shrink-0 justify-center pointer-events-auto"
+                style={{
+                  opacity: ctaOpacity,
+                  transform: `translateY(${ctaTranslateY}px)`,
+                }}
+              >
+                <motion.button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onJoin();
+                  }}
+                  className="px-6 py-3 rounded-full border border-white/70 text-white text-xs font-medium tracking-wider uppercase bg-transparent"
+                  style={{ letterSpacing: "0.05em", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 1.02 }}
+                >
+                  JOIN THE FOUNDING ASCENT
+                </motion.button>
+              </div>
+            </div>
+          )}
 
-          {/* Mascot: center, exits up as scroll progresses */}
-          <div
-            className={`absolute left-1/2 top-1/2 z-10 flex items-center justify-center pointer-events-none ${isMobile ? "w-[70%] max-w-[280px]" : "w-[38%] max-w-[320px]"}`}
-            style={{
-              opacity: mascotOpacity,
-              transform: `translate(-50%, calc(-50% + ${mascotTranslateY}px))`,
-            }}
-          >
-            {partColors ? (
-              <object
-                data="/brand/ip-flying.svg"
-                type="image/svg+xml"
-                aria-hidden
-                className="w-full h-full object-contain aspect-square"
-                style={{ color: "#fffef8" }}
-              />
-            ) : (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src="/brand/ip-flying.svg" alt="" className="w-full aspect-square object-contain" />
-            )}
-          </div>
+          {/* Desktop: narrative, CTA, mascot in original positions */}
+          {!isMobile && (
+            <>
+              <div
+                className="absolute z-10 pointer-events-none left-4 sm:left-6 md:left-8 w-[min(42%,420px)]"
+                style={{
+                  top: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 1rem)`,
+                }}
+              >
+                <div
+                  style={{
+                    opacity: narrativeStackOpacity,
+                    transform: `translateY(${narrativeTranslateY}px)`,
+                  }}
+                  className="pointer-events-none"
+                >
+                  <h1
+                    className="relative font-bold text-white tracking-tight leading-[1.2] text-[clamp(28px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,72px)] min-h-[4.5em]"
+                    style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
+                  >
+                    {headlines.map((line, i) => (
+                      <span
+                        key={i}
+                        className="absolute top-0 block w-full left-0 right-0"
+                        style={{
+                          opacity: headlineOpacities[i] ?? 0,
+                          transform: `translateY(${headlineTranslateYs[i] ?? 0}px)`,
+                        }}
+                        aria-hidden={(headlineOpacities[i] ?? 0) < 0.01}
+                      >
+                        {line}
+                      </span>
+                    ))}
+                  </h1>
+                  <p
+                    className="text-white/80 mt-4 leading-snug text-[clamp(13px,1.2vw,16px)]"
+                    style={{ opacity: metaOpacity, fontFamily: "MiSans-Regular, sans-serif" }}
+                  >
+                    Premium Climbing Experience — HCMC — 2026
+                  </p>
+                </div>
+              </div>
+              <div
+                className="absolute z-20 pointer-events-auto left-4 sm:left-6 md:left-8 bottom-[120px]"
+                style={{
+                  opacity: ctaOpacity,
+                  transform: `translateY(${ctaTranslateY}px)`,
+                }}
+              >
+                <motion.button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onJoin();
+                  }}
+                  className="px-6 py-3 sm:px-8 sm:py-3.5 rounded-full border border-white/70 text-white text-xs sm:text-sm font-medium tracking-wider uppercase bg-transparent"
+                  style={{ letterSpacing: "0.05em", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 1.02 }}
+                >
+                  JOIN THE FOUNDING ASCENT
+                </motion.button>
+              </div>
+              <div
+                className="absolute left-1/2 top-1/2 z-10 flex items-center justify-center pointer-events-none w-[38%] max-w-[320px]"
+                style={{
+                  opacity: mascotOpacity,
+                  transform: `translate(-50%, calc(-50% + ${mascotTranslateY}px))`,
+                }}
+              >
+                {partColors ? (
+                  <object
+                    data="/brand/ip-flying.svg"
+                    type="image/svg+xml"
+                    aria-hidden
+                    className="w-full h-full object-contain aspect-square"
+                    style={{ color: "#fffef8" }}
+                  />
+                ) : (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src="/brand/ip-flying.svg" alt="" className="w-full aspect-square object-contain" />
+                )}
+              </div>
+            </>
+          )}
 
           {/* Vertical progress bar */}
           <div
@@ -354,13 +481,14 @@ export default function CinematicHeroScroll({
 
         {footerMessages && (
           <div
-            className="absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center justify-center gap-0.5 py-3 px-4 text-center pointer-events-none transition-opacity duration-300"
+            className="absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center justify-center gap-0.5 py-3 px-4 text-center pointer-events-none"
             style={{
               height: footerHeight,
               minHeight: footerHeight,
               paddingBottom: "max(12px, env(safe-area-inset-bottom))",
               background: HERO_BG,
               opacity: heroFooterOpacity,
+              transform: `translateY(${heroFooterTranslateY}px)`,
             }}
           >
             <p className="text-white/80 text-xs tracking-wide" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
