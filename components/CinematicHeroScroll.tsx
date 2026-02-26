@@ -31,6 +31,17 @@ const SCROLL_HEADLINES_VI: string[] = [
 
 const ENABLE_HERO_SOUND = false;
 
+/** Mobile: break headline into 1–2 words per row for larger, less compressed type. */
+function mobileHeadlineLines(line: string): string[] {
+  const words = line.trim().split(/\s+/);
+  if (words.length <= 2) return [line];
+  const lines: string[] = [];
+  for (let i = 0; i < words.length; i += 2) {
+    lines.push(words.slice(i, i + 2).join(" "));
+  }
+  return lines;
+}
+
 const HERO_BG = "#0B0B0F";
 const EASE_REVEAL = [0.4, 0, 0.2, 1] as const;
 const EASE_AMBIENT = [0.42, 0, 0.58, 1] as const;
@@ -106,6 +117,8 @@ export default function CinematicHeroScroll({
   const [viewportHeight, setViewportHeight] = useState(typeof window !== "undefined" ? window.innerHeight : 700);
   const [userInteracted, setUserInteracted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const scrollRafRef = useRef<number>(0);
+  const scrollPendingRef = useRef<number | null>(null);
 
   useEffect(() => {
     const onResize = () => setViewportHeight(window.innerHeight);
@@ -132,17 +145,27 @@ export default function CinematicHeroScroll({
     return t * t * (3 - 2 * t);
   }
 
+  // Single scroll driver: RAF-throttled to avoid jitter; no setState storm during scroll. Mobile uses longer range so progression isn't rushed.
   useEffect(() => {
-    const viewportHeight = window.innerHeight;
-    const scrollRange = Math.max(viewportHeight * 0.6, 400);
+    const vh = typeof window !== "undefined" ? window.innerHeight : 700;
+    const scrollRange = isMobile ? Math.max(vh * 1.15, 500) : Math.max(vh * 0.6, 400);
     const onScroll = () => {
       const y = window.scrollY;
-      setScrollProgress(Math.min(y / scrollRange, 1));
+      scrollPendingRef.current = Math.min(y / scrollRange, 1);
+      if (scrollRafRef.current !== 0) return;
+      scrollRafRef.current = requestAnimationFrame(() => {
+        scrollRafRef.current = 0;
+        const p = scrollPendingRef.current;
+        if (p != null) setScrollProgress(p);
+      });
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (scrollRafRef.current) cancelAnimationFrame(scrollRafRef.current);
+    };
+  }, [isMobile]);
 
   const handleInteraction = useCallback(() => {
     setUserInteracted(true);
@@ -184,7 +207,7 @@ export default function CinematicHeroScroll({
     const p = frame2Progress;
     const introOpacity = Math.min(1, p * 1.2);
     if (isMobile) {
-      const scrollFade = 1 - smoothstep(0.2, 0.38, scrollProgress);
+      const scrollFade = 1 - smoothstep(0.15, 0.48, scrollProgress);
       return introOpacity * scrollFade;
     }
     return introOpacity * (1 - scrollProgress);
@@ -203,10 +226,13 @@ export default function CinematicHeroScroll({
     return p * maxAura;
   }, [introT, t2, frame3Progress, isMobile]);
 
-  // Unified scroll-driven reveal: same curve for holds + particles (synced, smooth)
+  // Unified scroll-driven reveal: same curve for holds + particles + headlines (synced). Mobile: slightly later start so progression isn't rushed.
   const scrollReveal = useMemo(
-    () => smoothstep(0.12, 0.52, scrollProgress),
-    [scrollProgress]
+    () =>
+      isMobile
+        ? smoothstep(0.1, 0.58, scrollProgress)
+        : smoothstep(0.12, 0.52, scrollProgress),
+    [scrollProgress, isMobile]
   );
 
   const wallOpacity = useMemo(() => {
@@ -223,8 +249,8 @@ export default function CinematicHeroScroll({
     return Math.min(0.85, introHolds + reveal);
   }, [introT, t3, scrollReveal, isMobile]);
 
-  const holdsBlurPx = isMobile ? Math.max(0, 3 - 3 * smoothstep(0.15, 0.48, scrollProgress)) : 2;
-  const holdsScaleMobile = isMobile ? 1.4 + 0.2 * smoothstep(0.2, 0.5, scrollProgress) : 1;
+  const holdsBlurPx = isMobile ? Math.max(0, 3 - 3 * smoothstep(0.12, 0.5, scrollProgress)) : 2;
+  const holdsScaleMobile = isMobile ? 1.4 + 0.2 * smoothstep(0.15, 0.52, scrollProgress) : 1;
 
   const headlineOpacity = useMemo(() => {
     if (introT < t2) return 0;
@@ -245,8 +271,10 @@ export default function CinematicHeroScroll({
     [scrollReveal]
   );
 
-  const scrollPhase1 = Math.min(scrollProgress / 0.35, 1);
-  const scrollPhase2 = scrollProgress <= 0.35 ? 0 : Math.min((scrollProgress - 0.35) / 0.35, 1);
+  const scrollPhase1 = isMobile ? Math.min(scrollProgress / 0.45, 1) : Math.min(scrollProgress / 0.35, 1);
+  const scrollPhase2 = isMobile
+    ? scrollProgress <= 0.45 ? 0 : Math.min((scrollProgress - 0.45) / 0.4, 1)
+    : scrollProgress <= 0.35 ? 0 : Math.min((scrollProgress - 0.35) / 0.35, 1);
 
   const SCROLL_HEADLINES: string[] = locale === "vi" ? SCROLL_HEADLINES_VI : SCROLL_HEADLINES_EN;
   const N = SCROLL_HEADLINES.length;
@@ -257,19 +285,25 @@ export default function CinematicHeroScroll({
   const DESKTOP_CROSSFADE = 0.16; // wider overlap so transitions feel slow and synced
   const desktopPeak = (i: number) => DESKTOP_SCROLL_START + (i / Math.max(1, N - 1)) * (DESKTOP_SCROLL_END - DESKTOP_SCROLL_START);
 
+  const MOBILE_SCROLL_START = 0.1;
+  const MOBILE_SCROLL_END = 0.58;
+  const MOBILE_CROSSFADE = 0.2;
+  const mobilePeak = (i: number) => MOBILE_SCROLL_START + (i / Math.max(1, N - 1)) * (MOBILE_SCROLL_END - MOBILE_SCROLL_START);
+
   const headlineOpacities = isMobile
     ? SCROLL_HEADLINES.map((_, i) => {
         if (i === 0) {
-          const out = 1 - smoothstep(0.18, 0.38, scrollProgress);
+          const out = 1 - smoothstep(0.1, 0.32, scrollProgress);
           return out * headlineOpacity;
         }
-        const inStart = 0.28 + (i - 1) * 0.2;
-        const inEnd = inStart + 0.14;
-        const outStart = 0.45 + (i - 1) * 0.2;
-        const outEnd = outStart + 0.14;
+        const peak = mobilePeak(i);
+        const inStart = peak - MOBILE_CROSSFADE;
+        const inEnd = peak;
+        const outStart = peak;
+        const outEnd = peak + MOBILE_CROSSFADE;
         const inVal = smoothstep(inStart, inEnd, scrollProgress);
         const outVal = i < N - 1 ? 1 - smoothstep(outStart, outEnd, scrollProgress) : 1;
-        return inVal * outVal * (scrollProgress >= 0.32 ? 1 : 0);
+        return inVal * outVal * headlineOpacity;
       })
     : SCROLL_HEADLINES.map((_, i) => {
         const peak = desktopPeak(i);
@@ -285,17 +319,18 @@ export default function CinematicHeroScroll({
   const headlineYs = SCROLL_HEADLINES.map((_, i) => {
     if (isMobile) {
       if (i === 0) {
-        const fadeOut = 1 - smoothstep(0.18, 0.38, scrollProgress);
-        return fadeOut < 1 ? -10 * (1 - fadeOut) : 0;
+        const fadeOut = 1 - smoothstep(0.1, 0.32, scrollProgress);
+        return fadeOut < 1 ? -6 * (1 - fadeOut) : 0;
       }
-      const inStart = 0.28 + (i - 1) * 0.2;
-      const inEnd = inStart + 0.14;
+      const peak = mobilePeak(i);
+      const inStart = peak - MOBILE_CROSSFADE;
+      const inEnd = peak;
+      const outStart = peak;
+      const outEnd = peak + MOBILE_CROSSFADE;
       const fadeIn = smoothstep(inStart, inEnd, scrollProgress);
-      const outStart = 0.45 + (i - 1) * 0.2;
-      const outEnd = outStart + 0.14;
       const fadeOut = i < N - 1 ? 1 - smoothstep(outStart, outEnd, scrollProgress) : 1;
-      if (fadeIn < 1) return 10 * (1 - fadeIn);
-      if (fadeOut < 1) return -10 * (1 - fadeOut);
+      if (fadeIn < 1) return 8 * (1 - fadeIn);
+      if (fadeOut < 1) return -8 * (1 - fadeOut);
       return 0;
     }
     const peak = desktopPeak(i);
@@ -466,36 +501,6 @@ export default function CinematicHeroScroll({
           </motion.span>
         </motion.div>
 
-        {/* Mobile: CTA fixed bottom-left (stable, premium); visible after intro */}
-        {isMobile && (
-          <motion.div
-            className="fixed left-4 bottom-6 z-30 pointer-events-auto pb-[env(safe-area-inset-bottom)]"
-            style={{ opacity: headlineOpacity }}
-            initial={false}
-          >
-            <motion.button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onJoin();
-              }}
-              className="px-6 py-3 rounded-full border border-white/70 text-white text-xs font-medium tracking-wider uppercase bg-transparent shadow-lg"
-              style={{
-                letterSpacing: "0.05em",
-                boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
-              }}
-              whileHover={{
-                scale: 1.05,
-                y: -2,
-                boxShadow: "0 6px 24px rgba(0,0,0,0.3)",
-              }}
-              whileTap={{ scale: 1.02 }}
-            >
-              JOIN THE FOUNDING ASCENT
-            </motion.button>
-          </motion.div>
-        )}
-
         {/* Layout: mobile = stacked (mascot top, headline below); desktop = mascot viewport-centered (absolute), headline left column */}
         <div
           className={
@@ -505,13 +510,13 @@ export default function CinematicHeroScroll({
           }
         >
           <div className={`pointer-events-auto flex flex-col justify-center w-full max-w-[min(100%,520px)] ${isMobile ? "order-2 items-start text-left max-w-[85%]" : "relative z-10 max-w-[min(42%,420px)]"}`}>
-            {/* Headline block: max-width, generous spacing; mobile = left column, no collision with mascot */}
+            {/* Headline block: mobile = larger type, 1–2 words/row; CTA directly under meta */}
             <div
               className={`max-w-[min(100%,1100px)] mt-6 sm:mt-8 md:mt-12 ${isMobile ? "text-left w-full" : ""}`}
               style={{ opacity: headlineOpacity }}
             >
               <h1
-                className={`relative font-bold text-white tracking-[-0.02em] leading-[1.18] sm:leading-[1.15] md:leading-[1.12] text-[clamp(28px,6.5vw,40px)] sm:text-[clamp(32px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,96px)] min-h-[1.2em] ${isMobile ? "text-left" : ""}`}
+                className={`relative font-bold text-white tracking-[-0.02em] leading-[1.18] sm:leading-[1.15] md:leading-[1.12] min-h-[1.2em] ${isMobile ? "text-left text-[clamp(36px,11vw,52px)] leading-[1.2] tracking-tight" : "text-[clamp(28px,6.5vw,40px)] sm:text-[clamp(32px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,96px)]"}`}
                 style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
               >
                 {SCROLL_HEADLINES.map((line, i) => (
@@ -523,19 +528,27 @@ export default function CinematicHeroScroll({
                       transform: `translateY(${headlineYs[i]}px)`,
                     }}
                   >
-                    {line}
+                    {isMobile ? (
+                      mobileHeadlineLines(line).map((ln, j) => (
+                        <span key={j} className="block">
+                          {ln}
+                        </span>
+                      ))
+                    ) : (
+                      line
+                    )}
                   </span>
                 ))}
               </h1>
               <p
-                className="mt-4 sm:mt-4 md:mt-5 text-white/80 font-normal text-[clamp(13px,1.4vw,15px)] sm:text-[clamp(13px,1.1vw,16px)] md:text-[clamp(14px,1.2vw,18px)] leading-snug"
+                className={`text-white/80 font-normal leading-snug ${isMobile ? "mt-3 text-[15px] sm:text-base" : "mt-4 sm:mt-4 md:mt-5 text-[clamp(13px,1.4vw,15px)] sm:text-[clamp(13px,1.1vw,16px)] md:text-[clamp(14px,1.2vw,18px)]"}`}
                 style={{
                   opacity: metaLineOpacity,
                   fontFamily: "MiSans-Regular, sans-serif",
                 }}
               >
                 {subcopyOneLine ? (
-                  "Premium Climbing Experience — Ho Chi Minh City — 2026"
+                  "Premium Climbing Experience — HCMC — 2026"
                 ) : (
                   <>
                     Premium Climbing Experience
@@ -544,8 +557,27 @@ export default function CinematicHeroScroll({
                   </>
                 )}
               </p>
+              {/* CTA: mobile = directly under meta (minimal gap); desktop = below with spacing */}
+              {isMobile ? (
+                <div className="mt-3 pointer-events-auto">
+                  <motion.button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onJoin();
+                    }}
+                    className="px-6 py-3 rounded-full border border-white/70 text-white text-xs font-medium tracking-wider uppercase bg-transparent shadow-lg"
+                    style={{
+                      letterSpacing: "0.05em",
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
+                    }}
+                    whileTap={{ scale: 1.02 }}
+                  >
+                    JOIN THE FOUNDING ASCENT
+                  </motion.button>
+                </div>
+              ) : null}
             </div>
-            {/* CTA: desktop only (mobile uses fixed bottom-left above) */}
             {!isMobile && (
               <motion.div
                 className="mt-6 sm:mt-8 md:mt-10"
@@ -624,13 +656,10 @@ export default function CinematicHeroScroll({
           </motion.div>
         </div>
 
-        {/* Right-edge scroll particle indicator — synced with scrollReveal */}
+        {/* Right-edge scroll particle indicator — driven by scrollReveal only (no CSS transition so it stays in sync) */}
         <div
           className="absolute right-2 sm:right-3 top-0 bottom-0 w-px z-10 pointer-events-none overflow-hidden"
-          style={{
-            opacity: 0.15 + scrollReveal * 0.5,
-            transition: "opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-          }}
+          style={{ opacity: 0.15 + scrollReveal * 0.5 }}
           aria-hidden
         >
           <div className="absolute inset-0 flex flex-col items-center justify-start pt-[10%]" style={{ gap: 18 }}>
