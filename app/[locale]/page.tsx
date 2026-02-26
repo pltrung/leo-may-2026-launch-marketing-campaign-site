@@ -119,13 +119,13 @@ function HomeContent() {
   const heroContentOpacity = showClouds ? 1 : (transitionActive ? 0 : heroOpacity);
   const heroEase = [0.22, 1, 0.36, 1] as const;
 
-  const HERO_WRAPPER_VH = 280;
+  const HERO_WRAPPER_VH = 350;
   const HERO_HEADER_PX = 64;
   const HERO_FOOTER_PX = 56;
   const showCinematicLayers = USE_CINEMATIC_HERO && !showClouds;
   const footerMessages = getMessages(locale).footer;
 
-  // Hero is the entire page when cinematic; lock scroll at 280vh so viewport stays in terminal state (no content below).
+  // Hero is the entire page when cinematic; scroll only drives animation. Lock at wrapper height so no section unlocks until heroProgress === 1.
   useEffect(() => {
     if (!showCinematicLayers) return;
     const maxScroll = (typeof window !== "undefined" ? window.innerHeight : 700) * (HERO_WRAPPER_VH / 100);
@@ -149,9 +149,9 @@ function HomeContent() {
     <div
       id="hero-page"
       className="page-container relative flex flex-col"
-      style={showCinematicLayers ? { minHeight: "280vh", height: "280vh", overflowX: "hidden" } : { minHeight: "100dvh" }}
+      style={showCinematicLayers ? { minHeight: "350vh", height: "350vh", overflowX: "hidden" } : { minHeight: "100dvh" }}
     >
-      <main className={`relative z-10 ${showCinematicLayers ? "flex-shrink-0" : "flex-1 min-h-0"}`} style={showCinematicLayers ? { height: "280vh" } : undefined}>
+      <main className={`relative z-10 ${showCinematicLayers ? "flex-shrink-0" : "flex-1 min-h-0"}`} style={showCinematicLayers ? { height: "350vh" } : undefined}>
       <BrandBackground />
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />

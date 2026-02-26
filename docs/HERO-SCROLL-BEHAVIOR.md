@@ -1,53 +1,40 @@
-# Hero scroll: cinematic 3-layer system
+# Hero scroll: locked cinematic frame
+
+## Goal
+
+Scrolling should feel **invisible**. Content inside a **fixed frame** is animating. Header, footer, and CTA **do not move** — they stay in the same screen position. Only the left narrative text and the center visual change as scroll progresses.
 
 ## Overview
 
-- **Single driver:** One `heroProgress` (0 → 1) from scroll. No time-based intro, no mount/unmount at thresholds. Opacity and transform only.
-- **3 layers:** (1) Fixed header. (2) Sticky hero stage (100dvh minus header/footer). (3) Fixed footer overlay at bottom of stage. Header, stage, and footer share the same background (HERO_BG).
-- **Hero wrapper:** Height = `wrapperVh` (e.g. 300vh or 280vh). Sticky stage stays active until `heroProgress === 1`; then next section can unlock.
-- **Vertical progress bar:** On the right; height animates with `heroProgress` (same value as hero).
+- **Locked frame.** Hero stage is sticky, height 100dvh. Header (fixed), footer (overlay at bottom of stage), and CTA (fixed position within stage) do not move during hero scroll.
+- **Only narrative + visual change.** Left: headline and meta (opacity + translate). Center: mascot → wall/holds → GLB. Both transition in sync per step.
+- **Single heroProgress (0..1).** One scroll-driven value. Divide into steps; each step: headline and visual change together.
+- **Wrapper 350vh.** Background continuous. No new background, no black screen. Next section unlocks only after heroProgress === 1.
 
 ## Structure
 
-### 1) Header (fixed, always visible)
-- Logo, language toggle, login. No animation. Rendered by page; not inside hero component.
+### Hero wrapper
+- Height **350vh**. Scroll range only; stage stays fixed.
 
-### 2) Hero wrapper
-- Tall wrapper (e.g. 300vh). Inside it: one sticky hero stage (`height: calc(100dvh - header - footer)`).
-- All hero visuals and text live inside this sticky stage. One continuous background (HERO_BG + gradient).
+### Hero stage (sticky, 100dvh)
+- Covers viewport. Background (HERO_BG + gradient) does not change.
+- **Header:** Fixed by page; does not move.
+- **Footer:** Overlay inside stage, `position: absolute; bottom: 0`. Does not move.
+- **CTA:** Fixed position within stage (e.g. left, above footer). Does not move.
+- **Left narrative:** Fixed region (top-left); only headline + meta content changes (opacity/translate).
+- **Center visual:** Mascot, then wall/holds, then GLB; changes with heroProgress.
+- **Progress bar:** Right side; height = heroProgress.
 
-### 3) Footer (fixed overlay inside hero stage)
-- “Climb the Clouds. Build a Culture.” + copyright. Does not scroll in/out. Same background (HERO_BG).
+## Behavior
 
-### 4) Vertical progress bar
-- Right side. Height = `heroProgress * 100%` of track. Driven by same scroll progress as the hero.
+- **heroProgress** divided into steps. Each step: headline and visual transition at the same time (opacity + translate).
+- Steps 1–4: Headlines 1 → 2 → 3 → 4; visuals: mascot → holds → GLB.
+- **Final step (0.9 – 1):** Headline fades out. CTA remains. GLB zooms in and becomes dominant. No new background. Stage remains locked until heroProgress === 1.
 
-## Scroll logic
+## Mobile and desktop
 
-- `heroProgress = scrollY / maxScroll`, clamped 0..1, where `maxScroll = (100vh * wrapperVh) / 100`.
-- All transitions use `smoothstep` and `heroProgress` only.
-
-## Sequence
-
-| heroProgress | Headline | Visual | Notes |
-|--------------|----------|--------|--------|
-| 0 – 0.15 | 1 (CLIMB WITH INTENTION.) | Mascot | CTA visible, progress bar 0 |
-| 0.15 – 0.25 | Fade out 1 | Mascot exits (lift) | |
-| 0.2 – 0.35 | Fade in 2 | Wall + holds in | |
-| 0.35 – 0.55 | 2 (ASCEND TOGETHER.) | Holds, GLB fades in | |
-| 0.45 – 0.55 | Fade out 2, hold | | |
-| 0.5 – 0.65 | Fade in 3 | GLB | |
-| 0.65 – 0.85 | 3 (SHAPE THE STANDARD.), then 4 (LEO MÂY — 2026.) | GLB | |
-| 0.85 – 1 | Narrative faded out | Camera push, GLB dominant | CTA stays. FOV down. No black screen, no layout jump. |
-
-Final 15%: Headline out, CTA visible, camera toward GLB (zoom in), FOV reduced, GLB centered and dominant. Background remains continuous.
-
-## Mobile
-
-- Stage uses `100dvh`. Safe-area insets respected (paddingBottom, etc.).
-- GLB scale constrained so it does not overflow viewport.
-- Layout: stacked (mascot above, headline + CTA below, centered).
+Both use the same locked cinematic frame: same heroProgress steps, same headline/visual transitions, same final GLB zoom. On mobile: narrative at top center, center visual (mascot/GLB) fixed in middle, CTA fixed above footer; slightly stronger vignette and progress bar for clarity; 100dvh and safe-area respected. Same cinematic feeling on all viewports.
 
 ## Result
 
-Cohesive cinematic scroll: text and visuals change smoothly, CTA always visible, vertical progress bar reflects progress, final moment is strong GLB zoom focus. Single background throughout; no black screen.
+Locked cinematic frame: header, footer, and CTA stay fixed; only narrative and center visual animate. Scrolling feels invisible. Mobile and desktop both feel cinematic.

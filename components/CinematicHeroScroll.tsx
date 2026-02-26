@@ -60,7 +60,7 @@ export default function CinematicHeroScroll({
   locale = "en",
   headerHeight = 64,
   footerHeight = 56,
-  wrapperVh = 300,
+  wrapperVh = 350,
   footerMessages,
 }: CinematicHeroScrollProps) {
   const [heroProgress, setHeroProgress] = useState(0);
@@ -70,7 +70,8 @@ export default function CinematicHeroScroll({
 
   const isMobile = useIsMobile();
   const headlines = locale === "vi" ? HEADLINES_VI : HEADLINES_EN;
-  const stageHeight = `calc(100dvh - ${headerHeight}px - ${footerHeight}px)`;
+  // Locked frame: stage sticky 100dvh. Only left narrative and center visual change; header, footer, CTA stay fixed.
+  const stageHeight = "100dvh";
 
   useEffect(() => {
     preloadHeroIslandGLB();
@@ -103,10 +104,16 @@ export default function CinematicHeroScroll({
 
   const p = heroProgress;
 
+  const slidePx = 20;
   const headline1Opacity = useMemo(() => {
     if (p < 0.15) return 1;
     if (p < 0.25) return 1 - smoothstep(0.15, 0.25, p);
     return 0;
+  }, [p]);
+  const headline1TranslateY = useMemo(() => {
+    if (p < 0.15) return 0;
+    if (p < 0.25) return -slidePx * smoothstep(0.15, 0.25, p);
+    return -slidePx;
   }, [p]);
   const headline2Opacity = useMemo(() => {
     if (p < 0.2) return 0;
@@ -115,6 +122,13 @@ export default function CinematicHeroScroll({
     if (p < 0.55) return 1 - smoothstep(0.45, 0.55, p);
     return 0;
   }, [p]);
+  const headline2TranslateY = useMemo(() => {
+    if (p < 0.2) return slidePx;
+    if (p < 0.35) return slidePx * (1 - smoothstep(0.2, 0.35, p));
+    if (p < 0.45) return 0;
+    if (p < 0.55) return -slidePx * smoothstep(0.45, 0.55, p);
+    return -slidePx;
+  }, [p]);
   const headline3Opacity = useMemo(() => {
     if (p < 0.5) return 0;
     if (p < 0.65) return smoothstep(0.5, 0.65, p);
@@ -122,29 +136,44 @@ export default function CinematicHeroScroll({
     if (p < 0.85) return 1 - smoothstep(0.75, 0.85, p);
     return 0;
   }, [p]);
+  const headline3TranslateY = useMemo(() => {
+    if (p < 0.5) return slidePx;
+    if (p < 0.65) return slidePx * (1 - smoothstep(0.5, 0.65, p));
+    if (p < 0.75) return 0;
+    if (p < 0.85) return -slidePx * smoothstep(0.75, 0.85, p);
+    return -slidePx;
+  }, [p]);
   const headline4Opacity = useMemo(() => {
     if (p < 0.8) return 0;
     if (p < 0.9) return smoothstep(0.8, 0.9, p);
-    return 1 - smoothstep(0.85, 1, p);
+    return 1 - smoothstep(0.9, 1, p);
+  }, [p]);
+  const headline4TranslateY = useMemo(() => {
+    if (p < 0.8) return slidePx;
+    if (p < 0.9) return slidePx * (1 - smoothstep(0.8, 0.9, p));
+    if (p < 1) return -slidePx * smoothstep(0.9, 1, p);
+    return -slidePx;
   }, [p]);
 
-  const narrativeStackOpacity = 1 - smoothstep(0.85, 1, p);
+  // Final 10%: headline out, CTA remains, GLB zooms in and fills screen; stage still locked.
+  const narrativeStackOpacity = 1 - smoothstep(0.9, 1, p);
   const headlineOpacities = [headline1Opacity, headline2Opacity, headline3Opacity, headline4Opacity];
+  const headlineTranslateYs = [headline1TranslateY, headline2TranslateY, headline3TranslateY, headline4TranslateY];
 
   const mascotOpacity = 1 - smoothstep(0.15, 0.3, p);
   const mascotLift = smoothstep(0.15, 0.3, p);
   const mascotTranslateY = -80 * mascotLift;
 
-  const wallOpacity = smoothstep(0.2, 0.35, p) * (1 - smoothstep(0.7, 0.9, p) * 0.5);
-  const holdsOpacity = smoothstep(0.2, 0.35, p) * (1 - smoothstep(0.7, 0.9, p) * 0.6);
+  const wallOpacity = smoothstep(0.2, 0.35, p) * (1 - smoothstep(0.75, 0.95, p) * 0.6);
+  const holdsOpacity = smoothstep(0.2, 0.35, p) * (1 - smoothstep(0.75, 0.95, p) * 0.7);
 
   const glbOpacity = smoothstep(0.4, 0.6, p);
-  const zoomT = smoothstep(0.85, 1, p);
-  const glbScaleBase = 0.7 + 0.3 * smoothstep(0.4, 0.65, Math.min(p, 0.85));
+  const zoomT = smoothstep(0.9, 1, p);
+  const glbScaleBase = 0.7 + 0.3 * smoothstep(0.4, 0.65, Math.min(p, 0.9));
   const glbScaleFinal = isMobile ? 3.5 : 4.2;
-  const glbScale = p < 0.85 ? glbScaleBase : glbScaleBase + zoomT * (glbScaleFinal - glbScaleBase);
-  const cameraDistance = p < 0.85 ? 9 : 9 - zoomT * (9 - 2.4);
-  const cameraFov = p < 0.85 ? 45 : 45 - zoomT * (45 - 28);
+  const glbScale = p < 0.9 ? glbScaleBase : glbScaleBase + zoomT * (glbScaleFinal - glbScaleBase);
+  const cameraDistance = p < 0.9 ? 9 : 9 - zoomT * (9 - 2.4);
+  const cameraFov = p < 0.9 ? 45 : 45 - zoomT * (45 - 28);
 
   const metaOpacity = smoothstep(0.05, 0.2, p) * narrativeStackOpacity;
 
@@ -155,17 +184,24 @@ export default function CinematicHeroScroll({
         height: `${wrapperVh}vh`,
         background: HERO_BG,
       }}
+      aria-label="Cinematic hero — scroll drives animation only; frame is fixed"
     >
       <div
         className="sticky w-full flex flex-col overflow-hidden"
         style={{
-          top: `${headerHeight}px`,
+          top: 0,
           height: stageHeight,
-          minHeight: 280,
+          minHeight: "100dvh",
           background: HERO_BG,
         }}
       >
-        <div className="flex-1 min-h-0 relative flex flex-col items-center justify-center pb-16">
+        <div
+          className="flex-1 min-h-0 relative flex flex-col items-center justify-center"
+          style={{
+            paddingTop: `${headerHeight}px`,
+            paddingBottom: `${footerHeight}px`,
+          }}
+        >
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
@@ -174,7 +210,11 @@ export default function CinematicHeroScroll({
           />
           <div
             className="absolute inset-0 pointer-events-none"
-            style={{ boxShadow: "inset 0 0 20vh 10vh rgba(0,0,0,0.25)" }}
+            style={{
+              boxShadow: isMobile
+                ? "inset 0 0 15vh 8vh rgba(0,0,0,0.3)"
+                : "inset 0 0 20vh 10vh rgba(0,0,0,0.25)",
+            }}
           />
 
           <div
@@ -208,62 +248,67 @@ export default function CinematicHeroScroll({
             />
           </div>
 
+          {/* Left narrative (desktop) / top narrative (mobile): fixed region; only headline + meta change (opacity/translate). */}
           <div
-            className={`absolute inset-0 flex px-4 sm:px-6 md:px-8 pt-20 pb-24 z-10 pointer-events-none ${isMobile ? "flex-col items-center justify-center gap-6" : "items-center"}`}
-            style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
+            className={`absolute z-10 pointer-events-none ${isMobile ? "left-4 right-4 top-[16%] text-center max-w-[90%]" : "left-4 sm:left-6 md:left-8 top-[18%] w-[min(42%,420px)]"}`}
+            style={{ paddingTop: headerHeight }}
           >
-            <div className={`relative z-10 pointer-events-auto ${isMobile ? "w-full max-w-[85%] order-2 text-center" : "w-full max-w-[min(42%,420px)]"}`}>
-              <div style={{ opacity: narrativeStackOpacity }}>
-                <h1
-                  className={`relative font-bold text-white tracking-tight overflow-hidden min-h-[2.8em] leading-[1.2] ${isMobile ? "text-[clamp(32px,10vw,48px)] text-center min-h-[2.2em]" : "text-[clamp(28px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,72px)]"}`}
-                  style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
-                >
-                  {headlines.map((line, i) => (
-                    <span
-                      key={i}
-                      className={`absolute top-0 block w-full ${isMobile ? "left-0 right-0 text-center" : "left-0 right-0"}`}
-                      style={{ opacity: headlineOpacities[i] ?? 0 }}
-                      aria-hidden={(headlineOpacities[i] ?? 0) < 0.01}
-                    >
-                      {line}
-                    </span>
-                  ))}
-                </h1>
-                <p
-                  className={`text-white/80 mt-4 leading-snug ${isMobile ? "text-sm text-center" : "text-[clamp(13px,1.2vw,16px)]"}`}
-                  style={{ opacity: metaOpacity, fontFamily: "MiSans-Regular, sans-serif" }}
-                >
-                  Premium Climbing Experience — HCMC — 2026
-                </p>
-              </div>
-              <div className={`mt-6 md:mt-8 pointer-events-auto ${isMobile ? "flex justify-center" : ""}`}>
-                <motion.button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onJoin();
-                  }}
-                  className="px-6 py-3 sm:px-8 sm:py-3.5 rounded-full border border-white/70 text-white text-xs sm:text-sm font-medium tracking-wider uppercase bg-transparent"
-                  style={{ letterSpacing: "0.05em", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 1.02 }}
-                >
-                  JOIN THE FOUNDING ASCENT
-                </motion.button>
-              </div>
+            <div style={{ opacity: narrativeStackOpacity }} className="pointer-events-none">
+              <h1
+                className={`relative font-bold text-white tracking-tight overflow-hidden leading-[1.2] ${isMobile ? "text-[clamp(36px,11vw,52px)] text-center min-h-[2.4em]" : "text-[clamp(28px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,72px)] min-h-[2.8em]"}`}
+                style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
+              >
+                {headlines.map((line, i) => (
+                  <span
+                    key={i}
+                    className={`absolute top-0 block w-full ${isMobile ? "left-0 right-0 text-center" : "left-0 right-0"}`}
+                    style={{
+                      opacity: headlineOpacities[i] ?? 0,
+                      transform: `translateY(${headlineTranslateYs[i] ?? 0}px)`,
+                    }}
+                    aria-hidden={(headlineOpacities[i] ?? 0) < 0.01}
+                  >
+                    {line}
+                  </span>
+                ))}
+              </h1>
+              <p
+                className={`text-white/80 mt-4 leading-snug ${isMobile ? "text-[15px] text-center" : "text-[clamp(13px,1.2vw,16px)]"}`}
+                style={{ opacity: metaOpacity, fontFamily: "MiSans-Regular, sans-serif" }}
+              >
+                Premium Climbing Experience — HCMC — 2026
+              </p>
             </div>
+          </div>
 
-            <motion.div
-              className={`flex items-center justify-center pointer-events-none ${isMobile ? "w-[65%] max-w-[280px] order-1" : "absolute w-[38%] max-w-[320px] left-[54%] top-1/2"}`}
-              style={
-                isMobile
-                  ? { opacity: mascotOpacity, transform: `translateY(${mascotTranslateY}px)` }
-                  : {
-                      opacity: mascotOpacity,
-                      transform: `translate(-50%, calc(-50% + ${mascotTranslateY}px))`,
-                    }
-              }
+          {/* CTA: fixed position for entire hero; does not move. Same locked frame on mobile and desktop. */}
+          <div
+            className={`absolute z-20 pointer-events-auto ${isMobile ? "left-4 right-4 flex justify-center bottom-[130px] sm:bottom-[140px]" : "left-4 sm:left-6 md:left-8 bottom-[120px]"}`}
+            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+          >
+            <motion.button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onJoin();
+              }}
+              className="px-6 py-3 sm:px-8 sm:py-3.5 rounded-full border border-white/70 text-white text-xs sm:text-sm font-medium tracking-wider uppercase bg-transparent"
+              style={{ letterSpacing: "0.05em", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 1.02 }}
             >
+              JOIN THE FOUNDING ASCENT
+            </motion.button>
+          </div>
+
+          {/* Center visual: mascot → holds → GLB; fixed in frame center on both mobile and desktop. */}
+          <motion.div
+            className={`absolute left-1/2 top-1/2 flex items-center justify-center pointer-events-none ${isMobile ? "w-[70%] max-w-[280px]" : "w-[38%] max-w-[320px] left-[54%]"}`}
+            style={{
+              opacity: mascotOpacity,
+              transform: `translate(-50%, calc(-50% + ${mascotTranslateY}px))`,
+            }}
+          >
               {partColors ? (
                 <object
                   data="/brand/ip-flying.svg"
@@ -280,14 +325,14 @@ export default function CinematicHeroScroll({
                   className="w-full aspect-square object-contain"
                 />
               )}
-            </motion.div>
-          </div>
+          </motion.div>
 
+          {/* Progress bar: same heroProgress on mobile and desktop; slightly thicker on mobile for visibility. */}
           <div
-            className="absolute right-3 top-0 bottom-0 w-px z-20 flex flex-col pointer-events-none"
+            className={`absolute top-0 bottom-0 z-20 flex flex-col pointer-events-none ${isMobile ? "right-2 w-0.5" : "right-3 w-px"}`}
             style={{
-              paddingTop: `${headerHeight}px`,
-              paddingBottom: `${footerHeight + 16}px`,
+              paddingTop: headerHeight,
+              paddingBottom: footerHeight + 16,
             }}
             aria-hidden
           >
@@ -304,9 +349,10 @@ export default function CinematicHeroScroll({
           </div>
         </div>
 
+        {/* Footer: fixed overlay at bottom of stage; does not move. */}
         {footerMessages && (
           <div
-            className="flex-shrink-0 w-full flex flex-col items-center justify-center gap-0.5 py-3 px-4 text-center z-10 pointer-events-none"
+            className="absolute bottom-0 left-0 right-0 w-full flex flex-col items-center justify-center gap-0.5 py-3 px-4 text-center z-10 pointer-events-none"
             style={{
               height: footerHeight,
               minHeight: footerHeight,
