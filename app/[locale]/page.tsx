@@ -2,8 +2,10 @@
 
 import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
+import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import BrandBackground from "@/components/BrandBackground";
+import { getMessages } from "@/lib/messages";
 import LegacyHeroScroll from "@/components/LegacyHeroScroll";
 import CinematicHeroScroll from "@/components/CinematicHeroScroll";
 import HeroScroll1 from "@/components/HeroScroll1";
@@ -118,7 +120,7 @@ function HomeContent() {
   useEffect(() => {
     if (!USE_CINEMATIC_HERO || showClouds) return;
     const vh = typeof window !== "undefined" ? window.innerHeight : 700;
-    const heroEnd = (vh * 220) / 100 * 0.98;
+    const heroEnd = (vh * (300 + 80)) / 100 * 0.98;
     let raf = 0;
     const onScroll = () => {
       if (raf) return;
@@ -139,14 +141,44 @@ function HomeContent() {
   const heroContentOpacity = showClouds ? 1 : (transitionActive ? 0 : heroOpacity);
   const heroEase = [0.22, 1, 0.36, 1] as const;
 
+  const HERO_WRAPPER_VH = 300;
+  const HERO_SPACER_VH = 80;
+  const HERO_HEADER_PX = 64;
+  const HERO_FOOTER_PX = 56;
+  const showCinematicLayers = USE_CINEMATIC_HERO && !showClouds;
+  const footerMessages = getMessages(locale).footer;
+
   return (
     <div id="hero-page" className="page-container relative min-h-[100dvh] flex flex-col">
       <main className="relative flex-1 min-h-0 z-10">
       <BrandBackground />
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />
-      {/* Top-right: login + language (only when NOT cinematic hero; cinematic hero has its own top bar) */}
-      {!(USE_CINEMATIC_HERO && !showClouds) && (
+
+      {/* LAYER 1 — Fixed header (logo left, login/language right). Always visible, never animated. */}
+      {showCinematicLayers && (
+        <header
+          className="fixed left-0 right-0 top-0 z-[50] flex items-center justify-between px-4 sm:px-6 md:px-8"
+          style={{ height: HERO_HEADER_PX, background: "#0B0B0F", minHeight: HERO_HEADER_PX }}
+          aria-label="Site header"
+        >
+          <Image
+            src="/logo-white.svg"
+            alt="Leo Mây"
+            width={120}
+            height={48}
+            className="h-8 w-auto object-contain md:h-9"
+            priority
+          />
+          <div className="flex items-center gap-3">
+            <LanguageSwitch />
+            <KnowYourTeamButton show onFoundTeam={() => transitionToCountdown("return")} />
+          </div>
+        </header>
+      )}
+
+      {/* Legacy: top-right when NOT cinematic */}
+      {!showCinematicLayers && (
         <motion.div
           className="fixed top-8 right-6 z-[100] flex items-center gap-3"
           initial={{ opacity: 0, y: 12 }}
@@ -154,20 +186,14 @@ function HomeContent() {
             opacity: transitionActive ? 0 : heroReady ? 1 : 0,
             y: transitionActive ? 12 : heroReady ? 0 : 12,
           }}
-          transition={{
-            duration: 0.8,
-            delay: transitionActive ? 0 : heroReady ? 0.5 : 0,
-            ease: heroEase,
-          }}
+          transition={{ duration: 0.8, delay: transitionActive ? 0 : heroReady ? 0.5 : 0, ease: heroEase }}
           style={{ pointerEvents: transitionActive ? "none" : "auto", willChange: "transform, opacity" }}
         >
           <LanguageSwitch />
-          <KnowYourTeamButton
-            show
-            onFoundTeam={() => transitionToCountdown("return")}
-          />
+          <KnowYourTeamButton show onFoundTeam={() => transitionToCountdown("return")} />
         </motion.div>
       )}
+
       <AnimatePresence mode="wait">
         <motion.div
           key={showClouds ? "clouds" : USE_CINEMATIC_HERO ? "cinematic-hero" : "legacy-hero"}
@@ -183,15 +209,9 @@ function HomeContent() {
                 partColors={heroMascotPartColors}
                 onJoin={handleAscendClick}
                 locale={locale}
-                topRightSlot={
-                  <>
-                    <LanguageSwitch />
-                    <KnowYourTeamButton
-                      show
-                      onFoundTeam={() => transitionToCountdown("return")}
-                    />
-                  </>
-                }
+                headerHeight={HERO_HEADER_PX}
+                footerHeight={HERO_FOOTER_PX}
+                wrapperVh={HERO_WRAPPER_VH}
               />
             ) : (
               <LegacyHeroScroll partColors={heroMascotPartColors} onJoin={handleAscendClick} />
@@ -201,7 +221,38 @@ function HomeContent() {
           )}
         </motion.div>
       </AnimatePresence>
+
+      {/* Black spacer after hero so next section does not appear until scroll truly ends */}
+      {showCinematicLayers && (
+        <div
+          className="w-full flex-shrink-0"
+          style={{ height: `${HERO_SPACER_VH}vh`, minHeight: 300, background: "#0B0B0F" }}
+          aria-hidden
+        />
+      )}
       </main>
+
+      {/* LAYER 3 — Fixed footer bar. Always visible during hero; not a scrolling section. */}
+      {showCinematicLayers && (
+        <footer
+          className="fixed left-0 right-0 bottom-0 z-[50] flex flex-col items-center justify-center gap-0.5 py-3 px-4 text-center"
+          style={{
+            height: HERO_FOOTER_PX,
+            minHeight: HERO_FOOTER_PX,
+            background: "#0B0B0F",
+            opacity: 0.75,
+            paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+          }}
+          aria-label="Site footer"
+        >
+          <p className="text-white/80 text-xs tracking-wide" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
+            {footerMessages.ethos}
+          </p>
+          <p className="text-white/50 text-[10px] tracking-wide" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
+            © Leo Mây Climbing Gym — 2026
+          </p>
+        </footer>
+      )}
       <motion.div
         id="know-your-cloud"
         className="flex-shrink-0 relative z-10 bg-[#0B0B0F] pt-1"

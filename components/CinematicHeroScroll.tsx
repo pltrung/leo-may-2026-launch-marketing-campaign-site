@@ -9,12 +9,10 @@ import React, {
 } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
-import Image from "next/image";
 import AscentBar from "@/components/AscentBar";
 import type { Locale } from "@/lib/i18n";
 import type { MascotPartColors } from "@/lib/mascotSpeciesColors";
 import { preloadHeroIslandGLB } from "@/components/HeroIslandGLB";
-import { getMessages } from "@/lib/messages";
 
 const HeroIslandCanvas = dynamic(
   () => import("@/components/HeroIslandCanvas"),
@@ -65,49 +63,39 @@ const MOBILE_FRAME2_MS = 2600;
 const MOBILE_FRAME3_MS = 4500;
 
 /**
- * Locked cinematic hero: single timeline (220vh), sticky 100vh stage. One heroProgress (0→1) drives all layers.
+ * LAYER 2 — Cinematic hero stage (header/footer are fixed in page).
+ * Wrapper 300vh; sticky stage top=headerHeight, height=100vh-header-footer.
+ * One heroProgress (0→1) drives all layers. No conditional mount; animate transform + opacity only.
  *
- * SEQUENCE (hero scroll 1 → 6 equivalent) — FADE IN / FADE OUT AT EACH STEP:
+ * FULL SEQUENCE (hero 1 → end) — what appears in the 3-layer system:
  *
- * INTRO (time-based, before scroll):
- *   • Logo: fade in (frame1), then STAY — never fade out.
- *   • Tagline "CLIMB THE CLOUDS": fade in (frame1), stay.
- *   • Mascot: fade in + rise (frame2), breathing loop.
- *   • Headline block: fade in (frame3). Meta line: fade in with scroll (see below).
- *   • Scroll hint: appears at frame4, then fades out with scroll.
+ * LAYER 1 (fixed header): Logo + VN/EN + Login — always visible for entire hero; never animated.
+ * LAYER 3 (fixed footer): "Climb the Clouds. Build a Culture." + "© Leo Mây — 2026" — always visible; opacity 0.75.
  *
- * heroProgress 0 → 0.2 (Scene 1 → 2):
- *   • Mascot: LIFT + FADE OUT (smoothstep 0.18→0.38).
- *   • Headline: crossfade "CLIMB WITH INTENTION." → "ASCEND TOGETHER." (same curve as particles).
- *   • Wall + holds: FADE IN (0.32→0.52).
- *   • Meta line: FADE IN (0.05→0.2), then stays.
- *   • Right particles: position + intensity driven by heroProgress (synced).
- *
- * heroProgress 0.2 → 0.5 (Scene 2 → 3):
- *   • Headline: crossfade to "BUILD YOUR CLOUD." (segment from heroProgress).
- *   • Holds: stay visible. Aura/particles intensify.
- *
- * heroProgress 0.5 → 0.8 (Scene 3 → 4 → 5):
- *   • Holds: FADE OUT (0.62→0.76).
- *   • GLB island: FADE IN (0.6→0.78), scale up (0.75→0.98).
- *   • Headline: crossfade "SHAPE THE STANDARD." → "LEO MÂY — 2026."
- *   • Headline stack + meta: start FADE OUT (0.78→0.92).
- *
- * heroProgress 0.8 → 1 (Scene 5 → 6 — FINAL, cinematic zoom):
- *   • GLB: CAMERA PUSH-IN (scale up + optional 3D zoom) so island dominates.
- *   • Headline + meta: fully FADED OUT.
- *   • CTA: STAY visible (stable).
- *   • "LEO MÂY — 2026": FADE IN (0.88→0.98), no flicker.
- *   • Footer tagline: FADE IN (0.9→1) — inside sticky stage, not page scroll.
- *   • Stage stays locked; no pop. Next section (footer) appears only after heroProgress 1.
+ * LAYER 2 (hero stage, heroProgress 0→1):
+ *   0–0.1       Hero 1: IP (mascot) only; headline "CLIMB WITH INTENTION."; meta line fades in; CTA. No GLB, no wall/holds.
+ *   0.1–0.32    IP goes UP and fades out (lift + exit). Wall + holds start fading in (0.12–0.32). Headline still Hero 1.
+ *   0.2–0.33    Headline slide → "ASCEND TOGETHER."; wall/holds in; still no GLB.
+ *   0.33–0.46   Headline slide → "BUILD YOUR CLOUD."; holds stable.
+ *   0.35–0.58   GLB fades IN (first time visible). Holds start fading to background (0.52–0.72).
+ *   0.46–0.6    Headline slide → "SHAPE THE STANDARD."
+ *   0.6–0.8     Headline → "LEO MÂY — 2026"; GLB zooms OUT slightly (camera); holds fade to background.
+ *   0.8–0.92    All headline + meta fade out; CTA remains; particles intensify.
+ *   0.88–0.96   Optional "LEO MÂY 2026" centered text fades in then out.
+ *   0.9–1       Camera pushes INTO GLB (dolly + FOV); GLB dominant; only CTA visible; no pop when sticky ends.
+ *   After 1     Sticky unlocks; next section (e.g. CloudFooter) scrolls in; Layer 1 & 3 stay fixed.
  */
 
 export interface CinematicHeroScrollProps {
   partColors: MascotPartColors | null;
   onJoin: () => void;
   locale?: Locale;
-  /** Renders in the fixed top bar (e.g. VN/EN toggle + Login). */
-  topRightSlot?: React.ReactNode;
+  /** Layer 1 height (px) so sticky stage sits below it. */
+  headerHeight?: number;
+  /** Layer 3 height (px) so sticky stage height = 100vh - header - footer. */
+  footerHeight?: number;
+  /** Wrapper scroll height (vh). */
+  wrapperVh?: number;
 }
 
 function useIsMobile(): boolean {
@@ -148,7 +136,9 @@ export default function CinematicHeroScroll({
   partColors,
   onJoin,
   locale = "en",
-  topRightSlot,
+  headerHeight = 64,
+  footerHeight = 56,
+  wrapperVh = 300,
 }: CinematicHeroScrollProps) {
   const isMobile = useIsMobile();
   const introT = useIntroProgress(isMobile);
@@ -186,14 +176,12 @@ export default function CinematicHeroScroll({
     return t * t * (3 - 2 * t);
   }
 
-  // ——— Single scroll driver: 220vh total, heroProgress 0→1. All layers use this; no conditional mount. ———
-  const HERO_HEIGHT_VH = 220;
   const heroProgress = scrollProgress;
   const revealT = heroProgress;
 
   useEffect(() => {
     const vh = typeof window !== "undefined" ? window.innerHeight : 700;
-    const scrollRange = (vh * HERO_HEIGHT_VH) / 100;
+    const scrollRange = (vh * wrapperVh) / 100;
     const onScroll = () => {
       const y = window.scrollY;
       scrollPendingRef.current = Math.min(y / scrollRange, 1);
@@ -210,7 +198,7 @@ export default function CinematicHeroScroll({
       window.removeEventListener("scroll", onScroll);
       if (scrollRafRef.current) cancelAnimationFrame(scrollRafRef.current);
     };
-  }, [isMobile]);
+  }, [wrapperVh]);
 
   useEffect(() => {
     preloadHeroIslandGLB();
@@ -236,26 +224,11 @@ export default function CinematicHeroScroll({
     };
   }, [userInteracted]);
 
-  const logoOpacity = useMemo(() => {
-    if (frame1Progress < 1) return Math.min(1, frame1Progress / 0.6);
-    return 1;
-  }, [frame1Progress]);
-
-  const logoScale = useMemo(
-    () => 0.98 + (1 - 0.98) * Math.min(frame1Progress / 0.6, 1),
-    [frame1Progress]
-  );
-
-  const taglineOpacity = useMemo(() => {
-    if (frame1Progress < 0.4) return 0;
-    return Math.min(0.8, (frame1Progress - 0.4) / 0.6 * 0.8);
-  }, [frame1Progress]);
-
-  // Scene 1: mascot in (intro); Scene 2: mascot up and gone (fade out 0.18→0.38)
+  // Hero scroll 1: IP only, no GLB. On scroll, IP goes up and fades out (same range).
   const mascotOpacity = useMemo(() => {
     if (introT < t1) return 0;
     const introOpacity = Math.min(1, frame2Progress * 1.2);
-    const scene2Exit = 1 - smoothstep(0.18, 0.38, heroProgress);
+    const scene2Exit = 1 - smoothstep(0.1, 0.32, heroProgress);
     return introOpacity * scene2Exit;
   }, [introT, t1, frame2Progress, heroProgress]);
 
@@ -272,78 +245,106 @@ export default function CinematicHeroScroll({
     return p * maxAura;
   }, [introT, t2, frame3Progress, isMobile]);
 
-  // Scene 3: wall + holds appear (0.35→0.52); Scene 4: holds fade out (0.62→0.76)
+  // 0→0.2: wall + holds fade in; 0.2→0.5 holds stable; 0.5→0.8 holds fade to background, GLB emerges
   const wallOpacity = useMemo(() => {
-    const ramp = smoothstep(0.32, 0.5, heroProgress);
+    const ramp = smoothstep(0.12, 0.32, heroProgress);
     return Math.min(isMobile ? 0.65 : 0.7, ramp * (isMobile ? 0.65 : 0.7));
   }, [heroProgress, isMobile]);
 
-  const islandFadeIn = useMemo(() => smoothstep(0.6, 0.78, heroProgress), [heroProgress]);
+  // No GLB at hero scroll 1; GLB appears only after IP has gone up and exited (past 0.32).
+  const islandFadeIn = useMemo(() => smoothstep(0.35, 0.58, heroProgress), [heroProgress]);
   const islandOpacity = islandFadeIn;
 
   const holdsOpacity = useMemo(() => {
-    const appear = smoothstep(0.38, 0.52, heroProgress);
-    const disappear = 1 - smoothstep(0.62, 0.76, heroProgress);
+    const appear = smoothstep(0.18, 0.38, heroProgress);
+    const disappear = 1 - smoothstep(0.52, 0.72, heroProgress);
     return appear * disappear;
   }, [heroProgress]);
 
-  const holdsBlurPx = isMobile ? Math.max(0, 3 - 3 * smoothstep(0.38, 0.52, heroProgress)) : 2;
-  const holdsScaleMobile = isMobile ? 1.4 + 0.2 * smoothstep(0.38, 0.52, heroProgress) : 1;
+  const holdsBlurPx = isMobile ? Math.max(0, 3 - 3 * smoothstep(0.18, 0.38, heroProgress)) : 2;
+  const holdsScaleMobile = isMobile ? 1.4 + 0.2 * smoothstep(0.18, 0.38, heroProgress) : 1;
 
   const headlineBlockOpacity = useMemo(() => {
     if (introT < t2) return 0;
     return Math.min(1, (introT - t2) / 0.2);
   }, [introT, t2]);
 
-  // Headline per scene: segment 0→4 over heroProgress 0→1 (smooth crossfade at boundaries)
+  // Single text stack: Hero 1 (0–0.2), Hero 2–4 (0.2–0.6), Hero 5 (0.6–0.8). At most 2 states crossfading.
   const SCROLL_HEADLINES: string[] = locale === "vi" ? SCROLL_HEADLINES_VI : SCROLL_HEADLINES_EN;
   const N = SCROLL_HEADLINES.length;
-  const headlineSegment = heroProgress * Math.max(0, N - 1);
-  const headlineIndexA = Math.min(Math.floor(headlineSegment), N - 1);
-  const headlineIndexB = Math.min(headlineIndexA + 1, N - 1);
-  const headlineCrossfadeT = headlineIndexA === headlineIndexB ? 0 : headlineSegment - Math.floor(headlineSegment);
-  const headlineOpacityA = headlineIndexA === headlineIndexB ? 1 : 1 - headlineCrossfadeT;
-  const headlineOpacityB = headlineIndexA === headlineIndexB ? 0 : headlineCrossfadeT;
+  const OVERLAP = 0.2;
+  const boundaries = [0.2, 0.33, 0.46, 0.6, 0.8];
+  const headlineTransition = useMemo(() => {
+    for (let i = 0; i < boundaries.length; i++) {
+      const end = boundaries[i];
+      const start = i === 0 ? 0 : boundaries[i - 1];
+      const span = end - start;
+      const transitionStart = end - OVERLAP * span;
+      if (heroProgress >= transitionStart && heroProgress <= end) {
+        const t = (heroProgress - transitionStart) / (end - transitionStart);
+        const smoothT = t * t * (3 - 2 * t);
+        return { inTransition: true, progress: smoothT, fromIndex: i, toIndex: Math.min(i + 1, N - 1) };
+      }
+    }
+    const idx = boundaries.findIndex((b) => heroProgress < b);
+    const current = idx < 0 ? N - 1 : idx;
+    return { inTransition: false, progress: 0, fromIndex: current, toIndex: current };
+  }, [heroProgress, N]);
 
-  // Mascot lift in scene 2 (0.2→0.4) then hold
-  const scene2Lift = smoothstep(0.2, 0.4, heroProgress);
-  const mascotLift1 = isMobile ? viewportHeight * 0.12 : 80;
+  const slideOffsetPx = 28;
+  const smooth = (x: number) => x * x * (3 - 2 * x);
+  const slideOutY = headlineTransition.inTransition ? -slideOffsetPx * smooth(headlineTransition.progress) : 0;
+  const slideOutOpacity = headlineTransition.inTransition ? 1 - 0.75 * headlineTransition.progress : 1;
+  const slideInY = headlineTransition.inTransition ? slideOffsetPx * (1 - smooth(headlineTransition.progress)) : 0;
+  const slideInOpacity = headlineTransition.inTransition ? 0.25 + 0.75 * headlineTransition.progress : 1;
+  const displayHeadlineIndex = headlineTransition.fromIndex;
+  const showIncoming = headlineTransition.inTransition && headlineTransition.toIndex !== headlineTransition.fromIndex;
+
+  // IP goes up as user scrolls (same range as mascot fade-out so IP lifts and exits together).
+  const scene2Lift = smoothstep(0.1, 0.32, heroProgress);
+  const mascotLift1 = isMobile ? viewportHeight * 0.18 : 100;
   const mascotTranslateY = -mascotLift1 * scene2Lift;
   const mascotScaleScroll = 1 + 0.02 * scene2Lift;
   const auraOpacityScroll = smoothstep(0.5, 0.85, heroProgress) * 0.12;
 
   const breathingScale = isMobile ? 1.015 : 1.02;
   const breathDuration = 5;
-  // Final state: GLB dominant (much larger), headline + meta fade out earlier, LEO MÂY 2026 prominent
-  const islandScaleBase = isMobile ? 0.9 : 1.1;
-  const islandScaleFinal = isMobile ? 2.9 : 3.6;
-  const islandScale = heroProgress <= 0.75
-    ? islandScaleBase + (isMobile ? 0.2 : 0.25) * smoothstep(0.5, 0.75, heroProgress)
-    : islandScaleBase + (islandScaleFinal - islandScaleBase) * smoothstep(0.75, 0.98, heroProgress);
-  // Headline + meta fade out earlier so final state is clear before end of scroll
-  const headlineStackOpacity = 1 - smoothstep(0.72, 0.86, heroProgress);
-  const metaLineOpacity = smoothstep(0.05, 0.2, heroProgress) * (1 - smoothstep(0.72, 0.84, heroProgress));
-  // Final title visible sooner and stays — unmissable
-  const leoMay2026Opacity = smoothstep(0.76, 0.9, heroProgress);
-  // Footer: always visible from start (cinematic film feel), smaller; locked in stage
-  const footerTaglineOpacity = introT >= t2 ? 0.4 + 0.35 * smoothstep(0.88, 1, heroProgress) : 0;
-  const ctaOpacity = Math.min(1, 0.85 + 0.15 * (1 - smoothstep(0.8, 0.92, heroProgress)));
-  const footerEthos = getMessages(locale).footer.ethos;
+  // GLB: 0–0.6 medium size; 0.6–0.8 zoom OUT slightly; 0.9–1 push IN (cinematic end)
+  const islandScaleEmerge = 0.65 + 0.35 * smoothstep(0.15, 0.5, heroProgress);
+  const zoomOutSlight = smoothstep(0.6, 0.8, heroProgress);
+  const dollyInT = smoothstep(0.9, 1, heroProgress);
+  const islandScaleFinal = isMobile ? 2.8 : 3.4;
+  const islandScale =
+    heroProgress < 0.6
+      ? islandScaleEmerge
+      : heroProgress < 0.9
+        ? 1 - zoomOutSlight * 0.1
+        : 0.9 + dollyInT * (islandScaleFinal - 0.9);
+  const headlineStackOpacity = 1 - smoothstep(0.8, 0.92, heroProgress);
+  const metaLineOpacity = smoothstep(0.05, 0.22, heroProgress) * (1 - smoothstep(0.8, 0.9, heroProgress));
+  const leoMay2026Opacity = smoothstep(0.88, 0.95, heroProgress) * (1 - smoothstep(0.96, 1, heroProgress));
+  const ctaOpacity = 1;
 
-  // Cinematic push-in: last 20% — camera 8 → 2.6, FOV 45 → 32
-  const zoomT = smoothstep(0.8, 1, heroProgress);
-  const cameraDistance = heroProgress < 0.8 ? 8 : 8 - zoomT * (8 - 2.6);
-  const cameraFov = heroProgress < 0.8 ? 45 : 45 - zoomT * (45 - 32);
+  // Camera: 0.6–0.8 slight zoom OUT; 0.9–1 push INTO GLB (real camera + FOV)
+  const cameraDistance =
+    heroProgress < 0.6
+      ? 9 + heroProgress * 0.5
+      : heroProgress < 0.9
+        ? 9.3 + zoomOutSlight * 0.8
+        : 10.1 - dollyInT * (10.1 - 2.6);
+  const cameraFov = heroProgress < 0.9 ? 45 : 45 - dollyInT * (45 - 32);
 
   useEffect(() => {
-    if (heroProgress >= 0.55) setIslandCanvasMounted(true);
+    if (heroProgress >= 0.05) setIslandCanvasMounted(true);
   }, [heroProgress]);
+
+  const stageHeight = `calc(100vh - ${headerHeight}px - ${footerHeight}px)`;
 
   return (
     <div
       ref={containerRef}
       className="cinematic-hero relative"
-      style={{ height: `${HERO_HEIGHT_VH}vh`, background: HERO_BG }}
+      style={{ height: `${wrapperVh}vh`, background: HERO_BG }}
       onClick={handleInteraction}
       onTouchStart={handleInteraction}
       onKeyDown={handleInteraction}
@@ -352,45 +353,17 @@ export default function CinematicHeroScroll({
       aria-label="Start experience"
     >
       <AscentBar />
-      {/* Locked stage: sticky 100vh with letterbox (black top + bottom) — film feel */}
+      {/* LAYER 2 — Sticky hero stage (between fixed header and footer). All visuals here; one heroProgress. */}
       <div
-        className="sticky top-0 h-[100vh] w-full flex flex-col overflow-hidden"
-        style={{ background: "#000" }}
+        className="sticky w-full flex flex-col overflow-hidden"
+        style={{
+          top: `${headerHeight}px`,
+          height: stageHeight,
+          minHeight: 280,
+          background: HERO_BG,
+        }}
       >
-        {/* Fixed top bar: logo, tagline, VN/EN + Login (cinematic frame) */}
-        <div
-          className="flex-shrink-0 w-full bg-black flex items-center justify-between px-4 sm:px-6 md:px-8 gap-4"
-          style={{ height: "10vh", minHeight: 52 }}
-        >
-          <div
-            className={`flex flex-col ${isMobile ? "items-start" : "items-center"} justify-center`}
-            style={{
-              opacity: isMobile ? (frame1Progress >= 1 ? 1 : logoOpacity) : logoOpacity * 0.98,
-            }}
-          >
-            <Image
-              src="/logo-white.svg"
-              alt="Leo Mây"
-              width={140}
-              height={56}
-              className="w-[100px] sm:w-[110px] md:w-[130px] h-auto object-contain"
-              priority
-            />
-            <span
-              className="mt-1 text-white/70 uppercase tracking-[0.04em] font-medium"
-              style={{
-                opacity: isMobile ? (frame1Progress >= 1 ? 1 : taglineOpacity) : taglineOpacity,
-                fontSize: "clamp(9px, 1.1vw, 12px)",
-              }}
-            >
-              CLIMB THE CLOUDS
-            </span>
-          </div>
-          {topRightSlot && <div className="flex items-center gap-3 flex-shrink-0">{topRightSlot}</div>}
-        </div>
-
-        {/* Film content: middle area — only scrolling hero (no logo/footer here) */}
-        <div className="flex-1 min-h-0 w-full relative flex flex-col items-center justify-center">
+        <div className="flex-1 min-h-0 w-full relative flex flex-col items-center justify-center pb-16">
         {/* Background layers */}
         <div
           className="absolute inset-0 pointer-events-none"
@@ -479,7 +452,7 @@ export default function CinematicHeroScroll({
           />
         </div>
 
-        {/* Floating particles — intensity from revealT (same curve); subtle ambient only */}
+        {/* Floating particles — 100% scroll-driven (same heroProgress curve, no time loop) */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           {Array.from({ length: isMobile ? 12 : 16 }).map((_, i) => (
             <div
@@ -490,7 +463,7 @@ export default function CinematicHeroScroll({
                 height: 4,
                 left: `${10 + (i * 5) % 80}%`,
                 top: `${20 + (i * 7) % 60}%`,
-                opacity: introT >= t2 ? Math.min(0.3, frame3Progress * 0.2 * (0.4 + revealT * 0.5)) : 0,
+                opacity: Math.min(0.35, 0.08 + revealT * 0.5),
               }}
             />
           ))}
@@ -505,37 +478,45 @@ export default function CinematicHeroScroll({
           }
         >
           <div className={`pointer-events-auto flex flex-col justify-center w-full max-w-[min(100%,520px)] ${isMobile ? "order-2 items-start text-left max-w-[85%]" : "relative z-10 max-w-[min(42%,420px)]"}`}>
-            {/* Single headline stack: two states (A/B) crossfade; no ghosting; fades out in final state */}
+            {/* Single headline stack: vertical slide-through (out up+fade, in from below), ~20% overlap */}
             <div
               className={`max-w-[min(100%,1100px)] mt-6 sm:mt-8 md:mt-12 ${isMobile ? "text-left w-full" : ""}`}
               style={{ opacity: headlineBlockOpacity * headlineStackOpacity }}
             >
               <h1
-                className={`relative font-bold text-white tracking-[-0.02em] ${isMobile ? "text-left text-[clamp(36px,11vw,52px)] leading-[1.2] tracking-tight min-h-[2.5em]" : "text-[clamp(28px,6.5vw,40px)] sm:text-[clamp(32px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,96px)] leading-[1.2] min-h-[2.8em] sm:min-h-[3em] md:min-h-[3.2em]"}`}
+                className={`relative font-bold text-white tracking-[-0.02em] overflow-hidden ${isMobile ? "text-left text-[clamp(36px,11vw,52px)] leading-[1.2] tracking-tight min-h-[2.5em]" : "text-[clamp(28px,6.5vw,40px)] sm:text-[clamp(32px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,96px)] leading-[1.2] min-h-[2.8em] sm:min-h-[3em] md:min-h-[3.2em]"}`}
                 style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
               >
+                {/* Outgoing: moves up and fades */}
                 <span
-                  key="headline-a"
                   className={`absolute top-0 block w-full ${isMobile ? "left-0 right-auto" : "left-0 right-0"}`}
-                  style={{ opacity: headlineOpacityA }}
+                  style={{
+                    transform: `translateY(${slideOutY}px)`,
+                    opacity: slideOutOpacity,
+                  }}
                 >
                   {isMobile
-                    ? mobileHeadlineLines(SCROLL_HEADLINES[headlineIndexA]).map((ln, j) => (
+                    ? mobileHeadlineLines(SCROLL_HEADLINES[displayHeadlineIndex]).map((ln, j) => (
                         <span key={j} className="block">{ln}</span>
                       ))
-                    : SCROLL_HEADLINES[headlineIndexA]}
+                    : SCROLL_HEADLINES[displayHeadlineIndex]}
                 </span>
-                <span
-                  key="headline-b"
-                  className={`absolute top-0 block w-full ${isMobile ? "left-0 right-auto" : "left-0 right-0"}`}
-                  style={{ opacity: headlineOpacityB }}
-                >
-                  {isMobile
-                    ? mobileHeadlineLines(SCROLL_HEADLINES[headlineIndexB]).map((ln, j) => (
-                        <span key={j} className="block">{ln}</span>
-                      ))
-                    : SCROLL_HEADLINES[headlineIndexB]}
-                </span>
+                {/* Incoming: slides up from below (only during transition) */}
+                {showIncoming && (
+                  <span
+                    className={`absolute top-0 block w-full ${isMobile ? "left-0 right-auto" : "left-0 right-0"}`}
+                    style={{
+                      transform: `translateY(${slideInY}px)`,
+                      opacity: slideInOpacity,
+                    }}
+                  >
+                    {isMobile
+                      ? mobileHeadlineLines(SCROLL_HEADLINES[headlineTransition.toIndex]).map((ln, j) => (
+                          <span key={j} className="block">{ln}</span>
+                        ))
+                      : SCROLL_HEADLINES[headlineTransition.toIndex]}
+                  </span>
+                )}
               </h1>
               <p
                 className={`text-white/80 font-normal leading-snug ${isMobile ? "mt-3 text-[15px] sm:text-base" : "mt-4 sm:mt-4 md:mt-5 text-[clamp(13px,1.4vw,15px)] sm:text-[clamp(13px,1.1vw,16px)] md:text-[clamp(14px,1.2vw,18px)]"}`}
@@ -642,10 +623,10 @@ export default function CinematicHeroScroll({
           </motion.div>
         </div>
 
-        {/* Right-edge particle column — scroll-driven position and intensity (same heroProgress / revealT) */}
+        {/* Right-edge particles — position and intensity from heroProgress; slight intensify 0.8–0.9 */}
         <div
           className="absolute right-2 sm:right-3 top-0 bottom-0 w-px z-10 pointer-events-none overflow-hidden"
-          style={{ opacity: 0.15 + revealT * 0.55 }}
+          style={{ opacity: 0.12 + revealT * 0.55 + smoothstep(0.8, 0.9, heroProgress) * 0.15 }}
           aria-hidden
         >
           <div
@@ -659,7 +640,7 @@ export default function CinematicHeroScroll({
               <div
                 key={i}
                 className="rounded-full bg-white flex-shrink-0"
-                style={{ width: 2, height: 2, opacity: 0.4 + revealT * 0.35 }}
+                style={{ width: 2, height: 2, opacity: 0.35 + revealT * 0.4 + smoothstep(0.8, 0.9, heroProgress) * 0.2 }}
               />
             ))}
           </div>
@@ -695,24 +676,6 @@ export default function CinematicHeroScroll({
           LEO MÂY — 2026
         </div>
 
-        </div>
-        {/* Fixed bottom bar: Leo Mây / climb the clouds etc (cinematic frame) */}
-        <div
-          className="flex-shrink-0 w-full bg-black flex items-center justify-center px-4 py-2"
-          style={{ height: "8vh", minHeight: 44 }}
-        >
-          <p
-            className="text-center max-w-[92vw]"
-            style={{
-              opacity: introT >= t2 ? 0.85 : 0,
-              fontFamily: "MiSans-Regular, sans-serif",
-              fontSize: "clamp(10px, 1.1vw, 13px)",
-              color: "rgba(255,255,255,0.75)",
-              letterSpacing: "0.04em",
-            }}
-          >
-            {footerEthos}
-          </p>
         </div>
       </div>
     </div>
