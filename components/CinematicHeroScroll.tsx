@@ -226,10 +226,11 @@ export default function CinematicHeroScroll({
 
   const glbOpacity = smoothstep(0.38, 0.62, p);
   const glbScaleBase = 0.7 + 0.3 * smoothstep(0.4, 0.65, Math.min(p, 0.82));
-  const glbScale = glbScaleBase;
+  const glbScale =
+    isDesktop ? glbScaleBase : Math.min(glbScaleBase, 0.88);
   const cameraZStart = 9;
-  const cameraDistanceEnd = isDesktop ? desktopFinalCameraZ : 5.8;
-  const framingClampZ = isDesktop ? desktopFinalCameraZ * 0.9 : 5.2;
+  const cameraDistanceEnd = isDesktop ? desktopFinalCameraZ : 7.2;
+  const framingClampZ = isDesktop ? desktopFinalCameraZ * 0.9 : 6.4;
   const cameraDistance = p < zoomStartP
     ? cameraZStart
     : Math.max(framingClampZ, cameraZStart - zoomT * (cameraZStart - cameraDistanceEnd));
@@ -421,7 +422,7 @@ export default function CinematicHeroScroll({
               <div
                 className="absolute z-30 pointer-events-none left-4 sm:left-6 md:left-8 w-[min(42%,420px)]"
                 style={{
-                  top: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 1rem)`,
+                  top: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 2rem)`,
                 }}
               >
                 <div
