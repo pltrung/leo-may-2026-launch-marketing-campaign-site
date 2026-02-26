@@ -343,21 +343,22 @@ export default function CinematicHeroScroll({
             />
           </div>
 
-          {/* Mobile: full-height flex — top third mascot, center headline (one line), lower third CTA; spacious, cinematic */}
+          {/* Mobile: balanced vertical stack — no space-between; natural spacing, centered as a group */}
           {isMobile && (
             <div
-              className="absolute inset-x-0 top-0 bottom-0 z-10 flex flex-col items-center overflow-auto"
+              className="absolute inset-x-0 top-0 bottom-0 z-10 flex flex-col items-center justify-center overflow-auto"
               style={{
-                paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 1.5rem)`,
-                paddingBottom: `calc(2rem + env(safe-area-inset-bottom, 0px))`,
+                paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 0.75rem)`,
+                paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + 1rem)`,
                 paddingLeft: "1rem",
                 paddingRight: "1rem",
               }}
             >
-              {/* Top third: mascot, clamped height so it doesn't push layout */}
+              {/* Mascot — margin-bottom 24–32px */}
               <div
                 className="flex shrink-0 items-center justify-center w-[65%] max-w-[260px] max-h-[28vh] pointer-events-none"
                 style={{
+                  marginBottom: "28px",
                   opacity: mascotOpacityFinal,
                   transform: `translateY(${mascotTranslateYFinal}px)`,
                 }}
@@ -377,10 +378,9 @@ export default function CinematicHeroScroll({
                   )}
                 </div>
               </div>
-              <div className="h-8 shrink-0" aria-hidden />
-              {/* Center: headline — one line only, no wrap, centered, stronger letter-spacing */}
+              {/* Headline (one line) + meta — headline margin-bottom 12–16px; meta margin-bottom 20–24px; meta directly under headline */}
               <div
-                className="flex shrink-0 flex-col items-center justify-center text-center w-full max-w-[90vw] pointer-events-none"
+                className="flex shrink-0 flex-col items-center text-center w-full max-w-[90vw] pointer-events-none"
                 style={{
                   opacity: narrativeOpacityFinal,
                   transform: `translateY(${narrativeTranslateYFinal}px)`,
@@ -389,6 +389,7 @@ export default function CinematicHeroScroll({
                 <h1
                   className="relative font-bold text-white text-center min-h-[1.3em] leading-tight w-full max-w-[90vw]"
                   style={{
+                    marginBottom: "14px",
                     fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
                     fontSize: "clamp(18px, 5.5vw, 32px)",
                     letterSpacing: "0.03em",
@@ -409,20 +410,21 @@ export default function CinematicHeroScroll({
                   ))}
                 </h1>
                 <p
-                  className="text-white/80 mt-3 leading-snug text-[13px] text-center"
-                  style={{ opacity: metaOpacity, fontFamily: "MiSans-Regular, sans-serif" }}
+                  className="text-white/80 leading-snug text-[13px] text-center"
+                  style={{
+                    marginBottom: "22px",
+                    opacity: metaOpacity,
+                    fontFamily: "MiSans-Regular, sans-serif",
+                  }}
                 >
                   Premium Climbing Experience — HCMC — 2026
                 </p>
               </div>
-              <div className="h-10 shrink-0" aria-hidden />
-              {/* Spacer: pushes CTA into lower third */}
-              <div className="flex-1 min-h-[2rem]" aria-hidden />
-              <div className="h-6 shrink-0" aria-hidden />
-              {/* Lower third: CTA */}
+              {/* CTA — slightly below center; margin-bottom 40–60px for footer clearance */}
               <div
                 className="flex shrink-0 justify-center pointer-events-auto"
                 style={{
+                  marginBottom: "48px",
                   opacity: ctaOpacityFinal,
                   transform: `translateY(${ctaTranslateYFinal}px)`,
                 }}
