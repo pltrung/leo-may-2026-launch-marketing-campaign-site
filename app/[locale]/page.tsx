@@ -22,7 +22,6 @@ import KnowYourTeamButton from "@/components/KnowYourTeamButton";
 import LanguageSwitch from "@/components/LanguageSwitch";
 import HeroScrollObserver from "@/components/HeroScrollObserver";
 import SkyTransition from "@/components/SkyTransition";
-import AscentBar from "@/components/AscentBar";
 import MistAscent from "@/components/MistAscent";
 import { CloudPersonality, getCloudById } from "@/lib/cloudData";
 import { getUser } from "@/lib/userStorage";
@@ -30,7 +29,7 @@ import type { Locale } from "@/lib/i18n";
 import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
 
 const USE_CINEMATIC_HERO = true;
-const HERO_WRAPPER_VH = 400;
+const HERO_WRAPPER_VH = 350;
 const HERO_HEADER_PX = 64;
 const HERO_FOOTER_PX = 56;
 
@@ -107,6 +106,7 @@ function HomeContent() {
   const heroMascotPartColors: MascotPartColors | null = cloudForMascot ? getMascotPartColors(cloudForMascot.id) : null;
 
   const [heroReady, setHeroReady] = useState(false);
+  const [heroScrollComplete, setHeroScrollComplete] = useState(false);
   useEffect(() => {
     const check = () => document.body.classList.contains("hero-ready") && setHeroReady(true);
     if (document.body.classList.contains("hero-ready")) {
@@ -118,40 +118,39 @@ function HomeContent() {
     return () => obs.disconnect();
   }, []);
 
+  useEffect(() => {
+    if (!USE_CINEMATIC_HERO || showClouds) return;
+    const vh = typeof window !== "undefined" ? window.innerHeight : 700;
+    const heroEnd = (vh * HERO_WRAPPER_VH) / 100;
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setHeroScrollComplete(window.scrollY >= heroEnd);
+      });
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [showClouds]);
+
   const transitionActive = skyVisible || isCountdownTransition;
   const heroContentOpacity = showClouds ? 1 : (transitionActive ? 0 : heroOpacity);
   const heroEase = [0.22, 1, 0.36, 1] as const;
   const showCinematicLayers = USE_CINEMATIC_HERO && !showClouds;
   const footerMessages = getMessages(locale).footer;
 
-  useEffect(() => {
-    if (!showCinematicLayers) return;
-    const vh = typeof window !== "undefined" ? window.innerHeight : 700;
-    const maxScroll = (vh * HERO_WRAPPER_VH) / 100 - vh;
-    if (maxScroll <= 0) return;
-    let raf = 0;
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        if (window.scrollY > maxScroll) window.scrollTo({ top: maxScroll, left: 0, behavior: "auto" });
-      });
-    };
-    if (typeof window !== "undefined" && window.scrollY > maxScroll) window.scrollTo({ top: maxScroll, left: 0, behavior: "auto" });
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [showCinematicLayers]);
-
   return (
     <div
       id="hero-page"
       className="page-container relative flex flex-col"
-      style={showCinematicLayers ? { minHeight: "400vh", height: "400vh", overflowX: "hidden" } : { minHeight: "100dvh" }}
+      style={{ minHeight: "100dvh" }}
     >
-      <main className={`relative z-10 ${showCinematicLayers ? "flex-shrink-0" : "flex-1 min-h-0"}`} style={showCinematicLayers ? { height: "400vh" } : undefined}>
+      <main className="relative z-10 flex-1 min-h-0">
       <BrandBackground />
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />
@@ -235,19 +234,21 @@ function HomeContent() {
 
       </main>
 
-      {(!USE_CINEMATIC_HERO || showClouds) && (
-        <motion.div
-          id="know-your-cloud"
-          className="flex-shrink-0 relative z-10 pt-1"
-          style={{ pointerEvents: transitionActive ? "none" : "auto" }}
-          data-hero-next
-          initial={false}
-          animate={{ opacity: transitionActive ? 0 : 1 }}
-          transition={{ duration: 0.7, delay: transitionActive ? 0 : 0.4, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <CloudFooter />
-        </motion.div>
-      )}
+      <motion.div
+        id="know-your-cloud"
+        className="flex-shrink-0 relative z-10 pt-1"
+        style={{
+          pointerEvents: transitionActive ? "none" : (showCinematicLayers && !heroScrollComplete ? "none" : "auto"),
+        }}
+        data-hero-next
+        initial={false}
+        animate={{
+          opacity: transitionActive ? 0 : (showCinematicLayers ? (heroScrollComplete ? 1 : 0) : 1),
+        }}
+        transition={{ duration: 0.7, delay: transitionActive ? 0 : 0.4, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <CloudFooter />
+      </motion.div>
 
       {selectedCloud && (
         <SignupModal
