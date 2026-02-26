@@ -169,7 +169,7 @@ function HomeContent() {
         >
           {!showClouds ? (
             USE_CINEMATIC_HERO ? (
-              <CinematicHeroScroll partColors={heroMascotPartColors} onJoin={handleAscendClick} />
+              <CinematicHeroScroll partColors={heroMascotPartColors} onJoin={handleAscendClick} locale={locale} />
             ) : (
               <LegacyHeroScroll partColors={heroMascotPartColors} onJoin={handleAscendClick} />
             )
