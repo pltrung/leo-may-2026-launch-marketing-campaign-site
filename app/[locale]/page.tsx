@@ -106,7 +106,10 @@ function HomeContent() {
   const heroMascotPartColors: MascotPartColors | null = cloudForMascot ? getMascotPartColors(cloudForMascot.id) : null;
 
   const [heroReady, setHeroReady] = useState(false);
+  const [centerLogoGone, setCenterLogoGone] = useState(false);
   const [heroScrollComplete, setHeroScrollComplete] = useState(false);
+  const showHeaderLogo = heroReady && centerLogoGone;
+  const handleCenterLogoGone = useCallback(() => setCenterLogoGone(true), []);
   useEffect(() => {
     const check = () => document.body.classList.contains("hero-ready") && setHeroReady(true);
     if (document.body.classList.contains("hero-ready")) {
@@ -163,14 +166,14 @@ function HomeContent() {
           style={{
             height: HERO_HEADER_PX,
             minHeight: HERO_HEADER_PX,
-            opacity: heroReady ? 1 : 0,
+            opacity: showHeaderLogo ? 1 : 0,
             transition: "opacity 0.4s ease-out",
           }}
           aria-label="Site header"
         >
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: heroReady ? 1 : 0 }}
+            animate={{ opacity: showHeaderLogo ? 1 : 0 }}
             transition={{ duration: 0.5, delay: 0, ease: [0.22, 1, 0.36, 1] }}
             className="flex items-center"
           >
@@ -185,7 +188,7 @@ function HomeContent() {
           </motion.div>
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: heroReady ? 1 : 0 }}
+            animate={{ opacity: showHeaderLogo ? 1 : 0 }}
             transition={{ duration: 0.5, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className="flex items-center gap-3"
           >
@@ -224,6 +227,7 @@ function HomeContent() {
                 wrapperVh={HERO_WRAPPER_VH}
                 footerMessages={footerMessages}
                 heroReady={heroReady}
+                onCenterLogoGone={handleCenterLogoGone}
               />
             </div>
           ) : (

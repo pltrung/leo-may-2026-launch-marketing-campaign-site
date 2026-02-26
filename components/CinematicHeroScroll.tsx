@@ -40,6 +40,8 @@ export interface CinematicHeroScrollProps {
   footerMessages?: { ethos: string; copyright?: string };
   /** When true, entrance sequence (mascot → headline → CTA → arrow → footer) starts. Set by page when loading screen is gone. */
   heroReady?: boolean;
+  /** Called once when the center logo has faded out (scroll progress >= ~0.28). Page uses this to show header logo so the logo doesn’t appear twice. */
+  onCenterLogoGone?: () => void;
 }
 
 function useIsMobile(): boolean {
@@ -86,12 +88,14 @@ export default function CinematicHeroScroll({
   wrapperVh = 430,
   footerMessages,
   heroReady = false,
+  onCenterLogoGone,
 }: CinematicHeroScrollProps) {
   const isMobile = useIsMobile();
   const isDesktop = useIsDesktop();
   const [heroProgress, setHeroProgress] = useState(0);
   const rafRef = useRef<number>(0);
   const pendingRef = useRef<number | null>(null);
+  const centerLogoGoneFiredRef = useRef(false);
   const [glbMounted, setGlbMounted] = useState(false);
   const [loadElapsed, setLoadElapsed] = useState(0);
   const [loadComplete, setLoadComplete] = useState(false);
@@ -146,6 +150,10 @@ export default function CinematicHeroScroll({
         if (v == null || Number.isNaN(v)) v = 0;
         v = Math.max(0, Math.min(1, v));
         setHeroProgress(v);
+        if (v >= 0.28 && !centerLogoGoneFiredRef.current && onCenterLogoGone) {
+          centerLogoGoneFiredRef.current = true;
+          onCenterLogoGone();
+        }
       });
     };
     onScroll();
@@ -156,7 +164,7 @@ export default function CinematicHeroScroll({
       window.removeEventListener("resize", onScroll);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [wrapperVh]);
+  }, [wrapperVh, onCenterLogoGone]);
 
   useEffect(() => {
     if (heroProgress >= 0.2) setGlbMounted(true);
@@ -254,7 +262,9 @@ export default function CinematicHeroScroll({
   if (!Number.isFinite(cameraDistance) || cameraDistance < CAMERA_Z_MIN) cameraDistance = CAMERA_Z_MIN;
   const cameraFov = 45;
   const glbRotationSpeed = p >= 0.95 ? 0.8 : 1;
-  const narrativeTranslateY = -FADE_Y_PX * smoothstep(0.82, 0.98, p);
+  const narrativeTranslateYBase = -FADE_Y_PX * smoothstep(0.82, 0.98, p);
+  const narrativeTranslateY =
+    isMobile ? narrativeTranslateYBase + 32 * smoothstep(0.88, 1, p) : narrativeTranslateYBase;
   const heroFooterOpacity = 1 - smoothstep(0.86, 0.98, p);
   const heroFooterTranslateY = -16 * smoothstep(0.86, 0.98, p);
 
