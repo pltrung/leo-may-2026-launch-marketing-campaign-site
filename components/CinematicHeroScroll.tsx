@@ -22,7 +22,7 @@ const HEADLINES_VI = [
   "LEO CÓ CHỦ ĐÍCH.",
   "VƯƠN CAO CÙNG NHAU.",
   "ĐỊNH HÌNH CHUẨN MỰC.",
-  "LƯỢT BẠN.",
+  "ĐẾN LƯỢT BẠN.",
 ];
 
 function smoothstep(a: number, b: number, x: number): number {
