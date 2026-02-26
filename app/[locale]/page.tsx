@@ -29,7 +29,7 @@ import type { Locale } from "@/lib/i18n";
 import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
 
 const USE_CINEMATIC_HERO = true;
-const HERO_WRAPPER_VH = 350;
+const HERO_WRAPPER_VH = 430;
 const HERO_HEADER_PX = 64;
 const HERO_FOOTER_PX = 56;
 
@@ -123,12 +123,13 @@ function HomeContent() {
     const vh = typeof window !== "undefined" ? window.innerHeight : 700;
     const wrapperHeight = (vh * HERO_WRAPPER_VH) / 100;
     const heroEnd = Math.max(1, wrapperHeight - vh);
+    const scrollBufferPx = 40;
     let raf = 0;
     const onScroll = () => {
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
-        setHeroScrollComplete(window.scrollY >= heroEnd);
+        setHeroScrollComplete(window.scrollY > heroEnd + scrollBufferPx);
       });
     };
     onScroll();

@@ -67,7 +67,7 @@ export default function CinematicHeroScroll({
   locale = "en",
   headerHeight = 64,
   footerHeight = 56,
-  wrapperVh = 350,
+  wrapperVh = 430,
   footerMessages,
 }: CinematicHeroScrollProps) {
   const isMobile = useIsMobile();
@@ -83,8 +83,8 @@ export default function CinematicHeroScroll({
   useEffect(() => {
     const vh = typeof window !== "undefined" ? window.innerHeight : 700;
     const wrapperHeight = (vh * wrapperVh) / 100;
-    const scrollableDistance = Math.max(1, wrapperHeight - vh);
-    const progressEndScroll = scrollableDistance * 0.98;
+    const maxScroll = Math.max(1, wrapperHeight - vh);
+    const progressEndScroll = maxScroll * 0.95;
     const onScroll = () => {
       const y = typeof window !== "undefined" ? window.scrollY : 0;
       pendingRef.current = Math.max(0, Math.min(1, y / progressEndScroll));
@@ -164,10 +164,10 @@ export default function CinematicHeroScroll({
     return -slidePx;
   }, [p]);
 
-  // 0.85–0.98: moderate zoom; >= 0.98: freeze (no pop). Progress reaches 1 at 98% of scroll (buffer after).
-  const pZoom = Math.min(p, 0.98);
-  const zoomT = smoothstep(0.85, 0.98, pZoom);
-  const narrativeStackOpacity = 1 - smoothstep(0.85, 0.98, p);
+  // Zoom 0.82 → 0.95 only; smoothstep easing; lock at 0.95 (no pop). Progress reaches 1 at 95% of scroll.
+  const pZoom = Math.min(p, 0.95);
+  const zoomT = smoothstep(0.82, 0.95, pZoom);
+  const narrativeStackOpacity = 1 - smoothstep(0.82, 0.95, p);
   const headlineOpacities = [headline1Opacity, headline2Opacity, headline3Opacity, headline4Opacity];
   const headlineTranslateYs = [headline1TranslateY, headline2TranslateY, headline3TranslateY, headline4TranslateY];
 
@@ -179,15 +179,16 @@ export default function CinematicHeroScroll({
   const holdsOpacity = smoothstep(0.2, 0.35, p) * (1 - smoothstep(0.75, 0.95, p) * 0.7);
 
   const glbOpacity = smoothstep(0.4, 0.6, p);
-  const glbScaleBase = 0.7 + 0.3 * smoothstep(0.4, 0.65, Math.min(p, 0.85));
-  const glbScaleFinal = isMobile ? 1.75 : 2;
-  const glbScale = p < 0.85 ? glbScaleBase : glbScaleBase + zoomT * (glbScaleFinal - glbScaleBase);
-  const cameraDistanceEnd = 9 - 0.7 * (9 - 2.8);
-  const cameraDistance = p < 0.85 ? 9 : 9 - zoomT * (9 - cameraDistanceEnd);
-  const cameraFovEnd = 38;
-  const cameraFov = p < 0.85 ? 45 : 45 - zoomT * (45 - cameraFovEnd);
-  const glbOffsetY = zoomT * 0.25;
-  const glbRotationSpeed = p >= 0.98 ? 0.22 : 1;
+  const glbScaleBase = 0.7 + 0.3 * smoothstep(0.4, 0.65, Math.min(p, 0.82));
+  const glbScale = glbScaleBase;
+  const CAMERA_Z_MIN = 6.2;
+  const cameraZStart = 9;
+  const cameraDollyAmount = (cameraZStart - CAMERA_Z_MIN) * 0.4;
+  const cameraDistanceEnd = Math.max(CAMERA_Z_MIN, cameraZStart - cameraDollyAmount);
+  const cameraDistance = p < 0.82 ? cameraZStart : Math.max(CAMERA_Z_MIN, cameraZStart - zoomT * (cameraZStart - cameraDistanceEnd));
+  const cameraFov = 45;
+  const glbOffsetY = zoomT * (isMobile ? -0.03 : 0.12);
+  const glbRotationSpeed = p >= 0.95 ? 0.8 : 1;
 
   const metaOpacity = smoothstep(0.05, 0.2, p) * narrativeStackOpacity;
 
