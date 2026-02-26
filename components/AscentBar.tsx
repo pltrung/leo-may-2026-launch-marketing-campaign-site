@@ -49,12 +49,19 @@ function interpolateZoneColor(progress: number): string {
 const PARTICLE_COUNT_DESKTOP = 5;
 const PARTICLE_COUNT_MOBILE = 2;
 
-export default function AscentBar() {
-  const [progress, setProgress] = useState(0);
+export interface AscentBarProps {
+  /** When provided (0–1), bar is driven by this value instead of scroll. Used by cinematic hero. */
+  progress?: number;
+}
+
+export default function AscentBar({ progress: progressProp }: AscentBarProps = {}) {
+  const [scrollProgress, setScrollProgress] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const rafRef = useRef<number | null>(null);
   const tickingRef = useRef(false);
   const mountedRef = useRef(true);
+
+  const progress = progressProp !== undefined ? Math.max(0, Math.min(1, progressProp)) : scrollProgress;
 
   const updateProgress = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -70,11 +77,12 @@ export default function AscentBar() {
     const raw = scrollY / maxScroll;
     const eased = 1 - Math.pow(1 - Math.min(1, raw), 0.9);
     if (!mountedRef.current) return;
-    setProgress(eased);
+    setScrollProgress(eased);
     tickingRef.current = false;
   }, []);
 
   useEffect(() => {
+    if (progressProp !== undefined) return;
     mountedRef.current = true;
     const onScroll = () => {
       if (!tickingRef.current) {
@@ -100,7 +108,7 @@ export default function AscentBar() {
       window.removeEventListener("resize", onResize);
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
-  }, [updateProgress]);
+  }, [updateProgress, progressProp]);
 
   const glowColor = interpolateZoneColor(progress);
   const glowPositionPercent = progress * 100;

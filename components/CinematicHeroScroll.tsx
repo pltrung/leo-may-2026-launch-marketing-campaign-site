@@ -7,6 +7,8 @@ import type { Locale } from "@/lib/i18n";
 import type { MascotPartColors } from "@/lib/mascotSpeciesColors";
 import { preloadHeroIslandGLB } from "@/components/HeroIslandGLB";
 import { HERO_BG } from "@/lib/heroConstants";
+import { getMessages } from "@/lib/messages";
+import AscentBar from "@/components/AscentBar";
 
 const HeroIslandCanvas = dynamic(() => import("@/components/HeroIslandCanvas"), { ssr: false });
 
@@ -14,13 +16,13 @@ const HEADLINES_EN = [
   "CLIMB WITH INTENTION.",
   "ASCEND TOGETHER.",
   "SHAPE THE STANDARD.",
-  "LEO MÂY — 2026.",
+  "YOUR MOVE.",
 ];
 const HEADLINES_VI = [
   "LEO CÓ CHỦ ĐÍCH.",
   "VƯƠN CAO CÙNG NHAU.",
   "ĐỊNH HÌNH CHUẨN MỰC.",
-  "LEO MÂY — 2026.",
+  "LƯỢT BẠN.",
 ];
 
 function smoothstep(a: number, b: number, x: number): number {
@@ -158,6 +160,7 @@ export default function CinematicHeroScroll({
 
   const p = heroProgress;
   const headlines = locale === "vi" ? HEADLINES_VI : HEADLINES_EN;
+  const ctaLabel = getMessages(locale as "en" | "vi").hero.ctaFoundingAscent;
 
   const FADE_Y_PX = 20;
   const HOLD = 0.02;
@@ -421,7 +424,7 @@ export default function CinematicHeroScroll({
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 1.02 }}
                 >
-                  JOIN THE FOUNDING ASCENT
+                  {ctaLabel}
                 </motion.button>
               </div>
             </div>
@@ -487,7 +490,7 @@ export default function CinematicHeroScroll({
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 1.02 }}
                 >
-                  JOIN THE FOUNDING ASCENT
+                  {ctaLabel}
                 </motion.button>
               </div>
               <div
@@ -515,24 +518,8 @@ export default function CinematicHeroScroll({
             </>
           )}
 
-          {/* Vertical progress bar */}
-          <div
-            className="absolute right-3 top-0 bottom-0 w-px z-20 flex flex-col pointer-events-none"
-            style={{
-              paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px))`,
-              paddingBottom: `calc(${footerHeight}px + 16px + env(safe-area-inset-bottom, 0px))`,
-            }}
-          >
-            <div className="flex-1 min-h-0 flex flex-col justify-end">
-              <div
-                className="w-full rounded-full bg-white/50"
-                style={{
-                  height: `${heroProgress * 100}%`,
-                  minHeight: 2,
-                }}
-              />
-            </div>
-          </div>
+          {/* Vertical scroll bar (legacy AscentBar driven by hero progress) */}
+          <AscentBar progress={heroProgress} />
         </div>
 
         {/* Scroll arrow: bottom center, above footer; fades in at 1.2s, bounce; fades out when heroProgress > 0.05 */}

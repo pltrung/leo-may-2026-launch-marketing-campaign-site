@@ -74,6 +74,7 @@ const en = {
     your: "YOUR",
     way: "way",
     ascend: "Ascend",
+    ctaFoundingAscent: "JOIN THE FOUNDING ASCENT",
   },
   cloudSelector: {
     whatTypeOfCloud: "What type of cloud are you?",
@@ -381,6 +382,7 @@ const vi: Messages = {
     your: "theo cách của bạn",
     way: "",
     ascend: "bấm vào",
+    ctaFoundingAscent: "THAM GIA HÀNH TRÌNH SÁNG LẬP",
   },
   cloudSelector: {
     whatTypeOfCloud: "Bạn là kiểu mây nào?",
