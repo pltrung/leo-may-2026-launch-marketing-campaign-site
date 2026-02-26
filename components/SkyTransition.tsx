@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useLocale } from "./LocaleProvider";
 import { getMessages } from "@/lib/messages";
+import { HERO_BG } from "@/lib/heroConstants";
 
 export type SkyTransitionVariant = "discovery" | "return" | "forms";
 
@@ -49,10 +50,10 @@ export default function SkyTransition({ onComplete, variant = "discovery" }: Sky
 
   return (
     <div id="mist-transition" ref={containerRef} aria-hidden="true">
-      {/* Identity: black + holds so when mist clears, same look as rest of site (mobile + desktop) */}
+      {/* Same brand background as hero/countdown so transition matches site */}
       <div
         className="absolute inset-0 -z-10"
-        style={{ background: "#0B0B0F" }}
+        style={{ background: HERO_BG }}
         aria-hidden
       />
       <div className="absolute inset-0 -z-[1] opacity-70 overflow-hidden pointer-events-none animate-holds-layer" aria-hidden>

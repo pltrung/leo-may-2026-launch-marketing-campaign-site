@@ -29,11 +29,11 @@
   font-display: swap;
 }
 
-/* Loading screen — separate, blue bg + logo + copyright, removed after 2s */
+/* Loading screen — same brand background as hero/countdown */
 .loading-screen {
   position: fixed;
   inset: 0;
-  background: #0242FF;
+  background: #0B0B0F;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -246,7 +246,7 @@ body.hero-ready .hero-scroll {
   justify-content: center;
   gap: clamp(12px, 2.5vw, 28px);
   z-index: 1;
-  color: #0242FF;
+  color: rgba(255, 255, 255, 0.95);
   pointer-events: none;
 }
 
@@ -257,9 +257,9 @@ body.hero-ready .hero-scroll {
   font-family: var(--font-bold), "MiSans-Bold", sans-serif;
   letter-spacing: 0.12em;
   text-shadow:
-    0 0 20px rgba(2, 66, 255, 0.4),
-    0 0 40px rgba(2, 66, 255, 0.25),
-    0 4px 24px rgba(0, 0, 0, 0.08);
+    0 0 20px rgba(255, 255, 255, 0.25),
+    0 0 40px rgba(255, 255, 255, 0.12),
+    0 4px 24px rgba(0, 0, 0, 0.2);
   will-change: opacity;
 }
 
@@ -1064,7 +1064,7 @@ body.hero-ready .hero-scroll {
   position: absolute;
   inset: 0;
   border-radius: 0;
-  background: #0242FF;
+  background: #0B0B0F;
   filter: none;
   transition: filter 1200ms ease;
   pointer-events: none;
@@ -1810,12 +1810,12 @@ body.hero-ready .hero-scroll {
 @layer base {
   html {
     scroll-behavior: smooth;
-    background: #0242FF;
+    background: #0B0B0F;
   }
   body {
     font-family: "MiSans-Regular", sans-serif;
     color: var(--storm);
-    background: #0242FF;
+    background: #0B0B0F;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;

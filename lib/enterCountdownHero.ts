@@ -37,7 +37,7 @@ const CUMULATIVE = {
 } as const;
 
 export interface UseCountdownHeroEntranceOptions {
-  /** Delay (ms) before hero entrance starts. Use after background fade so we land on blue first. */
+  /** Delay (ms) before hero entrance starts. Use after background fade so we land on brand background. */
   startDelay?: number;
 }
 
@@ -45,7 +45,7 @@ export interface UseCountdownHeroEntranceOptions {
  * Orchestrates the cinematic hero entrance for the countdown page.
  * Both entry flows (Card→Join→Countdown and Know your cloud→Countdown) land on
  * the countdown page; mounting runs enterCountdownHero() automatically.
- * When startDelay is set (e.g. 1000), phases start after that delay so background can fade to blue first.
+ * When startDelay is set (e.g. 1000), phases start after that delay so background can fade to brand color first.
  */
 export function useCountdownHeroEntrance(options?: UseCountdownHeroEntranceOptions) {
   const [phase, setPhase] = useState<HeroEntrancePhase>("hidden");

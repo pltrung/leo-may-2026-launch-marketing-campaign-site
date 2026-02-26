@@ -38,6 +38,7 @@ import { ANNOUNCEMENT_ID, LAST_SEEN_ANNOUNCEMENT_KEY } from "@/lib/announcementC
 import { getAscensionEnergyVars } from "@/lib/ascensionEnergy";
 import VerificationModal from "@/components/VerificationModal";
 import { createBrowserClient } from "@/lib/supabaseBrowser";
+import { HERO_BG } from "@/lib/heroConstants";
 
 const PENDING_REF_CODE_KEY = "leo_may_pending_ref_code";
 const COUNTDOWN_INTRO_VIEW_COUNT_KEY = "leo_may_countdown_intro_view_count";
@@ -221,7 +222,7 @@ function CountdownCloudsLayer({ partColors }: { partColors: MascotPartColors }) 
   );
 }
 
-/** Background + holds fade to blue (ms); hero entrance starts after this. */
+/** Background + holds (ms); hero entrance starts after this. */
 const COUNTDOWN_BG_FADE_MS = 1000;
 
 /** Countdown target: December 1st 2026, 00:00 Vietnam (UTC+7) */
@@ -572,10 +573,10 @@ export default function CountdownPage() {
       >
         <LanguageSwitch />
       </motion.div>
-      {/* Identity: black + holds throughout countdown (your cloud returns) — no fade-out */}
+      {/* Same brand background as hero/rest of site */}
       <div
         className="fixed inset-0 -z-10 pointer-events-none"
-        style={{ background: "#0B0B0F" }}
+        style={{ background: HERO_BG }}
         aria-hidden
       />
       <div
