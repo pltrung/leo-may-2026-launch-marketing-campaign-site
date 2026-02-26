@@ -8,7 +8,7 @@ import HeroIslandGLB from "./HeroIslandGLB";
 const DEFAULT_CAMERA_Z = 8;
 
 /** Vertical offset for look-at target so the sculpture is centered in frame (not sitting too high). */
-const LOOKAT_Y_OFFSET = 0.22;
+const LOOKAT_Y_OFFSET = 0.34;
 
 /** Drives camera Z and look-at; target is (0, lookAtY, 0) so the sculpture is visually centered. */
 function CameraPushIn({ cameraDistance, fov }: { cameraDistance: number; fov: number }) {

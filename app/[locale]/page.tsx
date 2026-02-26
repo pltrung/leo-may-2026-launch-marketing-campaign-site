@@ -176,9 +176,9 @@ function HomeContent() {
           <Image
             src="/logo-white.svg"
             alt="Leo Mây"
-            width={120}
-            height={48}
-            className="h-8 w-auto object-contain md:h-9"
+            width={180}
+            height={72}
+            className="h-8 w-auto object-contain md:h-[3.25rem]"
             priority
           />
           <div className="flex items-center gap-3">

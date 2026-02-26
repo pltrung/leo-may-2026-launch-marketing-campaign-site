@@ -194,7 +194,7 @@ export default function CinematicHeroScroll({
   const headline4Opacity = useMemo(() => {
     if (p < 0.88) return 0;
     if (p < 0.96) return smoothstep(0.88, 0.96, p);
-    return 1 - smoothstep(0.96, 1, p);
+    return 1; // Keep "Leo May 2026" visible at final form (no fade away)
   }, [p]);
   const headline4TranslateY = useMemo(() => {
     if (p < 0.88) return FADE_Y_PX;
@@ -206,10 +206,12 @@ export default function CinematicHeroScroll({
   const headlineOpacities = [headline1Opacity, headline2Opacity, headline3Opacity, headline4Opacity];
   const headlineTranslateYs = [headline1TranslateY, headline2TranslateY, headline3TranslateY, headline4TranslateY];
 
-  // Zoom 0.82 → 0.95 only; smoothstep easing; lock at 0.95 (no pop). Progress reaches 1 at 95% of scroll.
+  // Zoom to final; on mobile start slightly earlier (0.78) so final form lasts longer in scroll.
   const pZoom = Math.min(p, 0.95);
-  const zoomT = smoothstep(0.82, 0.95, pZoom);
-  const narrativeStackOpacity = 1 - smoothstep(0.82, 0.98, p);
+  const zoomStartP = isDesktop ? 0.82 : 0.78;
+  const zoomT = smoothstep(zoomStartP, 0.95, pZoom);
+  // Keep "Leo May 2026" visible while sculpture zooms in (no narrative fade at end).
+  const narrativeStackOpacity = 1;
 
   // Initial sequence (0–0.15): Headline → Mascot → CTA staggered. Wider fade, smoothstep, small translateY.
   const mascotOpacity = useMemo(() => {
@@ -222,21 +224,13 @@ export default function CinematicHeroScroll({
   const ctaOpacity = 1;
   const ctaTranslateY = 0;
 
-  const climbsFadeOut = 1 - smoothstep(0.38, 0.62, p);
-  const climbsTranslateY = -18 * smoothstep(0.38, 0.62, p);
-  const wallOpacityScroll = smoothstep(0.18, 0.38, p) * climbsFadeOut;
-  const wallOpacity = p < 0.18 ? 1 : wallOpacityScroll;
-  // Desktop: no holds layer — initial scroll → mascot + text → IP and holds invisible → text on left → sculpture appears.
-  const holdsOpacityScroll = smoothstep(0.18, 0.38, p) * climbsFadeOut;
-  const holdsOpacity = isDesktop ? 0 : (p < 0.18 ? 1 : holdsOpacityScroll);
-
   const glbOpacity = smoothstep(0.38, 0.62, p);
   const glbScaleBase = 0.7 + 0.3 * smoothstep(0.4, 0.65, Math.min(p, 0.82));
   const glbScale = glbScaleBase;
   const cameraZStart = 9;
-  const cameraDistanceEnd = isDesktop ? desktopFinalCameraZ : 7;
-  const framingClampZ = isDesktop ? desktopFinalCameraZ * 0.9 : 6.2;
-  const cameraDistance = p < 0.82
+  const cameraDistanceEnd = isDesktop ? desktopFinalCameraZ : 5.8;
+  const framingClampZ = isDesktop ? desktopFinalCameraZ * 0.9 : 5.2;
+  const cameraDistance = p < zoomStartP
     ? cameraZStart
     : Math.max(framingClampZ, cameraZStart - zoomT * (cameraZStart - cameraDistanceEnd));
   const cameraFov = 45;
@@ -248,7 +242,6 @@ export default function CinematicHeroScroll({
   const metaOpacity = smoothstep(0.06, 0.2, p) * narrativeStackOpacity;
 
   const loadT = Math.min(loadElapsed, 1.5);
-  const loadSceneOpacity = smoothstep(0.4, 0.7, loadT);
   const loadMascotOpacity = smoothstep(0.6, 0.9, loadT);
   const loadMascotY = 40 * (1 - smoothstep(0.6, 0.9, loadT));
   const loadHeadlineOpacity = smoothstep(0.8, 1.1, loadT);
@@ -257,8 +250,6 @@ export default function CinematicHeroScroll({
   const loadCTAY = 20 * (1 - smoothstep(1.0, 1.3, loadT));
   const loadArrowOpacity = smoothstep(1.2, 1.5, loadT);
 
-  const sceneOpacity = loadComplete ? 1 : loadSceneOpacity;
-  const sceneTranslateY = loadComplete ? climbsTranslateY : 0;
   const mascotOpacityFinal = loadComplete ? mascotOpacity : loadMascotOpacity;
   const mascotTranslateYFinal = loadComplete ? mascotTranslateY : loadMascotY;
   const narrativeOpacityFinal = loadComplete ? narrativeStackOpacity : loadHeadlineOpacity;
@@ -307,28 +298,6 @@ export default function CinematicHeroScroll({
           />
 
           <div
-            className="absolute inset-0 pointer-events-none flex items-center justify-center"
-            style={{
-              opacity: loadComplete ? wallOpacity : loadSceneOpacity,
-              transform: `translateY(${sceneTranslateY}px)`,
-            }}
-          >
-            <div
-              className="absolute inset-0"
-              style={{
-                background: "linear-gradient(160deg, rgba(18,18,24,0.5) 0%, rgba(11,11,15,0.35) 50%, transparent 100%)",
-              }}
-            />
-            <div
-              className="absolute inset-0 flex items-center justify-center"
-              style={{ opacity: loadComplete ? holdsOpacity : 1 }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/holds.svg" alt="" className="max-w-[90%] max-h-[70%] object-contain" style={{ filter: "blur(2px)" }} />
-            </div>
-          </div>
-
-          <div
             className="absolute inset-0 pointer-events-none"
             style={{ zIndex: zoomT > 0.05 ? 25 : 5 }}
           >
@@ -343,10 +312,10 @@ export default function CinematicHeroScroll({
             />
           </div>
 
-          {/* Mobile: balanced vertical stack — no space-between; natural spacing, centered as a group */}
+          {/* Mobile: balanced vertical stack — z-30 so above GLB (z-25) for CTA clicks; pointer-events-none so only CTA receives taps */}
           {isMobile && (
             <div
-              className="absolute inset-x-0 top-0 bottom-0 z-10 flex flex-col items-center justify-center overflow-auto"
+              className="absolute inset-x-0 top-0 bottom-0 z-30 flex flex-col items-center justify-center overflow-auto pointer-events-none"
               style={{
                 paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 0.75rem)`,
                 paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + 1rem)`,
@@ -420,7 +389,7 @@ export default function CinematicHeroScroll({
                   Premium Climbing Experience — HCMC — 2026
                 </p>
               </div>
-              {/* CTA — slightly below center; margin-bottom 40–60px for footer clearance */}
+              {/* CTA — slightly below center; margin-bottom 40–60px for footer clearance; pointer-events-auto so button is tappable */}
               <div
                 className="flex shrink-0 justify-center pointer-events-auto"
                 style={{
@@ -446,11 +415,11 @@ export default function CinematicHeroScroll({
             </div>
           )}
 
-          {/* Desktop: narrative, CTA, mascot in original positions */}
+          {/* Desktop: narrative, CTA, mascot — z-30 so above GLB layer (z-25) for CTA clicks */}
           {!isMobile && (
             <>
               <div
-                className="absolute z-10 pointer-events-none left-4 sm:left-6 md:left-8 w-[min(42%,420px)]"
+                className="absolute z-30 pointer-events-none left-4 sm:left-6 md:left-8 w-[min(42%,420px)]"
                 style={{
                   top: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 1rem)`,
                 }}
@@ -489,7 +458,7 @@ export default function CinematicHeroScroll({
                 </div>
               </div>
               <div
-                className="absolute z-20 pointer-events-auto left-4 sm:left-6 md:left-8 bottom-[120px]"
+                className="absolute z-30 pointer-events-auto left-4 sm:left-6 md:left-8 bottom-[120px]"
                 style={{
                   opacity: ctaOpacityFinal,
                   transform: `translateY(${ctaTranslateYFinal}px)`,
@@ -510,7 +479,7 @@ export default function CinematicHeroScroll({
                 </motion.button>
               </div>
               <div
-                className="absolute left-1/2 top-1/2 z-10 flex items-center justify-center pointer-events-none w-[38%] max-w-[320px]"
+                className="absolute left-1/2 top-1/2 z-30 flex items-center justify-center pointer-events-none w-[38%] max-w-[320px]"
                 style={{
                   opacity: mascotOpacityFinal,
                   transform: `translate(-50%, calc(-50% + ${mascotTranslateYFinal}px))`,
