@@ -6,7 +6,6 @@ import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import BrandBackground from "@/components/BrandBackground";
 import { getMessages } from "@/lib/messages";
-import { HERO_BG } from "@/lib/heroConstants";
 import LegacyHeroScroll from "@/components/LegacyHeroScroll";
 import CinematicHeroScroll from "@/components/CinematicHeroScroll";
 import HeroScroll1 from "@/components/HeroScroll1";
@@ -105,7 +104,6 @@ function HomeContent() {
   const heroMascotPartColors: MascotPartColors | null = cloudForMascot ? getMascotPartColors(cloudForMascot.id) : null;
 
   const [heroReady, setHeroReady] = useState(false);
-  const [heroScrollComplete, setHeroScrollComplete] = useState(false);
   useEffect(() => {
     const check = () => document.body.classList.contains("hero-ready") && setHeroReady(true);
     if (document.body.classList.contains("hero-ready")) {
@@ -117,27 +115,6 @@ function HomeContent() {
     return () => obs.disconnect();
   }, []);
 
-  // Hide footer until hero scroll completes (220vh) so it doesn’t scroll in prematurely
-  useEffect(() => {
-    if (!USE_CINEMATIC_HERO || showClouds) return;
-    const vh = typeof window !== "undefined" ? window.innerHeight : 700;
-    const heroEnd = (vh * 280) / 100;
-    let raf = 0;
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        setHeroScrollComplete(window.scrollY >= heroEnd);
-      });
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [showClouds]);
-
   const transitionActive = skyVisible || isCountdownTransition;
   const heroContentOpacity = showClouds ? 1 : (transitionActive ? 0 : heroOpacity);
   const heroEase = [0.22, 1, 0.36, 1] as const;
@@ -148,18 +125,34 @@ function HomeContent() {
   const showCinematicLayers = USE_CINEMATIC_HERO && !showClouds;
   const footerMessages = getMessages(locale).footer;
 
+  // Hero is the entire page when cinematic; lock scroll at 280vh so viewport stays in terminal state (no content below).
+  useEffect(() => {
+    if (!showCinematicLayers) return;
+    const maxScroll = (typeof window !== "undefined" ? window.innerHeight : 700) * (HERO_WRAPPER_VH / 100);
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        if (window.scrollY > maxScroll) window.scrollTo({ top: maxScroll, left: 0, behavior: "auto" });
+      });
+    };
+    if (typeof window !== "undefined" && window.scrollY > maxScroll) window.scrollTo({ top: maxScroll, left: 0, behavior: "auto" });
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [showCinematicLayers]);
+
   return (
-    <div id="hero-page" className="page-container relative min-h-[100dvh] flex flex-col">
-      <main className="relative flex-1 min-h-0 z-10">
+    <div
+      id="hero-page"
+      className="page-container relative flex flex-col"
+      style={showCinematicLayers ? { minHeight: "280vh", height: "280vh", overflowX: "hidden" } : { minHeight: "100dvh" }}
+    >
+      <main className={`relative z-10 ${showCinematicLayers ? "flex-shrink-0" : "flex-1 min-h-0"}`} style={showCinematicLayers ? { height: "280vh" } : undefined}>
       <BrandBackground />
-      {/* Persistent full-screen background during hero so no separate overlay backgrounds; prevents black panel when sticky ends. */}
-      {showCinematicLayers && (
-        <div
-          className="fixed inset-0 z-0 pointer-events-none"
-          aria-hidden
-          style={{ background: HERO_BG }}
-        />
-      )}
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />
 
@@ -233,25 +226,20 @@ function HomeContent() {
 
       </main>
 
-      <motion.div
-        id="know-your-cloud"
-        className="flex-shrink-0 relative z-10 pt-1"
-        style={{
-          pointerEvents: USE_CINEMATIC_HERO && !showClouds && !heroScrollComplete ? "none" : "auto",
-        }}
-        data-hero-next
-        initial={false}
-        animate={{
-          opacity: transitionActive ? 0 : (USE_CINEMATIC_HERO && !showClouds ? (heroScrollComplete ? 1 : 0) : 1),
-        }}
-        transition={{
-          duration: 0.7,
-          delay: transitionActive ? 0 : 0.4,
-          ease: [0.22, 1, 0.36, 1],
-        }}
-      >
-        <CloudFooter />
-      </motion.div>
+      {/* No scroll-in section after cinematic hero; hero footer (tagline + copyright) is the only footer. */}
+      {(!USE_CINEMATIC_HERO || showClouds) && (
+        <motion.div
+          id="know-your-cloud"
+          className="flex-shrink-0 relative z-10 pt-1"
+          style={{ pointerEvents: transitionActive ? "none" : "auto" }}
+          data-hero-next
+          initial={false}
+          animate={{ opacity: transitionActive ? 0 : 1 }}
+          transition={{ duration: 0.7, delay: transitionActive ? 0 : 0.4, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <CloudFooter />
+        </motion.div>
+      )}
 
       {selectedCloud && (
         <SignupModal
