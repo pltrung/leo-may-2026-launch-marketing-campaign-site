@@ -132,16 +132,20 @@ export default function CinematicHeroScroll({
   useEffect(() => {
     const vh = typeof window !== "undefined" ? window.innerHeight : 700;
     const wrapperHeight = (vh * wrapperVh) / 100;
-    const maxScroll = Math.max(1, wrapperHeight - vh);
-    const progressEndScroll = maxScroll * 0.95;
+    const denom = wrapperHeight - vh;
+    const progressEndScroll = denom <= 0 ? 1 : Math.max(denom * 0.95, 1);
     const onScroll = () => {
       const y = typeof window !== "undefined" ? window.scrollY : 0;
-      pendingRef.current = Math.max(0, Math.min(1, y / progressEndScroll));
+      let raw = denom <= 0 ? 0 : y / progressEndScroll;
+      if (!Number.isFinite(raw)) raw = 0;
+      pendingRef.current = Math.max(0, Math.min(1, raw));
       if (rafRef.current) return;
       rafRef.current = requestAnimationFrame(() => {
         rafRef.current = 0;
-        const v = pendingRef.current;
-        if (v != null) setHeroProgress(v);
+        let v = pendingRef.current;
+        if (v == null || Number.isNaN(v)) v = 0;
+        v = Math.max(0, Math.min(1, v));
+        setHeroProgress(v);
       });
     };
     onScroll();
@@ -158,7 +162,7 @@ export default function CinematicHeroScroll({
     if (heroProgress >= 0.2) setGlbMounted(true);
   }, [heroProgress]);
 
-  const p = heroProgress;
+  const p = Number.isFinite(heroProgress) ? Math.max(0, Math.min(1, heroProgress)) : 0;
   const headlines = locale === "vi" ? HEADLINES_VI : HEADLINES_EN;
   const ctaLabel = getMessages(locale as "en" | "vi").hero.ctaFoundingAscent;
 
@@ -243,9 +247,11 @@ export default function CinematicHeroScroll({
   const cameraZStart = 9;
   const cameraDistanceEnd = isDesktop ? desktopFinalCameraZ : 5.8;
   const framingClampZ = isDesktop ? desktopFinalCameraZ * 0.9 : 5.2;
-  const cameraDistance = p < zoomStartP
+  let cameraDistance = p < zoomStartP
     ? cameraZStart
     : Math.max(framingClampZ, cameraZStart - zoomT * (cameraZStart - cameraDistanceEnd));
+  const CAMERA_Z_MIN = 1;
+  if (!Number.isFinite(cameraDistance) || cameraDistance < CAMERA_Z_MIN) cameraDistance = CAMERA_Z_MIN;
   const cameraFov = 45;
   const glbRotationSpeed = p >= 0.95 ? 0.8 : 1;
   const narrativeTranslateY = -FADE_Y_PX * smoothstep(0.82, 0.98, p);

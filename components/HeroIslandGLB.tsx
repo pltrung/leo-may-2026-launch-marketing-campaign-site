@@ -75,10 +75,13 @@ function IslandModel({
   }, [onFramingReady]);
 
   useFrame((_state, delta) => {
-    if (!groupRef.current) return;
-    groupRef.current.rotation.y += delta * BASE_ROTATION_RAD_PER_SEC * rotationSpeedMultiplier;
+    if (!groupRef.current || !scene) return;
+    if (!Number.isFinite(delta) || !Number.isFinite(rotationSpeedMultiplier) || !Number.isFinite(opacity)) return;
+    const speed = Math.max(0, Math.min(2, rotationSpeedMultiplier));
+    const op = Math.max(0, Math.min(1, opacity));
+    groupRef.current.rotation.y += delta * BASE_ROTATION_RAD_PER_SEC * speed;
     materialsRef.current.forEach((mat) => {
-      mat.opacity = opacity;
+      mat.opacity = op;
     });
   });
 

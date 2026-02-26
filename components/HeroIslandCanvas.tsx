@@ -6,19 +6,36 @@ import * as THREE from "three";
 import HeroIslandGLB from "./HeroIslandGLB";
 
 const DEFAULT_CAMERA_Z = 8;
+const CAMERA_Z_MIN = 1;
+const FOV_MIN = 30;
+const FOV_MAX = 75;
 
 /** Vertical offset for look-at target so the sculpture is centered in frame (not sitting too high). */
 const LOOKAT_Y_OFFSET = 0.34;
 
-/** Drives camera Z and look-at; target is (0, lookAtY, 0) so the sculpture is visually centered. */
+function safeCameraZ(z: number): number {
+  if (z !== z || z < CAMERA_Z_MIN) return CAMERA_Z_MIN;
+  return Math.max(CAMERA_Z_MIN, z);
+}
+
+function safeFov(fov: number): number {
+  if (fov !== fov) return 45;
+  return Math.max(FOV_MIN, Math.min(FOV_MAX, fov));
+}
+
+/** Drives camera Z and look-at; skips update if values are invalid. */
 function CameraPushIn({ cameraDistance, fov }: { cameraDistance: number; fov: number }) {
   const { camera } = useThree();
   useFrame(() => {
-    camera.position.set(0, 0, cameraDistance);
+    if (!camera) return;
+    const z = safeCameraZ(cameraDistance);
+    const f = safeFov(fov);
+    if (z !== z || f !== f) return;
+    camera.position.set(0, 0, z);
     camera.lookAt(0, LOOKAT_Y_OFFSET, 0);
     const pCamera = camera as THREE.PerspectiveCamera;
-    if (pCamera.fov !== fov) {
-      pCamera.fov = fov;
+    if (pCamera.fov !== f) {
+      pCamera.fov = f;
       pCamera.updateProjectionMatrix();
     }
   });
