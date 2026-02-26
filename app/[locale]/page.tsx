@@ -31,6 +31,9 @@ import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesC
 import { HERO_BG } from "@/lib/heroConstants";
 
 const USE_CINEMATIC_HERO = true;
+const HERO_WRAPPER_VH = 400;
+const HERO_HEADER_PX = 64;
+const HERO_FOOTER_PX = 56;
 
 function HomeContent() {
   const router = useRouter();
@@ -119,17 +122,14 @@ function HomeContent() {
   const transitionActive = skyVisible || isCountdownTransition;
   const heroContentOpacity = showClouds ? 1 : (transitionActive ? 0 : heroOpacity);
   const heroEase = [0.22, 1, 0.36, 1] as const;
-
-  const HERO_WRAPPER_VH = 350;
-  const HERO_HEADER_PX = 64;
-  const HERO_FOOTER_PX = 56;
   const showCinematicLayers = USE_CINEMATIC_HERO && !showClouds;
   const footerMessages = getMessages(locale).footer;
 
-  // Hero is the entire page when cinematic; scroll only drives animation. Lock at wrapper height so no section unlocks until heroProgress === 1.
   useEffect(() => {
     if (!showCinematicLayers) return;
-    const maxScroll = (typeof window !== "undefined" ? window.innerHeight : 700) * (HERO_WRAPPER_VH / 100);
+    const vh = typeof window !== "undefined" ? window.innerHeight : 700;
+    const maxScroll = (vh * HERO_WRAPPER_VH) / 100 - vh;
+    if (maxScroll <= 0) return;
     let raf = 0;
     const onScroll = () => {
       if (raf) return;
@@ -150,14 +150,13 @@ function HomeContent() {
     <div
       id="hero-page"
       className="page-container relative flex flex-col"
-      style={showCinematicLayers ? { minHeight: "350vh", height: "350vh", overflowX: "hidden", background: HERO_BG } : { minHeight: "100dvh" }}
+      style={showCinematicLayers ? { minHeight: "400vh", height: "400vh", overflowX: "hidden", background: HERO_BG } : { minHeight: "100dvh" }}
     >
-      <main className={`relative z-10 ${showCinematicLayers ? "flex-shrink-0" : "flex-1 min-h-0"}`} style={showCinematicLayers ? { height: "350vh" } : undefined}>
+      <main className={`relative z-10 ${showCinematicLayers ? "flex-shrink-0" : "flex-1 min-h-0"}`} style={showCinematicLayers ? { height: "400vh" } : undefined}>
       <BrandBackground />
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />
 
-      {/* LAYER 1 — Fixed header (overlay; no background — persistent layer shows through). */}
       {showCinematicLayers && (
         <header
           className="fixed left-0 right-0 top-0 z-[50] flex items-center justify-between px-4 sm:px-6 md:px-8"
@@ -179,7 +178,6 @@ function HomeContent() {
         </header>
       )}
 
-      {/* Legacy: top-right when NOT cinematic */}
       {!showCinematicLayers && (
         <motion.div
           className="fixed top-8 right-6 z-[100] flex items-center gap-3"
@@ -199,11 +197,7 @@ function HomeContent() {
       <AnimatePresence mode="wait">
         {!showClouds ? (
           USE_CINEMATIC_HERO ? (
-            <div
-              key="cinematic-hero"
-              className="relative z-0"
-              style={{ opacity: heroContentOpacity }}
-            >
+            <div key="cinematic-hero" className="relative z-0" style={{ opacity: heroContentOpacity }}>
               <CinematicHeroScroll
                 partColors={heroMascotPartColors}
                 onJoin={handleAscendClick}
@@ -242,7 +236,6 @@ function HomeContent() {
 
       </main>
 
-      {/* No scroll-in section after cinematic hero; hero footer (tagline + copyright) is the only footer. */}
       {(!USE_CINEMATIC_HERO || showClouds) && (
         <motion.div
           id="know-your-cloud"

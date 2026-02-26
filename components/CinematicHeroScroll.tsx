@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import type { Locale } from "@/lib/i18n";
 import type { MascotPartColors } from "@/lib/mascotSpeciesColors";
 import { preloadHeroIslandGLB } from "@/components/HeroIslandGLB";
+import { HERO_BG } from "@/lib/heroConstants";
 
 const HeroIslandCanvas = dynamic(
   () => import("@/components/HeroIslandCanvas"),
@@ -16,15 +17,15 @@ const HEADLINES_EN = [
   "CLIMB WITH INTENTION.",
   "ASCEND TOGETHER.",
   "SHAPE THE STANDARD.",
+  "LEO MÂY — 2026.",
 ];
 
 const HEADLINES_VI = [
   "LEO CÓ CHỦ ĐÍCH.",
   "VƯƠN CAO CÙNG NHAU.",
   "ĐỊNH HÌNH CHUẨN MỰC.",
+  "LEO MÂY — 2026.",
 ];
-
-const HERO_BG = "#000000";
 
 function smoothstep(a: number, b: number, x: number): number {
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
@@ -59,7 +60,7 @@ export default function CinematicHeroScroll({
   locale = "en",
   headerHeight = 64,
   footerHeight = 56,
-  wrapperVh = 350,
+  wrapperVh = 400,
   footerMessages,
 }: CinematicHeroScrollProps) {
   const [heroProgress, setHeroProgress] = useState(0);
@@ -98,26 +99,27 @@ export default function CinematicHeroScroll({
   }, [wrapperVh]);
 
   useEffect(() => {
-    if (heroProgress >= 0.33) setGlbMounted(true);
+    if (heroProgress >= 0.5) setGlbMounted(true);
   }, [heroProgress]);
 
   const p = heroProgress;
 
-  // STEP 1 (0–0.33): ip-flying, slight upward. STEP 2 (0.33–0.66): ip-flying exit up + fade, holds in, GLB starts in near end. STEP 3 (0.66–0.90): GLB full, holds out, camera closer. FINAL (0.90–1): headline out, camera push, GLB dominant.
-  const ipFlyingOpacity = p < 0.33 ? 1 : 1 - smoothstep(0.33, 0.5, p);
-  const ipFlyingY = p < 0.33 ? p * -20 : -20 - smoothstep(0.33, 0.5, p) * 120;
-  const holdsOpacity = smoothstep(0.33, 0.5, p) * (1 - smoothstep(0.66, 0.82, p));
-  const glbOpacity = smoothstep(0.55, 0.75, p);
+  // STEP 1 (0–0.25): mascot + float. STEP 2 (0.25–0.5): mascot up+fade, holds in. STEP 3 (0.5–0.75): holds out, GLB in. STEP 4 (0.75–0.9): GLB larger. FINAL (0.9–1): headline out, camera push.
+  const mascotOpacity = 1 - smoothstep(0.25, 0.5, p);
+  const mascotY = p < 0.25 ? Math.sin(p * Math.PI * 2) * 8 : -20 - smoothstep(0.25, 0.5, p) * 100;
+  const holdsOpacity = smoothstep(0.25, 0.5, p) * (1 - smoothstep(0.5, 0.75, p));
+  const glbOpacity = smoothstep(0.5, 0.75, p);
   const zoomT = smoothstep(0.9, 1, p);
-  const glbScaleBase = 0.7 + 0.3 * smoothstep(0.66, 0.82, Math.min(p, 0.9));
+  const glbScaleBase = 0.75 + 0.25 * smoothstep(0.75, 0.9, Math.min(p, 0.9));
   const glbScale = p < 0.9 ? glbScaleBase : glbScaleBase + zoomT * (4 - glbScaleBase);
   const cameraDistance = p < 0.9 ? 8 : 8 - zoomT * (8 - 2.4);
   const cameraFov = p < 0.9 ? 45 : 45 - zoomT * (45 - 28);
 
-  const h1 = p >= 0 && p < 0.33 ? 1 : 0;
-  const h2 = p >= 0.33 && p < 0.66 ? 1 : 0;
-  const h3 = p >= 0.66 && p < 0.9 ? 1 : 0;
-  const headlineOpacities = [h1, h2, h3];
+  const h1 = p >= 0 && p < 0.25 ? 1 : 0;
+  const h2 = p >= 0.25 && p < 0.5 ? 1 : 0;
+  const h3 = p >= 0.5 && p < 0.75 ? 1 : 0;
+  const h4 = p >= 0.75 && p < 0.9 ? 1 : 0;
+  const headlineOpacities = [h1, h2, h3, h4];
   const headlineContainerOpacity = 1 - smoothstep(0.9, 1, p);
 
   const isMobile = useIsMobile();
@@ -135,7 +137,7 @@ export default function CinematicHeroScroll({
           background: HERO_BG,
         }}
       >
-        {/* VisualContainer: holds background (STEP 2–3) */}
+        {/* Wall + holds: STEP 2 in, STEP 3 out */}
         <div
           className="absolute inset-0 pointer-events-none flex items-center justify-center"
           style={{ opacity: holdsOpacity }}
@@ -150,12 +152,12 @@ export default function CinematicHeroScroll({
           />
         </div>
 
-        {/* GLB: STEP 2 end – STEP 3, FINAL zoom */}
+        {/* GLB: STEP 3 in, STEP 4 larger, FINAL zoom */}
         <div className="absolute inset-0 z-[5] pointer-events-none flex items-center justify-center">
-          <div className={isMobile ? "w-full h-full max-h-[60vh]" : "w-full h-full"}>
+          <div className={isMobile ? "w-full h-full max-h-[55vh]" : "w-full h-full"}>
             <HeroIslandCanvas
               opacity={glbOpacity}
-              scale={Math.min(glbScale, isMobile ? 2.5 : 4)}
+              scale={Math.min(glbScale, isMobile ? 2.8 : 4)}
               cameraDistance={cameraDistance}
               fov={cameraFov}
               shouldMount={glbMounted}
@@ -163,128 +165,85 @@ export default function CinematicHeroScroll({
           </div>
         </div>
 
-        {/* TextContainer + CTA: desktop absolute, mobile flex column */}
-        {isMobile ? (
+        {/* Content: flex column to avoid overlap; headline + CTA always in flow */}
+        <div
+          className="absolute inset-0 z-10 flex flex-col pointer-events-none"
+          style={{
+            paddingTop: "env(safe-area-inset-top)",
+            paddingBottom: "env(safe-area-inset-bottom)",
+          }}
+        >
+          {/* Headline — single element, 4 lines via opacity */}
           <div
-            className="absolute inset-0 z-10 flex flex-col pointer-events-none"
+            className={isMobile ? "flex-shrink-0 pt-6 px-4 text-center" : "flex-shrink-0 pt-[14%] pl-4 sm:pl-6 md:pl-8"}
             style={{
-              paddingTop: "env(safe-area-inset-top)",
-              paddingBottom: "env(safe-area-inset-bottom)",
+              width: isMobile ? "100%" : "min(44%, 440px)",
+              opacity: headlineContainerOpacity,
             }}
           >
-            <div className="flex-shrink-0 pt-4 px-4 text-center" style={{ opacity: headlineContainerOpacity }}>
-              <h1
-                className="relative font-bold text-white tracking-tight overflow-hidden min-h-[2.5em] leading-[1.2] text-[clamp(28px,8vw,44px)]"
-                style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
-              >
-                {headlines.map((line, i) => (
-                  <span
-                    key={i}
-                    className="absolute top-0 left-0 right-0 block"
-                    style={{ opacity: headlineOpacities[i] ?? 0 }}
-                    aria-hidden={(headlineOpacities[i] ?? 0) < 0.01}
-                  >
-                    {line}
-                  </span>
-                ))}
-              </h1>
-            </div>
-            <div className="flex-1 min-h-0 flex items-center justify-center max-h-[60vh]">
-              <div
-                className="w-[70%] max-w-[260px] flex items-center justify-center"
-                style={{ transform: `translateY(${ipFlyingY}px)` }}
-              >
-                <div style={{ opacity: ipFlyingOpacity }} className="w-full">
-                  {partColors ? (
-                    <object
-                      data="/brand/ip-flying.svg"
-                      type="image/svg+xml"
-                      aria-hidden
-                      className="w-full h-auto object-contain aspect-square"
-                      style={{ color: "#fff" }}
-                    />
-                  ) : (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src="/brand/ip-flying.svg" alt="" className="w-full aspect-square object-contain" style={{ filter: "brightness(0) invert(1)" }} />
-                  )}
-                </div>
+            <h1
+              className={`relative font-bold text-white tracking-tight overflow-hidden min-h-[2.6em] leading-[1.2] ${isMobile ? "text-[clamp(28px,8vw,44px)]" : "text-[clamp(26px,4vw,42px)] md:text-[clamp(34px,3.5vw,52px)] lg:text-[clamp(44px,4vw,64px)]"}`}
+              style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
+            >
+              {headlines.map((line, i) => (
+                <span
+                  key={i}
+                  className="absolute top-0 left-0 right-0 block"
+                  style={{ opacity: headlineOpacities[i] ?? 0 }}
+                  aria-hidden={(headlineOpacities[i] ?? 0) < 0.01}
+                >
+                  {line}
+                </span>
+              ))}
+            </h1>
+          </div>
+
+          {/* Visual: mascot — flex-1 so it stays below headline, no overlap */}
+          <div className="flex-1 min-h-0 flex items-center justify-center w-full">
+            <div
+              className={isMobile ? "w-[68%] max-w-[260px] max-h-[50vh]" : "w-[36%] max-w-[300px] absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"}
+              style={
+                isMobile
+                  ? { transform: `translateY(${mascotY}px)` }
+                  : { transform: `translate(-50%, calc(-50% + ${mascotY}px))` }
+              }
+            >
+              <div style={{ opacity: mascotOpacity }} className="w-full h-full flex items-center justify-center">
+                {partColors ? (
+                  <object
+                    data="/brand/ip-flying.svg"
+                    type="image/svg+xml"
+                    aria-hidden
+                    className="w-full h-full object-contain aspect-square"
+                    style={{ color: "#fffef8" }}
+                  />
+                ) : (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src="/brand/ip-flying.svg" alt="" className="w-full aspect-square object-contain" />
+                )}
               </div>
             </div>
-            <div className="flex-shrink-0 pb-4 pt-2 flex justify-center">
-              <motion.button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onJoin();
-                }}
-                className="px-6 py-3 rounded-full border border-white/80 text-white text-xs font-medium tracking-wider uppercase bg-transparent pointer-events-auto"
-                style={{ letterSpacing: "0.05em" }}
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 1.02 }}
-              >
-                JOIN THE FOUNDING ASCENT
-              </motion.button>
-            </div>
           </div>
-        ) : (
-          <>
-            <div
-              className="absolute z-10 pointer-events-none top-[18%] left-4 sm:left-6 md:left-8 w-[min(42%,400px)]"
-              style={{ opacity: headlineContainerOpacity }}
-            >
-              <h1
-                className="relative font-bold text-white tracking-tight overflow-hidden min-h-[2.5em] leading-[1.2] text-[clamp(26px,4vw,44px)] md:text-[clamp(32px,3.5vw,52px)] lg:text-[clamp(40px,4vw,60px)]"
-                style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
-              >
-                {headlines.map((line, i) => (
-                  <span
-                    key={i}
-                    className="absolute top-0 left-0 right-0 block"
-                    style={{ opacity: headlineOpacities[i] ?? 0 }}
-                    aria-hidden={(headlineOpacities[i] ?? 0) < 0.01}
-                  >
-                    {line}
-                  </span>
-                ))}
-              </h1>
-            </div>
-            <div
-              className="absolute left-1/2 top-1/2 z-10 flex items-center justify-center w-[36%] max-w-[300px] pointer-events-none"
-              style={{
-                transform: `translate(-50%, calc(-50% + ${ipFlyingY}px))`,
-                opacity: ipFlyingOpacity,
+
+          {/* CTA — centered below headline, always visible */}
+          <div
+            className={`flex-shrink-0 ${isMobile ? "pb-6 pt-4 flex justify-center" : "absolute bottom-[100px] left-1/2 -translate-x-1/2"}`}
+          >
+            <motion.button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onJoin();
               }}
+              className="px-6 py-3 sm:px-8 sm:py-3.5 rounded-full border border-white/70 text-white text-xs sm:text-sm font-medium tracking-wider uppercase bg-transparent pointer-events-auto"
+              style={{ letterSpacing: "0.05em", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 1.02 }}
             >
-              {partColors ? (
-                <object
-                  data="/brand/ip-flying.svg"
-                  type="image/svg+xml"
-                  aria-hidden
-                  className="w-full h-auto object-contain aspect-square max-h-[60vh]"
-                  style={{ color: "#fff" }}
-                />
-              ) : (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img src="/brand/ip-flying.svg" alt="" className="w-full aspect-square object-contain max-h-[60vh]" style={{ filter: "brightness(0) invert(1)" }} />
-              )}
-            </div>
-            <div className="absolute z-20 bottom-[100px] left-4 sm:left-6 md:left-8">
-              <motion.button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onJoin();
-                }}
-                className="px-6 py-3 sm:px-8 sm:py-3.5 rounded-full border border-white/80 text-white text-xs sm:text-sm font-medium tracking-wider uppercase bg-transparent pointer-events-auto"
-                style={{ letterSpacing: "0.05em" }}
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 1.02 }}
-              >
-                JOIN THE FOUNDING ASCENT
-              </motion.button>
-            </div>
-          </>
-        )}
+              JOIN THE FOUNDING ASCENT
+            </motion.button>
+          </div>
+        </div>
 
         {/* Vertical progress bar */}
         <div
@@ -293,13 +252,13 @@ export default function CinematicHeroScroll({
         >
           <div className="flex-1 min-h-0 flex flex-col justify-end">
             <div
-              className="w-full rounded-full bg-white/60"
+              className="w-full rounded-full bg-white/50"
               style={{ height: `${heroProgress * 100}%`, minHeight: 2 }}
             />
           </div>
         </div>
 
-        {/* FooterOverlay */}
+        {/* Footer overlay — same background, never scrolls */}
         {footerMessages && (
           <div
             className="absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center justify-center gap-0.5 py-3 px-4 text-center pointer-events-none"
@@ -310,10 +269,10 @@ export default function CinematicHeroScroll({
               background: HERO_BG,
             }}
           >
-            <p className="text-white/90 text-xs tracking-wide" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
+            <p className="text-white/80 text-xs tracking-wide" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
               {footerMessages.ethos}
             </p>
-            <p className="text-white/60 text-[10px] tracking-wide" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
+            <p className="text-white/50 text-[10px] tracking-wide" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
               {footerMessages.copyright ?? "© Leo Mây Climbing Gym — 2026"}
             </p>
           </div>
