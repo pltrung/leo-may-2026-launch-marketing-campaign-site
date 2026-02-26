@@ -250,7 +250,12 @@ export default function CinematicHeroScroll({
 
   const SCROLL_HEADLINES: string[] = locale === "vi" ? SCROLL_HEADLINES_VI : SCROLL_HEADLINES_EN;
   const N = SCROLL_HEADLINES.length;
-  const segment = 1 / (N + 0.5);
+
+  // Desktop: same scroll band as scrollReveal (0.12–0.55) so text crossfade is synced with particles/holds
+  const DESKTOP_SCROLL_START = 0.12;
+  const DESKTOP_SCROLL_END = 0.55;
+  const DESKTOP_CROSSFADE = 0.16; // wider overlap so transitions feel slow and synced
+  const desktopPeak = (i: number) => DESKTOP_SCROLL_START + (i / Math.max(1, N - 1)) * (DESKTOP_SCROLL_END - DESKTOP_SCROLL_START);
 
   const headlineOpacities = isMobile
     ? SCROLL_HEADLINES.map((_, i) => {
@@ -267,12 +272,13 @@ export default function CinematicHeroScroll({
         return inVal * outVal * (scrollProgress >= 0.32 ? 1 : 0);
       })
     : SCROLL_HEADLINES.map((_, i) => {
-        const inStart = Math.max(0, i * segment - 0.04);
-        const inEnd = inStart + 0.12;
-        const outStart = (i + 1) * segment - 0.06;
-        const outEnd = outStart + 0.12;
+        const peak = desktopPeak(i);
+        const inStart = peak - DESKTOP_CROSSFADE;
+        const inEnd = peak;
+        const outStart = peak;
+        const outEnd = peak + DESKTOP_CROSSFADE;
         const inVal = smoothstep(inStart, inEnd, scrollProgress);
-        const outVal = 1 - smoothstep(outStart, outEnd, scrollProgress);
+        const outVal = i < N - 1 ? 1 - smoothstep(outStart, outEnd, scrollProgress) : 1;
         return inVal * outVal;
       });
 
@@ -292,14 +298,15 @@ export default function CinematicHeroScroll({
       if (fadeOut < 1) return -10 * (1 - fadeOut);
       return 0;
     }
-    const inStart = Math.max(0, i * segment - 0.04);
-    const inEnd = inStart + 0.12;
-    const outStart = (i + 1) * segment - 0.06;
-    const outEnd = outStart + 0.12;
+    const peak = desktopPeak(i);
+    const inStart = peak - DESKTOP_CROSSFADE;
+    const inEnd = peak;
+    const outStart = peak;
+    const outEnd = peak + DESKTOP_CROSSFADE;
     const fadeIn = smoothstep(inStart, inEnd, scrollProgress);
-    const fadeOut = 1 - smoothstep(outStart, outEnd, scrollProgress);
-    if (fadeIn < 1) return 10 * (1 - fadeIn);
-    if (fadeOut < 1) return -10 * (1 - fadeOut);
+    const fadeOut = i < N - 1 ? 1 - smoothstep(outStart, outEnd, scrollProgress) : 1;
+    if (fadeIn < 1) return 8 * (1 - fadeIn);
+    if (fadeOut < 1) return -8 * (1 - fadeOut);
     return 0;
   });
 
@@ -489,15 +496,15 @@ export default function CinematicHeroScroll({
           </motion.div>
         )}
 
-        {/* Layout: mobile = stacked (mascot top, headline below); desktop = grid so mascot is centered in hero */}
+        {/* Layout: mobile = stacked (mascot top, headline below); desktop = mascot viewport-centered (absolute), headline left column */}
         <div
           className={
             isMobile
               ? "absolute inset-0 flex flex-col items-center justify-center px-4 pt-20 pb-24 z-10 pointer-events-none gap-8"
-              : "absolute inset-0 grid grid-cols-[1fr auto 1fr] items-center justify-items-center gap-6 px-4 sm:px-6 md:px-8 pt-20 pb-24 z-10 pointer-events-none"
+              : "absolute inset-0 flex items-center px-4 sm:px-6 md:px-8 pt-20 pb-24 z-10 pointer-events-none"
           }
         >
-          <div className={`pointer-events-auto flex flex-col justify-center w-full max-w-[min(100%,520px)] ${isMobile ? "order-2 items-start text-left max-w-[85%]" : "justify-self-start max-w-[min(100%,420px)]"}`}>
+          <div className={`pointer-events-auto flex flex-col justify-center w-full max-w-[min(100%,520px)] ${isMobile ? "order-2 items-start text-left max-w-[85%]" : "relative z-10 max-w-[min(42%,420px)]"}`}>
             {/* Headline block: max-width, generous spacing; mobile = left column, no collision with mascot */}
             <div
               className={`max-w-[min(100%,1100px)] mt-6 sm:mt-8 md:mt-12 ${isMobile ? "text-left w-full" : ""}`}
@@ -568,12 +575,18 @@ export default function CinematicHeroScroll({
             )}
           </div>
 
-          {/* Mascot: mobile = order-1 (top), centered; desktop = center column, anchored in hero */}
+          {/* Mascot: mobile = order-1 (top); desktop = viewport-centered via absolute so it stays anchored in hero */}
           <motion.div
-            className={`flex items-center justify-center flex-shrink-0 w-[70%] max-w-[300px] sm:w-[42%] sm:max-w-[300px] md:max-w-[340px] ${isMobile ? "order-1" : "justify-self-center col-start-2"}`}
+            className={
+              isMobile
+                ? "flex items-center justify-center flex-shrink-0 w-[70%] max-w-[300px] order-1"
+                : "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-[38%] max-w-[320px] md:max-w-[340px] pointer-events-none"
+            }
             style={{
               opacity: mascotOpacity,
-              transform: `translateY(${mascotY + mascotTranslateY}px) scale(${mascotScaleScroll})`,
+              transform: isMobile
+                ? `translateY(${mascotY + mascotTranslateY}px) scale(${mascotScaleScroll})`
+                : `translate(-50%, calc(-50% + ${mascotY + mascotTranslateY}px)) scale(${mascotScaleScroll})`,
             }}
           >
             <motion.div
