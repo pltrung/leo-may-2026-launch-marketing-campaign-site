@@ -94,14 +94,16 @@ export default function HeroIslandGLB({
   scale = 1,
   rotationSpeedMultiplier = 1,
   onFramingReady,
+  offsetY = 0,
 }: {
   opacity: number;
   scale?: number;
   rotationSpeedMultiplier?: number;
   onFramingReady?: (cameraZ: number) => void;
+  offsetY?: number;
 }) {
   return (
-    <group scale={scale} position={[0, 0, 0]}>
+    <group scale={scale} position={[0, offsetY, 0]}>
       <IslandModel
         opacity={opacity}
         rotationSpeedMultiplier={rotationSpeedMultiplier}

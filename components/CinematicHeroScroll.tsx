@@ -36,6 +36,8 @@ export interface CinematicHeroScrollProps {
   footerHeight?: number;
   wrapperVh?: number;
   footerMessages?: { ethos: string; copyright?: string };
+  /** When true, entrance sequence (mascot → headline → CTA → arrow → footer) starts. Set by page when loading screen is gone. */
+  heroReady?: boolean;
 }
 
 function useIsMobile(): boolean {
@@ -81,6 +83,7 @@ export default function CinematicHeroScroll({
   footerHeight = 56,
   wrapperVh = 430,
   footerMessages,
+  heroReady = false,
 }: CinematicHeroScrollProps) {
   const isMobile = useIsMobile();
   const isDesktop = useIsDesktop();
@@ -91,6 +94,7 @@ export default function CinematicHeroScroll({
   const [loadElapsed, setLoadElapsed] = useState(0);
   const [loadComplete, setLoadComplete] = useState(false);
   const loadStartRef = useRef<number | null>(null);
+  const entranceStartedRef = useRef(false);
   const [desktopFinalCameraZ, setDesktopFinalCameraZ] = useState(6);
 
   useEffect(() => {
@@ -98,14 +102,20 @@ export default function CinematicHeroScroll({
   }, []);
 
   useEffect(() => {
+    if (!heroReady || entranceStartedRef.current) return;
+    entranceStartedRef.current = true;
     loadStartRef.current = performance.now();
+  }, [heroReady]);
+
+  useEffect(() => {
+    if (!heroReady) return;
     let raf = 0;
     const tick = () => {
       const start = loadStartRef.current;
       if (start == null) return;
       const elapsed = (performance.now() - start) / 1000;
       setLoadElapsed(elapsed);
-      if (elapsed >= 1.4) {
+      if (elapsed >= 1.45) {
         setLoadComplete(true);
         return;
       }
@@ -115,7 +125,7 @@ export default function CinematicHeroScroll({
     return () => {
       if (raf) cancelAnimationFrame(raf);
     };
-  }, []);
+  }, [heroReady]);
 
   useEffect(() => {
     const vh = typeof window !== "undefined" ? window.innerHeight : 700;
@@ -226,11 +236,10 @@ export default function CinematicHeroScroll({
 
   const glbOpacity = smoothstep(0.38, 0.62, p);
   const glbScaleBase = 0.7 + 0.3 * smoothstep(0.4, 0.65, Math.min(p, 0.82));
-  const glbScale =
-    isDesktop ? glbScaleBase : Math.min(glbScaleBase, 0.88);
+  const glbScale = glbScaleBase;
   const cameraZStart = 9;
-  const cameraDistanceEnd = isDesktop ? desktopFinalCameraZ : 7.2;
-  const framingClampZ = isDesktop ? desktopFinalCameraZ * 0.9 : 6.4;
+  const cameraDistanceEnd = isDesktop ? desktopFinalCameraZ : 5.8;
+  const framingClampZ = isDesktop ? desktopFinalCameraZ * 0.9 : 5.2;
   const cameraDistance = p < zoomStartP
     ? cameraZStart
     : Math.max(framingClampZ, cameraZStart - zoomT * (cameraZStart - cameraDistanceEnd));
@@ -243,13 +252,14 @@ export default function CinematicHeroScroll({
   const metaOpacity = smoothstep(0.06, 0.2, p) * narrativeStackOpacity;
 
   const loadT = Math.min(loadElapsed, 1.5);
-  const loadMascotOpacity = smoothstep(0.6, 0.9, loadT);
-  const loadMascotY = 40 * (1 - smoothstep(0.6, 0.9, loadT));
-  const loadHeadlineOpacity = smoothstep(0.8, 1.1, loadT);
-  const loadHeadlineY = 20 * (1 - smoothstep(0.8, 1.1, loadT));
-  const loadCTAOpacity = smoothstep(1.0, 1.3, loadT);
-  const loadCTAY = 20 * (1 - smoothstep(1.0, 1.3, loadT));
-  const loadArrowOpacity = smoothstep(1.2, 1.5, loadT);
+  const loadMascotOpacity = smoothstep(0.35, 0.65, loadT);
+  const loadMascotY = 32 * (1 - smoothstep(0.35, 0.65, loadT));
+  const loadHeadlineOpacity = smoothstep(0.5, 0.8, loadT);
+  const loadHeadlineY = 18 * (1 - smoothstep(0.5, 0.8, loadT));
+  const loadCTAOpacity = smoothstep(0.65, 0.95, loadT);
+  const loadCTAY = 16 * (1 - smoothstep(0.65, 0.95, loadT));
+  const loadArrowOpacity = smoothstep(0.85, 1.15, loadT);
+  const loadFooterOpacity = smoothstep(1.0, 1.35, loadT);
 
   const mascotOpacityFinal = loadComplete ? mascotOpacity : loadMascotOpacity;
   const mascotTranslateYFinal = loadComplete ? mascotTranslateY : loadMascotY;
@@ -310,6 +320,7 @@ export default function CinematicHeroScroll({
               rotationSpeedMultiplier={glbRotationSpeed}
               onFramingReady={setDesktopFinalCameraZ}
               shouldMount={glbMounted}
+              modelOffsetY={isMobile ? 0.38 : 0}
             />
           </div>
 
@@ -550,8 +561,8 @@ export default function CinematicHeroScroll({
               minHeight: footerHeight,
               paddingBottom: "max(12px, env(safe-area-inset-bottom))",
               background: HERO_BG,
-              opacity: heroFooterOpacity,
-              transform: `translateY(${heroFooterTranslateY}px)`,
+              opacity: loadComplete ? heroFooterOpacity : loadFooterOpacity,
+              transform: loadComplete ? `translateY(${heroFooterTranslateY}px)` : "none",
             }}
           >
             <p className="text-white/80 text-xs tracking-wide" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>

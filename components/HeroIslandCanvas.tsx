@@ -35,6 +35,7 @@ export default function HeroIslandCanvas({
   onFramingReady,
   shouldMount,
   className,
+  modelOffsetY = 0,
 }: {
   opacity: number;
   scale: number;
@@ -44,6 +45,7 @@ export default function HeroIslandCanvas({
   onFramingReady?: (cameraZ: number) => void;
   shouldMount?: boolean;
   className?: string;
+  modelOffsetY?: number;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -77,6 +79,7 @@ export default function HeroIslandCanvas({
             scale={scale}
             rotationSpeedMultiplier={rotationSpeedMultiplier}
             onFramingReady={onFramingReady}
+            offsetY={modelOffsetY}
           />
         </Canvas>
       )}

@@ -107,12 +107,6 @@ function HomeContent() {
 
   const [heroReady, setHeroReady] = useState(false);
   const [heroScrollComplete, setHeroScrollComplete] = useState(false);
-  const [cinematicHeaderVisible, setCinematicHeaderVisible] = useState(false);
-  useEffect(() => {
-    if (!USE_CINEMATIC_HERO || showClouds) return;
-    const t = setTimeout(() => setCinematicHeaderVisible(true), 200);
-    return () => clearTimeout(t);
-  }, [showClouds]);
   useEffect(() => {
     const check = () => document.body.classList.contains("hero-ready") && setHeroReady(true);
     if (document.body.classList.contains("hero-ready")) {
@@ -165,26 +159,39 @@ function HomeContent() {
 
       {showCinematicLayers && (
         <header
-          className="fixed left-0 right-0 top-0 z-[50] flex items-center justify-between px-4 sm:px-6 md:px-8 transition-opacity duration-[400ms] ease-out"
+          className="fixed left-0 right-0 top-0 z-[50] flex items-center justify-between px-4 sm:px-6 md:px-8"
           style={{
             height: HERO_HEADER_PX,
             minHeight: HERO_HEADER_PX,
-            opacity: cinematicHeaderVisible ? 1 : 0,
+            opacity: heroReady ? 1 : 0,
+            transition: "opacity 0.4s ease-out",
           }}
           aria-label="Site header"
         >
-          <Image
-            src="/logo-white.svg"
-            alt="Leo Mây"
-            width={180}
-            height={72}
-            className="h-8 w-auto object-contain md:h-[3.25rem]"
-            priority
-          />
-          <div className="flex items-center gap-3">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: heroReady ? 1 : 0 }}
+            transition={{ duration: 0.5, delay: 0, ease: [0.22, 1, 0.36, 1] }}
+            className="flex items-center"
+          >
+            <Image
+              src="/logo-white.svg"
+              alt="Leo Mây"
+              width={180}
+              height={72}
+              className="h-8 w-auto object-contain md:h-[3.25rem]"
+              priority
+            />
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: heroReady ? 1 : 0 }}
+            transition={{ duration: 0.5, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="flex items-center gap-3"
+          >
             <LanguageSwitch />
             <KnowYourTeamButton show onFoundTeam={() => transitionToCountdown("return")} />
-          </div>
+          </motion.div>
         </header>
       )}
 
@@ -216,6 +223,7 @@ function HomeContent() {
                 footerHeight={HERO_FOOTER_PX}
                 wrapperVh={HERO_WRAPPER_VH}
                 footerMessages={footerMessages}
+                heroReady={heroReady}
               />
             </div>
           ) : (
