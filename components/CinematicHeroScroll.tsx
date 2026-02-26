@@ -83,10 +83,11 @@ export default function CinematicHeroScroll({
   useEffect(() => {
     const vh = typeof window !== "undefined" ? window.innerHeight : 700;
     const wrapperHeight = (vh * wrapperVh) / 100;
-    const maxScroll = Math.max(1, wrapperHeight - vh);
+    const scrollableDistance = Math.max(1, wrapperHeight - vh);
+    const progressEndScroll = scrollableDistance * 0.98;
     const onScroll = () => {
       const y = typeof window !== "undefined" ? window.scrollY : 0;
-      pendingRef.current = Math.max(0, Math.min(1, y / maxScroll));
+      pendingRef.current = Math.max(0, Math.min(1, y / progressEndScroll));
       if (rafRef.current) return;
       rafRef.current = requestAnimationFrame(() => {
         rafRef.current = 0;
@@ -163,9 +164,10 @@ export default function CinematicHeroScroll({
     return -slidePx;
   }, [p]);
 
-  // Final window 0.85–1.0: headline/meta fade out fully; zoom has time; GLB dominant at 1
-  const zoomT = smoothstep(0.85, 1, p);
-  const narrativeStackOpacity = 1 - smoothstep(0.85, 1, p);
+  // 0.85–0.98: moderate zoom; >= 0.98: freeze (no pop). Progress reaches 1 at 98% of scroll (buffer after).
+  const pZoom = Math.min(p, 0.98);
+  const zoomT = smoothstep(0.85, 0.98, pZoom);
+  const narrativeStackOpacity = 1 - smoothstep(0.85, 0.98, p);
   const headlineOpacities = [headline1Opacity, headline2Opacity, headline3Opacity, headline4Opacity];
   const headlineTranslateYs = [headline1TranslateY, headline2TranslateY, headline3TranslateY, headline4TranslateY];
 
@@ -178,11 +180,14 @@ export default function CinematicHeroScroll({
 
   const glbOpacity = smoothstep(0.4, 0.6, p);
   const glbScaleBase = 0.7 + 0.3 * smoothstep(0.4, 0.65, Math.min(p, 0.85));
-  const glbScaleFinal = isMobile ? 2.6 : 2.9;
+  const glbScaleFinal = isMobile ? 1.75 : 2;
   const glbScale = p < 0.85 ? glbScaleBase : glbScaleBase + zoomT * (glbScaleFinal - glbScaleBase);
-  const cameraDistance = p < 0.85 ? 9 : 9 - zoomT * (9 - 2.8);
-  const cameraFov = p < 0.85 ? 45 : 45 - zoomT * (45 - 28);
-  const glbOffsetY = zoomT * 0.35;
+  const cameraDistanceEnd = 9 - 0.7 * (9 - 2.8);
+  const cameraDistance = p < 0.85 ? 9 : 9 - zoomT * (9 - cameraDistanceEnd);
+  const cameraFovEnd = 38;
+  const cameraFov = p < 0.85 ? 45 : 45 - zoomT * (45 - cameraFovEnd);
+  const glbOffsetY = zoomT * 0.25;
+  const glbRotationSpeed = p >= 0.98 ? 0.22 : 1;
 
   const metaOpacity = smoothstep(0.05, 0.2, p) * narrativeStackOpacity;
 
@@ -244,6 +249,7 @@ export default function CinematicHeroScroll({
               cameraDistance={cameraDistance}
               fov={cameraFov}
               modelOffsetY={glbOffsetY}
+              rotationSpeedMultiplier={glbRotationSpeed}
               shouldMount={glbMounted}
             />
           </div>

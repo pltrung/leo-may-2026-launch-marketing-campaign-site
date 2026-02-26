@@ -15,7 +15,9 @@ export function preloadHeroIslandGLB(): void {
   gltf.preload(GLB_URL);
 }
 
-function IslandModel({ opacity }: { opacity: number }) {
+const BASE_ROTATION_RAD_PER_SEC = (Math.PI * 2) / ROTATION_SECONDS;
+
+function IslandModel({ opacity, rotationSpeedMultiplier = 1 }: { opacity: number; rotationSpeedMultiplier?: number }) {
   const groupRef = useRef<Group>(null);
   const { scene } = useGLTF(GLB_URL);
   const materialsRef = useRef<Material[]>([]);
@@ -37,7 +39,7 @@ function IslandModel({ opacity }: { opacity: number }) {
 
   useFrame((_state, delta) => {
     if (!groupRef.current) return;
-    groupRef.current.rotation.y += delta * (Math.PI * 2 / ROTATION_SECONDS);
+    groupRef.current.rotation.y += delta * BASE_ROTATION_RAD_PER_SEC * rotationSpeedMultiplier;
     materialsRef.current.forEach((mat) => {
       mat.opacity = opacity;
     });
@@ -54,14 +56,16 @@ export default function HeroIslandGLB({
   opacity,
   scale = 1,
   positionY = 0,
+  rotationSpeedMultiplier = 1,
 }: {
   opacity: number;
   scale?: number;
   positionY?: number;
+  rotationSpeedMultiplier?: number;
 }) {
   return (
     <group scale={scale} position={[0, positionY, 0]}>
-      <IslandModel opacity={opacity} />
+      <IslandModel opacity={opacity} rotationSpeedMultiplier={rotationSpeedMultiplier} />
     </group>
   );
 }
