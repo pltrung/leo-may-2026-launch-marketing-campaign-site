@@ -445,12 +445,12 @@ export default function CinematicHeroScroll({
               style={{ opacity: headlineBlockOpacity }}
             >
               <h1
-                className={`relative font-bold text-white tracking-[-0.02em] leading-[1.18] sm:leading-[1.15] md:leading-[1.12] overflow-hidden ${isMobile ? "text-left text-[clamp(36px,11vw,52px)] leading-[1.2] tracking-tight min-h-[2.5em]" : "text-[clamp(28px,6.5vw,40px)] sm:text-[clamp(32px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,96px)] min-h-[1.2em]"}`}
+                className={`relative font-bold text-white tracking-[-0.02em] overflow-hidden ${isMobile ? "text-left text-[clamp(36px,11vw,52px)] leading-[1.2] tracking-tight min-h-[2.5em]" : "text-[clamp(28px,6.5vw,40px)] sm:text-[clamp(32px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,96px)] leading-[1.15] min-h-[2.6em] sm:min-h-[2.8em] md:min-h-[3em]"}`}
                 style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
               >
                 <span
                   key="headline-a"
-                  className={`absolute top-0 block ${isMobile ? "left-0 right-auto" : "inset-x-0"}`}
+                  className={`absolute top-0 block w-full ${isMobile ? "left-0 right-auto" : "left-0 right-0"}`}
                   style={{ opacity: headlineOpacityA }}
                 >
                   {isMobile
@@ -461,7 +461,7 @@ export default function CinematicHeroScroll({
                 </span>
                 <span
                   key="headline-b"
-                  className={`absolute top-0 block ${isMobile ? "left-0 right-auto" : "inset-x-0"}`}
+                  className={`absolute top-0 block w-full ${isMobile ? "left-0 right-auto" : "left-0 right-0"}`}
                   style={{ opacity: headlineOpacityB }}
                 >
                   {isMobile
