@@ -53,12 +53,14 @@ function IslandModel({ opacity }: { opacity: number }) {
 export default function HeroIslandGLB({
   opacity,
   scale = 1,
+  positionY = 0,
 }: {
   opacity: number;
   scale?: number;
+  positionY?: number;
 }) {
   return (
-    <group scale={scale} position={[0, 0, 0]}>
+    <group scale={scale} position={[0, positionY, 0]}>
       <IslandModel opacity={opacity} />
     </group>
   );

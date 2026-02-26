@@ -178,10 +178,11 @@ export default function CinematicHeroScroll({
 
   const glbOpacity = smoothstep(0.4, 0.6, p);
   const glbScaleBase = 0.7 + 0.3 * smoothstep(0.4, 0.65, Math.min(p, 0.85));
-  const glbScaleFinal = isMobile ? 4 : 4.5;
+  const glbScaleFinal = isMobile ? 2.6 : 2.9;
   const glbScale = p < 0.85 ? glbScaleBase : glbScaleBase + zoomT * (glbScaleFinal - glbScaleBase);
-  const cameraDistance = p < 0.85 ? 9 : 9 - zoomT * (9 - 2.2);
-  const cameraFov = p < 0.85 ? 45 : 45 - zoomT * (45 - 26);
+  const cameraDistance = p < 0.85 ? 9 : 9 - zoomT * (9 - 2.8);
+  const cameraFov = p < 0.85 ? 45 : 45 - zoomT * (45 - 28);
+  const glbOffsetY = zoomT * 0.35;
 
   const metaOpacity = smoothstep(0.05, 0.2, p) * narrativeStackOpacity;
 
@@ -239,9 +240,10 @@ export default function CinematicHeroScroll({
           >
             <HeroIslandCanvas
               opacity={glbOpacity}
-              scale={Math.min(glbScale, isMobile ? 3.5 : 4.5)}
+              scale={glbScale}
               cameraDistance={cameraDistance}
               fov={cameraFov}
+              modelOffsetY={glbOffsetY}
               shouldMount={glbMounted}
             />
           </div>
@@ -255,7 +257,7 @@ export default function CinematicHeroScroll({
           >
             <div style={{ opacity: narrativeStackOpacity }} className="pointer-events-none">
               <h1
-                className={`relative font-bold text-white tracking-tight overflow-hidden ${isMobile ? "text-center min-h-[2.2em] leading-[1.15] text-[clamp(26px,7.5vw,42px)]" : "leading-[1.2] text-[clamp(28px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,72px)] min-h-[2.8em]"}`}
+                className={`relative font-bold text-white tracking-tight ${isMobile ? "text-center min-h-[3.5em] leading-[1.15] text-[clamp(26px,7.5vw,42px)]" : "leading-[1.2] text-[clamp(28px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,72px)] min-h-[4.5em]"}`}
                 style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
               >
                 {headlines.map((line, i) => (

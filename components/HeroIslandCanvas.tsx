@@ -29,6 +29,7 @@ export default function HeroIslandCanvas({
   scale,
   cameraDistance = DEFAULT_CAMERA_Z,
   fov = 45,
+  modelOffsetY = 0,
   shouldMount,
   className,
 }: {
@@ -36,6 +37,7 @@ export default function HeroIslandCanvas({
   scale: number;
   cameraDistance?: number;
   fov?: number;
+  modelOffsetY?: number;
   shouldMount?: boolean;
   className?: string;
 }) {
@@ -66,7 +68,7 @@ export default function HeroIslandCanvas({
           <ambientLight intensity={0.6} />
           <directionalLight position={[5, 5, 5]} intensity={1} />
           <directionalLight position={[-3, 2, 2]} intensity={0.4} />
-          <HeroIslandGLB opacity={opacity} scale={scale} />
+          <HeroIslandGLB opacity={opacity} scale={scale} positionY={modelOffsetY} />
         </Canvas>
       )}
     </div>
