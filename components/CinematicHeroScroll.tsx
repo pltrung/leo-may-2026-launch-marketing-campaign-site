@@ -152,6 +152,15 @@ export default function CinematicHeroScroll({
     return t * t * (3 - 2 * t);
   }
 
+  // ——— Single source of truth: heroProgress (0..1). One eased curve drives all layers. ———
+  const heroProgress = scrollProgress;
+  const REVEAL_START = 0.08;
+  const REVEAL_END = 0.5;
+  const revealT = useMemo(
+    () => smoothstep(REVEAL_START, REVEAL_END, heroProgress),
+    [heroProgress]
+  );
+
   // Single scroll driver: RAF-throttled to avoid jitter; no setState storm during scroll. Mobile uses longer range so progression isn't rushed.
   useEffect(() => {
     const vh = typeof window !== "undefined" ? window.innerHeight : 700;
@@ -232,15 +241,6 @@ export default function CinematicHeroScroll({
     const maxAura = isMobile ? 0.28 : 0.3;
     return p * maxAura;
   }, [introT, t2, frame3Progress, isMobile]);
-
-  // ——— Single source of truth: heroProgress (0..1). One eased curve drives all layers. ———
-  const heroProgress = scrollProgress;
-  const REVEAL_START = 0.08;
-  const REVEAL_END = 0.5;
-  const revealT = useMemo(
-    () => smoothstep(REVEAL_START, REVEAL_END, heroProgress),
-    [heroProgress]
-  );
 
   const wallOpacity = useMemo(() => {
     if (isMobile) return Math.min(0.65, revealT * 0.55 + heroProgress * 0.1);
