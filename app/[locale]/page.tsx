@@ -107,6 +107,12 @@ function HomeContent() {
 
   const [heroReady, setHeroReady] = useState(false);
   const [heroScrollComplete, setHeroScrollComplete] = useState(false);
+  const [cinematicHeaderVisible, setCinematicHeaderVisible] = useState(false);
+  useEffect(() => {
+    if (!USE_CINEMATIC_HERO || showClouds) return;
+    const t = setTimeout(() => setCinematicHeaderVisible(true), 200);
+    return () => clearTimeout(t);
+  }, [showClouds]);
   useEffect(() => {
     const check = () => document.body.classList.contains("hero-ready") && setHeroReady(true);
     if (document.body.classList.contains("hero-ready")) {
@@ -159,8 +165,12 @@ function HomeContent() {
 
       {showCinematicLayers && (
         <header
-          className="fixed left-0 right-0 top-0 z-[50] flex items-center justify-between px-4 sm:px-6 md:px-8"
-          style={{ height: HERO_HEADER_PX, minHeight: HERO_HEADER_PX }}
+          className="fixed left-0 right-0 top-0 z-[50] flex items-center justify-between px-4 sm:px-6 md:px-8 transition-opacity duration-[400ms] ease-out"
+          style={{
+            height: HERO_HEADER_PX,
+            minHeight: HERO_HEADER_PX,
+            opacity: cinematicHeaderVisible ? 1 : 0,
+          }}
           aria-label="Site header"
         >
           <Image

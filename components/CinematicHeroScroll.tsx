@@ -50,6 +50,18 @@ function useIsMobile(): boolean {
   return m;
 }
 
+function useIsDesktop(): boolean {
+  const [d, setD] = useState(false);
+  useEffect(() => {
+    const q = window.matchMedia("(min-width: 1024px)");
+    setD(q.matches);
+    const f = () => setD(q.matches);
+    q.addEventListener("change", f);
+    return () => q.removeEventListener("change", f);
+  }, []);
+  return d;
+}
+
 /**
  * Single cohesive cinematic hero (initial logic).
  * - One wrapper (e.g. 280vh); one sticky stage (top:0, height:100dvh); one heroProgress (0..1).
@@ -71,13 +83,37 @@ export default function CinematicHeroScroll({
   footerMessages,
 }: CinematicHeroScrollProps) {
   const isMobile = useIsMobile();
+  const isDesktop = useIsDesktop();
   const [heroProgress, setHeroProgress] = useState(0);
   const rafRef = useRef<number>(0);
   const pendingRef = useRef<number | null>(null);
   const [glbMounted, setGlbMounted] = useState(false);
+  const [loadElapsed, setLoadElapsed] = useState(0);
+  const [loadComplete, setLoadComplete] = useState(false);
+  const loadStartRef = useRef<number | null>(null);
 
   useEffect(() => {
     preloadHeroIslandGLB();
+  }, []);
+
+  useEffect(() => {
+    loadStartRef.current = performance.now();
+    let raf = 0;
+    const tick = () => {
+      const start = loadStartRef.current;
+      if (start == null) return;
+      const elapsed = (performance.now() - start) / 1000;
+      setLoadElapsed(elapsed);
+      if (elapsed >= 1.4) {
+        setLoadComplete(true);
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, []);
 
   useEffect(() => {
@@ -117,14 +153,12 @@ export default function CinematicHeroScroll({
 
   // Sequential headlines: fade out old fully → hold → fade in new. Wider windows, smoothstep, translateY during fade.
   const headline1Opacity = useMemo(() => {
-    if (p < 0.06) return smoothstep(0, 0.06, p);
-    if (p < 0.12) return 1;
+    if (p <= 0.12) return 1;
     if (p < 0.22) return 1 - smoothstep(0.12, 0.22, p);
     return 0;
   }, [p]);
   const headline1TranslateY = useMemo(() => {
-    if (p < 0.06) return FADE_Y_PX * (1 - smoothstep(0, 0.06, p));
-    if (p < 0.12) return 0;
+    if (p <= 0.12) return 0;
     if (p < 0.22) return -FADE_Y_PX * smoothstep(0.12, 0.22, p);
     return -FADE_Y_PX;
   }, [p]);
@@ -178,40 +212,31 @@ export default function CinematicHeroScroll({
 
   // Initial sequence (0–0.15): Headline → Mascot → CTA staggered. Wider fade, smoothstep, small translateY.
   const mascotOpacity = useMemo(() => {
-    if (p < 0.04) return 0;
-    if (p < 0.11) return smoothstep(0.04, 0.11, p);
-    if (p < 0.14) return 1;
+    if (p <= 0.14) return 1;
     return 1 - smoothstep(0.14, 0.28, p);
   }, [p]);
   const mascotLift = smoothstep(0.14, 0.28, p);
-  const mascotTranslateY =
-    p < 0.11
-      ? FADE_Y_PX * (1 - smoothstep(0.04, 0.11, p))
-      : -75 * mascotLift;
+  const mascotTranslateY = -75 * mascotLift;
 
-  const ctaOpacity = useMemo(() => {
-    if (p < 0.08) return 0;
-    return smoothstep(0.08, 0.16, p);
-  }, [p]);
-  const ctaTranslateY = useMemo(() => {
-    if (p < 0.08) return 18;
-    return 18 * (1 - smoothstep(0.08, 0.16, p));
-  }, [p]);
+  const ctaOpacity = 1;
+  const ctaTranslateY = 0;
 
   const climbsFadeOut = 1 - smoothstep(0.38, 0.62, p);
   const climbsTranslateY = -18 * smoothstep(0.38, 0.62, p);
-  const wallOpacity = smoothstep(0.18, 0.38, p) * climbsFadeOut;
-  const holdsOpacity = smoothstep(0.18, 0.38, p) * climbsFadeOut;
+  const wallOpacityScroll = smoothstep(0.18, 0.38, p) * climbsFadeOut;
+  const holdsOpacityScroll = smoothstep(0.18, 0.38, p) * climbsFadeOut;
+  const wallOpacity = p < 0.18 ? 1 : wallOpacityScroll;
+  const holdsOpacity = p < 0.18 ? 1 : holdsOpacityScroll;
 
   const glbOpacity = smoothstep(0.38, 0.62, p);
   const glbScaleBase = 0.7 + 0.3 * smoothstep(0.4, 0.65, Math.min(p, 0.82));
   const glbScale = glbScaleBase;
   const cameraZStart = 9;
-  const cameraDistanceEnd = 7;
-  const FRAMING_CLAMP_Z = 6.2;
+  const cameraDistanceEnd = isDesktop ? 6 : 7;
+  const framingClampZ = isDesktop ? 5.4 : 6.2;
   const cameraDistance = p < 0.82
     ? cameraZStart
-    : Math.max(FRAMING_CLAMP_Z, cameraZStart - zoomT * (cameraZStart - cameraDistanceEnd));
+    : Math.max(framingClampZ, cameraZStart - zoomT * (cameraZStart - cameraDistanceEnd));
   const cameraFov = 45;
   const glbRotationSpeed = p >= 0.95 ? 0.8 : 1;
   const narrativeTranslateY = -FADE_Y_PX * smoothstep(0.82, 0.98, p);
@@ -219,6 +244,29 @@ export default function CinematicHeroScroll({
   const heroFooterTranslateY = -16 * smoothstep(0.86, 0.98, p);
 
   const metaOpacity = smoothstep(0.06, 0.2, p) * narrativeStackOpacity;
+
+  const loadT = Math.min(loadElapsed, 1.5);
+  const loadSceneOpacity = smoothstep(0.4, 0.7, loadT);
+  const loadMascotOpacity = smoothstep(0.6, 0.9, loadT);
+  const loadMascotY = 40 * (1 - smoothstep(0.6, 0.9, loadT));
+  const loadHeadlineOpacity = smoothstep(0.8, 1.1, loadT);
+  const loadHeadlineY = 20 * (1 - smoothstep(0.8, 1.1, loadT));
+  const loadCTAOpacity = smoothstep(1.0, 1.3, loadT);
+  const loadCTAY = 20 * (1 - smoothstep(1.0, 1.3, loadT));
+  const loadArrowOpacity = smoothstep(1.2, 1.5, loadT);
+
+  const sceneOpacity = loadComplete ? 1 : loadSceneOpacity;
+  const sceneTranslateY = loadComplete ? climbsTranslateY : 0;
+  const mascotOpacityFinal = loadComplete ? mascotOpacity : loadMascotOpacity;
+  const mascotTranslateYFinal = loadComplete ? mascotTranslateY : loadMascotY;
+  const narrativeOpacityFinal = loadComplete ? narrativeStackOpacity : loadHeadlineOpacity;
+  const narrativeTranslateYFinal = loadComplete ? narrativeTranslateY : loadHeadlineY;
+  const headlineOpacitiesFinal = loadComplete ? headlineOpacities : [1, 0, 0, 0];
+  const headlineTranslateYsFinal = loadComplete ? headlineTranslateYs : [loadHeadlineY, 0, 0, 0];
+  const ctaOpacityFinal = loadComplete ? 1 : loadCTAOpacity;
+  const ctaTranslateYFinal = loadComplete ? 0 : loadCTAY;
+  const scrollArrowOpacity =
+    loadComplete ? (p <= 0.05 ? 1 : 1 - smoothstep(0.05, 0.12, p)) : loadArrowOpacity;
 
   return (
     <div
@@ -257,7 +305,10 @@ export default function CinematicHeroScroll({
 
           <div
             className="absolute inset-0 pointer-events-none flex items-center justify-center"
-            style={{ opacity: wallOpacity, transform: `translateY(${climbsTranslateY}px)` }}
+            style={{
+              opacity: loadComplete ? wallOpacity : loadSceneOpacity,
+              transform: `translateY(${sceneTranslateY}px)`,
+            }}
           >
             <div
               className="absolute inset-0"
@@ -265,7 +316,10 @@ export default function CinematicHeroScroll({
                 background: "linear-gradient(160deg, rgba(18,18,24,0.5) 0%, rgba(11,11,15,0.35) 50%, transparent 100%)",
               }}
             />
-            <div className="absolute inset-0 flex items-center justify-center" style={{ opacity: holdsOpacity }}>
+            <div
+              className="absolute inset-0 flex items-center justify-center"
+              style={{ opacity: loadComplete ? holdsOpacity : 1 }}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/holds.svg" alt="" className="max-w-[90%] max-h-[70%] object-contain" style={{ filter: "blur(2px)" }} />
             </div>
@@ -300,10 +354,11 @@ export default function CinematicHeroScroll({
               <div
                 className="flex shrink-0 items-center justify-center w-[70%] max-w-[280px] pointer-events-none"
                 style={{
-                  opacity: mascotOpacity,
-                  transform: `translateY(${mascotTranslateY}px)`,
+                  opacity: mascotOpacityFinal,
+                  transform: `translateY(${mascotTranslateYFinal}px)`,
                 }}
               >
+                <div className={loadComplete ? "hero-mascot-float w-full h-full flex items-center justify-center" : "w-full h-full"}>
                 {partColors ? (
                   <object
                     data="/brand/ip-flying.svg"
@@ -316,12 +371,13 @@ export default function CinematicHeroScroll({
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src="/brand/ip-flying.svg" alt="" className="w-full aspect-square object-contain" />
                 )}
+                </div>
               </div>
               <div
                 className="flex shrink-0 flex-col items-center justify-center text-center max-w-[90%] pointer-events-none"
                 style={{
-                  opacity: narrativeStackOpacity,
-                  transform: `translateY(${narrativeTranslateY}px)`,
+                  opacity: narrativeOpacityFinal,
+                  transform: `translateY(${narrativeTranslateYFinal}px)`,
                 }}
               >
                 <h1
@@ -333,10 +389,10 @@ export default function CinematicHeroScroll({
                       key={i}
                       className="absolute top-0 left-0 right-0 block w-full text-center"
                       style={{
-                        opacity: headlineOpacities[i] ?? 0,
-                        transform: `translateY(${headlineTranslateYs[i] ?? 0}px)`,
+                        opacity: headlineOpacitiesFinal[i] ?? 0,
+                        transform: `translateY(${headlineTranslateYsFinal[i] ?? 0}px)`,
                       }}
-                      aria-hidden={(headlineOpacities[i] ?? 0) < 0.01}
+                      aria-hidden={(headlineOpacitiesFinal[i] ?? 0) < 0.01}
                     >
                       {line}
                     </span>
@@ -352,8 +408,8 @@ export default function CinematicHeroScroll({
               <div
                 className="flex shrink-0 justify-center pointer-events-auto"
                 style={{
-                  opacity: ctaOpacity,
-                  transform: `translateY(${ctaTranslateY}px)`,
+                  opacity: ctaOpacityFinal,
+                  transform: `translateY(${ctaTranslateYFinal}px)`,
                 }}
               >
                 <motion.button
@@ -384,8 +440,8 @@ export default function CinematicHeroScroll({
               >
                 <div
                   style={{
-                    opacity: narrativeStackOpacity,
-                    transform: `translateY(${narrativeTranslateY}px)`,
+                    opacity: narrativeOpacityFinal,
+                    transform: `translateY(${narrativeTranslateYFinal}px)`,
                   }}
                   className="pointer-events-none"
                 >
@@ -398,10 +454,10 @@ export default function CinematicHeroScroll({
                         key={i}
                         className="absolute top-0 block w-full left-0 right-0"
                         style={{
-                          opacity: headlineOpacities[i] ?? 0,
-                          transform: `translateY(${headlineTranslateYs[i] ?? 0}px)`,
+                          opacity: headlineOpacitiesFinal[i] ?? 0,
+                          transform: `translateY(${headlineTranslateYsFinal[i] ?? 0}px)`,
                         }}
-                        aria-hidden={(headlineOpacities[i] ?? 0) < 0.01}
+                        aria-hidden={(headlineOpacitiesFinal[i] ?? 0) < 0.01}
                       >
                         {line}
                       </span>
@@ -418,8 +474,8 @@ export default function CinematicHeroScroll({
               <div
                 className="absolute z-20 pointer-events-auto left-4 sm:left-6 md:left-8 bottom-[120px]"
                 style={{
-                  opacity: ctaOpacity,
-                  transform: `translateY(${ctaTranslateY}px)`,
+                  opacity: ctaOpacityFinal,
+                  transform: `translateY(${ctaTranslateYFinal}px)`,
                 }}
               >
                 <motion.button
@@ -439,22 +495,24 @@ export default function CinematicHeroScroll({
               <div
                 className="absolute left-1/2 top-1/2 z-10 flex items-center justify-center pointer-events-none w-[38%] max-w-[320px]"
                 style={{
-                  opacity: mascotOpacity,
-                  transform: `translate(-50%, calc(-50% + ${mascotTranslateY}px))`,
+                  opacity: mascotOpacityFinal,
+                  transform: `translate(-50%, calc(-50% + ${mascotTranslateYFinal}px))`,
                 }}
               >
-                {partColors ? (
-                  <object
-                    data="/brand/ip-flying.svg"
-                    type="image/svg+xml"
-                    aria-hidden
-                    className="w-full h-full object-contain aspect-square"
-                    style={{ color: "#fffef8" }}
-                  />
-                ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src="/brand/ip-flying.svg" alt="" className="w-full aspect-square object-contain" />
-                )}
+                <div className={loadComplete ? "hero-mascot-float w-full h-full flex items-center justify-center" : "w-full h-full"}>
+                  {partColors ? (
+                    <object
+                      data="/brand/ip-flying.svg"
+                      type="image/svg+xml"
+                      aria-hidden
+                      className="w-full h-full object-contain aspect-square"
+                      style={{ color: "#fffef8" }}
+                    />
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src="/brand/ip-flying.svg" alt="" className="w-full aspect-square object-contain" />
+                  )}
+                </div>
               </div>
             </>
           )}
@@ -477,6 +535,24 @@ export default function CinematicHeroScroll({
               />
             </div>
           </div>
+        </div>
+
+        {/* Scroll arrow: bottom center, above footer; fades in at 1.2s, bounce; fades out when heroProgress > 0.05 */}
+        <div
+          className="absolute left-1/2 z-10 pointer-events-none hero-scroll-arrow-bounce"
+          style={{
+            bottom: `calc(${footerHeight}px + 20px + env(safe-area-inset-bottom, 0px))`,
+            opacity: scrollArrowOpacity,
+          }}
+          aria-hidden
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/arrow-up.svg"
+            alt=""
+            className="w-6 h-6 sm:w-8 sm:h-8 object-contain opacity-80"
+            style={{ transform: "rotate(180deg)" }}
+          />
         </div>
 
         {footerMessages && (
