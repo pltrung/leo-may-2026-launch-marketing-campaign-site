@@ -121,7 +121,8 @@ function HomeContent() {
   useEffect(() => {
     if (!USE_CINEMATIC_HERO || showClouds) return;
     const vh = typeof window !== "undefined" ? window.innerHeight : 700;
-    const heroEnd = (vh * HERO_WRAPPER_VH) / 100;
+    const wrapperHeight = (vh * HERO_WRAPPER_VH) / 100;
+    const heroEnd = Math.max(1, wrapperHeight - vh);
     let raf = 0;
     const onScroll = () => {
       if (raf) return;

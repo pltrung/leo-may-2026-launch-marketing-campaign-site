@@ -82,10 +82,11 @@ export default function CinematicHeroScroll({
 
   useEffect(() => {
     const vh = typeof window !== "undefined" ? window.innerHeight : 700;
-    const maxScroll = (vh * wrapperVh) / 100;
+    const wrapperHeight = (vh * wrapperVh) / 100;
+    const maxScroll = Math.max(1, wrapperHeight - vh);
     const onScroll = () => {
-      const y = window.scrollY;
-      pendingRef.current = Math.min(1, y / maxScroll);
+      const y = typeof window !== "undefined" ? window.scrollY : 0;
+      pendingRef.current = Math.max(0, Math.min(1, y / maxScroll));
       if (rafRef.current) return;
       rafRef.current = requestAnimationFrame(() => {
         rafRef.current = 0;
@@ -162,7 +163,9 @@ export default function CinematicHeroScroll({
     return -slidePx;
   }, [p]);
 
-  const narrativeStackOpacity = 1 - smoothstep(0.9, 1, p);
+  // Final window 0.85–1.0: headline/meta fade out fully; zoom has time; GLB dominant at 1
+  const zoomT = smoothstep(0.85, 1, p);
+  const narrativeStackOpacity = 1 - smoothstep(0.85, 1, p);
   const headlineOpacities = [headline1Opacity, headline2Opacity, headline3Opacity, headline4Opacity];
   const headlineTranslateYs = [headline1TranslateY, headline2TranslateY, headline3TranslateY, headline4TranslateY];
 
@@ -174,12 +177,11 @@ export default function CinematicHeroScroll({
   const holdsOpacity = smoothstep(0.2, 0.35, p) * (1 - smoothstep(0.75, 0.95, p) * 0.7);
 
   const glbOpacity = smoothstep(0.4, 0.6, p);
-  const zoomT = smoothstep(0.9, 1, p);
-  const glbScaleBase = 0.7 + 0.3 * smoothstep(0.4, 0.65, Math.min(p, 0.9));
-  const glbScaleFinal = isMobile ? 3.5 : 4.2;
-  const glbScale = p < 0.9 ? glbScaleBase : glbScaleBase + zoomT * (glbScaleFinal - glbScaleBase);
-  const cameraDistance = p < 0.9 ? 9 : 9 - zoomT * (9 - 2.4);
-  const cameraFov = p < 0.9 ? 45 : 45 - zoomT * (45 - 28);
+  const glbScaleBase = 0.7 + 0.3 * smoothstep(0.4, 0.65, Math.min(p, 0.85));
+  const glbScaleFinal = isMobile ? 4 : 4.5;
+  const glbScale = p < 0.85 ? glbScaleBase : glbScaleBase + zoomT * (glbScaleFinal - glbScaleBase);
+  const cameraDistance = p < 0.85 ? 9 : 9 - zoomT * (9 - 2.2);
+  const cameraFov = p < 0.85 ? 45 : 45 - zoomT * (45 - 26);
 
   const metaOpacity = smoothstep(0.05, 0.2, p) * narrativeStackOpacity;
 
@@ -198,11 +200,11 @@ export default function CinematicHeroScroll({
           background: HERO_BG,
         }}
       >
+        {/* Content area: top padding = header + safe-area so text never under header; no bottom padding (footer is overlay) */}
         <div
           className="flex-1 min-h-0 relative flex flex-col items-center justify-center"
           style={{
-            paddingTop: headerHeight,
-            paddingBottom: footerHeight,
+            paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px))`,
           }}
         >
           <div
@@ -244,14 +246,16 @@ export default function CinematicHeroScroll({
             />
           </div>
 
-          {/* Narrative: cross-fade headlines (opacity + translateY); fixed region */}
+          {/* Narrative: below header + safe-area; mobile headline clamped so no overlap with header */}
           <div
-            className={`absolute z-10 pointer-events-none ${isMobile ? "left-4 right-4 top-[16%] text-center max-w-[90%]" : "left-4 sm:left-6 md:left-8 top-[18%] w-[min(42%,420px)]"}`}
-            style={{ paddingTop: headerHeight }}
+            className={`absolute z-10 pointer-events-none ${isMobile ? "left-4 right-4 text-center max-w-[90%]" : "left-4 sm:left-6 md:left-8 w-[min(42%,420px)]"}`}
+            style={{
+              top: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 1rem)`,
+            }}
           >
             <div style={{ opacity: narrativeStackOpacity }} className="pointer-events-none">
               <h1
-                className={`relative font-bold text-white tracking-tight overflow-hidden leading-[1.2] ${isMobile ? "text-[clamp(36px,11vw,52px)] text-center min-h-[2.4em]" : "text-[clamp(28px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,72px)] min-h-[2.8em]"}`}
+                className={`relative font-bold text-white tracking-tight overflow-hidden ${isMobile ? "text-center min-h-[2.2em] leading-[1.15] text-[clamp(26px,7.5vw,42px)]" : "leading-[1.2] text-[clamp(28px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,72px)] min-h-[2.8em]"}`}
                 style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
               >
                 {headlines.map((line, i) => (
@@ -323,8 +327,8 @@ export default function CinematicHeroScroll({
           <div
             className="absolute right-3 top-0 bottom-0 w-px z-20 flex flex-col pointer-events-none"
             style={{
-              paddingTop: headerHeight,
-              paddingBottom: footerHeight + 16,
+              paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px))`,
+              paddingBottom: `calc(${footerHeight}px + 16px + env(safe-area-inset-bottom, 0px))`,
             }}
           >
             <div className="flex-1 min-h-0 flex flex-col justify-end">
