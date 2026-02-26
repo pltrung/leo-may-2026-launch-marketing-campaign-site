@@ -7,12 +7,15 @@ import HeroIslandGLB from "./HeroIslandGLB";
 
 const DEFAULT_CAMERA_Z = 8;
 
-/** Drives camera Z only; target is always (0,0,0). Dolly toward center only. */
+/** Vertical offset for look-at target so the sculpture is centered in frame (not sitting too high). */
+const LOOKAT_Y_OFFSET = 0.22;
+
+/** Drives camera Z and look-at; target is (0, lookAtY, 0) so the sculpture is visually centered. */
 function CameraPushIn({ cameraDistance, fov }: { cameraDistance: number; fov: number }) {
   const { camera } = useThree();
   useFrame(() => {
     camera.position.set(0, 0, cameraDistance);
-    camera.lookAt(0, 0, 0);
+    camera.lookAt(0, LOOKAT_Y_OFFSET, 0);
     const pCamera = camera as THREE.PerspectiveCamera;
     if (pCamera.fov !== fov) {
       pCamera.fov = fov;

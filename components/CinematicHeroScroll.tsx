@@ -225,9 +225,10 @@ export default function CinematicHeroScroll({
   const climbsFadeOut = 1 - smoothstep(0.38, 0.62, p);
   const climbsTranslateY = -18 * smoothstep(0.38, 0.62, p);
   const wallOpacityScroll = smoothstep(0.18, 0.38, p) * climbsFadeOut;
-  const holdsOpacityScroll = smoothstep(0.18, 0.38, p) * climbsFadeOut;
   const wallOpacity = p < 0.18 ? 1 : wallOpacityScroll;
-  const holdsOpacity = p < 0.18 ? 1 : holdsOpacityScroll;
+  // Desktop: no holds layer — initial scroll → mascot + text → IP and holds invisible → text on left → sculpture appears.
+  const holdsOpacityScroll = smoothstep(0.18, 0.38, p) * climbsFadeOut;
+  const holdsOpacity = isDesktop ? 0 : (p < 0.18 ? 1 : holdsOpacityScroll);
 
   const glbOpacity = smoothstep(0.38, 0.62, p);
   const glbScaleBase = 0.7 + 0.3 * smoothstep(0.4, 0.65, Math.min(p, 0.82));
