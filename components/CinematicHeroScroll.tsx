@@ -407,7 +407,7 @@ export default function CinematicHeroScroll({
                     fontFamily: "MiSans-Regular, sans-serif",
                   }}
                 >
-                  Premium Climbing Experience — HCMC — 2026
+                  Premium Climbing Experience · HCMC · 2026
                 </p>
               </div>
               {/* CTA — slightly below center; margin-bottom 40–60px for footer clearance; pointer-events-auto so button is tappable */}
@@ -474,7 +474,7 @@ export default function CinematicHeroScroll({
                     className="text-white/80 mt-2 leading-snug text-[clamp(13px,1.2vw,16px)]"
                     style={{ opacity: metaOpacity, fontFamily: "MiSans-Regular, sans-serif" }}
                   >
-                    Premium Climbing Experience — HCMC — 2026
+                    Premium Climbing Experience · HCMC · 2026
                   </p>
                 </div>
               </div>
