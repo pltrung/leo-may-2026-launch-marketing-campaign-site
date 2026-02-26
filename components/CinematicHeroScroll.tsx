@@ -13,16 +13,17 @@ import AscentBar from "@/components/AscentBar";
 import type { Locale } from "@/lib/i18n";
 import type { MascotPartColors } from "@/lib/mascotSpeciesColors";
 import { preloadHeroIslandGLB } from "@/components/HeroIslandGLB";
+import { HERO_BG } from "@/lib/heroConstants";
 
 const HeroIslandCanvas = dynamic(
   () => import("@/components/HeroIslandCanvas"),
   { ssr: false }
 );
 
+/** Four headlines only; all driven by heroProgress. No BUILD YOUR CLOUD. */
 const SCROLL_HEADLINES_EN: string[] = [
   "CLIMB WITH INTENTION.",
   "ASCEND TOGETHER.",
-  "BUILD YOUR CLOUD.",
   "SHAPE THE STANDARD.",
   "LEO MÂY — 2026.",
 ];
@@ -30,7 +31,6 @@ const SCROLL_HEADLINES_EN: string[] = [
 const SCROLL_HEADLINES_VI: string[] = [
   "LEO CÓ CHỦ ĐÍCH.",
   "VƯƠN CAO CÙNG NHAU.",
-  "TẠO MÂY RIÊNG.",
   "ĐỊNH HÌNH CHUẨN MỰC.",
   "LEO MÂY — 2026.",
 ];
@@ -48,42 +48,24 @@ function mobileHeadlineLines(line: string): string[] {
   return lines;
 }
 
-const HERO_BG = "#0B0B0F";
 const EASE_REVEAL = [0.4, 0, 0.2, 1] as const;
 const EASE_AMBIENT = [0.42, 0, 0.58, 1] as const;
 const EASE_SCROLL = [0.25, 0.1, 0.25, 1] as const;
 
-const DESKTOP_INTRO_MS = 10000;
-const MOBILE_INTRO_MS = 6500;
-const DESKTOP_FRAME1_MS = 2000;
-const DESKTOP_FRAME2_MS = 4000;
-const DESKTOP_FRAME3_MS = 7000;
-const MOBILE_FRAME1_MS = 1200;
-const MOBILE_FRAME2_MS = 2600;
-const MOBILE_FRAME3_MS = 4500;
-
 /**
- * LAYER 2 — Cinematic hero stage (header/footer are fixed in page).
- * Wrapper 300vh; sticky stage top=headerHeight, height=100vh-header-footer.
- * One heroProgress (0→1) drives all layers. No conditional mount; animate transform + opacity only.
+ * LAYER 2 — Cinematic hero stage. One heroProgress (0→1) drives all animations.
+ * No threshold-based mounts; only opacity/transform/camera.
  *
- * FULL SEQUENCE (hero 1 → end) — what appears in the 3-layer system:
- *
- * LAYER 1 (fixed header): Logo + VN/EN + Login — always visible for entire hero; never animated.
- * LAYER 3 (fixed footer): "Climb the Clouds. Build a Culture." + "© Leo Mây — 2026" — always visible; opacity 0.75.
- *
- * LAYER 2 (hero stage, heroProgress 0→1):
- *   0–0.1       Hero 1: IP (mascot) only; headline "CLIMB WITH INTENTION."; meta line fades in; CTA. No GLB, no wall/holds.
- *   0.1–0.32    IP goes UP and fades out (lift + exit). Wall + holds start fading in (0.12–0.32). Headline still Hero 1.
- *   0.2–0.33    Headline slide → "ASCEND TOGETHER."; wall/holds in; still no GLB.
- *   0.33–0.46   Headline slide → "BUILD YOUR CLOUD."; holds stable.
- *   0.35–0.58   GLB fades IN (first time visible). Holds start fading to background (0.52–0.72).
- *   0.46–0.6    Headline slide → "SHAPE THE STANDARD."
- *   0.6–0.8     Headline → "LEO MÂY — 2026"; GLB zooms OUT slightly (camera); holds fade to background.
- *   0.8–0.92    All headline + meta fade out; CTA remains; particles intensify.
- *   0.88–0.96   Optional "LEO MÂY 2026" centered text fades in then out.
- *   0.9–1       Camera pushes INTO GLB (dolly + FOV); GLB dominant; only CTA visible; no pop when sticky ends.
- *   After 1     Sticky unlocks; next section (e.g. CloudFooter) scrolls in; Layer 1 & 3 stay fixed.
+ * heroProgress timeline:
+ *   0.00–0.12   IP visible. Headline "CLIMB WITH INTENTION." Meta + CTA. No GLB/holds.
+ *   0.12–0.22   IP lifts + fades out. Wall/holds fade in from ~0.18. Headline unchanged.
+ *   0.22–0.30   Headline + meta fade out. No new headline. GLB hidden.
+ *   0.30–0.40   GLB fades in. Holds stable. No text.
+ *   0.40–0.52   Fade in "ASCEND TOGETHER." GLB subtle. CTA remains.
+ *   0.52–0.65   Fade out "ASCEND TOGETHER." GLB slight camera shift. Holds fade back.
+ *   0.60–0.72   Fade in "SHAPE THE STANDARD."
+ *   0.72–0.85   Fade out previous, fade in "LEO MÂY — 2026." GLB zooms out slightly.
+ *   0.85–1.00   Fade out all headline + meta. CTA only. Particles down. Darken bg. Dolly in (z, FOV, scale). GLB dominates.
  */
 
 export interface CinematicHeroScrollProps {
@@ -92,10 +74,12 @@ export interface CinematicHeroScrollProps {
   locale?: Locale;
   /** Layer 1 height (px) so sticky stage sits below it. */
   headerHeight?: number;
-  /** Layer 3 height (px) so sticky stage height = 100vh - header - footer. */
+  /** Footer overlay height (px); stage height = 100vh - header - footer. */
   footerHeight?: number;
-  /** Wrapper scroll height (vh). */
+  /** Wrapper scroll height (vh). Must be enough (e.g. 320) so sticky stays active until heroProgress = 1. */
   wrapperVh?: number;
+  /** Footer text rendered as overlay at bottom of hero stage (no separate page footer during hero). */
+  footerMessages?: { ethos: string; copyright?: string };
 }
 
 function useIsMobile(): boolean {
@@ -110,38 +94,16 @@ function useIsMobile(): boolean {
   return mobile;
 }
 
-function useIntroProgress(isMobile: boolean): number {
-  const [progress, setProgress] = useState(0);
-  const startRef = useRef<number | null>(null);
-  const rafRef = useRef<number>(0);
-  const duration = isMobile ? MOBILE_INTRO_MS : DESKTOP_INTRO_MS;
-
-  useEffect(() => {
-    startRef.current = null;
-    const tick = (now: number) => {
-      if (startRef.current === null) startRef.current = now;
-      const elapsed = now - startRef.current;
-      const t = Math.min(elapsed / duration, 1);
-      setProgress(t);
-      if (t < 1) rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [duration]);
-
-  return progress;
-}
-
 export default function CinematicHeroScroll({
   partColors,
   onJoin,
   locale = "en",
   headerHeight = 64,
   footerHeight = 56,
-  wrapperVh = 300,
+  wrapperVh = 320,
+  footerMessages,
 }: CinematicHeroScrollProps) {
   const isMobile = useIsMobile();
-  const introT = useIntroProgress(isMobile);
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(typeof window !== "undefined" ? window.innerHeight : 700);
@@ -157,19 +119,6 @@ export default function CinematicHeroScroll({
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
-
-  const introDuration = isMobile ? MOBILE_INTRO_MS : DESKTOP_INTRO_MS;
-  const f1 = isMobile ? MOBILE_FRAME1_MS : DESKTOP_FRAME1_MS;
-  const f2 = isMobile ? MOBILE_FRAME2_MS : DESKTOP_FRAME2_MS;
-  const f3 = isMobile ? MOBILE_FRAME3_MS : DESKTOP_FRAME3_MS;
-  const t1 = f1 / introDuration;
-  const t2 = f2 / introDuration;
-  const t3 = f3 / introDuration;
-
-  const frame1Progress = Math.min(introT / t1, 1);
-  const frame2Progress = introT <= t1 ? 0 : Math.min((introT - t1) / (t2 - t1), 1);
-  const frame3Progress = introT <= t2 ? 0 : Math.min((introT - t2) / (t3 - t2), 1);
-  const frame4Progress = introT <= t3 ? 0 : Math.min((introT - t3) / (1 - t3), 1);
 
   function smoothstep(a: number, b: number, x: number): number {
     const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
@@ -224,118 +173,74 @@ export default function CinematicHeroScroll({
     };
   }, [userInteracted]);
 
-  // Hero scroll 1: IP only, no GLB. On scroll, IP goes up and fades out (same range).
-  const mascotOpacity = useMemo(() => {
-    if (introT < t1) return 0;
-    const introOpacity = Math.min(1, frame2Progress * 1.2);
-    const scene2Exit = 1 - smoothstep(0.1, 0.32, heroProgress);
-    return introOpacity * scene2Exit;
-  }, [introT, t1, frame2Progress, heroProgress]);
+  // IP: visible 0–0.12, lift + fade out 0.12–0.22 (heroProgress only).
+  const mascotLiftT = smoothstep(0.12, 0.22, heroProgress);
+  const mascotOpacity = heroProgress < 0.12 ? 1 : heroProgress < 0.22 ? 1 - mascotLiftT : 0;
+  const mascotLiftPx = isMobile ? viewportHeight * 0.18 : 100;
+  const mascotTranslateY = -mascotLiftPx * mascotLiftT;
 
-  const mascotY = useMemo(() => {
-    if (introT < t1) return 10;
-    const p = frame2Progress;
-    return 10 * (1 - Math.min(1, p * 1.2));
-  }, [introT, t1, frame2Progress]);
-
-  const auraOpacity = useMemo(() => {
-    if (introT < t2) return 0;
-    const p = frame3Progress;
-    const maxAura = isMobile ? 0.28 : 0.3;
-    return p * maxAura;
-  }, [introT, t2, frame3Progress, isMobile]);
-
-  // 0→0.2: wall + holds fade in; 0.2→0.5 holds stable; 0.5→0.8 holds fade to background, GLB emerges
+  // Wall: fade in from ~0.18. Holds: same, then fade further back 0.52–0.65.
   const wallOpacity = useMemo(() => {
-    const ramp = smoothstep(0.12, 0.32, heroProgress);
+    const ramp = smoothstep(0.18, 0.28, heroProgress);
     return Math.min(isMobile ? 0.65 : 0.7, ramp * (isMobile ? 0.65 : 0.7));
   }, [heroProgress, isMobile]);
 
-  // No GLB at hero scroll 1; GLB appears only after IP has gone up and exited (past 0.32).
-  const islandFadeIn = useMemo(() => smoothstep(0.35, 0.58, heroProgress), [heroProgress]);
-  const islandOpacity = islandFadeIn;
-
   const holdsOpacity = useMemo(() => {
-    const appear = smoothstep(0.18, 0.38, heroProgress);
-    const disappear = 1 - smoothstep(0.52, 0.72, heroProgress);
-    return appear * disappear;
+    const appear = smoothstep(0.18, 0.28, heroProgress);
+    const fadeBack = 1 - smoothstep(0.52, 0.65, heroProgress);
+    return appear * fadeBack;
   }, [heroProgress]);
 
-  const holdsBlurPx = isMobile ? Math.max(0, 3 - 3 * smoothstep(0.18, 0.38, heroProgress)) : 2;
-  const holdsScaleMobile = isMobile ? 1.4 + 0.2 * smoothstep(0.18, 0.38, heroProgress) : 1;
+  const holdsBlurPx = isMobile ? Math.max(0, 3 - 3 * smoothstep(0.18, 0.28, heroProgress)) : 2;
+  const holdsScaleMobile = isMobile ? 1.4 + 0.2 * smoothstep(0.18, 0.28, heroProgress) : 1;
 
-  const headlineBlockOpacity = useMemo(() => {
-    if (introT < t2) return 0;
-    return Math.min(1, (introT - t2) / 0.2);
-  }, [introT, t2]);
+  // GLB: first appearance 0.30–0.40; then stable until final push-in.
+  const islandOpacity = smoothstep(0.30, 0.40, heroProgress);
 
-  // Single text stack: Hero 1 (0–0.2), Hero 2–4 (0.2–0.6), Hero 5 (0.6–0.8). At most 2 states crossfading.
+  // Four headlines: explicit in/out ranges from heroProgress. No overlapping states.
   const SCROLL_HEADLINES: string[] = locale === "vi" ? SCROLL_HEADLINES_VI : SCROLL_HEADLINES_EN;
-  const N = SCROLL_HEADLINES.length;
-  const OVERLAP = 0.2;
-  const boundaries = [0.2, 0.33, 0.46, 0.6, 0.8];
-  const headlineTransition = useMemo(() => {
-    for (let i = 0; i < boundaries.length; i++) {
-      const end = boundaries[i];
-      const start = i === 0 ? 0 : boundaries[i - 1];
-      const span = end - start;
-      const transitionStart = end - OVERLAP * span;
-      if (heroProgress >= transitionStart && heroProgress <= end) {
-        const t = (heroProgress - transitionStart) / (end - transitionStart);
-        const smoothT = t * t * (3 - 2 * t);
-        return { inTransition: true, progress: smoothT, fromIndex: i, toIndex: Math.min(i + 1, N - 1) };
-      }
-    }
-    const idx = boundaries.findIndex((b) => heroProgress < b);
-    const current = idx < 0 ? N - 1 : idx;
-    return { inTransition: false, progress: 0, fromIndex: current, toIndex: current };
-  }, [heroProgress, N]);
+  const headline1Opacity = heroProgress < 0.22 ? 1 : heroProgress < 0.30 ? 1 - smoothstep(0.22, 0.30, heroProgress) : 0;
+  const headline2Opacity = smoothstep(0.40, 0.52, heroProgress) * (1 - smoothstep(0.52, 0.65, heroProgress));
+  const headline3Opacity = smoothstep(0.60, 0.72, heroProgress) * (1 - smoothstep(0.72, 0.85, heroProgress));
+  const headline4Opacity = smoothstep(0.72, 0.85, heroProgress) * (1 - smoothstep(0.85, 1, heroProgress));
 
-  const slideOffsetPx = 28;
-  const smooth = (x: number) => x * x * (3 - 2 * x);
-  const slideOutY = headlineTransition.inTransition ? -slideOffsetPx * smooth(headlineTransition.progress) : 0;
-  const slideOutOpacity = headlineTransition.inTransition ? 1 - 0.75 * headlineTransition.progress : 1;
-  const slideInY = headlineTransition.inTransition ? slideOffsetPx * (1 - smooth(headlineTransition.progress)) : 0;
-  const slideInOpacity = headlineTransition.inTransition ? 0.25 + 0.75 * headlineTransition.progress : 1;
-  const displayHeadlineIndex = headlineTransition.fromIndex;
-  const showIncoming = headlineTransition.inTransition && headlineTransition.toIndex !== headlineTransition.fromIndex;
+  // Meta: visible 0–0.30 with H1; 0.40–0.52 fade in; 0.52–0.85 visible; 0.85–1 fade out.
+  const metaSegment1 = heroProgress < 0.22 ? 1 : heroProgress < 0.30 ? 1 - smoothstep(0.22, 0.30, heroProgress) : 0;
+  const metaSegment2 = heroProgress < 0.40 ? 0 : heroProgress < 0.52 ? smoothstep(0.40, 0.52, heroProgress) : heroProgress < 0.85 ? 1 : 1 - smoothstep(0.85, 1, heroProgress);
+  const metaLineOpacity = Math.min(1, metaSegment1 + metaSegment2);
 
-  // IP goes up as user scrolls (same range as mascot fade-out so IP lifts and exits together).
-  const scene2Lift = smoothstep(0.1, 0.32, heroProgress);
-  const mascotLift1 = isMobile ? viewportHeight * 0.18 : 100;
-  const mascotTranslateY = -mascotLift1 * scene2Lift;
-  const mascotScaleScroll = 1 + 0.02 * scene2Lift;
-  const auraOpacityScroll = smoothstep(0.5, 0.85, heroProgress) * 0.12;
-
-  const breathingScale = isMobile ? 1.015 : 1.02;
-  const breathDuration = 5;
-  // GLB: 0–0.6 medium size; 0.6–0.8 zoom OUT slightly; 0.9–1 push IN (cinematic end)
-  const islandScaleEmerge = 0.65 + 0.35 * smoothstep(0.15, 0.5, heroProgress);
-  const zoomOutSlight = smoothstep(0.6, 0.8, heroProgress);
-  const dollyInT = smoothstep(0.9, 1, heroProgress);
-  const islandScaleFinal = isMobile ? 2.8 : 3.4;
-  const islandScale =
-    heroProgress < 0.6
-      ? islandScaleEmerge
-      : heroProgress < 0.9
-        ? 1 - zoomOutSlight * 0.1
-        : 0.9 + dollyInT * (islandScaleFinal - 0.9);
-  const headlineStackOpacity = 1 - smoothstep(0.8, 0.92, heroProgress);
-  const metaLineOpacity = smoothstep(0.05, 0.22, heroProgress) * (1 - smoothstep(0.8, 0.9, heroProgress));
-  const leoMay2026Opacity = smoothstep(0.88, 0.95, heroProgress) * (1 - smoothstep(0.96, 1, heroProgress));
+  // Final 0.85–1: fade out all headline + meta; CTA stays. Dolly in, FOV down, scale up.
+  const dollyInT = smoothstep(0.85, 1, heroProgress);
+  const headlineStackOpacity = 1 - dollyInT; // applied to whole stack so all text fades by 1
   const ctaOpacity = 1;
 
-  // Camera: 0.6–0.8 slight zoom OUT; 0.9–1 push INTO GLB (real camera + FOV)
+  // Camera: 0–0.72 default; 0.72–0.85 zoom out slightly; 0.85–1 push in strongly.
+  const zoomOutSlight = smoothstep(0.72, 0.85, heroProgress);
+  const baseDistance = 9.35;
+  const zoomedOutDistance = 11;
+  const finalDistance = 2.4;
   const cameraDistance =
-    heroProgress < 0.6
-      ? 9 + heroProgress * 0.5
-      : heroProgress < 0.9
-        ? 9.3 + zoomOutSlight * 0.8
-        : 10.1 - dollyInT * (10.1 - 2.6);
-  const cameraFov = heroProgress < 0.9 ? 45 : 45 - dollyInT * (45 - 32);
+    heroProgress < 0.72
+      ? baseDistance + heroProgress * 0.2
+      : heroProgress < 0.85
+        ? baseDistance + zoomOutSlight * (zoomedOutDistance - baseDistance)
+        : zoomedOutDistance - dollyInT * (zoomedOutDistance - finalDistance);
+  const baseFov = 45;
+  const zoomedOutFov = 48;
+  const finalFov = 28;
+  const cameraFov =
+    heroProgress < 0.72 ? baseFov : heroProgress < 0.85 ? baseFov + zoomOutSlight * (zoomedOutFov - baseFov) : zoomedOutFov - dollyInT * (zoomedOutFov - finalFov);
+
+  // GLB scale: emerge 0.30–0.45; stable; 0.85–1 scale up to dominate.
+  const islandScaleEmerge = 0.7 + 0.3 * smoothstep(0.30, 0.45, heroProgress);
+  const islandScaleFinal = isMobile ? 3.4 : 4.2;
+  const islandScale = heroProgress < 0.85 ? islandScaleEmerge : islandScaleEmerge + dollyInT * (islandScaleFinal - islandScaleEmerge);
+
+  const finalFocusDarken = dollyInT * 0.35;
+  const particleFinalScale = 1 - dollyInT * 0.4;
 
   useEffect(() => {
-    if (heroProgress >= 0.05) setIslandCanvasMounted(true);
+    if (heroProgress >= 0.2) setIslandCanvasMounted(true);
   }, [heroProgress]);
 
   const stageHeight = `calc(100vh - ${headerHeight}px - ${footerHeight}px)`;
@@ -344,7 +249,7 @@ export default function CinematicHeroScroll({
     <div
       ref={containerRef}
       className="cinematic-hero relative"
-      style={{ height: `${wrapperVh}vh`, background: HERO_BG }}
+      style={{ height: `${wrapperVh}vh` }}
       onClick={handleInteraction}
       onTouchStart={handleInteraction}
       onKeyDown={handleInteraction}
@@ -353,14 +258,13 @@ export default function CinematicHeroScroll({
       aria-label="Start experience"
     >
       <AscentBar />
-      {/* LAYER 2 — Sticky hero stage (between fixed header and footer). All visuals here; one heroProgress. */}
+      {/* LAYER 2 — Sticky hero stage (no background; persistent page layer shows through). */}
       <div
         className="sticky w-full flex flex-col overflow-hidden"
         style={{
           top: `${headerHeight}px`,
           height: stageHeight,
           minHeight: 280,
-          background: HERO_BG,
         }}
       >
         <div className="flex-1 min-h-0 w-full relative flex flex-col items-center justify-center pb-16">
@@ -387,25 +291,17 @@ export default function CinematicHeroScroll({
             boxShadow: "inset 0 0 25vh 8vh rgba(0,0,0,0.4)",
           }}
         />
-
-        {/* Frame 3: Aura */}
-        <motion.div
-          className="absolute rounded-full pointer-events-none"
+        {/* Final 10–15%: darken stage to isolate GLB (same heroProgress as dolly) */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          aria-hidden
           style={{
-            width: "min(120vmax, 1600px)",
-            height: "min(120vmax, 1600px)",
-            left: "50%",
-            top: "50%",
-            x: "-50%",
-            y: "-50%",
-            background: "radial-gradient(circle, rgba(120,130,150,0.12) 0%, transparent 65%)",
-            scale: 1 + smoothstep(0.5, 0.9, heroProgress) * 0.05,
-            opacity: auraOpacity * (0.6 + 0.4 * (1 - heroProgress)) + auraOpacityScroll,
-            filter: "blur(40px)",
+            background: HERO_BG,
+            opacity: finalFocusDarken,
           }}
         />
 
-        {/* Frame 4: Wall + holds — fade in smoothly */}
+        {/* Wall + holds — fade in from ~0.18; holds fade back 0.52–0.65 */}
         <div
           className="absolute inset-0 pointer-events-none flex items-center justify-center"
           style={{
@@ -452,7 +348,7 @@ export default function CinematicHeroScroll({
           />
         </div>
 
-        {/* Floating particles — 100% scroll-driven (same heroProgress curve, no time loop) */}
+        {/* Floating particles — scroll-driven; reduce in final 10–15% to isolate GLB */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           {Array.from({ length: isMobile ? 12 : 16 }).map((_, i) => (
             <div
@@ -463,7 +359,7 @@ export default function CinematicHeroScroll({
                 height: 4,
                 left: `${10 + (i * 5) % 80}%`,
                 top: `${20 + (i * 7) % 60}%`,
-                opacity: Math.min(0.35, 0.08 + revealT * 0.5),
+                opacity: Math.min(0.35, 0.08 + revealT * 0.5) * particleFinalScale,
               }}
             />
           ))}
@@ -478,45 +374,26 @@ export default function CinematicHeroScroll({
           }
         >
           <div className={`pointer-events-auto flex flex-col justify-center w-full max-w-[min(100%,520px)] ${isMobile ? "order-2 items-start text-left max-w-[85%]" : "relative z-10 max-w-[min(42%,420px)]"}`}>
-            {/* Single headline stack: vertical slide-through (out up+fade, in from below), ~20% overlap */}
-            <div
-              className={`max-w-[min(100%,1100px)] mt-6 sm:mt-8 md:mt-12 ${isMobile ? "text-left w-full" : ""}`}
-              style={{ opacity: headlineBlockOpacity * headlineStackOpacity }}
-            >
+            {/* Four headlines stacked; each opacity driven by heroProgress. Final phase (0.85–1) fades headline+meta only; CTA stays. */}
+            <div className={`max-w-[min(100%,1100px)] mt-6 sm:mt-8 md:mt-12 ${isMobile ? "text-left w-full" : ""}`}>
+              <div style={{ opacity: headlineStackOpacity }}>
               <h1
                 className={`relative font-bold text-white tracking-[-0.02em] overflow-hidden ${isMobile ? "text-left text-[clamp(36px,11vw,52px)] leading-[1.2] tracking-tight min-h-[2.5em]" : "text-[clamp(28px,6.5vw,40px)] sm:text-[clamp(32px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,96px)] leading-[1.2] min-h-[2.8em] sm:min-h-[3em] md:min-h-[3.2em]"}`}
                 style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
               >
-                {/* Outgoing: moves up and fades */}
-                <span
-                  className={`absolute top-0 block w-full ${isMobile ? "left-0 right-auto" : "left-0 right-0"}`}
-                  style={{
-                    transform: `translateY(${slideOutY}px)`,
-                    opacity: slideOutOpacity,
-                  }}
-                >
-                  {isMobile
-                    ? mobileHeadlineLines(SCROLL_HEADLINES[displayHeadlineIndex]).map((ln, j) => (
-                        <span key={j} className="block">{ln}</span>
-                      ))
-                    : SCROLL_HEADLINES[displayHeadlineIndex]}
-                </span>
-                {/* Incoming: slides up from below (only during transition) */}
-                {showIncoming && (
-                  <span
-                    className={`absolute top-0 block w-full ${isMobile ? "left-0 right-auto" : "left-0 right-0"}`}
-                    style={{
-                      transform: `translateY(${slideInY}px)`,
-                      opacity: slideInOpacity,
-                    }}
-                  >
-                    {isMobile
-                      ? mobileHeadlineLines(SCROLL_HEADLINES[headlineTransition.toIndex]).map((ln, j) => (
-                          <span key={j} className="block">{ln}</span>
-                        ))
-                      : SCROLL_HEADLINES[headlineTransition.toIndex]}
-                  </span>
-                )}
+                {SCROLL_HEADLINES.map((line, idx) => {
+                  const op = [headline1Opacity, headline2Opacity, headline3Opacity, headline4Opacity][idx] ?? 0;
+                  return (
+                    <span
+                      key={idx}
+                      className={`absolute top-0 block w-full ${isMobile ? "left-0 right-auto" : "left-0 right-0"}`}
+                      style={{ opacity: op }}
+                      aria-hidden={op < 0.01}
+                    >
+                      {isMobile ? mobileHeadlineLines(line).map((ln, j) => <span key={j} className="block">{ln}</span>) : line}
+                    </span>
+                  );
+                })}
               </h1>
               <p
                 className={`text-white/80 font-normal leading-snug ${isMobile ? "mt-3 text-[15px] sm:text-base" : "mt-4 sm:mt-4 md:mt-5 text-[clamp(13px,1.4vw,15px)] sm:text-[clamp(13px,1.1vw,16px)] md:text-[clamp(14px,1.2vw,18px)]"}`}
@@ -527,6 +404,7 @@ export default function CinematicHeroScroll({
               >
                 Premium Climbing Experience — HCMC — 2026
               </p>
+              </div>
               {isMobile ? (
                 <div className="mt-3 pointer-events-auto" style={{ opacity: ctaOpacity }}>
                   <motion.button
@@ -547,8 +425,8 @@ export default function CinematicHeroScroll({
                 </div>
               ) : null}
             </div>
-            {!isMobile && (
-              <div className="mt-6 sm:mt-8 md:mt-10" style={{ opacity: headlineBlockOpacity * ctaOpacity }}>
+              {!isMobile && (
+              <div className="mt-6 sm:mt-8 md:mt-10" style={{ opacity: ctaOpacity }}>
                 <motion.button
                   type="button"
                   onClick={(e) => {
@@ -584,20 +462,16 @@ export default function CinematicHeroScroll({
               ...(isMobile ? {} : { left: "54%", top: "50%" }),
               opacity: mascotOpacity,
               transform: isMobile
-                ? `translateY(${mascotY + mascotTranslateY}px) scale(${mascotScaleScroll})`
-                : `translate(-50%, calc(-50% + ${mascotY + mascotTranslateY}px)) scale(${mascotScaleScroll})`,
+                ? `translateY(${mascotTranslateY}px)`
+                : `translate(-50%, calc(-50% + ${mascotTranslateY}px))`,
             }}
           >
             <motion.div
               animate={
-                introT >= t1
+                mascotOpacity > 0.5
                   ? {
-                      scale: [1, breathingScale, 1],
-                      transition: {
-                        duration: breathDuration,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                      },
+                      scale: [1, isMobile ? 1.015 : 1.02, 1],
+                      transition: { duration: 5, repeat: Infinity, ease: "easeInOut" },
                     }
                   : undefined
               }
@@ -623,10 +497,10 @@ export default function CinematicHeroScroll({
           </motion.div>
         </div>
 
-        {/* Right-edge particles — position and intensity from heroProgress; slight intensify 0.8–0.9 */}
+        {/* Right-edge particles — scroll-driven; reduce in final 10–15% to isolate GLB */}
         <div
           className="absolute right-2 sm:right-3 top-0 bottom-0 w-px z-10 pointer-events-none overflow-hidden"
-          style={{ opacity: 0.12 + revealT * 0.55 + smoothstep(0.8, 0.9, heroProgress) * 0.15 }}
+          style={{ opacity: (0.12 + revealT * 0.55) * particleFinalScale }}
           aria-hidden
         >
           <div
@@ -640,17 +514,17 @@ export default function CinematicHeroScroll({
               <div
                 key={i}
                 className="rounded-full bg-white flex-shrink-0"
-                style={{ width: 2, height: 2, opacity: 0.35 + revealT * 0.4 + smoothstep(0.8, 0.9, heroProgress) * 0.2 }}
+                style={{ width: 2, height: 2, opacity: (0.35 + revealT * 0.4) * particleFinalScale }}
               />
             ))}
           </div>
         </div>
 
-        {/* Scroll hint — gone by final phase so ending feels clean */}
+        {/* Scroll hint — heroProgress-driven; fade out 0.4–0.5 */}
         <div
           className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-10"
           style={{
-            opacity: introT >= t3 ? 0.7 * (1 - smoothstep(0.65, 0.82, heroProgress)) : 0,
+            opacity: heroProgress < 0.4 ? 0.7 : 0.7 * (1 - smoothstep(0.4, 0.5, heroProgress)),
             fontSize: "clamp(12px, 1vw, 14px)",
             color: "rgba(255,255,255,0.7)",
           }}
@@ -659,22 +533,25 @@ export default function CinematicHeroScroll({
           <span className="text-white/50">↓</span>
         </div>
 
-        {/* Final state: LEO MÂY 2026 — prominent, centered, unmissable */}
-        <div
-          className="absolute left-1/2 -translate-x-1/2 z-10 text-center pointer-events-none"
-          style={{
-            top: "42%",
-            opacity: leoMay2026Opacity,
-            fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
-            fontSize: "clamp(28px, 4.5vw, 52px)",
-            fontWeight: 700,
-            letterSpacing: "0.02em",
-            color: "rgba(255,255,255,0.95)",
-            textShadow: "0 0 40px rgba(0,0,0,0.4)",
-          }}
-        >
-          LEO MÂY — 2026
-        </div>
+        {/* Footer overlay inside hero stage (no separate page footer during hero). */}
+        {footerMessages && (
+          <div
+            className="flex-shrink-0 w-full flex flex-col items-center justify-center gap-0.5 py-3 px-4 text-center z-10 pointer-events-none"
+            style={{
+              height: footerHeight,
+              minHeight: footerHeight,
+              paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+            }}
+            aria-label="Site footer"
+          >
+            <p className="text-white/80 text-xs tracking-wide" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
+              {footerMessages.ethos}
+            </p>
+            <p className="text-white/50 text-[10px] tracking-wide" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
+              {footerMessages.copyright ?? "© Leo Mây Climbing Gym — 2026"}
+            </p>
+          </div>
+        )}
 
         </div>
       </div>

@@ -6,6 +6,7 @@ import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import BrandBackground from "@/components/BrandBackground";
 import { getMessages } from "@/lib/messages";
+import { HERO_BG } from "@/lib/heroConstants";
 import LegacyHeroScroll from "@/components/LegacyHeroScroll";
 import CinematicHeroScroll from "@/components/CinematicHeroScroll";
 import HeroScroll1 from "@/components/HeroScroll1";
@@ -120,7 +121,7 @@ function HomeContent() {
   useEffect(() => {
     if (!USE_CINEMATIC_HERO || showClouds) return;
     const vh = typeof window !== "undefined" ? window.innerHeight : 700;
-    const heroEnd = (vh * (300 + 80)) / 100 * 0.98;
+    const heroEnd = (vh * 320) / 100;
     let raf = 0;
     const onScroll = () => {
       if (raf) return;
@@ -141,7 +142,7 @@ function HomeContent() {
   const heroContentOpacity = showClouds ? 1 : (transitionActive ? 0 : heroOpacity);
   const heroEase = [0.22, 1, 0.36, 1] as const;
 
-  const HERO_WRAPPER_VH = 300;
+  const HERO_WRAPPER_VH = 320;
   const HERO_SPACER_VH = 80;
   const HERO_HEADER_PX = 64;
   const HERO_FOOTER_PX = 56;
@@ -152,14 +153,22 @@ function HomeContent() {
     <div id="hero-page" className="page-container relative min-h-[100dvh] flex flex-col">
       <main className="relative flex-1 min-h-0 z-10">
       <BrandBackground />
+      {/* Persistent full-screen background during hero so no separate overlay backgrounds; prevents black panel when sticky ends. */}
+      {showCinematicLayers && (
+        <div
+          className="fixed inset-0 z-0 pointer-events-none"
+          aria-hidden
+          style={{ background: HERO_BG }}
+        />
+      )}
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />
 
-      {/* LAYER 1 — Fixed header (logo left, login/language right). Always visible, never animated. */}
+      {/* LAYER 1 — Fixed header (overlay; no background — persistent layer shows through). */}
       {showCinematicLayers && (
         <header
           className="fixed left-0 right-0 top-0 z-[50] flex items-center justify-between px-4 sm:px-6 md:px-8"
-          style={{ height: HERO_HEADER_PX, background: "#0B0B0F", minHeight: HERO_HEADER_PX }}
+          style={{ height: HERO_HEADER_PX, minHeight: HERO_HEADER_PX }}
           aria-label="Site header"
         >
           <Image
@@ -212,6 +221,7 @@ function HomeContent() {
                 headerHeight={HERO_HEADER_PX}
                 footerHeight={HERO_FOOTER_PX}
                 wrapperVh={HERO_WRAPPER_VH}
+                footerMessages={footerMessages}
               />
             ) : (
               <LegacyHeroScroll partColors={heroMascotPartColors} onJoin={handleAscendClick} />
@@ -222,46 +232,27 @@ function HomeContent() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Black spacer after hero so next section does not appear until scroll truly ends */}
+      {/* Spacer after hero (transparent; persistent background shows). Next section does not enter viewport until hero wrapper ends. */}
       {showCinematicLayers && (
         <div
           className="w-full flex-shrink-0"
-          style={{ height: `${HERO_SPACER_VH}vh`, minHeight: 300, background: "#0B0B0F" }}
+          style={{ height: `${HERO_SPACER_VH}vh`, minHeight: 300 }}
           aria-hidden
         />
       )}
       </main>
 
-      {/* LAYER 3 — Fixed footer bar. Always visible during hero; not a scrolling section. */}
-      {showCinematicLayers && (
-        <footer
-          className="fixed left-0 right-0 bottom-0 z-[50] flex flex-col items-center justify-center gap-0.5 py-3 px-4 text-center"
-          style={{
-            height: HERO_FOOTER_PX,
-            minHeight: HERO_FOOTER_PX,
-            background: "#0B0B0F",
-            opacity: 0.75,
-            paddingBottom: "max(12px, env(safe-area-inset-bottom))",
-          }}
-          aria-label="Site footer"
-        >
-          <p className="text-white/80 text-xs tracking-wide" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
-            {footerMessages.ethos}
-          </p>
-          <p className="text-white/50 text-[10px] tracking-wide" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
-            © Leo Mây Climbing Gym — 2026
-          </p>
-        </footer>
-      )}
       <motion.div
         id="know-your-cloud"
-        className="flex-shrink-0 relative z-10 bg-[#0B0B0F] pt-1"
+        className="flex-shrink-0 relative z-10 pt-1"
+        style={{
+          pointerEvents: USE_CINEMATIC_HERO && !showClouds && !heroScrollComplete ? "none" : "auto",
+        }}
         data-hero-next
         initial={false}
         animate={{
           opacity: transitionActive ? 0 : (USE_CINEMATIC_HERO && !showClouds ? (heroScrollComplete ? 1 : 0) : 1),
         }}
-        style={{ pointerEvents: USE_CINEMATIC_HERO && !showClouds && !heroScrollComplete ? "none" : "auto" }}
         transition={{
           duration: 0.7,
           delay: transitionActive ? 0 : 0.4,
