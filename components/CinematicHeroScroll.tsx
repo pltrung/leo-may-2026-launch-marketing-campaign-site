@@ -64,12 +64,10 @@ const MOBILE_FRAME2_MS = 2600;
 const MOBILE_FRAME3_MS = 4500;
 
 /**
- * Premium narrative scroll (same sequence logic desktop + mobile, responsive layout only).
- * Layout zones: top-left = logo (sticky, never fades); top-right = login/language (page); bottom-left = CTA.
- * Moment A (top): logo in, mascot hook, headline "CLIMB WITH INTENTION.", CTA stable bottom-left.
- * Moment B (early scroll): mascot rises + fades; holds + particles + headline crossfade all driven by one heroProgress / revealT.
- * Moment C (mid–late scroll): holds revealed; headline crossfades; CTA + logo unchanged.
- * Moment D: hero background contained to sticky viewport; footer on its own background.
+ * Five-scene cinematic hero (legacy HeroScroll 1–6 style). Scroll range = 5 × 60vh so particle bar feels immersed.
+ * Scene 1: "Climb with Intention" + IP fading in. Scene 2: "Ascend Together" + IP up and gone.
+ * Scene 3: "Build your cloud" + holds appear. Scene 4: "Shape the standard" + holds out, GLB in.
+ * Scene 5: "Leo Mây 2026" + GLB full and bigger. Logo top-center; CTA bottom-left.
  */
 
 export interface CinematicHeroScrollProps {
@@ -152,19 +150,18 @@ export default function CinematicHeroScroll({
     return t * t * (3 - 2 * t);
   }
 
-  // ——— Single source of truth: heroProgress (0..1). One eased curve drives all layers. ———
+  // ——— Five scenes (legacy HeroScroll 1–6 style): scroll range = 5 sections so particle bar feels immersed. ———
+  // Scene 1: "Climb with Intention" + IP fade in. Scene 2: "Ascend Together" + IP up and gone.
+  // Scene 3: "Build your cloud" + holds appear. Scene 4: "Shape the standard" + holds out, GLB in. Scene 5: "Leo Mây 2026" + GLB full, bigger.
   const heroProgress = scrollProgress;
-  const REVEAL_START = 0.08;
-  const REVEAL_END = 0.5;
-  const revealT = useMemo(
-    () => smoothstep(REVEAL_START, REVEAL_END, heroProgress),
-    [heroProgress]
-  );
+  const SCENE_COUNT = 5;
+  const VH_PER_SCENE = 60; // 60vh per scene → 300vh total, matches min-h-[300vh]
+  const revealT = heroProgress; // use raw progress for particle bar and headline segment (0→1 over full scroll)
 
-  // Single scroll driver: RAF-throttled to avoid jitter; no setState storm during scroll. Mobile uses longer range so progression isn't rushed.
+  // Single scroll driver: 5 "sections" of 60vh each (legacy-style section height) so particle scroll matches scenes.
   useEffect(() => {
     const vh = typeof window !== "undefined" ? window.innerHeight : 700;
-    const scrollRange = isMobile ? Math.max(vh * 1.15, 500) : Math.max(vh * 0.6, 400);
+    const scrollRange = (vh * VH_PER_SCENE * SCENE_COUNT) / 100;
     const onScroll = () => {
       const y = window.scrollY;
       scrollPendingRef.current = Math.min(y / scrollRange, 1);
@@ -222,12 +219,13 @@ export default function CinematicHeroScroll({
     return Math.min(0.8, (frame1Progress - 0.4) / 0.6 * 0.8);
   }, [frame1Progress]);
 
+  // Scene 1: mascot in (intro); Scene 2: mascot up and gone (fade out 0.18→0.38)
   const mascotOpacity = useMemo(() => {
     if (introT < t1) return 0;
     const introOpacity = Math.min(1, frame2Progress * 1.2);
-    const scrollFade = 1 - revealT;
-    return introOpacity * scrollFade;
-  }, [introT, t1, frame2Progress, revealT]);
+    const scene2Exit = 1 - smoothstep(0.18, 0.38, heroProgress);
+    return introOpacity * scene2Exit;
+  }, [introT, t1, frame2Progress, heroProgress]);
 
   const mascotY = useMemo(() => {
     if (introT < t1) return 10;
@@ -242,53 +240,53 @@ export default function CinematicHeroScroll({
     return p * maxAura;
   }, [introT, t2, frame3Progress, isMobile]);
 
+  // Scene 3: wall + holds appear (0.35→0.52); Scene 4: holds fade out (0.62→0.76)
   const wallOpacity = useMemo(() => {
-    if (isMobile) return Math.min(0.65, revealT * 0.55 + heroProgress * 0.1);
-    const base = introT >= t3 ? 0.15 + frame4Progress * 0.4 : 0;
-    return Math.min(0.7, base + revealT * 0.5);
-  }, [introT, t3, frame4Progress, heroProgress, revealT, isMobile]);
+    const ramp = smoothstep(0.32, 0.5, heroProgress);
+    return Math.min(isMobile ? 0.65 : 0.7, ramp * (isMobile ? 0.65 : 0.7));
+  }, [heroProgress, isMobile]);
 
-  const ISLAND_FADE_IN_START = 0.52;
-  const ISLAND_FADE_IN_END = 0.78;
-  const islandFadeIn = useMemo(() => smoothstep(ISLAND_FADE_IN_START, ISLAND_FADE_IN_END, heroProgress), [heroProgress]);
+  const islandFadeIn = useMemo(() => smoothstep(0.6, 0.78, heroProgress), [heroProgress]);
   const islandOpacity = islandFadeIn;
 
   const holdsOpacity = useMemo(() => {
-    const base = isMobile ? revealT * 0.9 : introT < t3 ? 0 : Math.min(0.85, Math.min((introT - t3) / 0.3, 1) * 0.2 + revealT * 0.9);
-    return base * (1 - islandFadeIn);
-  }, [introT, t3, revealT, isMobile, islandFadeIn]);
+    const appear = smoothstep(0.38, 0.52, heroProgress);
+    const disappear = 1 - smoothstep(0.62, 0.76, heroProgress);
+    return appear * disappear;
+  }, [heroProgress]);
 
-  const holdsBlurPx = isMobile ? Math.max(0, 3 - 3 * revealT) : 2;
-  const holdsScaleMobile = isMobile ? 1.4 + 0.2 * revealT : 1;
+  const holdsBlurPx = isMobile ? Math.max(0, 3 - 3 * smoothstep(0.38, 0.52, heroProgress)) : 2;
+  const holdsScaleMobile = isMobile ? 1.4 + 0.2 * smoothstep(0.38, 0.52, heroProgress) : 1;
 
   const headlineBlockOpacity = useMemo(() => {
     if (introT < t2) return 0;
     return Math.min(1, (introT - t2) / 0.2);
   }, [introT, t2]);
 
-  const metaLineOpacity = useMemo(() => smoothstep(0.02, 0.18, heroProgress), [heroProgress]);
+  const metaLineOpacity = useMemo(() => smoothstep(0.02, 0.22, heroProgress), [heroProgress]);
 
-  const scrollPhase1 = Math.min(heroProgress / (REVEAL_END + 0.02), 1);
-  const scrollPhase2 = heroProgress <= REVEAL_END ? 0 : Math.min((heroProgress - REVEAL_END) / 0.35, 1);
-
+  // Headline per scene: segment 0→4 over heroProgress 0→1 (smooth crossfade at boundaries)
   const SCROLL_HEADLINES: string[] = locale === "vi" ? SCROLL_HEADLINES_VI : SCROLL_HEADLINES_EN;
   const N = SCROLL_HEADLINES.length;
-  const headlineSegment = revealT * Math.max(0, N - 1);
+  const headlineSegment = heroProgress * Math.max(0, N - 1);
   const headlineIndexA = Math.min(Math.floor(headlineSegment), N - 1);
   const headlineIndexB = Math.min(headlineIndexA + 1, N - 1);
   const headlineCrossfadeT = headlineIndexA === headlineIndexB ? 0 : headlineSegment - Math.floor(headlineSegment);
   const headlineOpacityA = headlineIndexA === headlineIndexB ? 1 : 1 - headlineCrossfadeT;
   const headlineOpacityB = headlineIndexA === headlineIndexB ? 0 : headlineCrossfadeT;
 
-  const mascotLift1 = isMobile ? viewportHeight * 0.1 : 72;
-  const mascotLift2 = isMobile ? viewportHeight * 0.05 : 36;
-  const mascotTranslateY = -mascotLift1 * Math.min(1, scrollPhase1 * 1.2) - mascotLift2 * scrollPhase2;
-  const mascotScaleScroll = 1 + 0.018 * scrollPhase1 + 0.012 * scrollPhase2;
-  const auraOpacityScroll = scrollPhase2 * 0.15;
+  // Mascot lift in scene 2 (0.2→0.4) then hold
+  const scene2Lift = smoothstep(0.2, 0.4, heroProgress);
+  const mascotLift1 = isMobile ? viewportHeight * 0.12 : 80;
+  const mascotTranslateY = -mascotLift1 * scene2Lift;
+  const mascotScaleScroll = 1 + 0.02 * scene2Lift;
+  const auraOpacityScroll = smoothstep(0.5, 0.85, heroProgress) * 0.12;
 
   const breathingScale = isMobile ? 1.015 : 1.02;
   const breathDuration = 5;
-  const islandScale = isMobile ? 0.85 : 1.1;
+  // Scene 5: GLB bigger so users see full island (scale up 0.8→1)
+  const islandScaleBase = isMobile ? 0.85 : 1.1;
+  const islandScale = islandScaleBase + (isMobile ? 0.35 : 0.4) * smoothstep(0.8, 1, heroProgress);
 
   return (
     <div
@@ -341,7 +339,7 @@ export default function CinematicHeroScroll({
             x: "-50%",
             y: "-50%",
             background: "radial-gradient(circle, rgba(120,130,150,0.12) 0%, transparent 65%)",
-            scale: 1 + scrollPhase2 * 0.05,
+            scale: 1 + smoothstep(0.5, 0.9, heroProgress) * 0.05,
             opacity: auraOpacity * (0.6 + 0.4 * (1 - heroProgress)) + auraOpacityScroll,
             filter: "blur(40px)",
           }}
@@ -358,8 +356,8 @@ export default function CinematicHeroScroll({
           <div
             className="absolute inset-0"
             style={{
-              background: "linear-gradient(160deg, rgba(30,45,70,0.4) 0%, rgba(15,20,35,0.3) 50%, transparent 100%)",
-              filter: "saturate(0.7)",
+              background: "linear-gradient(160deg, rgba(18,18,24,0.5) 0%, rgba(11,11,15,0.35) 50%, transparent 100%)",
+              filter: "saturate(0.8)",
             }}
           />
           <div
@@ -532,7 +530,7 @@ export default function CinematicHeroScroll({
             )}
           </div>
 
-          {/* Mascot: mobile = order-1, self-center; desktop = viewport-centered (absolute 50% + translate -50%) */}
+          {/* Mascot: mobile = order-1, self-center; desktop = viewport-centered, shifted right to balance left-aligned text */}
           <motion.div
             className={
               isMobile
@@ -540,7 +538,7 @@ export default function CinematicHeroScroll({
                 : "absolute flex items-center justify-center w-[38%] max-w-[320px] md:max-w-[340px] pointer-events-none"
             }
             style={{
-              ...(isMobile ? {} : { left: "50%", top: "50%" }),
+              ...(isMobile ? {} : { left: "54%", top: "50%" }),
               opacity: mascotOpacity,
               transform: isMobile
                 ? `translateY(${mascotY + mascotTranslateY}px) scale(${mascotScaleScroll})`
@@ -619,8 +617,8 @@ export default function CinematicHeroScroll({
         </motion.div>
       </div>
 
-      {/* Spacer for scroll — no hero background so footer can sit on its own */}
-      <div className="h-[200vmin] bg-transparent" aria-hidden />
+      {/* Spacer for scroll — solid black so no blue/other background shows above footer */}
+      <div className="h-[200vmin] min-h-[50vh]" style={{ background: HERO_BG }} aria-hidden />
     </div>
   );
 }
