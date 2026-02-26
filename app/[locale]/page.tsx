@@ -28,7 +28,6 @@ import { CloudPersonality, getCloudById } from "@/lib/cloudData";
 import { getUser } from "@/lib/userStorage";
 import type { Locale } from "@/lib/i18n";
 import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
-import { HERO_BG } from "@/lib/heroConstants";
 
 const USE_CINEMATIC_HERO = true;
 const HERO_WRAPPER_VH = 400;
@@ -150,7 +149,7 @@ function HomeContent() {
     <div
       id="hero-page"
       className="page-container relative flex flex-col"
-      style={showCinematicLayers ? { minHeight: "400vh", height: "400vh", overflowX: "hidden", background: HERO_BG } : { minHeight: "100dvh" }}
+      style={showCinematicLayers ? { minHeight: "400vh", height: "400vh", overflowX: "hidden" } : { minHeight: "100dvh" }}
     >
       <main className={`relative z-10 ${showCinematicLayers ? "flex-shrink-0" : "flex-1 min-h-0"}`} style={showCinematicLayers ? { height: "400vh" } : undefined}>
       <BrandBackground />

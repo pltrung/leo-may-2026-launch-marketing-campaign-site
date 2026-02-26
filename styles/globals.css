@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Single global background source — no layered or wrapper-level backgrounds */
+html,
+body {
+  background: #0B0B0F;
+}
+
 /* MiSans brand fonts */
 @font-face {
   font-family: "MiSans-Bold";

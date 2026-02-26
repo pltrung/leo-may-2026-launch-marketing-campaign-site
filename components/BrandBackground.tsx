@@ -1,16 +1,9 @@
 "use client";
 
-/** Site identity: black + holds on all views (hero, cloud selector, etc.) — no blue background. */
-const BRAND_BG_BLACK = "#0B0B0F";
-
+/** Holds overlay only. Background comes from html/body (#0B0B0F) — no layered background here. */
 export default function BrandBackground() {
   return (
     <>
-      <div
-        className="fixed inset-0 -z-20 overflow-hidden pointer-events-none"
-        aria-hidden
-        style={{ background: BRAND_BG_BLACK }}
-      />
       <div
         className="fixed inset-0 -z-10 opacity-70 overflow-hidden pointer-events-none animate-holds-layer"
         aria-hidden
