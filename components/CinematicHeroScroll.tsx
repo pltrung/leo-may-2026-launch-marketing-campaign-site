@@ -368,7 +368,7 @@ export default function CinematicHeroScroll({
                   <img src="/logo-white.svg" alt="Leo Mây" className="w-full h-full object-contain object-center" />
                 </div>
               </div>
-              {/* Headline (one line) + meta — headline margin-bottom 12–16px; meta margin-bottom 20–24px; meta directly under headline */}
+              {/* Headline (one line) + meta — tight spacing so Your Move sits closer to meta line */}
               <div
                 className="flex shrink-0 flex-col items-center text-center w-full max-w-[90vw] pointer-events-none"
                 style={{
@@ -379,7 +379,7 @@ export default function CinematicHeroScroll({
                 <h1
                   className="relative font-bold text-white text-center min-h-[1.3em] leading-tight w-full max-w-[90vw]"
                   style={{
-                    marginBottom: "14px",
+                    marginBottom: "6px",
                     fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
                     fontSize: "clamp(18px, 5.5vw, 32px)",
                     letterSpacing: "0.03em",
@@ -471,7 +471,7 @@ export default function CinematicHeroScroll({
                     ))}
                   </h1>
                   <p
-                    className="text-white/80 mt-4 leading-snug text-[clamp(13px,1.2vw,16px)]"
+                    className="text-white/80 mt-2 leading-snug text-[clamp(13px,1.2vw,16px)]"
                     style={{ opacity: metaOpacity, fontFamily: "MiSans-Regular, sans-serif" }}
                   >
                     Premium Climbing Experience — HCMC — 2026
