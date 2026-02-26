@@ -179,24 +179,32 @@ export default function CinematicHeroScroll({
     return 0.15 * fadeIn + (0.35 + scrollProgress * 0.2) * fadeIn;
   }, [introT, t3, scrollProgress]);
 
-  const headlineOpacity = useMemo(() => (introT >= t3 ? Math.min(1, frame4Progress * 2) : 0), [introT, t3, frame4Progress]);
-  const sublineOpacity = useMemo(() => (introT >= t3 ? Math.min(0.8, (frame4Progress - 0.3) * 2) : 0), [introT, t3, frame4Progress]);
+  const headlineOpacity = useMemo(() => {
+    if (introT < t2) return 0;
+    const start = t2;
+    const end = t3 + 0.08;
+    return Math.min(1, (introT - start) / (end - start));
+  }, [introT, t2, t3]);
+  const sublineOpacity = useMemo(() => (introT >= t3 ? Math.min(0.8, (frame4Progress - 0.2) * 1.5) : Math.min(0.5, headlineOpacity * 0.6)), [introT, t3, frame4Progress, headlineOpacity]);
 
   const particleDensity = 0.5 + scrollProgress * 0.5;
 
-  const scrollPhase1 = Math.min(scrollProgress / 0.25, 1);
-  const scrollPhase2 = scrollProgress <= 0.25 ? 0 : Math.min((scrollProgress - 0.25) / 0.25, 1);
+  const scrollPhase1 = Math.min(scrollProgress / 0.35, 1);
+  const scrollPhase2 = scrollProgress <= 0.35 ? 0 : Math.min((scrollProgress - 0.35) / 0.35, 1);
 
-  const mascotLift1 = isMobile ? viewportHeight * 0.17 : 120;
-  const mascotLift2 = isMobile ? viewportHeight * 0.086 : 60;
-  const mascotTranslateY = scrollPhase1 < 1
-    ? -mascotLift1 * scrollPhase1
-    : -mascotLift1 - mascotLift2 * scrollPhase2;
-  const mascotScaleScroll = scrollPhase1 < 1 ? 1 + 0.03 * scrollPhase1 : 1.03 + 0.02 * scrollPhase2;
-  const headline1Y = isMobile ? -10 * scrollPhase1 : -12 * scrollPhase1;
-  const headline2Y = isMobile ? 10 * (1 - scrollPhase1) : 12 * (1 - scrollPhase1);
-  const headline1Opacity = 1 - scrollPhase1;
-  const headline2Opacity = scrollPhase1;
+  function smoothstep(a: number, b: number, x: number): number {
+    const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  }
+  const headline1Opacity = 1 - smoothstep(0, 0.42, scrollPhase1);
+  const headline2Opacity = smoothstep(0.18, 0.52, scrollPhase1);
+  const headline1Y = -14 * smoothstep(0, 0.4, scrollPhase1);
+  const headline2Y = 14 * (1 - smoothstep(0.15, 0.5, scrollPhase1));
+
+  const mascotLift1 = isMobile ? viewportHeight * 0.1 : 72;
+  const mascotLift2 = isMobile ? viewportHeight * 0.05 : 36;
+  const mascotTranslateY = -mascotLift1 * Math.min(1, scrollPhase1 * 1.2) - mascotLift2 * scrollPhase2;
+  const mascotScaleScroll = 1 + 0.018 * scrollPhase1 + 0.012 * scrollPhase2;
   const auraOpacityScroll = scrollPhase2 * 0.15;
   const auraScaleScroll = 1 + scrollPhase2 * 0.05;
   const subcopyOneLine = scrollPhase2 >= 0.5;
@@ -285,8 +293,12 @@ export default function CinematicHeroScroll({
             <img
               src="/brand/holds.svg"
               alt=""
-              className="max-w-[90%] max-h-[70%] object-contain"
-              style={{ filter: "blur(2px)" }}
+              className="max-w-[90%] max-h-[70%] object-contain md:max-w-[90%] md:max-h-[70%]"
+              style={{
+                filter: "blur(2px)",
+                transform: isMobile ? "scale(1.55)" : undefined,
+                objectPosition: "center center",
+              }}
             />
           </div>
         </div>
@@ -461,6 +473,33 @@ export default function CinematicHeroScroll({
               )}
             </motion.div>
           </motion.div>
+        </div>
+
+        {/* Right-edge scroll particle indicator — minimal, premium, reacts to scroll */}
+        <div
+          className="absolute right-2 sm:right-3 top-0 bottom-0 w-px z-10 pointer-events-none overflow-hidden"
+          style={{
+            opacity: 0.2 + scrollProgress * 0.4,
+            transition: "opacity 0.25s ease-out",
+          }}
+          aria-hidden
+        >
+          <div className="absolute inset-0 flex flex-col items-center justify-start pt-[10%]" style={{ gap: 18 }}>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <motion.div
+                key={i}
+                className="rounded-full bg-white flex-shrink-0"
+                style={{ width: 2, height: 2, opacity: 0.5 }}
+                animate={{ y: [0, -32] }}
+                transition={{
+                  duration: 5 + i * 0.6,
+                  repeat: Infinity,
+                  ease: "linear",
+                  delay: i * 0.5,
+                }}
+              />
+            ))}
+          </div>
         </div>
 
         {/* Scroll hint */}
