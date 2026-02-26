@@ -91,6 +91,7 @@ export default function CinematicHeroScroll({
   const [loadElapsed, setLoadElapsed] = useState(0);
   const [loadComplete, setLoadComplete] = useState(false);
   const loadStartRef = useRef<number | null>(null);
+  const [desktopFinalCameraZ, setDesktopFinalCameraZ] = useState(6);
 
   useEffect(() => {
     preloadHeroIslandGLB();
@@ -232,8 +233,8 @@ export default function CinematicHeroScroll({
   const glbScaleBase = 0.7 + 0.3 * smoothstep(0.4, 0.65, Math.min(p, 0.82));
   const glbScale = glbScaleBase;
   const cameraZStart = 9;
-  const cameraDistanceEnd = isDesktop ? 6 : 7;
-  const framingClampZ = isDesktop ? 5.4 : 6.2;
+  const cameraDistanceEnd = isDesktop ? desktopFinalCameraZ : 7;
+  const framingClampZ = isDesktop ? desktopFinalCameraZ * 0.9 : 6.2;
   const cameraDistance = p < 0.82
     ? cameraZStart
     : Math.max(framingClampZ, cameraZStart - zoomT * (cameraZStart - cameraDistanceEnd));
@@ -283,11 +284,12 @@ export default function CinematicHeroScroll({
           background: HERO_BG,
         }}
       >
-        {/* Content area: top padding = header + safe-area so text never under header; no bottom padding (footer is overlay) */}
+        {/* Content area: top padding = header + safe-area; on mobile add extra vertical padding for breathing room */}
         <div
           className="flex-1 min-h-0 relative flex flex-col items-center justify-center"
           style={{
-            paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px))`,
+            paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px))${isMobile ? " + 1.5rem" : ""}`,
+            paddingBottom: isMobile ? "2rem" : undefined,
           }}
         >
           <div
@@ -335,62 +337,69 @@ export default function CinematicHeroScroll({
               cameraDistance={cameraDistance}
               fov={cameraFov}
               rotationSpeedMultiplier={glbRotationSpeed}
+              onFramingReady={setDesktopFinalCameraZ}
               shouldMount={glbMounted}
             />
           </div>
 
-          {/* Mobile: vertical stack — Mascot → Headline → CTA, centered, with spacing and safe-area */}
+          {/* Mobile: full-height flex — top third mascot, center headline (one line), lower third CTA; spacious, cinematic */}
           {isMobile && (
             <div
-              className="absolute inset-x-0 top-0 bottom-0 z-10 flex flex-col items-center justify-start overflow-auto"
+              className="absolute inset-x-0 top-0 bottom-0 z-10 flex flex-col items-center overflow-auto"
               style={{
-                paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 1rem)`,
-                paddingBottom: `calc(1.5rem + env(safe-area-inset-bottom, 0px))`,
+                paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 1.5rem)`,
+                paddingBottom: `calc(2rem + env(safe-area-inset-bottom, 0px))`,
                 paddingLeft: "1rem",
                 paddingRight: "1rem",
-                gap: "1.75rem",
               }}
             >
+              {/* Top third: mascot, clamped height so it doesn't push layout */}
               <div
-                className="flex shrink-0 items-center justify-center w-[70%] max-w-[280px] pointer-events-none"
+                className="flex shrink-0 items-center justify-center w-[65%] max-w-[260px] max-h-[28vh] pointer-events-none"
                 style={{
                   opacity: mascotOpacityFinal,
                   transform: `translateY(${mascotTranslateYFinal}px)`,
                 }}
               >
-                <div className={loadComplete ? "hero-mascot-float w-full h-full flex items-center justify-center" : "w-full h-full"}>
-                {partColors ? (
-                  <object
-                    data="/brand/ip-flying.svg"
-                    type="image/svg+xml"
-                    aria-hidden
-                    className="w-full h-full object-contain aspect-square"
-                    style={{ color: "#fffef8" }}
-                  />
-                ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src="/brand/ip-flying.svg" alt="" className="w-full aspect-square object-contain" />
-                )}
+                <div className={`w-full h-full flex items-center justify-center ${loadComplete ? "hero-mascot-float" : ""}`}>
+                  {partColors ? (
+                    <object
+                      data="/brand/ip-flying.svg"
+                      type="image/svg+xml"
+                      aria-hidden
+                      className="w-full h-full object-contain aspect-square"
+                      style={{ color: "#fffef8" }}
+                    />
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src="/brand/ip-flying.svg" alt="" className="w-full h-full object-contain aspect-square" />
+                  )}
                 </div>
               </div>
+              <div className="h-8 shrink-0" aria-hidden />
+              {/* Center: headline — one line only, no wrap, centered, stronger letter-spacing */}
               <div
-                className="flex shrink-0 flex-col items-center justify-center text-center max-w-[90%] pointer-events-none"
+                className="flex shrink-0 flex-col items-center justify-center text-center w-full max-w-[90vw] pointer-events-none"
                 style={{
                   opacity: narrativeOpacityFinal,
                   transform: `translateY(${narrativeTranslateYFinal}px)`,
                 }}
               >
                 <h1
-                  className="relative font-bold text-white tracking-tight text-center min-h-[3.5em] leading-[1.15] text-[clamp(26px,7.5vw,42px)]"
-                  style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
+                  className="relative font-bold text-white text-center min-h-[1.3em] leading-tight w-full max-w-[90vw]"
+                  style={{
+                    fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
+                    fontSize: "clamp(18px, 5.5vw, 32px)",
+                    letterSpacing: "0.03em",
+                  }}
                 >
                   {headlines.map((line, i) => (
                     <span
                       key={i}
-                      className="absolute top-0 left-0 right-0 block w-full text-center"
+                      className="absolute top-0 left-1/2 -translate-x-1/2 block w-full max-w-[90vw] text-center whitespace-nowrap overflow-hidden text-ellipsis"
                       style={{
                         opacity: headlineOpacitiesFinal[i] ?? 0,
-                        transform: `translateY(${headlineTranslateYsFinal[i] ?? 0}px)`,
+                        transform: `translate(-50%, ${headlineTranslateYsFinal[i] ?? 0}px)`,
                       }}
                       aria-hidden={(headlineOpacitiesFinal[i] ?? 0) < 0.01}
                     >
@@ -399,12 +408,17 @@ export default function CinematicHeroScroll({
                   ))}
                 </h1>
                 <p
-                  className="text-white/80 mt-4 leading-snug text-[15px] text-center"
+                  className="text-white/80 mt-3 leading-snug text-[13px] text-center"
                   style={{ opacity: metaOpacity, fontFamily: "MiSans-Regular, sans-serif" }}
                 >
                   Premium Climbing Experience — HCMC — 2026
                 </p>
               </div>
+              <div className="h-10 shrink-0" aria-hidden />
+              {/* Spacer: pushes CTA into lower third */}
+              <div className="flex-1 min-h-[2rem]" aria-hidden />
+              <div className="h-6 shrink-0" aria-hidden />
+              {/* Lower third: CTA */}
               <div
                 className="flex shrink-0 justify-center pointer-events-auto"
                 style={{
@@ -419,7 +433,7 @@ export default function CinematicHeroScroll({
                     onJoin();
                   }}
                   className="px-6 py-3 rounded-full border border-white/70 text-white text-xs font-medium tracking-wider uppercase bg-transparent"
-                  style={{ letterSpacing: "0.05em", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
+                  style={{ letterSpacing: "0.08em", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 1.02 }}
                 >

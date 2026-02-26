@@ -29,6 +29,7 @@ export default function HeroIslandCanvas({
   cameraDistance = DEFAULT_CAMERA_Z,
   fov = 45,
   rotationSpeedMultiplier = 1,
+  onFramingReady,
   shouldMount,
   className,
 }: {
@@ -37,6 +38,7 @@ export default function HeroIslandCanvas({
   cameraDistance?: number;
   fov?: number;
   rotationSpeedMultiplier?: number;
+  onFramingReady?: (cameraZ: number) => void;
   shouldMount?: boolean;
   className?: string;
 }) {
@@ -67,7 +69,12 @@ export default function HeroIslandCanvas({
           <ambientLight intensity={0.6} />
           <directionalLight position={[5, 5, 5]} intensity={1} />
           <directionalLight position={[-3, 2, 2]} intensity={0.4} />
-          <HeroIslandGLB opacity={opacity} scale={scale} rotationSpeedMultiplier={rotationSpeedMultiplier} />
+          <HeroIslandGLB
+            opacity={opacity}
+            scale={scale}
+            rotationSpeedMultiplier={rotationSpeedMultiplier}
+            onFramingReady={onFramingReady}
+          />
         </Canvas>
       )}
     </div>

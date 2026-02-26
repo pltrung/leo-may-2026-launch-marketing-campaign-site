@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
@@ -18,12 +18,25 @@ export function preloadHeroIslandGLB(): void {
 
 const BASE_ROTATION_RAD_PER_SEC = (Math.PI * 2) / ROTATION_SECONDS;
 
-function IslandModel({ opacity, rotationSpeedMultiplier = 1 }: { opacity: number; rotationSpeedMultiplier?: number }) {
+const DESKTOP_FOV_DEG = 45;
+const DESKTOP_SCREEN_COVERAGE = 0.75;
+
+function IslandModel({
+  opacity,
+  rotationSpeedMultiplier = 1,
+  onFramingReady,
+}: {
+  opacity: number;
+  rotationSpeedMultiplier?: number;
+  onFramingReady?: (cameraZ: number) => void;
+}) {
   const groupRef = useRef<Group>(null);
   const { scene } = useGLTF(GLB_URL);
   const materialsRef = useRef<Material[]>([]);
   const initialized = useRef(false);
   const centered = useRef(false);
+  const framingReported = useRef(false);
+  const computedCameraZRef = useRef<number | null>(null);
 
   if (!initialized.current) {
     scene.traverse((obj) => {
@@ -42,9 +55,24 @@ function IslandModel({ opacity, rotationSpeedMultiplier = 1 }: { opacity: number
       box.getCenter(center);
       scene.position.sub(center);
       centered.current = true;
+      if (onFramingReady && !framingReported.current) {
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const radius = 0.5 * Math.sqrt(size.x * size.x + size.y * size.y + size.z * size.z);
+        const fovRad = (DESKTOP_FOV_DEG * Math.PI) / 180;
+        const distance = radius / (DESKTOP_SCREEN_COVERAGE * Math.tan(fovRad / 2));
+        framingReported.current = true;
+        computedCameraZRef.current = distance;
+      }
     }
     initialized.current = true;
   }
+
+  useEffect(() => {
+    if (computedCameraZRef.current != null && onFramingReady) {
+      onFramingReady(computedCameraZRef.current);
+    }
+  }, [onFramingReady]);
 
   useFrame((_state, delta) => {
     if (!groupRef.current) return;
@@ -65,14 +93,20 @@ export default function HeroIslandGLB({
   opacity,
   scale = 1,
   rotationSpeedMultiplier = 1,
+  onFramingReady,
 }: {
   opacity: number;
   scale?: number;
   rotationSpeedMultiplier?: number;
+  onFramingReady?: (cameraZ: number) => void;
 }) {
   return (
     <group scale={scale} position={[0, 0, 0]}>
-      <IslandModel opacity={opacity} rotationSpeedMultiplier={rotationSpeedMultiplier} />
+      <IslandModel
+        opacity={opacity}
+        rotationSpeedMultiplier={rotationSpeedMultiplier}
+        onFramingReady={onFramingReady}
+      />
     </group>
   );
 }
