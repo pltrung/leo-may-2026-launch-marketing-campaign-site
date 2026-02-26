@@ -49,6 +49,16 @@ export default function SkyTransition({ onComplete, variant = "discovery" }: Sky
 
   return (
     <div id="mist-transition" ref={containerRef} aria-hidden="true">
+      {/* Identity: black + holds so when mist clears, same look as rest of site (mobile + desktop) */}
+      <div
+        className="absolute inset-0 -z-10"
+        style={{ background: "#0B0B0F" }}
+        aria-hidden
+      />
+      <div className="absolute inset-0 -z-[1] opacity-70 overflow-hidden pointer-events-none animate-holds-layer" aria-hidden>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/holds.svg" alt="" className="w-full h-full object-cover" style={{ objectFit: "cover" }} />
+      </div>
       <div className="mist-layer mist-back" />
       <div className="mist-layer mist-mid" />
       <div className="mist-layer mist-front" />

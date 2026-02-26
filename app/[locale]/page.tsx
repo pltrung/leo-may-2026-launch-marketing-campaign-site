@@ -123,24 +123,9 @@ function HomeContent() {
       <BrandBackground />
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />
+      {/* Top-right: login + language toggle (stable header cluster; leaves bottom-left for CTA) */}
       <motion.div
-        className="fixed bottom-6 left-6 z-[100] scale-90 opacity-80 md:scale-100 md:opacity-100 [&>*]:origin-bottom-left isolate"
-        initial={{ opacity: 0, y: -6 }}
-        animate={{
-          opacity: transitionActive ? 0 : heroReady ? 1 : 0,
-          y: heroReady ? 0 : -6,
-        }}
-        transition={{
-          duration: 0.7,
-          delay: transitionActive ? 0 : heroReady ? 0.5 : 0,
-          ease: heroEase,
-        }}
-        style={{ pointerEvents: transitionActive ? "none" : "auto" }}
-      >
-        <LanguageSwitch />
-      </motion.div>
-      <motion.div
-        className="fixed top-8 right-6 z-[100]"
+        className="fixed top-8 right-6 z-[100] flex items-center gap-3"
         initial={{ opacity: 0, y: 12 }}
         animate={{
           opacity: transitionActive ? 0 : heroReady ? 1 : 0,
@@ -153,6 +138,7 @@ function HomeContent() {
         }}
         style={{ pointerEvents: transitionActive ? "none" : "auto", willChange: "transform, opacity" }}
       >
+        <LanguageSwitch />
         <KnowYourTeamButton
           show
           onFoundTeam={() => transitionToCountdown("return")}
@@ -181,7 +167,7 @@ function HomeContent() {
       </main>
       <motion.div
         id="know-your-cloud"
-        className="flex-shrink-0 relative z-10"
+        className="flex-shrink-0 relative z-10 bg-[#0B0B0F] pt-1"
         data-hero-next
         initial={false}
         animate={{ opacity: transitionActive ? 0 : 1 }}

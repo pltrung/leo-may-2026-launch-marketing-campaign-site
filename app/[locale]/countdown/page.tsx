@@ -572,24 +572,18 @@ export default function CountdownPage() {
       >
         <LanguageSwitch />
       </motion.div>
-      <motion.div
+      {/* Identity: black + holds throughout countdown (your cloud returns) — no fade-out */}
+      <div
         className="fixed inset-0 -z-10 pointer-events-none"
-        initial={{ opacity: 0.1 }}
-        animate={{ opacity: 0 }}
-        transition={{ duration: COUNTDOWN_BG_FADE_MS / 1000, delay: 0, ease: [0.22, 1, 0.36, 1] }}
+        style={{ background: "#0B0B0F" }}
         aria-hidden
-      >
-        <img src="/brand/background.svg" alt="" className="w-full h-full object-cover" />
-      </motion.div>
-      <motion.div
-        className="fixed inset-0 -z-10 pointer-events-none"
-        initial={{ opacity: 0.08 }}
-        animate={{ opacity: 0 }}
-        transition={{ duration: COUNTDOWN_BG_FADE_MS / 1000, delay: 0, ease: [0.22, 1, 0.36, 1] }}
+      />
+      <div
+        className="fixed inset-0 -z-10 opacity-70 pointer-events-none overflow-hidden animate-holds-layer"
         aria-hidden
       >
         <img src="/brand/holds.svg" alt="" className="w-full h-full object-cover" />
-      </motion.div>
+      </div>
 
       <AnimatePresence>
         {(phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" || phase === "phase4-micro-settle" || phase === "phase5-rest") && (

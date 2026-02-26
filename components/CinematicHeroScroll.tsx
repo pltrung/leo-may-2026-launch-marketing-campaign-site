@@ -46,11 +46,12 @@ const MOBILE_FRAME2_MS = 2600;
 const MOBILE_FRAME3_MS = 4500;
 
 /**
- * DESKTOP: Logo center-top, headline + mascot side-by-side, scroll crossfades 5 lines.
- * MOBILE (editorial, one focus per moment):
- *   STATE A (0% scroll): Logo top-left (sticky, never fades out). Mascot centered (hook). "CLIMB WITH INTENTION." below mascot. CTA bottom-left. Holds hidden.
- *   STATE B (1st scroll): Mascot lifts + fades out. Headline 1 fades out. Sky brightens. Holds reveal (opacity + sharpen).
- *   STATE C (2nd scroll+): Holds crisp, left text column (ASCEND TOGETHER. → crossfade 3 more lines). CTA fixed bottom-left.
+ * Premium narrative scroll (same sequence logic desktop + mobile, responsive layout only).
+ * Layout zones: top-left = logo (sticky, never fades); top-right = login/language (page); bottom-left = CTA.
+ * Moment A (top): logo in, mascot hook, headline "CLIMB WITH INTENTION.", CTA stable bottom-left.
+ * Moment B (early scroll): mascot rises + fades; headline fades; sky brightens; holds + particles crossfade in (synced scrollReveal).
+ * Moment C (mid–late scroll): holds revealed; headline crossfades; CTA + logo unchanged.
+ * Moment D: hero background contained to sticky viewport; footer on its own background.
  */
 
 export interface CinematicHeroScrollProps {
@@ -202,21 +203,27 @@ export default function CinematicHeroScroll({
     return p * maxAura;
   }, [introT, t2, frame3Progress, isMobile]);
 
+  // Unified scroll-driven reveal: same curve for holds + particles (synced, smooth)
+  const scrollReveal = useMemo(
+    () => smoothstep(0.12, 0.52, scrollProgress),
+    [scrollProgress]
+  );
+
   const wallOpacity = useMemo(() => {
-    if (isMobile) return Math.min(0.65, smoothstep(0.12, 0.5, scrollProgress) * 0.5 + scrollProgress * 0.2);
-    const base = introT >= t3 ? 0.2 + frame4Progress * 0.5 : 0;
-    const scrollAdd = scrollProgress * 0.5;
-    return Math.min(0.7, base + scrollAdd);
-  }, [introT, t3, frame4Progress, scrollProgress, isMobile]);
+    if (isMobile) return Math.min(0.65, scrollReveal * 0.5 + scrollProgress * 0.15);
+    const base = introT >= t3 ? 0.15 + frame4Progress * 0.4 : 0;
+    return Math.min(0.7, base + scrollReveal * 0.5);
+  }, [introT, t3, frame4Progress, scrollProgress, scrollReveal, isMobile]);
 
   const holdsOpacity = useMemo(() => {
-    if (isMobile) return smoothstep(0.1, 0.5, scrollProgress) * 0.85;
+    const reveal = scrollReveal * 0.9;
+    if (isMobile) return reveal;
     if (introT < t3) return 0;
-    const fadeIn = Math.min((introT - t3) / 0.25, 1);
-    return 0.15 * fadeIn + (0.35 + scrollProgress * 0.2) * fadeIn;
-  }, [introT, t3, scrollProgress, isMobile]);
+    const introHolds = Math.min((introT - t3) / 0.3, 1) * 0.2;
+    return Math.min(0.85, introHolds + reveal);
+  }, [introT, t3, scrollReveal, isMobile]);
 
-  const holdsBlurPx = isMobile ? Math.max(0, 3 - 3 * smoothstep(0.15, 0.45, scrollProgress)) : 2;
+  const holdsBlurPx = isMobile ? Math.max(0, 3 - 3 * smoothstep(0.15, 0.48, scrollProgress)) : 2;
   const holdsScaleMobile = isMobile ? 1.4 + 0.2 * smoothstep(0.2, 0.5, scrollProgress) : 1;
 
   const headlineOpacity = useMemo(() => {
@@ -225,9 +232,18 @@ export default function CinematicHeroScroll({
     const end = t3 + 0.08;
     return Math.min(1, (introT - start) / (end - start));
   }, [introT, t2, t3]);
-  const sublineOpacity = useMemo(() => (introT >= t3 ? Math.min(0.8, (frame4Progress - 0.2) * 1.5) : Math.min(0.5, headlineOpacity * 0.6)), [introT, t3, frame4Progress, headlineOpacity]);
 
-  const particleDensity = 0.5 + scrollProgress * 0.5;
+  // Single continuous meta-line opacity: fades in once with headline, then stays steady (no duplicate fade)
+  const metaLineOpacity = useMemo(() => {
+    if (introT < t2) return 0;
+    const inDur = 0.25;
+    return Math.min(1, (introT - t2) / inDur);
+  }, [introT, t2]);
+
+  const particleDensity = useMemo(
+    () => 0.4 + scrollReveal * 0.5,
+    [scrollReveal]
+  );
 
   const scrollPhase1 = Math.min(scrollProgress / 0.35, 1);
   const scrollPhase2 = scrollProgress <= 0.35 ? 0 : Math.min((scrollProgress - 0.35) / 0.35, 1);
@@ -302,7 +318,6 @@ export default function CinematicHeroScroll({
     <div
       ref={containerRef}
       className="cinematic-hero relative min-h-[300vh]"
-      style={{ background: HERO_BG }}
       onClick={handleInteraction}
       onTouchStart={handleInteraction}
       onKeyDown={handleInteraction}
@@ -311,7 +326,10 @@ export default function CinematicHeroScroll({
       aria-label="Start experience"
     >
       <AscentBar />
-      <div className="sticky top-0 min-h-[100dvh] flex flex-col items-center justify-center overflow-hidden">
+      <div
+        className="sticky top-0 min-h-[100dvh] flex flex-col items-center justify-center overflow-hidden"
+        style={{ background: HERO_BG }}
+      >
         {/* Background layers */}
         <div
           className="absolute inset-0 pointer-events-none"
@@ -358,7 +376,7 @@ export default function CinematicHeroScroll({
           className="absolute inset-0 pointer-events-none flex items-center justify-center"
           style={{
             opacity: wallOpacity,
-            transition: "opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1)",
+            transition: "opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1)",
           }}
         >
           <div
@@ -372,7 +390,7 @@ export default function CinematicHeroScroll({
             className="absolute inset-0 flex items-center justify-center"
             style={{
               opacity: holdsOpacity,
-              transition: "opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
+              transition: "opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1)",
             }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -389,7 +407,7 @@ export default function CinematicHeroScroll({
           </div>
         </div>
 
-        {/* Particles — same density feel: 12 mobile, 16 desktop */}
+        {/* Particles — synced with scrollReveal so they intensify with holds crossfade */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           {Array.from({ length: isMobile ? 12 : 16 }).map((_, i) => (
             <motion.div
@@ -403,11 +421,11 @@ export default function CinematicHeroScroll({
                 opacity: 0,
               }}
               animate={{
-                opacity: introT >= t2 ? Math.min(0.3, frame3Progress * 0.2 * particleDensity) : 0,
+                opacity: introT >= t2 ? Math.min(0.32, frame3Progress * 0.25 * particleDensity) : 0,
                 y: [0, -30],
               }}
               transition={{
-                opacity: { duration: 1 },
+                opacity: { duration: 1.2 },
                 y: { duration: 8 + (i % 4), repeat: Infinity, ease: "linear" },
               }}
             />
@@ -471,9 +489,15 @@ export default function CinematicHeroScroll({
           </motion.div>
         )}
 
-        {/* Layout: centered block — headline + mascot side-by-side on desktop (mascot more center), stacked on mobile with mascot centered and larger */}
-        <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center px-4 sm:px-6 md:px-8 pt-20 sm:pt-20 pb-24 z-10 pointer-events-none gap-8 sm:gap-6 md:gap-10 ${isMobile ? "items-center" : ""}`}>
-          <div className={`pointer-events-auto flex flex-col justify-center w-full max-w-[min(100%,520px)] sm:max-w-[42%] ${isMobile ? "order-2 items-start text-left max-w-[85%]" : "order-1"}`}>
+        {/* Layout: mobile = stacked (mascot top, headline below); desktop = grid so mascot is centered in hero */}
+        <div
+          className={
+            isMobile
+              ? "absolute inset-0 flex flex-col items-center justify-center px-4 pt-20 pb-24 z-10 pointer-events-none gap-8"
+              : "absolute inset-0 grid grid-cols-[1fr auto 1fr] items-center justify-items-center gap-6 px-4 sm:px-6 md:px-8 pt-20 pb-24 z-10 pointer-events-none"
+          }
+        >
+          <div className={`pointer-events-auto flex flex-col justify-center w-full max-w-[min(100%,520px)] ${isMobile ? "order-2 items-start text-left max-w-[85%]" : "justify-self-start max-w-[min(100%,420px)]"}`}>
             {/* Headline block: max-width, generous spacing; mobile = left column, no collision with mascot */}
             <div
               className={`max-w-[min(100%,1100px)] mt-6 sm:mt-8 md:mt-12 ${isMobile ? "text-left w-full" : ""}`}
@@ -499,7 +523,7 @@ export default function CinematicHeroScroll({
               <p
                 className="mt-4 sm:mt-4 md:mt-5 text-white/80 font-normal text-[clamp(13px,1.4vw,15px)] sm:text-[clamp(13px,1.1vw,16px)] md:text-[clamp(14px,1.2vw,18px)] leading-snug"
                 style={{
-                  opacity: sublineOpacity,
+                  opacity: metaLineOpacity,
                   fontFamily: "MiSans-Regular, sans-serif",
                 }}
               >
@@ -544,9 +568,9 @@ export default function CinematicHeroScroll({
             )}
           </div>
 
-          {/* Mascot: mobile = order-1 (top), centered; desktop = order-2; fades out on scroll (STATE B) */}
+          {/* Mascot: mobile = order-1 (top), centered; desktop = center column, anchored in hero */}
           <motion.div
-            className={`flex items-center justify-center flex-shrink-0 w-[70%] max-w-[300px] sm:w-[38%] sm:max-w-[280px] md:w-[40%] md:max-w-[340px] ${isMobile ? "order-1" : "order-2"}`}
+            className={`flex items-center justify-center flex-shrink-0 w-[70%] max-w-[300px] sm:w-[42%] sm:max-w-[300px] md:max-w-[340px] ${isMobile ? "order-1" : "justify-self-center col-start-2"}`}
             style={{
               opacity: mascotOpacity,
               transform: `translateY(${mascotY + mascotTranslateY}px) scale(${mascotScaleScroll})`,
@@ -587,12 +611,12 @@ export default function CinematicHeroScroll({
           </motion.div>
         </div>
 
-        {/* Right-edge scroll particle indicator — minimal, premium, reacts to scroll */}
+        {/* Right-edge scroll particle indicator — synced with scrollReveal */}
         <div
           className="absolute right-2 sm:right-3 top-0 bottom-0 w-px z-10 pointer-events-none overflow-hidden"
           style={{
-            opacity: 0.2 + scrollProgress * 0.4,
-            transition: "opacity 0.25s ease-out",
+            opacity: 0.15 + scrollReveal * 0.5,
+            transition: "opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
           }}
           aria-hidden
         >
@@ -628,8 +652,8 @@ export default function CinematicHeroScroll({
         </motion.div>
       </div>
 
-      {/* Spacer for scroll */}
-      <div className="h-[200vmin]" aria-hidden />
+      {/* Spacer for scroll — no hero background so footer can sit on its own */}
+      <div className="h-[200vmin] bg-transparent" aria-hidden />
     </div>
   );
 }
