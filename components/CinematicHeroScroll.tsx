@@ -14,6 +14,7 @@ import AscentBar from "@/components/AscentBar";
 import type { Locale } from "@/lib/i18n";
 import type { MascotPartColors } from "@/lib/mascotSpeciesColors";
 import { preloadHeroIslandGLB } from "@/components/HeroIslandGLB";
+import { getMessages } from "@/lib/messages";
 
 const HeroIslandCanvas = dynamic(
   () => import("@/components/HeroIslandCanvas"),
@@ -64,10 +65,9 @@ const MOBILE_FRAME2_MS = 2600;
 const MOBILE_FRAME3_MS = 4500;
 
 /**
- * Five-scene cinematic hero (legacy HeroScroll 1–6 style). Scroll range = 5 × 60vh so particle bar feels immersed.
- * Scene 1: "Climb with Intention" + IP fading in. Scene 2: "Ascend Together" + IP up and gone.
- * Scene 3: "Build your cloud" + holds appear. Scene 4: "Shape the standard" + holds out, GLB in.
- * Scene 5: "Leo Mây 2026" + GLB full and bigger. Logo top-center; CTA bottom-left.
+ * Locked cinematic hero: single 200vh timeline, sticky 100vh stage.
+ * Top nav fixed; one headline stack (2 states max); final state: GLB dominant, CTA + LEO MÂY 2026.
+ * Footer tagline inside stage; no blue bleed. All driven by one heroProgress (0→1 over 200vh).
  */
 
 export interface CinematicHeroScrollProps {
@@ -150,18 +150,14 @@ export default function CinematicHeroScroll({
     return t * t * (3 - 2 * t);
   }
 
-  // ——— Five scenes (legacy HeroScroll 1–6 style): scroll range = 5 sections so particle bar feels immersed. ———
-  // Scene 1: "Climb with Intention" + IP fade in. Scene 2: "Ascend Together" + IP up and gone.
-  // Scene 3: "Build your cloud" + holds appear. Scene 4: "Shape the standard" + holds out, GLB in. Scene 5: "Leo Mây 2026" + GLB full, bigger.
+  // ——— Single scroll driver: 200vh total, heroProgress 0→1. All layers use this; transitions stretched across full scroll. ———
+  const HERO_HEIGHT_VH = 200;
   const heroProgress = scrollProgress;
-  const SCENE_COUNT = 5;
-  const VH_PER_SCENE = 60; // 60vh per scene → 300vh total, matches min-h-[300vh]
-  const revealT = heroProgress; // use raw progress for particle bar and headline segment (0→1 over full scroll)
+  const revealT = heroProgress;
 
-  // Single scroll driver: 5 "sections" of 60vh each (legacy-style section height) so particle scroll matches scenes.
   useEffect(() => {
     const vh = typeof window !== "undefined" ? window.innerHeight : 700;
-    const scrollRange = (vh * VH_PER_SCENE * SCENE_COUNT) / 100;
+    const scrollRange = (vh * HERO_HEIGHT_VH) / 100;
     const onScroll = () => {
       const y = window.scrollY;
       scrollPendingRef.current = Math.min(y / scrollRange, 1);
@@ -263,8 +259,6 @@ export default function CinematicHeroScroll({
     return Math.min(1, (introT - t2) / 0.2);
   }, [introT, t2]);
 
-  const metaLineOpacity = useMemo(() => smoothstep(0.02, 0.22, heroProgress), [heroProgress]);
-
   // Headline per scene: segment 0→4 over heroProgress 0→1 (smooth crossfade at boundaries)
   const SCROLL_HEADLINES: string[] = locale === "vi" ? SCROLL_HEADLINES_VI : SCROLL_HEADLINES_EN;
   const N = SCROLL_HEADLINES.length;
@@ -284,14 +278,24 @@ export default function CinematicHeroScroll({
 
   const breathingScale = isMobile ? 1.015 : 1.02;
   const breathDuration = 5;
-  // Scene 5: GLB bigger so users see full island (scale up 0.8→1)
+  // Final state (0.8–1): GLB dominant; headline + meta fade out; only CTA + LEO MÂY 2026 + footer tagline
   const islandScaleBase = isMobile ? 0.85 : 1.1;
-  const islandScale = islandScaleBase + (isMobile ? 0.35 : 0.4) * smoothstep(0.8, 1, heroProgress);
+  const islandScaleFinal = isMobile ? 1.5 : 1.85;
+  const islandScale = heroProgress <= 0.75
+    ? islandScaleBase + (isMobile ? 0.2 : 0.25) * smoothstep(0.5, 0.75, heroProgress)
+    : islandScaleBase + (islandScaleFinal - islandScaleBase) * smoothstep(0.75, 0.98, heroProgress);
+  const headlineStackOpacity = 1 - smoothstep(0.78, 0.92, heroProgress);
+  const metaLineOpacity = smoothstep(0.05, 0.2, heroProgress) * (1 - smoothstep(0.78, 0.9, heroProgress));
+  const leoMay2026Opacity = smoothstep(0.88, 0.98, heroProgress);
+  const footerTaglineOpacity = smoothstep(0.9, 1, heroProgress);
+  const ctaOpacity = Math.min(1, 0.85 + 0.15 * (1 - smoothstep(0.82, 0.95, heroProgress))); // CTA visible throughout, slight emphasis at climax
+  const footerEthos = getMessages(locale).footer.ethos;
 
   return (
     <div
       ref={containerRef}
-      className="cinematic-hero relative min-h-[300vh]"
+      className="cinematic-hero relative"
+      style={{ height: "200vh", background: HERO_BG }}
       onClick={handleInteraction}
       onTouchStart={handleInteraction}
       onKeyDown={handleInteraction}
@@ -300,8 +304,9 @@ export default function CinematicHeroScroll({
       aria-label="Start experience"
     >
       <AscentBar />
+      {/* Locked stage: sticky 100vh; all hero visuals live here */}
       <div
-        className="sticky top-0 min-h-[100dvh] flex flex-col items-center justify-center overflow-hidden"
+        className="sticky top-0 h-[100vh] w-full flex flex-col items-center justify-center overflow-hidden"
         style={{ background: HERO_BG }}
       >
         {/* Background layers */}
@@ -403,12 +408,12 @@ export default function CinematicHeroScroll({
           ))}
         </div>
 
-        {/* Logo: mobile = top-left sticky, never fades out; desktop = center-top */}
-        <motion.div
-          className={`absolute z-20 flex flex-col ${isMobile ? "top-6 left-4 md:top-8 md:left-6 items-start text-left" : "top-6 left-1/2 -translate-x-1/2 md:top-8 items-center text-center"}`}
+        {/* Top nav: fixed, always visible during hero scroll — never fades out */}
+        <div
+          className={`fixed z-20 flex flex-col ${isMobile ? "top-6 left-4 md:top-8 md:left-6 items-start text-left" : "top-6 left-1/2 -translate-x-1/2 md:top-8 items-center text-center"}`}
           style={{
-            opacity: isMobile ? (frame1Progress >= 1 ? 1 : logoOpacity) : logoOpacity * 0.9,
-            scale: logoScale,
+            opacity: isMobile ? (frame1Progress >= 1 ? 1 : logoOpacity) : logoOpacity * 0.98,
+            transform: isMobile ? undefined : `translate(-50%, 0) scale(${logoScale})`,
           }}
         >
           <Image
@@ -419,7 +424,7 @@ export default function CinematicHeroScroll({
             className="w-[110px] md:w-[140px] h-auto object-contain"
             priority
           />
-          <motion.span
+          <span
             className="mt-2 text-white/70 uppercase tracking-[0.04em] font-medium"
             style={{
               opacity: isMobile ? (frame1Progress >= 1 ? 1 : taglineOpacity) : taglineOpacity,
@@ -427,8 +432,8 @@ export default function CinematicHeroScroll({
             }}
           >
             CLIMB THE CLOUDS
-          </motion.span>
-        </motion.div>
+          </span>
+        </div>
 
         {/* Layout: mobile = stacked (mascot top, headline below); desktop = mascot viewport-centered (absolute), headline left column */}
         <div
@@ -439,13 +444,13 @@ export default function CinematicHeroScroll({
           }
         >
           <div className={`pointer-events-auto flex flex-col justify-center w-full max-w-[min(100%,520px)] ${isMobile ? "order-2 items-start text-left max-w-[85%]" : "relative z-10 max-w-[min(42%,420px)]"}`}>
-            {/* Single text stack: two states (A/B) crossfade only; one meta line; no duplicated layers */}
+            {/* Single headline stack: two states (A/B) crossfade; no ghosting; fades out in final state */}
             <div
               className={`max-w-[min(100%,1100px)] mt-6 sm:mt-8 md:mt-12 ${isMobile ? "text-left w-full" : ""}`}
-              style={{ opacity: headlineBlockOpacity }}
+              style={{ opacity: headlineBlockOpacity * headlineStackOpacity }}
             >
               <h1
-                className={`relative font-bold text-white tracking-[-0.02em] overflow-hidden ${isMobile ? "text-left text-[clamp(36px,11vw,52px)] leading-[1.2] tracking-tight min-h-[2.5em]" : "text-[clamp(28px,6.5vw,40px)] sm:text-[clamp(32px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,96px)] leading-[1.15] min-h-[2.6em] sm:min-h-[2.8em] md:min-h-[3em]"}`}
+                className={`relative font-bold text-white tracking-[-0.02em] ${isMobile ? "text-left text-[clamp(36px,11vw,52px)] leading-[1.2] tracking-tight min-h-[2.5em]" : "text-[clamp(28px,6.5vw,40px)] sm:text-[clamp(32px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,96px)] leading-[1.2] min-h-[2.8em] sm:min-h-[3em] md:min-h-[3.2em]"}`}
                 style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
               >
                 <span
@@ -480,9 +485,8 @@ export default function CinematicHeroScroll({
               >
                 Premium Climbing Experience — HCMC — 2026
               </p>
-              {/* CTA: mobile = directly under meta (minimal gap); desktop = below with spacing */}
               {isMobile ? (
-                <div className="mt-3 pointer-events-auto">
+                <div className="mt-3 pointer-events-auto" style={{ opacity: ctaOpacity }}>
                   <motion.button
                     type="button"
                     onClick={(e) => {
@@ -502,10 +506,7 @@ export default function CinematicHeroScroll({
               ) : null}
             </div>
             {!isMobile && (
-              <motion.div
-                className="mt-6 sm:mt-8 md:mt-10"
-                style={{ opacity: headlineBlockOpacity }}
-              >
+              <div className="mt-6 sm:mt-8 md:mt-10" style={{ opacity: headlineBlockOpacity * ctaOpacity }}>
                 <motion.button
                   type="button"
                   onClick={(e) => {
@@ -526,7 +527,7 @@ export default function CinematicHeroScroll({
                 >
                   JOIN THE FOUNDING ASCENT
                 </motion.button>
-              </motion.div>
+              </div>
             )}
           </div>
 
@@ -604,7 +605,7 @@ export default function CinematicHeroScroll({
         </div>
 
         {/* Scroll hint */}
-        <motion.div
+        <div
           className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-10"
           style={{
             opacity: introT >= t3 ? 0.6 - heroProgress * 0.6 : 0,
@@ -614,11 +615,37 @@ export default function CinematicHeroScroll({
         >
           <span className="uppercase tracking-widest">Scroll</span>
           <span className="text-white/50">↓</span>
-        </motion.div>
-      </div>
+        </div>
 
-      {/* Spacer for scroll — solid black so no blue/other background shows above footer */}
-      <div className="h-[200vmin] min-h-[50vh]" style={{ background: HERO_BG }} aria-hidden />
+        {/* Final state: LEO MÂY 2026 — appears cleanly at climax (no flicker) */}
+        <div
+          className="absolute bottom-[22vh] left-1/2 -translate-x-1/2 z-10 text-center pointer-events-none"
+          style={{
+            opacity: leoMay2026Opacity,
+            fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
+            fontSize: "clamp(18px, 2.5vw, 28px)",
+            fontWeight: 700,
+            letterSpacing: "0.02em",
+            color: "rgba(255,255,255,0.9)",
+          }}
+        >
+          LEO MÂY — 2026
+        </div>
+
+        {/* Footer tagline locked inside hero stage — only visible at end of scroll */}
+        <div
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 text-center max-w-[90vw] pointer-events-none"
+          style={{
+            opacity: footerTaglineOpacity,
+            fontFamily: "MiSans-Regular, sans-serif",
+            fontSize: "clamp(12px, 1.2vw, 14px)",
+            color: "rgba(255,255,255,0.7)",
+            letterSpacing: "0.03em",
+          }}
+        >
+          {footerEthos}
+        </div>
+      </div>
     </div>
   );
 }

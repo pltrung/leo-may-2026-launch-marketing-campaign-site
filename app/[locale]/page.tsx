@@ -102,6 +102,7 @@ function HomeContent() {
   const heroMascotPartColors: MascotPartColors | null = cloudForMascot ? getMascotPartColors(cloudForMascot.id) : null;
 
   const [heroReady, setHeroReady] = useState(false);
+  const [heroScrollComplete, setHeroScrollComplete] = useState(false);
   useEffect(() => {
     const check = () => document.body.classList.contains("hero-ready") && setHeroReady(true);
     if (document.body.classList.contains("hero-ready")) {
@@ -112,6 +113,27 @@ function HomeContent() {
     obs.observe(document.body, { attributes: true, attributeFilter: ["class"] });
     return () => obs.disconnect();
   }, []);
+
+  // Hide footer until hero scroll completes (200vh) so it doesn’t scroll in prematurely
+  useEffect(() => {
+    if (!USE_CINEMATIC_HERO || showClouds) return;
+    const vh = typeof window !== "undefined" ? window.innerHeight : 700;
+    const heroEnd = (vh * 200) / 100 * 0.98;
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setHeroScrollComplete(window.scrollY >= heroEnd);
+      });
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [showClouds]);
 
   const transitionActive = skyVisible || isCountdownTransition;
   const heroContentOpacity = showClouds ? 1 : (transitionActive ? 0 : heroOpacity);
@@ -170,7 +192,10 @@ function HomeContent() {
         className="flex-shrink-0 relative z-10 bg-[#0B0B0F] pt-1"
         data-hero-next
         initial={false}
-        animate={{ opacity: transitionActive ? 0 : 1 }}
+        animate={{
+          opacity: transitionActive ? 0 : (USE_CINEMATIC_HERO && !showClouds ? (heroScrollComplete ? 1 : 0) : 1),
+        }}
+        style={{ pointerEvents: USE_CINEMATIC_HERO && !showClouds && !heroScrollComplete ? "none" : "auto" }}
         transition={{
           duration: 0.7,
           delay: transitionActive ? 0 : 0.4,
