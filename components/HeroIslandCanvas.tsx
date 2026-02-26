@@ -1,23 +1,42 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import HeroIslandGLB from "./HeroIslandGLB";
 
-/** Mount Canvas once when island band is entered; keep mounted to avoid re-mount on scroll. */
+const DEFAULT_CAMERA_Z = 8;
+const ZOOMED_CAMERA_Z = 4.2;
+
+/** Drives camera Z for cinematic push-in (last 20% of hero). */
+function CameraPushIn({ cameraDistance }: { cameraDistance: number }) {
+  const { camera } = useThree();
+  useFrame(() => {
+    if (camera.position.z !== cameraDistance) {
+      camera.position.z = cameraDistance;
+      camera.updateProjectionMatrix();
+    }
+  });
+  return null;
+}
+
+/** Mount Canvas once when island band is entered (or when shouldMount); keep mounted to avoid pop. */
 export default function HeroIslandCanvas({
   opacity,
   scale,
+  cameraDistance = DEFAULT_CAMERA_Z,
+  shouldMount,
   className,
 }: {
   opacity: number;
   scale: number;
+  cameraDistance?: number;
+  shouldMount?: boolean;
   className?: string;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
-    if (opacity > 0.01) setMounted(true);
-  }, [opacity]);
+    if (shouldMount ?? opacity > 0.01) setMounted(true);
+  }, [opacity, shouldMount]);
 
   return (
     <div
@@ -32,11 +51,12 @@ export default function HeroIslandCanvas({
     >
       {mounted && (
         <Canvas
-          camera={{ position: [0, 0, 8], fov: 45 }}
+          camera={{ position: [0, 0, DEFAULT_CAMERA_Z], fov: 45 }}
           dpr={[1, 2]}
           gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
           frameloop="always"
         >
+          <CameraPushIn cameraDistance={cameraDistance} />
           <ambientLight intensity={0.6} />
           <directionalLight position={[5, 5, 5]} intensity={1} />
           <directionalLight position={[-3, 2, 2]} intensity={0.4} />

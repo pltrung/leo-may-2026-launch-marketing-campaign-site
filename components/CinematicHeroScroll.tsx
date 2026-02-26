@@ -65,9 +65,41 @@ const MOBILE_FRAME2_MS = 2600;
 const MOBILE_FRAME3_MS = 4500;
 
 /**
- * Locked cinematic hero: single 200vh timeline, sticky 100vh stage.
- * Top nav fixed; one headline stack (2 states max); final state: GLB dominant, CTA + LEO MÂY 2026.
- * Footer tagline inside stage; no blue bleed. All driven by one heroProgress (0→1 over 200vh).
+ * Locked cinematic hero: single timeline (220vh), sticky 100vh stage. One heroProgress (0→1) drives all layers.
+ *
+ * SEQUENCE (hero scroll 1 → 6 equivalent) — FADE IN / FADE OUT AT EACH STEP:
+ *
+ * INTRO (time-based, before scroll):
+ *   • Logo: fade in (frame1), then STAY — never fade out.
+ *   • Tagline "CLIMB THE CLOUDS": fade in (frame1), stay.
+ *   • Mascot: fade in + rise (frame2), breathing loop.
+ *   • Headline block: fade in (frame3). Meta line: fade in with scroll (see below).
+ *   • Scroll hint: appears at frame4, then fades out with scroll.
+ *
+ * heroProgress 0 → 0.2 (Scene 1 → 2):
+ *   • Mascot: LIFT + FADE OUT (smoothstep 0.18→0.38).
+ *   • Headline: crossfade "CLIMB WITH INTENTION." → "ASCEND TOGETHER." (same curve as particles).
+ *   • Wall + holds: FADE IN (0.32→0.52).
+ *   • Meta line: FADE IN (0.05→0.2), then stays.
+ *   • Right particles: position + intensity driven by heroProgress (synced).
+ *
+ * heroProgress 0.2 → 0.5 (Scene 2 → 3):
+ *   • Headline: crossfade to "BUILD YOUR CLOUD." (segment from heroProgress).
+ *   • Holds: stay visible. Aura/particles intensify.
+ *
+ * heroProgress 0.5 → 0.8 (Scene 3 → 4 → 5):
+ *   • Holds: FADE OUT (0.62→0.76).
+ *   • GLB island: FADE IN (0.6→0.78), scale up (0.75→0.98).
+ *   • Headline: crossfade "SHAPE THE STANDARD." → "LEO MÂY — 2026."
+ *   • Headline stack + meta: start FADE OUT (0.78→0.92).
+ *
+ * heroProgress 0.8 → 1 (Scene 5 → 6 — FINAL, cinematic zoom):
+ *   • GLB: CAMERA PUSH-IN (scale up + optional 3D zoom) so island dominates.
+ *   • Headline + meta: fully FADED OUT.
+ *   • CTA: STAY visible (stable).
+ *   • "LEO MÂY — 2026": FADE IN (0.88→0.98), no flicker.
+ *   • Footer tagline: FADE IN (0.9→1) — inside sticky stage, not page scroll.
+ *   • Stage stays locked; no pop. Next section (footer) appears only after heroProgress 1.
  */
 
 export interface CinematicHeroScrollProps {
@@ -121,6 +153,7 @@ export default function CinematicHeroScroll({
   const [scrollProgress, setScrollProgress] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(typeof window !== "undefined" ? window.innerHeight : 700);
   const [userInteracted, setUserInteracted] = useState(false);
+  const [islandCanvasMounted, setIslandCanvasMounted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const scrollRafRef = useRef<number>(0);
   const scrollPendingRef = useRef<number | null>(null);
@@ -150,8 +183,8 @@ export default function CinematicHeroScroll({
     return t * t * (3 - 2 * t);
   }
 
-  // ——— Single scroll driver: 200vh total, heroProgress 0→1. All layers use this; transitions stretched across full scroll. ———
-  const HERO_HEIGHT_VH = 200;
+  // ——— Single scroll driver: 220vh total, heroProgress 0→1. All layers use this; no conditional mount. ———
+  const HERO_HEIGHT_VH = 220;
   const heroProgress = scrollProgress;
   const revealT = heroProgress;
 
@@ -291,11 +324,18 @@ export default function CinematicHeroScroll({
   const ctaOpacity = Math.min(1, 0.85 + 0.15 * (1 - smoothstep(0.82, 0.95, heroProgress))); // CTA visible throughout, slight emphasis at climax
   const footerEthos = getMessages(locale).footer.ethos;
 
+  // Cinematic push-in: last 20% of hero (0.8→1) move camera from 8 to 4.2
+  const cameraDistance = heroProgress < 0.8 ? 8 : 8 - smoothstep(0.8, 1, heroProgress) * (8 - 4.2);
+
+  useEffect(() => {
+    if (heroProgress >= 0.55) setIslandCanvasMounted(true);
+  }, [heroProgress]);
+
   return (
     <div
       ref={containerRef}
       className="cinematic-hero relative"
-      style={{ height: "200vh", background: HERO_BG }}
+      style={{ height: `${HERO_HEIGHT_VH}vh`, background: HERO_BG }}
       onClick={handleInteraction}
       onTouchStart={handleInteraction}
       onKeyDown={handleInteraction}
@@ -388,7 +428,12 @@ export default function CinematicHeroScroll({
 
         {/* STATE C: GLB island — fades in as holds fade out; same heroProgress driver */}
         <div className="absolute inset-0 z-[5] pointer-events-none" aria-hidden>
-          <HeroIslandCanvas opacity={islandOpacity} scale={islandScale} />
+          <HeroIslandCanvas
+            opacity={islandOpacity}
+            scale={islandScale}
+            cameraDistance={cameraDistance}
+            shouldMount={islandCanvasMounted}
+          />
         </div>
 
         {/* Floating particles — intensity from revealT (same curve); subtle ambient only */}

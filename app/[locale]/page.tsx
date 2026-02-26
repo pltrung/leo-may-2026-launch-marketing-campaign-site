@@ -114,11 +114,11 @@ function HomeContent() {
     return () => obs.disconnect();
   }, []);
 
-  // Hide footer until hero scroll completes (200vh) so it doesn’t scroll in prematurely
+  // Hide footer until hero scroll completes (220vh) so it doesn’t scroll in prematurely
   useEffect(() => {
     if (!USE_CINEMATIC_HERO || showClouds) return;
     const vh = typeof window !== "undefined" ? window.innerHeight : 700;
-    const heroEnd = (vh * 200) / 100 * 0.98;
+    const heroEnd = (vh * 220) / 100 * 0.98;
     let raf = 0;
     const onScroll = () => {
       if (raf) return;
