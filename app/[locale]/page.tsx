@@ -28,6 +28,7 @@ import { CloudPersonality, getCloudById } from "@/lib/cloudData";
 import { getUser } from "@/lib/userStorage";
 import type { Locale } from "@/lib/i18n";
 import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
+import { HERO_BG } from "@/lib/heroConstants";
 
 const USE_CINEMATIC_HERO = true;
 
@@ -149,7 +150,7 @@ function HomeContent() {
     <div
       id="hero-page"
       className="page-container relative flex flex-col"
-      style={showCinematicLayers ? { minHeight: "350vh", height: "350vh", overflowX: "hidden" } : { minHeight: "100dvh" }}
+      style={showCinematicLayers ? { minHeight: "350vh", height: "350vh", overflowX: "hidden", background: HERO_BG } : { minHeight: "100dvh" }}
     >
       <main className={`relative z-10 ${showCinematicLayers ? "flex-shrink-0" : "flex-1 min-h-0"}`} style={showCinematicLayers ? { height: "350vh" } : undefined}>
       <BrandBackground />
@@ -196,16 +197,13 @@ function HomeContent() {
       )}
 
       <AnimatePresence mode="wait">
-        <motion.div
-          key={showClouds ? "clouds" : USE_CINEMATIC_HERO ? "cinematic-hero" : "legacy-hero"}
-          className="relative z-0"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: heroContentOpacity }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: showClouds ? 0.4 : transitionActive ? 0.5 : 0.3, ease: [0.22, 1, 0.36, 1] }}
-        >
-          {!showClouds ? (
-            USE_CINEMATIC_HERO ? (
+        {!showClouds ? (
+          USE_CINEMATIC_HERO ? (
+            <div
+              key="cinematic-hero"
+              className="relative z-0"
+              style={{ opacity: heroContentOpacity }}
+            >
               <CinematicHeroScroll
                 partColors={heroMascotPartColors}
                 onJoin={handleAscendClick}
@@ -215,13 +213,31 @@ function HomeContent() {
                 wrapperVh={HERO_WRAPPER_VH}
                 footerMessages={footerMessages}
               />
-            ) : (
-              <LegacyHeroScroll partColors={heroMascotPartColors} onJoin={handleAscendClick} />
-            )
+            </div>
           ) : (
+            <motion.div
+              key="legacy-hero"
+              className="relative z-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: heroContentOpacity }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: transitionActive ? 0.5 : 0.3, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <LegacyHeroScroll partColors={heroMascotPartColors} onJoin={handleAscendClick} />
+            </motion.div>
+          )
+        ) : (
+          <motion.div
+            key="clouds"
+            className="relative z-0"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          >
             <CloudSelector onSelect={setSelectedCloud} />
-          )}
-        </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       </main>

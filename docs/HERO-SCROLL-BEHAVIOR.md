@@ -35,6 +35,13 @@ Scrolling should feel **invisible**. Content inside a **fixed frame** is animati
 
 Both use the same locked cinematic frame: same heroProgress steps, same headline/visual transitions, same final GLB zoom. On mobile: narrative at top center, center visual (mascot/GLB) fixed in middle, CTA fixed above footer; slightly stronger vignette and progress bar for clarity; 100dvh and safe-area respected. Same cinematic feeling on all viewports.
 
+## No scroll feel / no black screen
+
+- Hero container has no translateY or parallax; scroll does not move the hero visually.
+- Cinematic hero is rendered inside a **plain div** (no Framer Motion transform wrapper) so `position: sticky` is relative to the viewport — the stage stays fixed until heroProgress === 1.
+- Page and hero wrapper use HERO_BG for the full scroll range so no other background appears.
+- Only internal elements animate: IP translateY (upward), headline opacity (crossfade), visual opacity, GLB camera zoom. No container movement.
+
 ## Result
 
 Locked cinematic frame: header, footer, and CTA stay fixed; only narrative and center visual animate. Scrolling feels invisible. Mobile and desktop both feel cinematic.

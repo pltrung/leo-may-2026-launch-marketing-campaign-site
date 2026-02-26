@@ -104,16 +104,10 @@ export default function CinematicHeroScroll({
 
   const p = heroProgress;
 
-  const slidePx = 20;
   const headline1Opacity = useMemo(() => {
     if (p < 0.15) return 1;
     if (p < 0.25) return 1 - smoothstep(0.15, 0.25, p);
     return 0;
-  }, [p]);
-  const headline1TranslateY = useMemo(() => {
-    if (p < 0.15) return 0;
-    if (p < 0.25) return -slidePx * smoothstep(0.15, 0.25, p);
-    return -slidePx;
   }, [p]);
   const headline2Opacity = useMemo(() => {
     if (p < 0.2) return 0;
@@ -122,13 +116,6 @@ export default function CinematicHeroScroll({
     if (p < 0.55) return 1 - smoothstep(0.45, 0.55, p);
     return 0;
   }, [p]);
-  const headline2TranslateY = useMemo(() => {
-    if (p < 0.2) return slidePx;
-    if (p < 0.35) return slidePx * (1 - smoothstep(0.2, 0.35, p));
-    if (p < 0.45) return 0;
-    if (p < 0.55) return -slidePx * smoothstep(0.45, 0.55, p);
-    return -slidePx;
-  }, [p]);
   const headline3Opacity = useMemo(() => {
     if (p < 0.5) return 0;
     if (p < 0.65) return smoothstep(0.5, 0.65, p);
@@ -136,29 +123,15 @@ export default function CinematicHeroScroll({
     if (p < 0.85) return 1 - smoothstep(0.75, 0.85, p);
     return 0;
   }, [p]);
-  const headline3TranslateY = useMemo(() => {
-    if (p < 0.5) return slidePx;
-    if (p < 0.65) return slidePx * (1 - smoothstep(0.5, 0.65, p));
-    if (p < 0.75) return 0;
-    if (p < 0.85) return -slidePx * smoothstep(0.75, 0.85, p);
-    return -slidePx;
-  }, [p]);
   const headline4Opacity = useMemo(() => {
     if (p < 0.8) return 0;
     if (p < 0.9) return smoothstep(0.8, 0.9, p);
     return 1 - smoothstep(0.9, 1, p);
   }, [p]);
-  const headline4TranslateY = useMemo(() => {
-    if (p < 0.8) return slidePx;
-    if (p < 0.9) return slidePx * (1 - smoothstep(0.8, 0.9, p));
-    if (p < 1) return -slidePx * smoothstep(0.9, 1, p);
-    return -slidePx;
-  }, [p]);
 
   // Final 10%: headline out, CTA remains, GLB zooms in and fills screen; stage still locked.
   const narrativeStackOpacity = 1 - smoothstep(0.9, 1, p);
   const headlineOpacities = [headline1Opacity, headline2Opacity, headline3Opacity, headline4Opacity];
-  const headlineTranslateYs = [headline1TranslateY, headline2TranslateY, headline3TranslateY, headline4TranslateY];
 
   const mascotOpacity = 1 - smoothstep(0.15, 0.3, p);
   const mascotLift = smoothstep(0.15, 0.3, p);
@@ -183,6 +156,7 @@ export default function CinematicHeroScroll({
       style={{
         height: `${wrapperVh}vh`,
         background: HERO_BG,
+        transform: "none",
       }}
       aria-label="Cinematic hero — scroll drives animation only; frame is fixed"
     >
@@ -190,6 +164,8 @@ export default function CinematicHeroScroll({
         className="sticky w-full flex flex-col overflow-hidden"
         style={{
           top: 0,
+          left: 0,
+          right: 0,
           height: stageHeight,
           minHeight: "100dvh",
           background: HERO_BG,
@@ -248,7 +224,7 @@ export default function CinematicHeroScroll({
             />
           </div>
 
-          {/* Left narrative (desktop) / top narrative (mobile): fixed region; only headline + meta change (opacity/translate). */}
+          {/* Left narrative (desktop) / top narrative (mobile): fixed region; only headline + meta opacity change. */}
           <div
             className={`absolute z-10 pointer-events-none ${isMobile ? "left-4 right-4 top-[16%] text-center max-w-[90%]" : "left-4 sm:left-6 md:left-8 top-[18%] w-[min(42%,420px)]"}`}
             style={{ paddingTop: headerHeight }}
@@ -262,10 +238,7 @@ export default function CinematicHeroScroll({
                   <span
                     key={i}
                     className={`absolute top-0 block w-full ${isMobile ? "left-0 right-0 text-center" : "left-0 right-0"}`}
-                    style={{
-                      opacity: headlineOpacities[i] ?? 0,
-                      transform: `translateY(${headlineTranslateYs[i] ?? 0}px)`,
-                    }}
+                    style={{ opacity: headlineOpacities[i] ?? 0 }}
                     aria-hidden={(headlineOpacities[i] ?? 0) < 0.01}
                   >
                     {line}
