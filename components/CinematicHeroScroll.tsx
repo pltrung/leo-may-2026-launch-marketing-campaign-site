@@ -293,10 +293,6 @@ export default function CinematicHeroScroll({
   const particleIntensity = p >= 0.92 ? 0.72 : 1;
 
   /** Mobile: when we removed the sculpture box, the overlay became a single centered block. After first scroll the island GLB appears in the center and the text/CTA/meta (also centered) sit on top of it. Shift the block up once the island is visible so they don’t overlay. */
-  const islandVisible = p > 0.4;
-  const mobileOverlayShiftVh = isMobile ? -smoothstep(0.36, 0.55, p) * 24 : 0; // 0 → -24vh so text stays above island
-  const mobileOverlayJustifyStart = isMobile && islandVisible; // when island visible, pin text to top so island owns center
-
   const loadT = Math.min(loadElapsed, 1.5);
   const loadMascotOpacity = smoothstep(0.35, 0.65, loadT);
   const loadMascotY = 32 * (1 - smoothstep(0.35, 0.65, loadT));
@@ -337,7 +333,7 @@ export default function CinematicHeroScroll({
         {/* Subtle starfield behind GLB: full-screen canvas, z-index -1, pointer-events none; twinkle + slow drift + occasional shooting star */}
         <HeroStarfield heroTransitioning={(p >= 0.12 && p <= 0.26) || (p >= 0.74 && p <= 0.92)} />
 
-        {/* Full-viewport climbing-hold GLB layer: owns entire hero stage (no column/max-width); centered; content overlays above via z-index */}
+        {/* Full-viewport climbing-hold GLB layer: owns hero stage on desktop and mobile; content overlays above. On mobile, overlay keeps same vertical rhythm (no box) so layout/animation unchanged after GLB fades. */}
         <div
           className="absolute inset-0 z-10 flex items-center justify-center"
           style={{
@@ -402,26 +398,18 @@ export default function CinematicHeroScroll({
             />
           </div>
 
-          {/* Mobile: headline + CTA overlay (above GLB); no GLB in column */}
+          {/* Mobile: full-viewport GLB is in layer above; overlay = headline → CTA → arrow. Same top spacing as with box so layout/animation unchanged when GLB fades into next scenes. */}
           {isMobile && (
             <div
-              className="absolute inset-0 z-30 flex flex-col items-center overflow-auto pointer-events-none"
+              className="absolute inset-0 z-30 flex flex-col items-center justify-start overflow-auto pointer-events-none"
               style={{
-                justifyContent: mobileOverlayJustifyStart ? "flex-start" : "center",
-                paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 1rem + ${mobileOverlayJustifyStart ? "6vh" : "10vh"})`,
+                paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 1rem + 36vh)`,
                 paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + 1rem)`,
                 paddingLeft: "1rem",
                 paddingRight: "1rem",
               }}
             >
-              <div
-                className="flex flex-col items-center w-full flex shrink-0"
-                style={{
-                  transform: `translateY(${mobileOverlayShiftVh}vh)`,
-                  transition: "transform 0.4s ease-out",
-                }}
-              >
-              {/* Zone 2: Headline — floats over full-viewport GLB */}
+              {/* Headline (was Zone 2) */}
               <div
                 className="flex shrink-0 flex-col items-center text-center w-full max-w-[90vw] pointer-events-none"
                 style={{
@@ -525,7 +513,6 @@ export default function CinematicHeroScroll({
                   className="w-6 h-6 object-contain opacity-80"
                   style={{ transform: "rotate(180deg)" }}
                 />
-              </div>
               </div>
             </div>
           )}
