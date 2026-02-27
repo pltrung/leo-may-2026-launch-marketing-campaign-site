@@ -21,7 +21,7 @@ type HeadlineStage = { line1: string; line2: string; line3: string };
 const HEADLINE_STAGES_EN: HeadlineStage[] = [
   { line1: "CLIMB.", line2: "IN YOUR OWN", line3: "SKY." },
   { line1: "CONNECT.", line2: "IN THE SAME", line3: "RHYTHM." },
-  { line1: "BE HERE.", line2: "IN EVERY MOVE", line3: "MENT." },
+  { line1: "BE HERE.", line2: "IN EVERY", line3: "MOVEMENT." },
   { line1: "BE FREE", line2: "YOUR", line3: "WAY." },
 ];
 const HEADLINE_STAGES_VI: HeadlineStage[] = [
@@ -504,10 +504,14 @@ export default function CinematicHeroScroll({
             </div>
           )}
 
-          {/* Mobile: About Us CTA — centered on top of GLB/logo; only when GLB visible and scaled to 0.99 */}
+          {/* Mobile: About Us CTA — above GLB/logo; only fades in after scroll is done at the end */}
           {isMobile && aboutUsLabel && onAboutUsClick && (
             <div
-              className="absolute inset-0 z-[35] flex items-center justify-center pointer-events-none"
+              className="absolute left-1/2 z-[35] pointer-events-none"
+              style={{
+                top: "38%",
+                transform: "translateX(-50%)",
+              }}
               aria-hidden
             >
               <motion.button
@@ -520,7 +524,7 @@ export default function CinematicHeroScroll({
                 style={{
                   letterSpacing: "0.08em",
                   boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
-                  opacity: glbOpacity * smoothstep(0.65, 0.85, heroProgress),
+                  opacity: glbOpacity * smoothstep(0.88, 0.98, heroProgress),
                 }}
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 1.02 }}
@@ -597,12 +601,13 @@ export default function CinematicHeroScroll({
                   Premium Climbing Experience · HCMC · 2026
                 </p>
               </div>
-              {/* About Us CTA — desktop: anchored to right layout margin, same baseline as primary CTA; opacity-only fade, no position shift */}
+              {/* About Us CTA — desktop: right below GLB, centered relative to viewport (GLB max size) */}
               {aboutUsLabel && onAboutUsClick && (
                 <div
-                  className="absolute z-30 pointer-events-auto bottom-[120px] flex flex-col items-end"
+                  className="absolute left-1/2 z-30 pointer-events-auto flex flex-col items-center justify-center"
                   style={{
-                    right: "clamp(1.5rem, 7vw, 6rem)",
+                    top: "58%",
+                    transform: "translateX(-50%)",
                     opacity: smoothstep(0.78, 0.92, heroProgress),
                   }}
                 >
