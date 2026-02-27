@@ -5,7 +5,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -14,18 +13,22 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 
 const Z_INDEX = 9999;
+const DOT_SIZE_PX = 16;
 
 // Collapse (TV off)
 const DURATION_COLLAPSE_S = 0.6;
 const EASE_COLLAPSE = [0.55, 0, 1, 1] as const;
 
-// CRT turn-on: ease-out for all steps
-const EASE_OUT = [0.33, 1, 0.5, 1] as const;
-const DURATION_DOT_S = 0.2;        // Phase 2: center dot
-const DURATION_LINE_S = 0.12;      // Phase 3: horizontal line (100–150ms)
-const DURATION_VERTICAL_S = 0.35;  // Phase 4: vertical fill
-const DURATION_STABILIZE_S = 0.15; // Phase 5: scanline jitter
-const DURATION_FADE_S = 0.4;      // Phase 5: overlay fade out
+// CRT turn-on: analog, slow early stages, ease-out
+const EASE_OUT = [0.22, 1, 0.36, 1] as const;
+const DURATION_BLACK_HOLD_S = 0.12;     // Phase 1: 120ms
+const DURATION_GLOW_S = 0.11;           // Phase 2: ~110ms
+const DURATION_DOT_BUILD_S = 0.12;     // Phase 3: ~120ms
+const DURATION_HORIZONTAL_S = 0.14;    // Phase 4: 120–150ms
+const DURATION_VERTICAL_S = 0.28;      // Phase 5: 250–300ms
+const DURATION_STABILIZE_HOLD_S = 0.05; // Phase 6: full white hold ~50ms
+const DURATION_FLICKER_S = 0.12;       // Phase 6: subtle flicker
+const DURATION_FADE_S = 0.2;           // Phase 6: overlay fade 200ms
 
 export type TransitionPhase = "idle" | "collapsing" | "holding" | "expanding";
 
@@ -105,7 +108,7 @@ export function TransitionOverlayProvider({ children }: { children: ReactNode })
   );
 }
 
-type ExpandStep = 1 | 2 | 3 | 4 | 5;
+type ExpandStep = 1 | 2 | 3 | 4 | 5 | 6;
 
 function TransitionOverlayLayer({
   phase,
@@ -124,11 +127,10 @@ function TransitionOverlayLayer({
     if (phase === "expanding") setExpandStep(1);
   }, [phase]);
 
-  // Phase 5: fade entire overlay after scanline; then unmount
-  const overlayOpacity = isExpanding && expandStep === 5 ? 0 : 1;
-  const overlayFadeComplete = expandStep === 5;
+  // Phase 6: fade overlay only after stabilize + flicker; then unmount
+  const overlayFadeActive = isExpanding && expandStep === 6;
+  const overlayOpacity = overlayFadeActive ? 0 : 1;
 
-  // ----- Collapse (TV off): two black bars -----
   const topScaleY = isCollapsing ? 1 : 0;
   const bottomScaleY = isCollapsing ? 1 : 0;
   const initialScaleY = phase === "collapsing" ? 0 : undefined;
@@ -136,21 +138,24 @@ function TransitionOverlayLayer({
   return (
     <motion.div
       id="transition-overlay"
-      className="fixed inset-0 pointer-events-auto"
+      className="fixed inset-0 pointer-events-auto overflow-hidden"
       style={{ zIndex: Z_INDEX, background: "#000" }}
       aria-hidden="true"
       initial={false}
       animate={{ opacity: overlayOpacity }}
       transition={
-        overlayFadeComplete
-          ? { delay: DURATION_STABILIZE_S, duration: DURATION_FADE_S, ease: EASE_OUT }
+        overlayFadeActive
+          ? {
+              delay: DURATION_STABILIZE_HOLD_S + DURATION_FLICKER_S,
+              duration: DURATION_FADE_S,
+              ease: EASE_OUT,
+            }
           : { duration: 0 }
       }
       onAnimationComplete={() => {
-        if (overlayFadeComplete) onExpandComplete();
+        if (overlayFadeActive) onExpandComplete();
       }}
     >
-      {/* Collapse / holding: two black bars (TV off) */}
       {(phase === "collapsing" || phase === "holding") && (
         <>
           <motion.div
@@ -173,11 +178,10 @@ function TransitionOverlayLayer({
         </>
       )}
 
-      {/* Expanding: CRT turn-on sequence */}
       {isExpanding && (
         <CRTTurnOnSequence
           step={expandStep}
-          onStepComplete={(next) => next <= 5 && setExpandStep(next)}
+          onStepComplete={(next) => next <= 6 && setExpandStep(next)}
         />
       )}
     </motion.div>
@@ -191,88 +195,113 @@ function CRTTurnOnSequence({
   step: ExpandStep;
   onStepComplete: (nextStep: ExpandStep) => void;
 }) {
-  // Phase 1: full black (no animation) — advance to 2 immediately so dot can run
-  useLayoutEffect(() => {
-    if (step === 1) {
-      const id = requestAnimationFrame(() => onStepComplete(2));
-      return () => cancelAnimationFrame(id);
-    }
-  }, [step, onStepComplete]);
+  const [scaleMax, setScaleMax] = useState({ x: 60, y: 40 });
+  const lineScaleY = 2 / DOT_SIZE_PX;
 
-  // Phase 2: center dot + glow
-  // Phase 3: horizontal line (scaleX)
-  // Phase 4: vertical fill (scaleY) + brightness
-  // Phase 5: scanline flicker + fade overlay
+  useEffect(() => {
+    const update = () => {
+      if (typeof window === "undefined") return;
+      setScaleMax({
+        x: window.innerWidth / DOT_SIZE_PX,
+        y: window.innerHeight / DOT_SIZE_PX,
+      });
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   return (
     <>
-      {/* Black base during turn-on */}
-      <div className="absolute inset-0 bg-black" aria-hidden />
+      <div className="absolute inset-0 bg-black overflow-hidden" aria-hidden />
 
-      {/* Phase 2: Center dot with glow */}
-      {step === 2 && (
+      {/* Phase 1: Black hold 120ms — minimal opacity keyframe so onAnimationComplete fires */}
+      {step >= 1 && (
         <motion.div
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
-          style={{
-            width: 24,
-            height: 24,
-            boxShadow: "0 0 40px 8px rgba(255,255,255,0.6)",
-            transformOrigin: "center",
-          }}
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: DURATION_DOT_S, ease: EASE_OUT }}
-          onAnimationComplete={() => onStepComplete(3)}
+          className="absolute inset-0 pointer-events-none"
+          initial={{ opacity: 1 }}
+          animate={{ opacity: [1, 1.001, 1] }}
+          transition={{ duration: DURATION_BLACK_HOLD_S, ease: "linear" }}
+          onAnimationComplete={() => step === 1 && onStepComplete(2)}
+          aria-hidden
         />
       )}
 
-      {/* Phase 3 & 4: Horizontal line (scaleX) then vertical fill (scaleY) */}
-      {step >= 3 && (
+      {/* Single expanding element: 16×16px, transform-origin center, scale only. No full-width div. */}
+      {step >= 2 && (
         <motion.div
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white"
+          className="absolute left-1/2 top-1/2 bg-white"
           style={{
-            width: "100vw",
-            height: "100dvh",
-            maxWidth: "100%",
+            width: DOT_SIZE_PX,
+            height: DOT_SIZE_PX,
+            marginLeft: -DOT_SIZE_PX / 2,
+            marginTop: -DOT_SIZE_PX / 2,
             transformOrigin: "center center",
-            boxShadow: step === 4 ? "0 0 60px 20px rgba(255,255,255,0.15)" : "none",
+            borderRadius: step <= 3 ? "50%" : "0%",
+            boxShadow:
+              step === 2
+                ? "0 0 24px 6px rgba(255,255,255,0.5)"
+                : step === 3
+                  ? "0 0 12px 2px rgba(255,255,255,0.7)"
+                  : step === 5
+                    ? "0 0 80px 30px rgba(255,255,255,0.25)"
+                    : "none",
+            filter: step === 2 ? "blur(1px)" : "none",
           }}
-          initial={step === 3 ? { scaleX: 0, scaleY: 0 } : false}
-          animate={{
-            scaleX: 1,
-            scaleY: step >= 4 ? 1 : 0,
-          }}
-          transition={{
-            scaleX: { duration: step === 3 ? DURATION_LINE_S : 0, ease: EASE_OUT },
-            scaleY: { duration: step === 4 ? DURATION_VERTICAL_S : 0, ease: EASE_OUT },
-          }}
+          initial={
+            step === 2
+              ? { scale: 0 }
+              : step === 3 || step === 4 || step === 5
+                ? false
+                : false
+          }
+          animate={
+            step === 2
+              ? { scale: 1 }
+              : step === 3
+                ? { scale: 1.2 }
+                : step === 4
+                  ? { scaleX: scaleMax.x, scaleY: lineScaleY }
+                  : { scaleX: scaleMax.x, scaleY: scaleMax.y }
+          }
+          transition={
+            step === 2
+              ? { duration: DURATION_GLOW_S, ease: EASE_OUT }
+              : step === 3
+                ? { duration: DURATION_DOT_BUILD_S, ease: EASE_OUT }
+                : step === 4
+                  ? { duration: DURATION_HORIZONTAL_S, ease: EASE_OUT }
+                  : step === 5
+                    ? { duration: DURATION_VERTICAL_S, ease: EASE_OUT }
+                    : { duration: 0 }
+          }
           onAnimationComplete={() => {
+            if (step === 2) onStepComplete(3);
             if (step === 3) onStepComplete(4);
             if (step === 4) onStepComplete(5);
+            if (step === 5) onStepComplete(6);
           }}
         />
       )}
 
-      {/* Phase 5: Scanline flicker; overlay root fades in TransitionOverlayLayer */}
-      {step >= 5 && <CRTStabilizeAndFade />}
+      {/* Phase 6: Stabilization — hold, subtle flicker; overlay root fades in TransitionOverlayLayer */}
+      {step >= 6 && <CRTStabilize />}
     </>
   );
 }
 
-function CRTStabilizeAndFade() {
+function CRTStabilize() {
   return (
     <motion.div
       className="absolute inset-0 pointer-events-none"
       style={{
         background:
-          "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px)",
+          "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.02) 2px, rgba(0,0,0,0.02) 4px)",
+        mixBlendMode: "overlay",
       }}
       initial={{ opacity: 0 }}
-      animate={{ opacity: [0, 0.5, 0.2, 0.45, 0.15, 0] }}
-      transition={{
-        duration: DURATION_STABILIZE_S,
-        ease: "easeOut",
-      }}
+      animate={{ opacity: [0, 0.08, 0.03, 0.06, 0] }}
+      transition={{ duration: DURATION_FLICKER_S, ease: "easeOut" }}
       aria-hidden
     />
   );
