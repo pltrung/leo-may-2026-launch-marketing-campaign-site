@@ -22,6 +22,7 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [randomizePhase, setRandomizePhase] = useState<"hidden" | "breathing">("hidden");
   const [isRandomizeTapping, setIsRandomizeTapping] = useState(false);
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const stackRef = useRef<CloudStackMobileHandle>(null);
   const locale = useLocale();
   const { whatTypeOfCloud, randomizeButton } = getMessages(locale).cloudSelector;
@@ -116,13 +117,15 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
         </motion.div>
       </div>
 
-      {/* Desktop only (1024px+): one viewport, 6 cards in a row, vertically centered */}
+      {/* Desktop only (1024px+): one viewport, 6 cards in a row; when one flips it expands and grows downward (items-start) */}
       <div className="hidden lg:flex flex-1 w-full min-h-0 items-center justify-center cloud-selector-container">
-        <div className="grid grid-cols-6 gap-6 w-[90%] max-w-[1400px] mx-auto justify-items-center items-center overflow-visible">
+        <div
+          className={`grid grid-cols-6 gap-6 w-[90%] max-w-[1400px] mx-auto justify-items-center overflow-visible transition-[align-items] duration-300 ${expandedCardId ? "items-start" : "items-center"}`}
+        >
           {clouds.map((cloud, index) => (
             <motion.div
               key={cloud.id}
-              className="flex justify-center items-center w-full max-w-[200px]"
+              className={`flex w-full max-w-[200px] justify-center ${expandedCardId ? "items-start" : "items-center"}`}
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
@@ -131,7 +134,12 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
                 ease: [0.22, 1, 0.36, 1],
               }}
             >
-              <CloudCard cloud={cloud} onJoin={onSelect} />
+              <CloudCard
+                cloud={cloud}
+                onJoin={onSelect}
+                isExpanded={expandedCardId === cloud.id}
+                onFlippedChange={(flipped) => setExpandedCardId(flipped ? cloud.id : null)}
+              />
             </motion.div>
           ))}
         </div>

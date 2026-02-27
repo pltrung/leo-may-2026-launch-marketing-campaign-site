@@ -10,9 +10,12 @@ import type { Locale } from "@/lib/i18n";
 interface CloudCardProps {
   cloud: CloudPersonality;
   onJoin: (cloud: CloudPersonality) => void;
+  /** Desktop: parent tracks which card is expanded so grid can use items-start (grow downward) */
+  isExpanded?: boolean;
+  onFlippedChange?: (flipped: boolean) => void;
 }
 
-export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
+export default function CloudCard({ cloud, onJoin, isExpanded, onFlippedChange }: CloudCardProps) {
   const locale = useLocale();
   const t = getMessages(locale).common;
   const story = locale === "vi" && cloud.storyVi ? cloud.storyVi : cloud.story;
@@ -23,7 +26,9 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
 
   const handleCardClick = () => {
-    setIsFlipped((prev) => !prev);
+    const next = !isFlipped;
+    setIsFlipped(next);
+    onFlippedChange?.(next);
   };
 
   useEffect(() => {
@@ -31,11 +36,17 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
     const handleClickOutside = (e: MouseEvent) => {
       if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
         setIsFlipped(false);
+        onFlippedChange?.(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isFlipped]);
+  }, [isFlipped, onFlippedChange]);
+
+  // When parent clears expanded (e.g. another card opened), flip this one back
+  useEffect(() => {
+    if (isExpanded === false && isFlipped) setIsFlipped(false);
+  }, [isExpanded, isFlipped]);
 
   const handleJoinClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -77,95 +88,69 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
   );
 
   return (
-    <>
-      {/* Desktop (lg): expanded view in a centered overlay — no overlap with header, no floating bubble */}
-      {isFlipped && (
-        <div
-          className="fixed inset-0 z-50 hidden lg:flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-          aria-modal="true"
-          role="dialog"
-          aria-label={cloud.name}
-          onClick={() => setIsFlipped(false)}
-        >
-          <div
-            className="w-full max-w-[420px] max-h-[85vh] rounded-[24px] flex flex-col justify-between p-6 lg:p-8 border shadow-2xl overflow-y-auto"
-            style={{
-              backgroundColor: "rgba(255,255,255,0.96)",
-              borderColor,
-              borderWidth: "1px",
-              boxShadow: defaultShadow,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {backContent}
-          </div>
-        </div>
-      )}
-
+    <div
+      ref={cardRef}
+      className={`w-full min-w-[140px] max-w-[200px] lg:max-w-none aspect-[3/4] lg:max-h-[65vh] mx-auto cursor-pointer transition-all duration-300 ease-out ${isHovered && !isFlipped ? "-translate-y-1" : ""} ${isFlipped ? "lg:!max-w-[380px] lg:!min-h-[380px] lg:!max-h-[85vh] lg:!aspect-auto lg:self-start lg:z-10" : ""}`}
+      style={{ perspective: "1000px" }}
+      onClick={handleCardClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onMouseDown={() => setIsActive(true)}
+      onMouseUp={() => setIsActive(false)}
+    >
       <div
-        ref={cardRef}
-        className={`w-full min-w-[140px] max-w-[200px] lg:max-w-none aspect-[3/4] lg:max-h-[65vh] mx-auto cursor-pointer transition-all duration-300 ease-out ${isHovered && !isFlipped ? "-translate-y-1" : ""}`}
-        style={{ perspective: "1000px" }}
-        onClick={handleCardClick}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        onMouseDown={() => setIsActive(true)}
-        onMouseUp={() => setIsActive(false)}
+        className="relative w-full h-full transition-transform duration-500 ease-out"
+        style={{
+          transformStyle: "preserve-3d",
+          transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+        }}
       >
+        {/* Front */}
         <div
-          className="relative w-full h-full transition-transform duration-500 ease-out"
+          className="absolute inset-0 w-full h-full rounded-[24px] flex flex-col justify-between p-5 lg:p-8 border backdrop-blur-[12px] transition-all duration-200 overflow-hidden"
           style={{
-            transformStyle: "preserve-3d",
-            transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+            backfaceVisibility: "hidden",
+            WebkitBackfaceVisibility: "hidden",
+            backgroundColor: "rgba(255,255,255,0.92)",
+            borderColor,
+            borderWidth: "1px",
+            boxShadow,
           }}
         >
-          {/* Front */}
-          <div
-            className="absolute inset-0 w-full h-full rounded-[24px] flex flex-col justify-between p-5 lg:p-8 border backdrop-blur-[12px] transition-all duration-200 overflow-hidden"
-            style={{
-              backfaceVisibility: "hidden",
-              WebkitBackfaceVisibility: "hidden",
-              backgroundColor: "rgba(255,255,255,0.92)",
-              borderColor,
-              borderWidth: "1px",
-              boxShadow,
-            }}
-          >
-            <div className="flex flex-col items-center justify-center flex-1 min-h-0">
-              <div className="mb-3" style={{ color: accent }}>
-                <CloudIconByType cloudId={cloud.id} className="w-12 h-12 sm:w-14 sm:h-14" />
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <span className="font-subheadline text-base sm:text-lg text-center leading-tight" style={{ color: accent }}>
-                  {cloud.name}
-                </span>
-                <span
-                  className="font-body text-xs sm:text-sm text-center tracking-[0.5px]"
-                  style={{ color: accent, opacity: 0.85 }}
-                >
-                  {shortName}
-                </span>
-              </div>
+          <div className="flex flex-col items-center justify-center flex-1 min-h-0">
+            <div className="mb-3" style={{ color: accent }}>
+              <CloudIconByType cloudId={cloud.id} className="w-12 h-12 sm:w-14 sm:h-14" />
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <span className="font-subheadline text-base sm:text-lg text-center leading-tight" style={{ color: accent }}>
+                {cloud.name}
+              </span>
+              <span
+                className="font-body text-xs sm:text-sm text-center tracking-[0.5px]"
+                style={{ color: accent, opacity: 0.85 }}
+              >
+                {shortName}
+              </span>
             </div>
           </div>
+        </div>
 
-          {/* Back: in-place flip for mobile/tablet only; desktop uses overlay above */}
-          <div
-            className="absolute inset-0 w-full h-full rounded-[24px] flex flex-col justify-between p-5 lg:p-8 border transition-all duration-200 backdrop-blur-[12px] overflow-y-auto overflow-x-hidden lg:overflow-hidden"
-            style={{
-              backfaceVisibility: "hidden",
-              WebkitBackfaceVisibility: "hidden",
-              transform: "rotateY(180deg)",
-              backgroundColor: "rgba(255,255,255,0.92)",
-              borderColor,
-              borderWidth: "1px",
-              boxShadow,
-            }}
-          >
-            {backContent}
-          </div>
+        {/* Back: same flip on mobile and desktop; on desktop card is larger so text fits */}
+        <div
+          className="absolute inset-0 w-full h-full rounded-[24px] flex flex-col justify-between p-5 lg:p-8 border transition-all duration-200 backdrop-blur-[12px] overflow-y-auto overflow-x-hidden"
+          style={{
+            backfaceVisibility: "hidden",
+            WebkitBackfaceVisibility: "hidden",
+            transform: "rotateY(180deg)",
+            backgroundColor: "rgba(255,255,255,0.92)",
+            borderColor,
+            borderWidth: "1px",
+            boxShadow,
+          }}
+        >
+          {backContent}
         </div>
       </div>
-    </>
+    </div>
   );
 }
