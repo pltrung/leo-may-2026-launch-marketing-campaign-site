@@ -1495,6 +1495,7 @@ body.hero-ready .hero-scroll {
 
   .cloud-selection-container.cloud-selector-container .randomize-button-spacer {
     margin-top: clamp(18px, 3vh, 28px);
+    margin-bottom: clamp(32px, 8vh, 64px);
     flex-shrink: 0;
     display: flex;
     justify-content: center;

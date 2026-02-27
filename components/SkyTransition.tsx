@@ -32,17 +32,17 @@ export default function SkyTransition({ onComplete, variant = "discovery" }: Sky
     void el.offsetHeight;
     el.classList.add("mist-active");
 
-    const t0 = setTimeout(() => setTextVisible(true), 700);
+    const t0 = setTimeout(() => setTextVisible(true), 500);
 
-    // All variants use same timing as mist-clearing: mist in → text → mist clears → onComplete
+    // Mist in → text → mist clears → onComplete (tighter for countdown: return/forms)
     const t1 = setTimeout(() => {
       el.classList.add("mist-clearing");
       setTextVisible(false);
-    }, 2400);
-    const t2 = setTimeout(() => onComplete?.(), 4200);
+    }, 1800);
+    const t2 = setTimeout(() => onComplete?.(), 3000);
     const t3 = setTimeout(() => {
       el.classList.remove("mist-active", "mist-clearing");
-    }, 4500);
+    }, 3200);
     timersRef.current = [t0, t1, t2, t3];
 
     return () => timersRef.current.forEach(clearTimeout);

@@ -22,6 +22,7 @@ import KnowYourTeamButton from "@/components/KnowYourTeamButton";
 import LanguageSwitch from "@/components/LanguageSwitch";
 import HeroScrollObserver from "@/components/HeroScrollObserver";
 import SkyTransition from "@/components/SkyTransition";
+import HoldsRevealTransition from "@/components/HoldsRevealTransition";
 import MistAscent from "@/components/MistAscent";
 import { CloudPersonality, getCloudById } from "@/lib/cloudData";
 import { getUser } from "@/lib/userStorage";
@@ -249,7 +250,11 @@ function HomeContent() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            transition={{
+              duration: 0.6,
+              delay: 0.15,
+              ease: [0.22, 1, 0.36, 1],
+            }}
           >
             <CloudSelector onSelect={setSelectedCloud} />
           </motion.div>
@@ -287,10 +292,16 @@ function HomeContent() {
         />
       )}
 
-      {(skyVisible || isCountdownTransition) && (
+      {skyVisible && !isCountdownTransition && (
+        <HoldsRevealTransition
+          duration={1000}
+          onComplete={handleCloudTransitionComplete}
+        />
+      )}
+      {isCountdownTransition && (
         <SkyTransition
-          variant={isCountdownTransition ? skyTransitionForCountdown : "discovery"}
-          onComplete={isCountdownTransition ? handleCountdownTransitionComplete : handleCloudTransitionComplete}
+          variant={skyTransitionForCountdown}
+          onComplete={handleCountdownTransitionComplete}
         />
       )}
     </div>
