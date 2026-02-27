@@ -173,8 +173,8 @@ export default function HeroStarfield({
     ro.observe(canvas.parentElement!);
 
     const tick = (now: number) => {
-      const w = sizeRef.current.w || canvas.parentElement?.clientWidth ?? width;
-      const h = sizeRef.current.h || canvas.parentElement?.clientHeight ?? height;
+      const w = (sizeRef.current.w || canvas.parentElement?.clientWidth) ?? width;
+      const h = (sizeRef.current.h || canvas.parentElement?.clientHeight) ?? height;
       draw(ctx, w, h, now);
 
       const ss = shootingStarRef.current;
