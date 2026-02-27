@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -39,6 +40,8 @@ import { getAscensionEnergyVars } from "@/lib/ascensionEnergy";
 import VerificationModal from "@/components/VerificationModal";
 import { createBrowserClient } from "@/lib/supabaseBrowser";
 import { HERO_BG } from "@/lib/heroConstants";
+
+const HeroStarfield = dynamic(() => import("@/components/HeroStarfield"), { ssr: false });
 
 const PENDING_REF_CODE_KEY = "leo_may_pending_ref_code";
 const COUNTDOWN_INTRO_VIEW_COUNT_KEY = "leo_may_countdown_intro_view_count";
@@ -566,6 +569,10 @@ export default function CountdownPage() {
         style={{ background: HERO_BG }}
         aria-hidden
       />
+      {/* Same subtle starfield as hero: twinkle, slow drift, occasional shooting star */}
+      <div className="fixed inset-0 -z-10 pointer-events-none w-full h-full" aria-hidden>
+        <HeroStarfield heroTransitioning={false} />
+      </div>
 
       <AnimatePresence>
         {(phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" || phase === "phase4-micro-settle" || phase === "phase5-rest") && (

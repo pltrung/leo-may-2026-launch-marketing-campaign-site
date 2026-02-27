@@ -11,9 +11,18 @@ import { HERO_BG } from "@/lib/heroConstants";
 import { getMessages } from "@/lib/messages";
 import AscentBar from "@/components/AscentBar";
 
-const HeroIslandCanvas = dynamic(() => import("@/components/HeroIslandCanvas"), { ssr: false });
-const HeroClimbingHoldCanvas = dynamic(() => import("@/components/HeroClimbingHoldCanvas"), { ssr: false });
-const HeroStarfield = dynamic(() => import("@/components/HeroStarfield"), { ssr: false });
+const HeroIslandCanvas = dynamic(
+  () => import("@/components/HeroIslandCanvas").catch(() => ({ default: () => null })),
+  { ssr: false }
+);
+const HeroClimbingHoldCanvas = dynamic(
+  () => import("@/components/HeroClimbingHoldCanvas").catch(() => ({ default: () => null })),
+  { ssr: false }
+);
+const HeroStarfield = dynamic(
+  () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
+  { ssr: false }
+);
 
 /** Four brand colors for hero anchor words (one per stage) — from globals emphasis/hero palette */
 const HERO_HEADLINE_ACCENTS = ["#22c55e", "#3b82f6", "#FACC15", "#ff1744"] as const;
@@ -60,6 +69,7 @@ export interface CinematicHeroScrollProps {
 function useIsMobile(): boolean {
   const [m, setM] = useState(false);
   useEffect(() => {
+    if (typeof window === "undefined") return;
     const q = window.matchMedia("(max-width: 768px)");
     setM(q.matches);
     const f = () => setM(q.matches);
@@ -72,6 +82,7 @@ function useIsMobile(): boolean {
 function useIsDesktop(): boolean {
   const [d, setD] = useState(false);
   useEffect(() => {
+    if (typeof window === "undefined") return;
     const q = window.matchMedia("(min-width: 1024px)");
     setD(q.matches);
     const f = () => setD(q.matches);
@@ -111,6 +122,7 @@ export default function CinematicHeroScroll({
   const rafRef = useRef<number>(0);
   const pendingRef = useRef<number | null>(null);
   const centerLogoGoneFiredRef = useRef(false);
+  const mountedRef = useRef(true);
   const [glbMounted, setGlbMounted] = useState(false);
   const [loadElapsed, setLoadElapsed] = useState(0);
   const [loadComplete, setLoadComplete] = useState(false);
@@ -150,27 +162,44 @@ export default function CinematicHeroScroll({
   }, [heroReady]);
 
   useEffect(() => {
-    const vh = typeof window !== "undefined" ? window.innerHeight : 700;
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const vh = window.innerHeight;
     const wrapperHeight = (vh * wrapperVh) / 100;
     const denom = wrapperHeight - vh;
     const progressEndScroll = denom <= 0 ? 1 : Math.max(denom * 0.95, 1);
     const onScroll = () => {
-      const y = typeof window !== "undefined" ? window.scrollY : 0;
-      let raw = denom <= 0 ? 0 : y / progressEndScroll;
-      if (!Number.isFinite(raw)) raw = 0;
-      pendingRef.current = Math.max(0, Math.min(1, raw));
-      if (rafRef.current) return;
-      rafRef.current = requestAnimationFrame(() => {
-        rafRef.current = 0;
-        let v = pendingRef.current;
-        if (v == null || Number.isNaN(v)) v = 0;
-        v = Math.max(0, Math.min(1, v));
-        setHeroProgress(v);
-        if (v >= 0.28 && !centerLogoGoneFiredRef.current && onCenterLogoGone) {
-          centerLogoGoneFiredRef.current = true;
-          onCenterLogoGone();
-        }
-      });
+      try {
+        const y = window.scrollY;
+        let raw = denom <= 0 ? 0 : y / progressEndScroll;
+        if (!Number.isFinite(raw)) raw = 0;
+        pendingRef.current = Math.max(0, Math.min(1, raw));
+        if (rafRef.current) return;
+        rafRef.current = requestAnimationFrame(() => {
+          try {
+            rafRef.current = 0;
+            if (!mountedRef.current) return;
+            let v = pendingRef.current;
+            if (v == null || Number.isNaN(v)) v = 0;
+            v = Math.max(0, Math.min(1, v));
+            setHeroProgress(v);
+            if (v >= 0.28 && !centerLogoGoneFiredRef.current && onCenterLogoGone) {
+              centerLogoGoneFiredRef.current = true;
+              onCenterLogoGone();
+            }
+          } catch {
+            // guard so scroll-up / rAF never throws client-side
+          }
+        });
+      } catch {
+        // guard so scroll handler never throws
+      }
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });

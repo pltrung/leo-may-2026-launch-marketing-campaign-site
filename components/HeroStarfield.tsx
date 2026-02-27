@@ -53,6 +53,7 @@ export default function HeroStarfield({
   const rafRef = useRef<number>(0);
   const nextShootingStarAtRef = useRef<number>(0);
   const sizeRef = useRef({ w: 0, h: 0 });
+  const mountedRef = useRef(true);
   const shootingStarRef = useRef<ShootingStar>({ active: false, startTime: 0, duration: 0, startX: 0, startY: 0, endX: 0, endY: 0, direction: 1 });
 
   const stars = useMemo(() => {
@@ -142,6 +143,7 @@ export default function HeroStarfield({
   );
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -173,9 +175,14 @@ export default function HeroStarfield({
     ro.observe(canvas.parentElement!);
 
     const tick = (now: number) => {
-      const w = (sizeRef.current.w || canvas.parentElement?.clientWidth) ?? width;
-      const h = (sizeRef.current.h || canvas.parentElement?.clientHeight) ?? height;
-      draw(ctx, w, h, now);
+      if (!mountedRef.current) return;
+      try {
+        const w = (sizeRef.current.w || canvas.parentElement?.clientWidth) ?? width;
+        const h = (sizeRef.current.h || canvas.parentElement?.clientHeight) ?? height;
+        draw(ctx, w, h, now);
+      } catch {
+        // guard so scroll / prop changes don't throw from canvas
+      }
 
       const ss = shootingStarRef.current;
       if (!ss.active && !heroTransitioning && now >= nextShootingStarAtRef.current) {
@@ -202,10 +209,12 @@ export default function HeroStarfield({
       rafRef.current = requestAnimationFrame(tick);
     };
 
+    mountedRef.current = true;
     nextShootingStarAtRef.current = performance.now() + rand(SHOOTING_STAR_INTERVAL_MIN_MS, SHOOTING_STAR_INTERVAL_MAX_MS);
     rafRef.current = requestAnimationFrame(tick);
 
     return () => {
+      mountedRef.current = false;
       ro.disconnect();
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
