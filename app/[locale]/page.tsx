@@ -42,7 +42,6 @@ function HomeContent() {
   const [showClouds, setShowClouds] = useState(false);
   const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
   const [heroOpacity, setHeroOpacity] = useState(1);
-  const [showAboutUsCTA, setShowAboutUsCTA] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const { phase: overlayPhase, startTransition } = useTransitionOverlay();
@@ -90,35 +89,6 @@ function HomeContent() {
   useEffect(() => {
     if (showClouds) document.documentElement.classList.add("cloud-selection-view");
     return () => document.documentElement.classList.remove("cloud-selection-view");
-  }, [showClouds]);
-
-  /** Hero initial scroll: when user scrolls up at top, show About Us CTA (mobile); hide when they scroll down again */
-  useEffect(() => {
-    if (showClouds) return;
-    const atTop = () => typeof window !== "undefined" && window.scrollY <= 15;
-    const onWheel = (e: WheelEvent) => {
-      if (atTop() && e.deltaY < 0) setShowAboutUsCTA(true);
-    };
-    const onScroll = () => {
-      if (typeof window !== "undefined" && window.scrollY > 60) setShowAboutUsCTA(false);
-    };
-    let touchStartY = 0;
-    const onTouchStart = (e: TouchEvent) => {
-      touchStartY = e.touches[0].clientY;
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      if (atTop() && e.touches[0].clientY - touchStartY > 30) setShowAboutUsCTA(true);
-    };
-    window.addEventListener("wheel", onWheel, { passive: true });
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: true });
-    return () => {
-      window.removeEventListener("wheel", onWheel);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-    };
   }, [showClouds]);
 
   const userForMascot = getUser();
@@ -179,26 +149,6 @@ function HomeContent() {
       <BrandBackground />
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />
-
-      {/* About Us CTA: appears when user scrolls up at top (hero); just above logo on mobile and desktop */}
-      {showCinematicLayers && showAboutUsCTA && (
-        <motion.div
-          className="fixed left-1/2 z-[45] -translate-x-1/2 top-[calc(50%-100px)]"
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -12 }}
-          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <button
-            type="button"
-            onClick={() => setAboutOpen(true)}
-            className="about-btn-breathe logout-mobile-btn w-full max-w-[200px]"
-            aria-label={aboutUsLabel}
-          >
-            {aboutUsLabel}
-          </button>
-        </motion.div>
-      )}
 
       {showCinematicLayers && (
         <header
@@ -268,6 +218,8 @@ function HomeContent() {
                 footerMessages={footerMessages}
                 heroReady={heroReady}
                 onCenterLogoGone={handleCenterLogoGone}
+                aboutUsLabel={aboutUsLabel}
+                onAboutUsClick={() => setAboutOpen(true)}
               />
             </div>
           ) : (

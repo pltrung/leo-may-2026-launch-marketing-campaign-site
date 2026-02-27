@@ -48,6 +48,10 @@ export interface CinematicHeroScrollProps {
   heroReady?: boolean;
   /** Called once when the center logo has faded out (scroll progress >= ~0.28). Page uses this to show header logo so the logo doesn’t appear twice. */
   onCenterLogoGone?: () => void;
+  /** Mobile only: label for About Us CTA that appears at bottom scroll above GLB. */
+  aboutUsLabel?: string;
+  /** Mobile only: called when About Us CTA is clicked. */
+  onAboutUsClick?: () => void;
 }
 
 function useIsMobile(): boolean {
@@ -95,6 +99,8 @@ export default function CinematicHeroScroll({
   footerMessages,
   heroReady = false,
   onCenterLogoGone,
+  aboutUsLabel,
+  onAboutUsClick,
 }: CinematicHeroScrollProps) {
   const isMobile = useIsMobile();
   const isDesktop = useIsDesktop();
@@ -374,15 +380,6 @@ export default function CinematicHeroScroll({
                 paddingRight: "1rem",
               }}
             >
-              {/* Arrow up — above logo; fades with scroll */}
-              <div
-                className="flex shrink-0 justify-center hero-scroll-arrow-bounce"
-                style={{ marginBottom: "12px", opacity: scrollArrowOpacity }}
-                aria-hidden
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/arrow-up.svg" alt="" className="w-6 h-6 object-contain opacity-80" />
-              </div>
               {/* Zone 1: Logo — fixed height buffer so GLB zone stays stable */}
               <div
                 className="flex shrink-0 items-center justify-center w-[65%] max-w-[260px] pointer-events-none"
@@ -503,6 +500,27 @@ export default function CinematicHeroScroll({
                 >
                   Premium Climbing Experience · HCMC · 2026
                 </p>
+                {/* About Us CTA: only when user has scrolled to bottom (GLB expanded to 0.99), same layout as Join CTA above GLB */}
+                {aboutUsLabel && onAboutUsClick && (
+                  <motion.button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAboutUsClick();
+                    }}
+                    className="mt-4 px-6 py-3 rounded-full border border-white/70 text-white text-xs font-medium tracking-wider uppercase bg-transparent about-btn-breathe"
+                    style={{
+                      letterSpacing: "0.08em",
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
+                      opacity: smoothstep(0.65, 0.85, heroProgress),
+                    }}
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 1.02 }}
+                    aria-label={aboutUsLabel}
+                  >
+                    {aboutUsLabel}
+                  </motion.button>
+                )}
               </div>
             </div>
           )}
@@ -573,19 +591,30 @@ export default function CinematicHeroScroll({
                   Premium Climbing Experience · HCMC · 2026
                 </p>
               </div>
-              {/* Arrow up — desktop: right above logo, fades with scroll */}
-              <div
-                className="absolute left-1/2 z-30 pointer-events-none hero-scroll-arrow-bounce"
-                style={{
-                  top: "calc(50% - 120px)",
-                  transform: "translate(-50%, -50%)",
-                  opacity: scrollArrowOpacity,
-                }}
-                aria-hidden
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/arrow-up.svg" alt="" className="w-6 h-6 sm:w-8 sm:h-8 object-contain opacity-80" />
-              </div>
+              {/* About Us CTA — desktop: bottom right, same vertical height as Join CTA; fades in at end of scroll when GLB finishes */}
+              {aboutUsLabel && onAboutUsClick && (
+                <div
+                  className="absolute z-30 pointer-events-auto right-4 sm:right-6 md:right-8 bottom-[120px] flex flex-col items-end"
+                  style={{
+                    opacity: smoothstep(0.7, 0.95, heroProgress),
+                  }}
+                >
+                  <motion.button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAboutUsClick();
+                    }}
+                    className="px-6 py-3 sm:px-8 sm:py-3.5 rounded-full border border-white/70 text-white text-xs sm:text-sm font-medium tracking-wider uppercase bg-transparent about-btn-breathe"
+                    style={{ letterSpacing: "0.05em", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 1.02 }}
+                    aria-label={aboutUsLabel}
+                  >
+                    {aboutUsLabel}
+                  </motion.button>
+                </div>
+              )}
               <div
                 className="absolute left-1/2 top-1/2 z-30 flex items-center justify-center pointer-events-none w-[38%] max-w-[280px]"
                 style={{
