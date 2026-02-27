@@ -259,7 +259,7 @@ export default function CinematicHeroScroll({
 
   const glbOpacity = smoothstep(0.38, 0.62, p);
   const glbScaleBase = 0.7 + 0.3 * smoothstep(0.4, 0.65, Math.min(p, 0.82));
-  const glbScale = isMobile ? Math.min(glbScaleBase, 0.92) : glbScaleBase;
+  const glbScale = isMobile ? Math.min(glbScaleBase, 0.99) : glbScaleBase;
   const cameraZStart = 9;
   const cameraDistanceEnd = isDesktop ? desktopFinalCameraZ : 5.8;
   const framingClampZ = isDesktop ? desktopFinalCameraZ * 0.9 : 5.2;
