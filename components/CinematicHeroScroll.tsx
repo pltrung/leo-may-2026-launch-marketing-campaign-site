@@ -15,18 +15,18 @@ const HeroIslandCanvas = dynamic(() => import("@/components/HeroIslandCanvas"), 
 /** Four brand colors for hero anchor words (one per stage) — from globals emphasis/hero palette */
 const HERO_HEADLINE_ACCENTS = ["#22c55e", "#3b82f6", "#FACC15", "#ff1744"] as const;
 
-type HeadlineStage = { anchor: string; phrase: string };
+type HeadlineStage = { anchor: string; phrase: string; phraseLine2?: string };
 
 const HEADLINE_STAGES_EN: HeadlineStage[] = [
   { anchor: "CLIMB.", phrase: "IN YOUR OWN SKY." },
-  { anchor: "CONNECT.", phrase: "IN THE SAME RHYTHM." },
-  { anchor: "BE HERE.", phrase: "IN EVERY MOVEMENT." },
+  { anchor: "CONNECT.", phrase: "IN THE SAME", phraseLine2: "RHYTHM." },
+  { anchor: "BE HERE.", phrase: "IN EVERY", phraseLine2: "MOVEMENT." },
   { anchor: "BE FREE.", phrase: "YOUR WAY." },
 ];
 const HEADLINE_STAGES_VI: HeadlineStage[] = [
   { anchor: "LEO.", phrase: "GIỮA TRỜI RIÊNG." },
-  { anchor: "KẾT NỐI.", phrase: "CHUNG MỘT NHỊP." },
-  { anchor: "HIỆN DIỆN.", phrase: "TRONG CHUYỂN ĐỘNG." },
+  { anchor: "KẾT NỐI.", phrase: "CHUNG MỘT", phraseLine2: "NHỊP." },
+  { anchor: "HIỆN DIỆN.", phrase: "TRONG CHUYỂN", phraseLine2: "ĐỘNG." },
   { anchor: "TỰ DO.", phrase: "THEO CÁCH BẠN." },
 ];
 
@@ -385,7 +385,7 @@ export default function CinematicHeroScroll({
                   <img src="/logo-white.svg" alt="Leo Mây" className="w-full h-full object-contain object-center" />
                 </div>
               </div>
-              {/* Mobile: headline then meta — original margins so "YOUR MOVE" position unchanged; extra gap via CTA margin-top */}
+              {/* Mobile: per-stage layout — row1 anchor, row2 phrase (smaller), row3 meta, then CTA; spacing consistent through scroll */}
               <div
                 className="flex shrink-0 flex-col items-center text-center w-full max-w-[90vw] pointer-events-none"
                 style={{
@@ -394,34 +394,55 @@ export default function CinematicHeroScroll({
                 }}
               >
                 <h1
-                  className="relative font-bold text-center min-h-[1.3em] leading-tight w-full max-w-[90vw]"
+                  className="relative font-bold text-center leading-tight w-full max-w-[90vw]"
                   style={{
-                    marginBottom: isMobile ? "4px" : "6px",
+                    minHeight: "3.2em",
+                    marginBottom: 0,
                     fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
-                    fontSize: "clamp(18px, 5.5vw, 32px)",
                     letterSpacing: headlineLetterSpacing,
                   }}
                 >
                   {headlineStages.map((stage, i) => (
                     <span
                       key={i}
-                      className="absolute top-0 left-1/2 -translate-x-1/2 block w-full max-w-[90vw] text-center whitespace-nowrap overflow-hidden text-ellipsis"
+                      className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center w-full max-w-[90vw] text-center"
                       style={{
                         opacity: headlineOpacitiesFinal[i] ?? 0,
                         transform: `translate(-50%, ${headlineTranslateYsFinal[i] ?? 0}px)`,
                       }}
                       aria-hidden={(headlineOpacitiesFinal[i] ?? 0) < 0.01}
                     >
-                      <span style={{ color: HERO_HEADLINE_ACCENTS[i] ?? HERO_HEADLINE_ACCENTS[0] }}>{stage.anchor}</span>
-                      {" "}
-                      <span className="text-white">{stage.phrase}</span>
+                      <span
+                        className="block whitespace-nowrap"
+                        style={{
+                          color: HERO_HEADLINE_ACCENTS[i] ?? HERO_HEADLINE_ACCENTS[0],
+                          fontSize: "clamp(18px, 5.5vw, 32px)",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        {stage.anchor}
+                      </span>
+                      <span
+                        className="block text-white whitespace-nowrap"
+                        style={{
+                          fontSize: "clamp(13px, 3.8vw, 22px)",
+                          fontWeight: 600,
+                          letterSpacing: headlineLetterSpacing,
+                          marginBottom: "14px",
+                        }}
+                      >
+                        {stage.phrase}{stage.phraseLine2 != null ? ` ${stage.phraseLine2}` : ""}
+                      </span>
                     </span>
                   ))}
                 </h1>
                 <p
-                  className="text-white/80 leading-snug text-[13px] text-center"
+                  className="text-white/80 leading-snug text-center shrink-0"
                   style={{
-                    marginBottom: isMobile ? "42px" : "22px",
+                    fontSize: "13px",
+                    marginTop: 0,
+                    marginBottom: "40px",
+                    paddingTop: "4px",
                     opacity: metaOpacity,
                     fontFamily: "MiSans-Regular, sans-serif",
                   }}
@@ -429,11 +450,11 @@ export default function CinematicHeroScroll({
                   Premium Climbing Experience · HCMC · 2026
                 </p>
               </div>
-              {/* CTA — margin-top adds gap above CTA without moving narrative/"YOUR MOVE"; pointer-events-auto so button is tappable */}
+              {/* CTA — clear gap above; pointer-events-auto so button is tappable */}
               <div
                 className="flex shrink-0 justify-center pointer-events-auto"
                 style={{
-                  marginTop: isMobile ? "14px" : 0,
+                  marginTop: "12px",
                   marginBottom: "48px",
                   opacity: ctaOpacityFinal,
                   transform: `translateY(${ctaTranslateYFinal}px)`,
@@ -488,6 +509,7 @@ export default function CinematicHeroScroll({
                       >
                         <span className="block" style={{ color: HERO_HEADLINE_ACCENTS[i] ?? HERO_HEADLINE_ACCENTS[0] }}>{stage.anchor}</span>
                         <span className="block text-white mt-0.5">{stage.phrase}</span>
+                        {stage.phraseLine2 != null && <span className="block text-white mt-0.5">{stage.phraseLine2}</span>}
                       </span>
                     ))}
                   </h1>
