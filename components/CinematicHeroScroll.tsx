@@ -8,6 +8,7 @@ import type { MascotPartColors } from "@/lib/mascotSpeciesColors";
 import { preloadHeroIslandGLB } from "@/components/HeroIslandGLB";
 import { HERO_BG } from "@/lib/heroConstants";
 import { getMessages } from "@/lib/messages";
+import type { CinematicTransitionPhase } from "@/lib/cinematicTransition";
 import AscentBar from "@/components/AscentBar";
 
 const HeroIslandCanvas = dynamic(() => import("@/components/HeroIslandCanvas"), { ssr: false });
@@ -32,7 +33,8 @@ function smoothstep(a: number, b: number, x: number): number {
 
 export interface CinematicHeroScrollProps {
   partColors: MascotPartColors | null;
-  onJoin: () => void;
+  /** Called when CTA is clicked. When cinematic transition is used, pass current heroProgress so page can freeze and run transition. */
+  onJoin: (progress?: number) => void;
   locale?: Locale;
   headerHeight?: number;
   footerHeight?: number;
@@ -42,6 +44,10 @@ export interface CinematicHeroScrollProps {
   heroReady?: boolean;
   /** Called once when the center logo has faded out (scroll progress >= ~0.28). Page uses this to show header logo so the logo doesn’t appear twice. */
   onCenterLogoGone?: () => void;
+  /** When set (CTA → Pick Your Cloud), progress is frozen and phase-driven visuals apply. */
+  transitionPhase?: CinematicTransitionPhase;
+  /** Progress value to use when transitionPhase is active (freeze frame). */
+  frozenProgress?: number;
 }
 
 function useIsMobile(): boolean {
@@ -89,13 +95,21 @@ export default function CinematicHeroScroll({
   footerMessages,
   heroReady = false,
   onCenterLogoGone,
+  transitionPhase = "idle",
+  frozenProgress = 0,
 }: CinematicHeroScrollProps) {
   const isMobile = useIsMobile();
   const isDesktop = useIsDesktop();
   const [heroProgress, setHeroProgress] = useState(0);
+  const isTransitionActive =
+    transitionPhase !== "idle" && transitionPhase !== "complete";
+  const pRaw = Number.isFinite(heroProgress) ? Math.max(0, Math.min(1, heroProgress)) : 0;
+  const p = isTransitionActive ? Math.max(0, Math.min(1, frozenProgress)) : pRaw;
   const rafRef = useRef<number>(0);
   const pendingRef = useRef<number | null>(null);
   const centerLogoGoneFiredRef = useRef(false);
+  const transitionActiveRef = useRef(false);
+  transitionActiveRef.current = isTransitionActive;
   const [glbMounted, setGlbMounted] = useState(false);
   const [loadElapsed, setLoadElapsed] = useState(0);
   const [loadComplete, setLoadComplete] = useState(false);
@@ -139,6 +153,7 @@ export default function CinematicHeroScroll({
     const denom = wrapperHeight - vh;
     const progressEndScroll = denom <= 0 ? 1 : Math.max(denom * 0.95, 1);
     const onScroll = () => {
+      if (transitionActiveRef.current) return;
       const y = typeof window !== "undefined" ? window.scrollY : 0;
       let raw = denom <= 0 ? 0 : y / progressEndScroll;
       if (!Number.isFinite(raw)) raw = 0;
@@ -146,6 +161,7 @@ export default function CinematicHeroScroll({
       if (rafRef.current) return;
       rafRef.current = requestAnimationFrame(() => {
         rafRef.current = 0;
+        if (transitionActiveRef.current) return;
         let v = pendingRef.current;
         if (v == null || Number.isNaN(v)) v = 0;
         v = Math.max(0, Math.min(1, v));
@@ -167,10 +183,9 @@ export default function CinematicHeroScroll({
   }, [wrapperVh, onCenterLogoGone]);
 
   useEffect(() => {
-    if (heroProgress >= 0.2) setGlbMounted(true);
-  }, [heroProgress]);
+    if (heroProgress >= 0.2 || isTransitionActive) setGlbMounted(true);
+  }, [heroProgress, isTransitionActive]);
 
-  const p = Number.isFinite(heroProgress) ? Math.max(0, Math.min(1, heroProgress)) : 0;
   const headlines = locale === "vi" ? HEADLINES_VI : HEADLINES_EN;
   const ctaLabel = getMessages(locale as "en" | "vi").hero.ctaFoundingAscent;
 
@@ -296,6 +311,49 @@ export default function CinematicHeroScroll({
   const scrollArrowOpacity =
     loadComplete ? (p <= 0.05 ? 1 : 1 - smoothstep(0.05, 0.12, p)) : loadArrowOpacity;
 
+  const phase = transitionPhase;
+  const glbWasVisible = p >= 0.38;
+  const transitionCtaOpacity =
+    phase === "isolation" || phase === "dissolve" || phase === "reveal" ? 0 : 1;
+  const transitionNarrativeOpacity =
+    (phase === "glb_reveal" && !glbWasVisible) ||
+    phase === "isolation" ||
+    phase === "dissolve" ||
+    phase === "reveal"
+      ? 0
+      : 1;
+  const transitionMetaOpacity = transitionNarrativeOpacity;
+  const transitionMascotOpacity =
+    phase === "glb_reveal" && !glbWasVisible ? 0 : phase === "isolation" || phase === "dissolve" || phase === "reveal" ? 0 : 1;
+  const transitionHeadlineScale =
+    (phase === "glb_reveal" && !glbWasVisible) ||
+    phase === "isolation" ||
+    phase === "dissolve" ||
+    phase === "reveal"
+      ? 0
+      : 1;
+  const transitionGlbMultiplier =
+    phase === "glb_reveal" || phase === "isolation" || phase === "dissolve" || phase === "reveal"
+      ? glbWasVisible ? 1.05 : 1
+      : 1;
+  const transitionCameraScale = phase === "glb_reveal" || phase === "isolation" || phase === "dissolve" || phase === "reveal" ? 0.93 : 1;
+  const transitionBgDarken =
+    phase === "glb_reveal" || phase === "isolation" || phase === "dissolve" || phase === "reveal" ? 0.05 : 0.04;
+  const transitionParticleIntensity =
+    phase === "isolation" || phase === "dissolve" || phase === "reveal" ? 0.5 : 1;
+  const glbWrapperFilter =
+    phase === "dissolve" || phase === "reveal" ? "blur(2px) saturate(0.92)" : "none";
+  const glbRotationTransition = phase === "glb_reveal" || phase === "isolation" || phase === "dissolve" || phase === "reveal" ? 0.85 : 1;
+
+  const ctaOpacityDisplay = ctaOpacityFinal * transitionCtaOpacity;
+  const narrativeOpacityDisplay = narrativeOpacityFinal * transitionNarrativeOpacity;
+  const mascotOpacityDisplay = (loadComplete ? mascotOpacity : loadMascotOpacity) * transitionMascotOpacity;
+  const headlineOpacitiesDisplay = headlineOpacitiesFinal.map((o) => o * transitionHeadlineScale);
+  const glbOpacityDisplay =
+    phase === "glb_reveal" && !glbWasVisible ? 1 : glbOpacity * transitionGlbMultiplier;
+  const cameraDistanceDisplay = cameraDistance * transitionCameraScale;
+  const particleIntensityDisplay = particleIntensity * transitionParticleIntensity;
+
   return (
     <div
       className="cinematic-hero relative"
@@ -335,20 +393,20 @@ export default function CinematicHeroScroll({
             className="absolute inset-0 pointer-events-none"
             style={{
               background: "rgba(0,0,0,0.04)",
-              opacity: smoothstep(0.88, 1, p),
+              opacity: isTransitionActive ? transitionBgDarken : smoothstep(0.88, 1, p),
             }}
           />
 
           <div
-            className="absolute inset-0 pointer-events-none"
-            style={{ zIndex: zoomT > 0.05 ? 25 : 5 }}
+            className="absolute inset-0 pointer-events-none transition-all duration-300"
+            style={{ zIndex: zoomT > 0.05 ? 25 : 5, filter: glbWrapperFilter }}
           >
             <HeroIslandCanvas
-              opacity={glbOpacity}
+              opacity={glbOpacityDisplay}
               scale={glbScale}
-              cameraDistance={cameraDistance}
+              cameraDistance={cameraDistanceDisplay}
               fov={cameraFov}
-              rotationSpeedMultiplier={glbRotationSpeed}
+              rotationSpeedMultiplier={glbRotationSpeed * glbRotationTransition}
               onFramingReady={setDesktopFinalCameraZ}
               shouldMount={glbMounted}
               modelOffsetY={modelOffsetYFinal}
@@ -371,7 +429,7 @@ export default function CinematicHeroScroll({
                 className="flex shrink-0 items-center justify-center w-[65%] max-w-[260px] max-h-[20vh] pointer-events-none"
                 style={{
                   marginBottom: "28px",
-                  opacity: mascotOpacityFinal,
+                  opacity: mascotOpacityDisplay,
                   transform: `translateY(${mascotTranslateYFinal}px)`,
                 }}
               >
@@ -384,7 +442,7 @@ export default function CinematicHeroScroll({
               <div
                 className="flex shrink-0 flex-col items-center text-center w-full max-w-[90vw] pointer-events-none"
                 style={{
-                  opacity: narrativeOpacityFinal,
+                  opacity: narrativeOpacityDisplay,
                   transform: `translateY(${narrativeTranslateYFinal}px)`,
                 }}
               >
@@ -402,10 +460,10 @@ export default function CinematicHeroScroll({
                       key={i}
                       className="absolute top-0 left-1/2 -translate-x-1/2 block w-full max-w-[90vw] text-center whitespace-nowrap overflow-hidden text-ellipsis"
                       style={{
-                        opacity: headlineOpacitiesFinal[i] ?? 0,
+                        opacity: headlineOpacitiesDisplay[i] ?? 0,
                         transform: `translate(-50%, ${headlineTranslateYsFinal[i] ?? 0}px)`,
                       }}
-                      aria-hidden={(headlineOpacitiesFinal[i] ?? 0) < 0.01}
+                      aria-hidden={(headlineOpacitiesDisplay[i] ?? 0) < 0.01}
                     >
                       {line}
                     </span>
@@ -415,7 +473,7 @@ export default function CinematicHeroScroll({
                   className="text-white/80 leading-snug text-[13px] text-center"
                   style={{
                     marginBottom: isMobile ? "42px" : "22px",
-                    opacity: metaOpacity,
+                    opacity: metaOpacity * transitionMetaOpacity,
                     fontFamily: "MiSans-Regular, sans-serif",
                   }}
                 >
@@ -427,7 +485,7 @@ export default function CinematicHeroScroll({
                 className="flex shrink-0 justify-center pointer-events-auto"
                 style={{
                   marginBottom: "48px",
-                  opacity: ctaOpacityFinal,
+                  opacity: ctaOpacityDisplay,
                   transform: `translateY(${ctaTranslateYFinal}px)`,
                 }}
               >
@@ -435,7 +493,7 @@ export default function CinematicHeroScroll({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onJoin();
+                    onJoin(heroProgress);
                   }}
                   className="px-6 py-3 rounded-full border border-white/70 text-white text-xs font-medium tracking-wider uppercase bg-transparent"
                   style={{ letterSpacing: "0.08em", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
@@ -459,7 +517,7 @@ export default function CinematicHeroScroll({
               >
                 <div
                   style={{
-                    opacity: narrativeOpacityFinal,
+                    opacity: narrativeOpacityDisplay,
                     transform: `translateY(${narrativeTranslateYFinal}px)`,
                   }}
                   className="pointer-events-none"
@@ -473,10 +531,10 @@ export default function CinematicHeroScroll({
                         key={i}
                         className="absolute top-0 block w-full left-0 right-0"
                         style={{
-                          opacity: headlineOpacitiesFinal[i] ?? 0,
+                          opacity: headlineOpacitiesDisplay[i] ?? 0,
                           transform: `translateY(${headlineTranslateYsFinal[i] ?? 0}px)`,
                         }}
-                        aria-hidden={(headlineOpacitiesFinal[i] ?? 0) < 0.01}
+                        aria-hidden={(headlineOpacitiesDisplay[i] ?? 0) < 0.01}
                       >
                         {line}
                       </span>
@@ -484,7 +542,7 @@ export default function CinematicHeroScroll({
                   </h1>
                   <p
                     className="text-white/80 mt-2 leading-snug text-[clamp(13px,1.2vw,16px)]"
-                    style={{ opacity: metaOpacity, fontFamily: "MiSans-Regular, sans-serif" }}
+                    style={{ opacity: metaOpacity * transitionMetaOpacity, fontFamily: "MiSans-Regular, sans-serif" }}
                   >
                     Premium Climbing Experience · HCMC · 2026
                   </p>
@@ -493,7 +551,7 @@ export default function CinematicHeroScroll({
               <div
                 className="absolute z-30 pointer-events-auto left-4 sm:left-6 md:left-8 bottom-[120px]"
                 style={{
-                  opacity: ctaOpacityFinal,
+                  opacity: ctaOpacityDisplay,
                   transform: `translateY(${ctaTranslateYFinal}px)`,
                 }}
               >
@@ -501,7 +559,7 @@ export default function CinematicHeroScroll({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onJoin();
+                    onJoin(heroProgress);
                   }}
                   className="px-6 py-3 sm:px-8 sm:py-3.5 rounded-full border border-white/70 text-white text-xs sm:text-sm font-medium tracking-wider uppercase bg-transparent"
                   style={{ letterSpacing: "0.05em", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
@@ -514,7 +572,7 @@ export default function CinematicHeroScroll({
               <div
                 className="absolute left-1/2 top-1/2 z-30 flex items-center justify-center pointer-events-none w-[38%] max-w-[280px]"
                 style={{
-                  opacity: mascotOpacityFinal,
+                  opacity: mascotOpacityDisplay,
                   transform: `translate(-50%, calc(-50% + ${mascotTranslateYFinal}px))`,
                 }}
               >
@@ -527,7 +585,7 @@ export default function CinematicHeroScroll({
           )}
 
           {/* Vertical scroll bar (legacy AscentBar driven by hero progress) */}
-          <AscentBar progress={heroProgress} intensity={particleIntensity} />
+          <AscentBar progress={heroProgress} intensity={particleIntensityDisplay} />
         </div>
 
         {/* Scroll arrow: bottom center, above footer; fades in at 1.2s, bounce; fades out when heroProgress > 0.05 */}

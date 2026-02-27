@@ -22,11 +22,18 @@ import KnowYourTeamButton from "@/components/KnowYourTeamButton";
 import LanguageSwitch from "@/components/LanguageSwitch";
 import HeroScrollObserver from "@/components/HeroScrollObserver";
 import SkyTransition from "@/components/SkyTransition";
+import CountdownCinematicTransition from "@/components/CountdownCinematicTransition";
 import MistAscent from "@/components/MistAscent";
 import { CloudPersonality, getCloudById } from "@/lib/cloudData";
 import { getUser } from "@/lib/userStorage";
 import type { Locale } from "@/lib/i18n";
 import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
+import { HERO_BG } from "@/lib/heroConstants";
+import {
+  type CinematicTransitionPhase,
+  CINEMATIC_PHASE_DURATION_MS,
+  GLB_VISIBLE_PROGRESS,
+} from "@/lib/cinematicTransition";
 
 const USE_CINEMATIC_HERO = true;
 const HERO_WRAPPER_VH = 430;
@@ -41,9 +48,11 @@ function HomeContent() {
   const [showClouds, setShowClouds] = useState(false);
   const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
   const [skyVisible, setSkyVisible] = useState(false);
-  const [skyTransitionForCountdown, setSkyTransitionForCountdown] = useState<false | "return" | "forms">(false);
   const [heroOpacity, setHeroOpacity] = useState(1);
+  const [cinematicPhase, setCinematicPhase] = useState<CinematicTransitionPhase>("idle");
+  const [frozenProgress, setFrozenProgress] = useState(0);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const phaseTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const handleCloudTransitionComplete = useCallback(() => {
     setShowClouds(true);
@@ -52,30 +61,102 @@ function HomeContent() {
     router.replace(`/${locale}?clouds=1`, { scroll: false });
   }, [router, locale]);
 
-  /** Single entry point for all navigation to countdown. Mist transition controls timing; navigation happens only after mist covers viewport. */
-  const transitionToCountdown = useCallback(
-    (variant: "return" | "forms") => {
-      setSkyTransitionForCountdown(variant);
-    },
-    []
-  );
+  /** Single entry point for countdown. Uses premium cinematic transition (no mist). */
+  const [countdownCinematicVariant, setCountdownCinematicVariant] = useState<"return" | "forms" | null>(null);
 
-  const handleCountdownTransitionComplete = useCallback(() => {
-    setSkyTransitionForCountdown(false);
+  const transitionToCountdown = useCallback((variant: "return" | "forms") => {
+    setCountdownCinematicVariant(variant);
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+  }, []);
+
+  const handleCountdownCinematicComplete = useCallback(() => {
+    document.documentElement.style.overflow = "";
+    document.body.style.overflow = "";
+    setCountdownCinematicVariant(null);
     setSelectedCloud(null);
-    router.push(`/${locale}/countdown?fromMist=1`);
+    router.push(`/${locale}/countdown?fromCinematic=1`);
   }, [router, locale]);
 
-  const isCountdownTransition = skyTransitionForCountdown !== false;
+  const isCountdownTransition = countdownCinematicVariant !== null;
 
-  const handleAscendClick = useCallback(() => {
+  const startCinematicTransition = useCallback((progress: number) => {
     timersRef.current.forEach(clearTimeout);
-    timersRef.current = [];
-    setSkyVisible(true);
-    setHeroOpacity(1);
-    const t = setTimeout(() => setHeroOpacity(0), 0);
-    timersRef.current.push(t);
-  }, []);
+    phaseTimersRef.current.forEach(clearTimeout);
+    phaseTimersRef.current = [];
+    setFrozenProgress(progress);
+    const startPhase: CinematicTransitionPhase =
+      progress < GLB_VISIBLE_PROGRESS ? "glb_reveal" : "isolation";
+    setCinematicPhase(startPhase);
+
+    const advance = (next: CinematicTransitionPhase) => {
+      setCinematicPhase(next);
+      if (next === "complete") {
+        document.documentElement.style.overflow = "";
+        document.body.style.overflow = "";
+        setShowClouds(true);
+        window.scrollTo({ top: 0, behavior: "auto" });
+        router.replace(`/${locale}?clouds=1`, { scroll: false });
+        setCinematicPhase("idle");
+      }
+    };
+
+    if (startPhase === "glb_reveal") {
+      phaseTimersRef.current.push(
+        setTimeout(() => advance("isolation"), CINEMATIC_PHASE_DURATION_MS.glb_reveal)
+      );
+    }
+    phaseTimersRef.current.push(
+      setTimeout(
+        () => advance("dissolve"),
+        startPhase === "glb_reveal"
+          ? CINEMATIC_PHASE_DURATION_MS.glb_reveal + CINEMATIC_PHASE_DURATION_MS.isolation
+          : CINEMATIC_PHASE_DURATION_MS.isolation
+      )
+    );
+    phaseTimersRef.current.push(
+      setTimeout(
+        () => advance("reveal"),
+        startPhase === "glb_reveal"
+          ? CINEMATIC_PHASE_DURATION_MS.glb_reveal +
+              CINEMATIC_PHASE_DURATION_MS.isolation +
+              CINEMATIC_PHASE_DURATION_MS.dissolve
+          : CINEMATIC_PHASE_DURATION_MS.isolation + CINEMATIC_PHASE_DURATION_MS.dissolve
+      )
+    );
+    phaseTimersRef.current.push(
+      setTimeout(
+        () => advance("complete"),
+        startPhase === "glb_reveal"
+          ? CINEMATIC_PHASE_DURATION_MS.glb_reveal +
+              CINEMATIC_PHASE_DURATION_MS.isolation +
+              CINEMATIC_PHASE_DURATION_MS.dissolve +
+              CINEMATIC_PHASE_DURATION_MS.reveal
+          : CINEMATIC_PHASE_DURATION_MS.isolation +
+              CINEMATIC_PHASE_DURATION_MS.dissolve +
+              CINEMATIC_PHASE_DURATION_MS.reveal
+      )
+    );
+
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+  }, [router, locale]);
+
+  const handleAscendClick = useCallback(
+    (progress?: number) => {
+      if (USE_CINEMATIC_HERO && typeof progress === "number") {
+        startCinematicTransition(progress);
+        return;
+      }
+      timersRef.current.forEach(clearTimeout);
+      timersRef.current = [];
+      setSkyVisible(true);
+      setHeroOpacity(1);
+      const t = setTimeout(() => setHeroOpacity(0), 0);
+      timersRef.current.push(t);
+    },
+    [startCinematicTransition]
+  );
 
   useEffect(() => {
     const teamParam = searchParams.get("team");
@@ -89,7 +170,12 @@ function HomeContent() {
   }, [searchParams, locale, transitionToCountdown]);
 
   useEffect(() => {
-    return () => timersRef.current.forEach(clearTimeout);
+    return () => {
+      timersRef.current.forEach(clearTimeout);
+      phaseTimersRef.current.forEach(clearTimeout);
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    };
   }, []);
 
   useEffect(() => {
@@ -228,6 +314,8 @@ function HomeContent() {
                 footerMessages={footerMessages}
                 heroReady={heroReady}
                 onCenterLogoGone={handleCenterLogoGone}
+                transitionPhase={cinematicPhase}
+                frozenProgress={frozenProgress}
               />
             </div>
           ) : (
@@ -287,11 +375,40 @@ function HomeContent() {
         />
       )}
 
-      {(skyVisible || isCountdownTransition) && (
-        <SkyTransition
-          variant={isCountdownTransition ? skyTransitionForCountdown : "discovery"}
-          onComplete={isCountdownTransition ? handleCountdownTransitionComplete : handleCloudTransitionComplete}
+      {skyVisible && (
+        <SkyTransition variant="discovery" onComplete={handleCloudTransitionComplete} />
+      )}
+
+      {countdownCinematicVariant && (
+        <CountdownCinematicTransition
+          variant={countdownCinematicVariant}
+          selectedCloud={selectedCloud}
+          onComplete={handleCountdownCinematicComplete}
         />
+      )}
+
+      {USE_CINEMATIC_HERO && (cinematicPhase === "dissolve" || cinematicPhase === "reveal") && (
+        <div
+          className="fixed inset-0 z-[60] pointer-events-auto"
+          style={{ background: HERO_BG }}
+          aria-hidden={cinematicPhase === "dissolve"}
+        >
+          <motion.div
+            className="w-full h-full"
+            initial={false}
+            animate={
+              cinematicPhase === "reveal"
+                ? { opacity: 1, y: 0, filter: "blur(0px)" }
+                : { opacity: 0, y: 20, filter: "blur(4px)" }
+            }
+            transition={{
+              duration: 0.6,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+          >
+            <CloudSelector onSelect={setSelectedCloud} />
+          </motion.div>
+        </div>
       )}
     </div>
   );

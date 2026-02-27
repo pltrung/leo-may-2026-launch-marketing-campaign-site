@@ -39,6 +39,8 @@ const CUMULATIVE = {
 export interface UseCountdownHeroEntranceOptions {
   /** Delay (ms) before hero entrance starts. Use after background fade so we land on brand background. */
   startDelay?: number;
+  /** When true, skip mascot animation and go straight to content (e.g. after cinematic transition from home). */
+  skipToContent?: boolean;
 }
 
 /**
@@ -48,10 +50,12 @@ export interface UseCountdownHeroEntranceOptions {
  * When startDelay is set (e.g. 1000), phases start after that delay so background can fade to brand color first.
  */
 export function useCountdownHeroEntrance(options?: UseCountdownHeroEntranceOptions) {
-  const [phase, setPhase] = useState<HeroEntrancePhase>("hidden");
   const startDelay = options?.startDelay ?? 0;
+  const skipToContent = options?.skipToContent ?? false;
+  const [phase, setPhase] = useState<HeroEntrancePhase>(skipToContent ? "content" : "hidden");
 
   useEffect(() => {
+    if (skipToContent) return;
     const run = () => {
       const start = performance.now();
 
@@ -89,7 +93,7 @@ export function useCountdownHeroEntrance(options?: UseCountdownHeroEntranceOptio
       };
     }
     return run();
-  }, [startDelay]);
+  }, [startDelay, skipToContent]);
 
   return { phase };
 }
