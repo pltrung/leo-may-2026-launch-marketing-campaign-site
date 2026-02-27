@@ -21,8 +21,7 @@ import CloudFooter from "@/components/CloudFooter";
 import KnowYourTeamButton from "@/components/KnowYourTeamButton";
 import LanguageSwitch from "@/components/LanguageSwitch";
 import HeroScrollObserver from "@/components/HeroScrollObserver";
-import HoldsRevealTransition from "@/components/HoldsRevealTransition";
-import CountdownTransition from "@/components/CountdownTransition";
+import TVOffTransition from "@/components/TVOffTransition";
 import MistAscent from "@/components/MistAscent";
 import { CloudPersonality, getCloudById } from "@/lib/cloudData";
 import { getUser } from "@/lib/userStorage";
@@ -292,16 +291,11 @@ function HomeContent() {
         />
       )}
 
-      {skyVisible && !isCountdownTransition && (
-        <HoldsRevealTransition
-          duration={1000}
-          onComplete={handleCloudTransitionComplete}
-        />
-      )}
-      {isCountdownTransition && skyTransitionForCountdown && (
-        <CountdownTransition
-          variant={skyTransitionForCountdown}
-          onComplete={handleCountdownTransitionComplete}
+      {(skyVisible || isCountdownTransition) && (
+        <TVOffTransition
+          onComplete={
+            isCountdownTransition ? handleCountdownTransitionComplete : handleCloudTransitionComplete
+          }
         />
       )}
     </div>

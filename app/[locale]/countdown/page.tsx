@@ -560,18 +560,12 @@ export default function CountdownPage() {
       >
         <LanguageSwitch />
       </motion.div>
-      {/* Same brand background as hero/rest of site */}
+      {/* Full black background (no holds — matches countdown transition) */}
       <div
         className="fixed inset-0 -z-10 pointer-events-none"
         style={{ background: HERO_BG }}
         aria-hidden
       />
-      <div
-        className="fixed inset-0 -z-10 opacity-70 pointer-events-none overflow-hidden animate-holds-layer"
-        aria-hidden
-      >
-        <img src="/brand/holds.svg" alt="" className="w-full h-full object-cover" />
-      </div>
 
       <AnimatePresence>
         {(phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" || phase === "phase4-micro-settle" || phase === "phase5-rest") && (
