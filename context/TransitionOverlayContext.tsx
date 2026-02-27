@@ -155,9 +155,9 @@ function TransitionOverlayLayer({
         initial={initialScaleY !== undefined ? { scaleY: initialScaleY } : false}
         animate={{ scaleY: bottomScaleY }}
         transition={transition}
-        onAnimationComplete={(definition) => {
-          if (phase === "collapsing" && definition?.scaleY === 1) onCollapseComplete();
-          if (phase === "expanding" && definition?.scaleY === 0) onExpandComplete();
+        onAnimationComplete={() => {
+          if (phase === "collapsing") onCollapseComplete();
+          if (phase === "expanding") onExpandComplete();
         }}
       />
     </div>
