@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -190,7 +191,14 @@ function CRTTurnOnSequence({
   step: ExpandStep;
   onStepComplete: (nextStep: ExpandStep) => void;
 }) {
-  // Phase 1: full black (no extra UI)
+  // Phase 1: full black (no animation) — advance to 2 immediately so dot can run
+  useLayoutEffect(() => {
+    if (step === 1) {
+      const id = requestAnimationFrame(() => onStepComplete(2));
+      return () => cancelAnimationFrame(id);
+    }
+  }, [step, onStepComplete]);
+
   // Phase 2: center dot + glow
   // Phase 3: horizontal line (scaleX)
   // Phase 4: vertical fill (scaleY) + brightness
