@@ -21,8 +21,8 @@ import CloudFooter from "@/components/CloudFooter";
 import KnowYourTeamButton from "@/components/KnowYourTeamButton";
 import LanguageSwitch from "@/components/LanguageSwitch";
 import HeroScrollObserver from "@/components/HeroScrollObserver";
-import TVOffTransition from "@/components/TVOffTransition";
 import MistAscent from "@/components/MistAscent";
+import { useTransitionOverlay } from "@/context/TransitionOverlayContext";
 import { CloudPersonality, getCloudById } from "@/lib/cloudData";
 import { getUser } from "@/lib/userStorage";
 import type { Locale } from "@/lib/i18n";
@@ -40,42 +40,27 @@ function HomeContent() {
   const searchParams = useSearchParams();
   const [showClouds, setShowClouds] = useState(false);
   const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
-  const [skyVisible, setSkyVisible] = useState(false);
-  const [skyTransitionForCountdown, setSkyTransitionForCountdown] = useState<false | "return" | "forms">(false);
   const [heroOpacity, setHeroOpacity] = useState(1);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const { phase: overlayPhase, startTransition } = useTransitionOverlay();
+  const transitionActive = overlayPhase !== "idle";
 
-  const handleCloudTransitionComplete = useCallback(() => {
-    setShowClouds(true);
-    window.scrollTo({ top: 0, behavior: "auto" });
-    setSkyVisible(false);
-    router.replace(`/${locale}?clouds=1`, { scroll: false });
-  }, [router, locale]);
-
-  /** Single entry point for all navigation to countdown. Mist transition controls timing; navigation happens only after mist covers viewport. */
-  const transitionToCountdown = useCallback(
-    (variant: "return" | "forms") => {
-      setSkyTransitionForCountdown(variant);
-    },
-    []
-  );
-
-  const handleCountdownTransitionComplete = useCallback(() => {
-    setSkyTransitionForCountdown(false);
-    setSelectedCloud(null);
-    router.push(`/${locale}/countdown?fromMist=1`);
-  }, [router, locale]);
-
-  const isCountdownTransition = skyTransitionForCountdown !== false;
-
+  /** Hero → Pick Your Cloud: global overlay collapses, then replace URL; overlay expands after new view is ready. */
   const handleAscendClick = useCallback(() => {
     timersRef.current.forEach(clearTimeout);
     timersRef.current = [];
-    setSkyVisible(true);
-    setHeroOpacity(1);
-    const t = setTimeout(() => setHeroOpacity(0), 0);
-    timersRef.current.push(t);
-  }, []);
+    setHeroOpacity(0);
+    startTransition(`/${locale}?clouds=1`, "replace");
+  }, [locale, startTransition]);
+
+  /** Login/team found or Confirm & ascend → Countdown: close modal (if any), then global overlay transition. */
+  const transitionToCountdown = useCallback(
+    (_variant: "return" | "forms") => {
+      setSelectedCloud(null);
+      startTransition(`/${locale}/countdown?fromMist=1`, "push");
+    },
+    [locale, startTransition]
+  );
 
   useEffect(() => {
     const teamParam = searchParams.get("team");
@@ -93,7 +78,10 @@ function HomeContent() {
   }, []);
 
   useEffect(() => {
-    if (searchParams.get("clouds") === "1") setShowClouds(true);
+    if (searchParams.get("clouds") === "1") {
+      setShowClouds(true);
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
   }, [searchParams]);
 
   useEffect(() => {
@@ -143,7 +131,6 @@ function HomeContent() {
     };
   }, [showClouds]);
 
-  const transitionActive = skyVisible || isCountdownTransition;
   const heroContentOpacity = showClouds ? 1 : (transitionActive ? 0 : heroOpacity);
   const heroEase = [0.22, 1, 0.36, 1] as const;
   const showCinematicLayers = USE_CINEMATIC_HERO && !showClouds;
@@ -291,13 +278,6 @@ function HomeContent() {
         />
       )}
 
-      {(skyVisible || isCountdownTransition) && (
-        <TVOffTransition
-          onComplete={
-            isCountdownTransition ? handleCountdownTransitionComplete : handleCloudTransitionComplete
-          }
-        />
-      )}
     </div>
   );
 }
