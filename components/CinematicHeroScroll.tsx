@@ -328,9 +328,30 @@ export default function CinematicHeroScroll({
           background: HERO_BG,
         }}
       >
-        {/* Content area: top padding = header + safe-area; on mobile add extra vertical padding for breathing room */}
+        {/* Full-viewport climbing-hold GLB layer: owns entire hero stage (no column/max-width); centered; content overlays above via z-index */}
         <div
-          className="flex-1 min-h-0 relative flex flex-col items-center justify-center"
+          className="absolute inset-0 z-10 flex items-center justify-center"
+          style={{
+            width: "100vw",
+            height: "100dvh",
+            opacity: mascotOpacityFinal,
+            transform: `translateY(${mascotTranslateYFinal}px)`,
+            transition: "opacity 500ms ease-out",
+          }}
+          aria-hidden
+        >
+          <HeroClimbingHoldCanvas
+            opacity={1}
+            isMobile={isMobile}
+            allowRotation={heroProgress < 0.18}
+            className="w-full h-full"
+            style={{ minHeight: "unset", maxHeight: "none" }}
+          />
+        </div>
+
+        {/* Content area: overlays above GLB (z-20); padding for header/safe-area and breathing room */}
+        <div
+          className="flex-1 min-h-0 relative flex flex-col items-center justify-center z-20"
           style={{
             paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px))${isMobile ? " + 1.5rem" : ""}`,
             paddingBottom: isMobile ? "2rem" : undefined,
@@ -372,52 +393,18 @@ export default function CinematicHeroScroll({
             />
           </div>
 
-          {/* Mobile: text + CTA below GLB — extra top padding so anchor/phrase never touch GLB */}
+          {/* Mobile: headline + CTA overlay (above GLB); no GLB in column */}
           {isMobile && (
             <div
               className="absolute inset-0 z-30 flex flex-col items-center justify-center overflow-auto pointer-events-none"
               style={{
-                paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 1rem + 18vh)`,
+                paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 1rem + 10vh)`,
                 paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + 1rem)`,
                 paddingLeft: "1rem",
                 paddingRight: "1rem",
               }}
             >
-              {/* Zone 1: Premium rotating sculptural brand object (climbing hold GLB) — mobile 90–120px height; fade out 500ms (same as fade-in) on transition to section 2/3/4 */}
-              <div
-                className="flex shrink-0 items-center justify-center w-full max-w-[260px] pointer-events-none"
-                style={{
-                  height: "clamp(90px, 18vh, 120px)",
-                  minHeight: "90px",
-                  maxHeight: "120px",
-                  marginBottom: "12px",
-                  opacity: mascotOpacityFinal,
-                  transform: `translateY(${mascotTranslateYFinal}px)`,
-                  transition: "opacity 500ms ease-out",
-                }}
-              >
-                <HeroClimbingHoldCanvas
-                  opacity={1}
-                  isMobile={true}
-                  allowRotation={heroProgress < 0.18}
-                  className="w-full h-full"
-                />
-              </div>
-              {/* Arrow down — below logo; extra margin so "Leo. Giữa trời riêng" doesn't overlap */}
-              <div
-                className="flex shrink-0 justify-center hero-scroll-arrow-bounce"
-                style={{ marginTop: "12px", marginBottom: "28px", opacity: scrollArrowOpacity }}
-                aria-hidden
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/brand/arrow-up.svg"
-                  alt=""
-                  className="w-6 h-6 object-contain opacity-80"
-                  style={{ transform: "rotate(180deg)" }}
-                />
-              </div>
-              {/* Zone 2: Headline — fixed min-height so container never changes; text fades in place */}
+              {/* Zone 2: Headline — floats over full-viewport GLB */}
               <div
                 className="flex shrink-0 flex-col items-center text-center w-full max-w-[90vw] pointer-events-none"
                 style={{
@@ -507,6 +494,20 @@ export default function CinematicHeroScroll({
                 >
                   Premium Climbing Experience · HCMC · 2026
                 </p>
+              </div>
+              {/* Arrow down — below CTA on initial scroll; margin so footer doesn't overlap */}
+              <div
+                className="flex shrink-0 justify-center hero-scroll-arrow-bounce"
+                style={{ marginTop: "12px", marginBottom: "28px", opacity: scrollArrowOpacity }}
+                aria-hidden
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/brand/arrow-up.svg"
+                  alt=""
+                  className="w-6 h-6 object-contain opacity-80"
+                  style={{ transform: "rotate(180deg)" }}
+                />
               </div>
             </div>
           )}
@@ -638,24 +639,6 @@ export default function CinematicHeroScroll({
                   </motion.button>
                 </div>
               )}
-              {/* Premium rotating sculptural brand object (climbing hold GLB) — desktop 120–160px height; fade out 500ms (same as fade-in) on transition to section 2/3/4 */}
-              <div
-                className="absolute left-1/2 top-1/2 z-30 flex items-center justify-center pointer-events-none"
-                style={{
-                  width: "clamp(120px, 20vw, 200px)",
-                  height: "clamp(120px, 14vh, 160px)",
-                  opacity: mascotOpacityFinal,
-                  transform: `translate(-50%, calc(-50% + ${mascotTranslateYFinal}px))`,
-                  transition: "opacity 500ms ease-out",
-                }}
-              >
-                <HeroClimbingHoldCanvas
-                  opacity={1}
-                  isMobile={false}
-                  allowRotation={heroProgress < 0.18}
-                  className="w-full h-full"
-                />
-              </div>
             </>
           )}
 
