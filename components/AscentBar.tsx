@@ -52,9 +52,11 @@ const PARTICLE_COUNT_MOBILE = 2;
 export interface AscentBarProps {
   /** When provided (0–1), bar is driven by this value instead of scroll. Used by cinematic hero. */
   progress?: number;
+  /** 0–1 scale for particle/glow intensity (e.g. final stage reduction). Default 1. */
+  intensity?: number;
 }
 
-export default function AscentBar({ progress: progressProp }: AscentBarProps = {}) {
+export default function AscentBar({ progress: progressProp, intensity = 1 }: AscentBarProps = {}) {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const rafRef = useRef<number | null>(null);
@@ -113,6 +115,7 @@ export default function AscentBar({ progress: progressProp }: AscentBarProps = {
   const glowColor = interpolateZoneColor(progress);
   const glowPositionPercent = progress * 100;
   const particleCount = isMobile ? PARTICLE_COUNT_MOBILE : PARTICLE_COUNT_DESKTOP;
+  const safeIntensity = Math.max(0, Math.min(1, intensity));
 
   return (
     <div
@@ -192,7 +195,7 @@ export default function AscentBar({ progress: progressProp }: AscentBarProps = {
                 background: "rgba(255,255,255,0.25)",
                 transform: `translate(-50%, ${-20 - i * 15}px)`,
                 animation: `ascent-particle-drift 3s ease-in-out ${i * 0.4}s infinite`,
-                opacity: 0.6,
+                opacity: 0.6 * safeIntensity,
               }}
             />
           ))}

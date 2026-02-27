@@ -180,38 +180,38 @@ export default function CinematicHeroScroll({
   // Sequential headlines: fade out old fully → hold → fade in new. Wider windows, smoothstep, translateY during fade.
   const headline1Opacity = useMemo(() => {
     if (p <= 0.12) return 1;
-    if (p < 0.22) return 1 - smoothstep(0.12, 0.22, p);
+    if (p < 0.23) return 1 - smoothstep(0.12, 0.23, p);
     return 0;
   }, [p]);
   const headline1TranslateY = useMemo(() => {
     if (p <= 0.12) return 0;
-    if (p < 0.22) return -FADE_Y_PX * smoothstep(0.12, 0.22, p);
+    if (p < 0.23) return -FADE_Y_PX * smoothstep(0.12, 0.23, p);
     return -FADE_Y_PX;
   }, [p]);
   const headline2Opacity = useMemo(() => {
-    if (p < 0.24) return 0;
-    if (p < 0.36) return smoothstep(0.24, 0.36, p);
+    if (p < 0.25) return 0;
+    if (p < 0.35) return smoothstep(0.25, 0.35, p);
     if (p < 0.46) return 1;
     if (p < 0.56) return 1 - smoothstep(0.46, 0.56, p);
     return 0;
   }, [p]);
   const headline2TranslateY = useMemo(() => {
-    if (p < 0.24) return FADE_Y_PX;
-    if (p < 0.36) return FADE_Y_PX * (1 - smoothstep(0.24, 0.36, p));
+    if (p < 0.25) return FADE_Y_PX;
+    if (p < 0.35) return FADE_Y_PX * (1 - smoothstep(0.25, 0.35, p));
     if (p < 0.46) return 0;
     if (p < 0.56) return -FADE_Y_PX * smoothstep(0.46, 0.56, p);
     return -FADE_Y_PX;
   }, [p]);
   const headline3Opacity = useMemo(() => {
-    if (p < 0.58) return 0;
-    if (p < 0.70) return smoothstep(0.58, 0.70, p);
+    if (p < 0.59) return 0;
+    if (p < 0.70) return smoothstep(0.59, 0.70, p);
     if (p < 0.76) return 1;
     if (p < 0.86) return 1 - smoothstep(0.76, 0.86, p);
     return 0;
   }, [p]);
   const headline3TranslateY = useMemo(() => {
-    if (p < 0.58) return FADE_Y_PX;
-    if (p < 0.70) return FADE_Y_PX * (1 - smoothstep(0.58, 0.70, p));
+    if (p < 0.59) return FADE_Y_PX;
+    if (p < 0.70) return FADE_Y_PX * (1 - smoothstep(0.59, 0.70, p));
     if (p < 0.76) return 0;
     if (p < 0.86) return -FADE_Y_PX * smoothstep(0.76, 0.86, p);
     return -FADE_Y_PX;
@@ -232,9 +232,11 @@ export default function CinematicHeroScroll({
   const headlineTranslateYs = [headline1TranslateY, headline2TranslateY, headline3TranslateY, headline4TranslateY];
 
   // Zoom to final; on mobile start slightly earlier (0.78) so final form lasts longer in scroll.
+  // Ease-out so zoom slows near end (monument feel).
   const pZoom = Math.min(p, 0.95);
   const zoomStartP = isDesktop ? 0.82 : 0.78;
-  const zoomT = smoothstep(zoomStartP, 0.95, pZoom);
+  const zoomTLinear = smoothstep(zoomStartP, 0.95, pZoom);
+  const zoomT = 1 - (1 - zoomTLinear) * (1 - zoomTLinear);
   // Keep "Leo May 2026" visible while sculpture zooms in (no narrative fade at end).
   const narrativeStackOpacity = 1;
 
@@ -251,7 +253,7 @@ export default function CinematicHeroScroll({
 
   const glbOpacity = smoothstep(0.38, 0.62, p);
   const glbScaleBase = 0.7 + 0.3 * smoothstep(0.4, 0.65, Math.min(p, 0.82));
-  const glbScale = glbScaleBase;
+  const glbScale = isMobile ? Math.min(glbScaleBase, 0.92) : glbScaleBase;
   const cameraZStart = 9;
   const cameraDistanceEnd = isDesktop ? desktopFinalCameraZ : 5.8;
   const framingClampZ = isDesktop ? desktopFinalCameraZ * 0.9 : 5.2;
@@ -261,7 +263,8 @@ export default function CinematicHeroScroll({
   const CAMERA_Z_MIN = 1;
   if (!Number.isFinite(cameraDistance) || cameraDistance < CAMERA_Z_MIN) cameraDistance = CAMERA_Z_MIN;
   const cameraFov = 45;
-  const glbRotationSpeed = p >= 0.95 ? 0.8 : 1;
+  const glbRotationSpeed = p >= 0.95 ? 0.6 : 1;
+  const modelOffsetYFinal = isMobile ? 0.38 + 0.06 * smoothstep(0.85, 1, p) : 0;
   const narrativeTranslateYBase = -FADE_Y_PX * smoothstep(0.82, 0.98, p);
   const narrativeTranslateY =
     isMobile ? narrativeTranslateYBase + 56 * smoothstep(0.88, 1, p) : narrativeTranslateYBase;
@@ -269,6 +272,8 @@ export default function CinematicHeroScroll({
   const heroFooterTranslateY = -16 * smoothstep(0.86, 0.98, p);
 
   const metaOpacity = smoothstep(0.06, 0.2, p) * narrativeStackOpacity;
+  const headlineLetterSpacing = isMobile && p >= 0.58 && p < 0.86 ? "0.02em" : "0.03em";
+  const particleIntensity = p >= 0.92 ? 0.72 : 1;
 
   const loadT = Math.min(loadElapsed, 1.5);
   const loadMascotOpacity = smoothstep(0.35, 0.65, loadT);
@@ -326,6 +331,13 @@ export default function CinematicHeroScroll({
               boxShadow: isMobile ? "inset 0 0 15vh 8vh rgba(0,0,0,0.3)" : "inset 0 0 20vh 10vh rgba(0,0,0,0.25)",
             }}
           />
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: "rgba(0,0,0,0.04)",
+              opacity: smoothstep(0.88, 1, p),
+            }}
+          />
 
           <div
             className="absolute inset-0 pointer-events-none"
@@ -339,7 +351,7 @@ export default function CinematicHeroScroll({
               rotationSpeedMultiplier={glbRotationSpeed}
               onFramingReady={setDesktopFinalCameraZ}
               shouldMount={glbMounted}
-              modelOffsetY={isMobile ? 0.38 : 0}
+              modelOffsetY={modelOffsetYFinal}
             />
           </div>
 
@@ -382,7 +394,7 @@ export default function CinematicHeroScroll({
                     marginBottom: "6px",
                     fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
                     fontSize: "clamp(18px, 5.5vw, 32px)",
-                    letterSpacing: "0.03em",
+                    letterSpacing: headlineLetterSpacing,
                   }}
                 >
                   {headlines.map((line, i) => (
@@ -402,7 +414,7 @@ export default function CinematicHeroScroll({
                 <p
                   className="text-white/80 leading-snug text-[13px] text-center"
                   style={{
-                    marginBottom: isMobile ? "44px" : "22px",
+                    marginBottom: isMobile ? "34px" : "22px",
                     opacity: metaOpacity,
                     fontFamily: "MiSans-Regular, sans-serif",
                   }}
@@ -515,7 +527,7 @@ export default function CinematicHeroScroll({
           )}
 
           {/* Vertical scroll bar (legacy AscentBar driven by hero progress) */}
-          <AscentBar progress={heroProgress} />
+          <AscentBar progress={heroProgress} intensity={particleIntensity} />
         </div>
 
         {/* Scroll arrow: bottom center, above footer; fades in at 1.2s, bounce; fades out when heroProgress > 0.05 */}
