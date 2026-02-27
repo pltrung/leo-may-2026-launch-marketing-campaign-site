@@ -36,7 +36,7 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
   return (
     <section
       id="clouds"
-      className={`cloud-selection-screen relative w-full h-[100dvh] md:min-h-[100dvh] md:h-auto flex flex-col items-center overflow-x-hidden overflow-y-hidden md:overflow-y-auto px-4 pb-4 pt-[88px] md:pb-16 md:pt-24 sm:px-6 ${detailsOpen ? "card-selected" : ""}`}
+      className={`cloud-selection-screen relative w-full h-[100dvh] md:min-h-[100dvh] md:h-auto flex flex-col items-center overflow-x-hidden overflow-y-hidden md:overflow-y-auto lg:h-screen lg:overflow-hidden px-4 pb-4 pt-[88px] md:pb-16 md:pt-24 lg:pt-20 lg:pb-8 sm:px-6 ${detailsOpen ? "card-selected" : ""}`}
     >
       {/* Logo: top-left — fades in 400–900ms */}
       <motion.div
@@ -48,9 +48,9 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
         <Logo className="w-[110px] md:w-[220px] max-w-[110px] md:max-w-none h-auto object-contain object-left" />
       </motion.div>
 
-      {/* Header: on mobile 80ms (after cards); on desktop 700ms */}
+      {/* Header: on mobile 80ms (after cards); on desktop 700ms. Desktop: reduced spacing. */}
       <motion.div
-        className="cloud-selection-header relative flex flex-col items-center w-full max-w-2xl mx-auto mt-2 md:mt-0 md:mb-8 z-10 transition-opacity duration-400"
+        className="cloud-selection-header relative flex flex-col items-center w-full max-w-2xl mx-auto mt-2 md:mt-0 md:mb-8 lg:mb-2 lg:flex-shrink-0 z-10 transition-opacity duration-400"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{
@@ -59,7 +59,7 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
           ease: [0.22, 1, 0.36, 1],
         }}
       >
-        <h2 className="cloud-selection-title font-headline text-[22px] sm:text-[26px] md:text-[32px] leading-[1.2] md:text-5xl text-center text-white tracking-headline pl-20 pr-20 md:px-4 max-md:whitespace-nowrap">
+        <h2 className="cloud-selection-title font-headline text-[22px] sm:text-[26px] md:text-[32px] leading-[1.2] md:text-5xl lg:text-4xl lg:leading-tight text-center text-white tracking-headline pl-20 pr-20 md:px-4 max-md:whitespace-nowrap">
           {whatTypeOfCloud}
         </h2>
       </motion.div>
@@ -116,13 +116,13 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
         </motion.div>
       </div>
 
-      {/* Desktop only (1024px+): grid only (no randomize button) */}
-      <div className="hidden lg:block w-full mt-8 cloud-selector-container">
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 max-w-4xl w-full mx-auto justify-items-center items-stretch overflow-visible">
+      {/* Desktop only (1024px+): one viewport, 6 cards in a row, vertically centered */}
+      <div className="hidden lg:flex flex-1 w-full min-h-0 items-center justify-center cloud-selector-container">
+        <div className="grid grid-cols-6 gap-6 w-[90%] max-w-[1400px] mx-auto justify-items-center items-center overflow-visible">
           {clouds.map((cloud, index) => (
             <motion.div
               key={cloud.id}
-              className="flex justify-center items-stretch w-full max-w-[200px] lg:max-w-[240px]"
+              className="flex justify-center items-center w-full max-w-[200px]"
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{

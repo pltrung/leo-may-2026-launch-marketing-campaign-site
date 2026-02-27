@@ -1831,6 +1831,31 @@ body.hero-ready .hero-scroll {
   }
 }
 
+/* Desktop (1024px+): card selector one viewport, no scroll; separate from mobile layout */
+@media (min-width: 1024px) {
+  html.cloud-selection-view .cloud-selection-screen {
+    min-height: 100vh;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  html.cloud-selection-view .cloud-selection-screen .cloud-selector-container {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Scale background (holds) down to ~70% on desktop for card selector */
+  html.cloud-selection-view .animate-holds-layer {
+    transform: scale(0.7);
+    transform-origin: center center;
+  }
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;

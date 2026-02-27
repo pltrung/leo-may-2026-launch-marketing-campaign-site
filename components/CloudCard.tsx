@@ -44,7 +44,7 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
 
   return (
     <div
-      className={`w-full min-w-[140px] max-w-[200px] lg:max-w-[240px] aspect-[3/4] lg:aspect-auto lg:min-h-[420px] mx-auto cursor-pointer transition-transform duration-200 ${isHovered ? "-translate-y-1" : ""}`}
+      className={`w-full min-w-[140px] max-w-[200px] lg:max-w-none aspect-[3/4] lg:max-h-[65vh] mx-auto cursor-pointer transition-transform duration-200 ${isHovered ? "-translate-y-1" : ""}`}
       style={{ perspective: "1000px" }}
       onClick={handleCardClick}
       onMouseEnter={() => setIsHovered(true)}
