@@ -129,10 +129,20 @@ export default function CinematicHeroScroll({
   const loadStartRef = useRef<number | null>(null);
   const entranceStartedRef = useRef(false);
   const [desktopFinalCameraZ, setDesktopFinalCameraZ] = useState(6);
+  /** When tab is hidden (app switch), canvases lose WebGL/context; unmount them and remount on visible to avoid broken screen on return. */
+  const [tabVisible, setTabVisible] = useState(true);
 
   useEffect(() => {
     preloadHeroIslandGLB();
     preloadHeroClimbingHoldGLB();
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const onVis = () => setTabVisible(document.visibilityState !== "hidden");
+    onVis(); // sync initial
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
   }, []);
 
   useEffect(() => {
@@ -359,29 +369,33 @@ export default function CinematicHeroScroll({
           background: HERO_BG,
         }}
       >
-        {/* Subtle starfield behind GLB */}
-        <HeroStarfield heroTransitioning={(p >= 0.12 && p <= 0.26) || (p >= 0.74 && p <= 0.92)} />
+        {/* Subtle starfield behind GLB; unmount when tab hidden so we get fresh canvas on return (avoids broken screen after app switch). */}
+        {tabVisible && (
+          <HeroStarfield heroTransitioning={(p >= 0.12 && p <= 0.26) || (p >= 0.74 && p <= 0.92)} />
+        )}
 
-        {/* Full-viewport climbing-hold GLB layer */}
-        <div
-          className="absolute inset-0 z-10 flex items-center justify-center"
-          style={{
-            width: "100vw",
-            height: "100dvh",
-            opacity: mascotOpacityFinal,
-            transform: `translateY(${mascotTranslateYFinal}px)`,
-            transition: "opacity 500ms ease-out",
-          }}
-          aria-hidden
-        >
-          <HeroClimbingHoldCanvas
-            opacity={1}
-            isMobile={isMobile}
-            allowRotation={heroProgress < 0.18}
-            className="w-full h-full"
-            style={{ minHeight: "unset", maxHeight: "none" }}
-          />
-        </div>
+        {/* Full-viewport climbing-hold GLB layer; unmount when tab hidden to avoid lost WebGL context after app switch. */}
+        {tabVisible && (
+          <div
+            className="absolute inset-0 z-10 flex items-center justify-center"
+            style={{
+              width: "100vw",
+              height: "100dvh",
+              opacity: mascotOpacityFinal,
+              transform: `translateY(${mascotTranslateYFinal}px)`,
+              transition: "opacity 500ms ease-out",
+            }}
+            aria-hidden
+          >
+            <HeroClimbingHoldCanvas
+              opacity={1}
+              isMobile={isMobile}
+              allowRotation={heroProgress < 0.18}
+              className="w-full h-full"
+              style={{ minHeight: "unset", maxHeight: "none" }}
+            />
+          </div>
+        )}
 
         {/* Content area: overlays above GLB (z-20); padding for header/safe-area and breathing room */}
         <div
@@ -411,21 +425,23 @@ export default function CinematicHeroScroll({
             }}
           />
 
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{ zIndex: zoomT > 0.05 ? 25 : 5 }}
-          >
-            <HeroIslandCanvas
-              opacity={glbOpacity}
-              scale={glbScale}
-              cameraDistance={cameraDistance}
-              fov={cameraFov}
-              rotationSpeedMultiplier={glbRotationSpeed}
-              onFramingReady={setDesktopFinalCameraZ}
-              shouldMount={glbMounted}
-              modelOffsetY={modelOffsetYFinal}
-            />
-          </div>
+          {tabVisible && (
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{ zIndex: zoomT > 0.05 ? 25 : 5 }}
+            >
+              <HeroIslandCanvas
+                opacity={glbOpacity}
+                scale={glbScale}
+                cameraDistance={cameraDistance}
+                fov={cameraFov}
+                rotationSpeedMultiplier={glbRotationSpeed}
+                onFramingReady={setDesktopFinalCameraZ}
+                shouldMount={glbMounted}
+                modelOffsetY={modelOffsetYFinal}
+              />
+            </div>
+          )}
 
           {/* Mobile: full-viewport GLB is in layer above; overlay = headline → CTA → arrow. Same top spacing as with box so layout/animation unchanged when GLB fades into next scenes. */}
           {isMobile && (
