@@ -374,13 +374,22 @@ export default function CinematicHeroScroll({
                 paddingRight: "1rem",
               }}
             >
+              {/* Arrow up — above logo; fades with scroll */}
+              <div
+                className="flex shrink-0 justify-center hero-scroll-arrow-bounce"
+                style={{ marginBottom: "12px", opacity: scrollArrowOpacity }}
+                aria-hidden
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/brand/arrow-up.svg" alt="" className="w-6 h-6 object-contain opacity-80" />
+              </div>
               {/* Zone 1: Logo — fixed height buffer so GLB zone stays stable */}
               <div
                 className="flex shrink-0 items-center justify-center w-[65%] max-w-[260px] pointer-events-none"
                 style={{
                   minHeight: "18vh",
                   maxHeight: "20vh",
-                  marginBottom: "28px",
+                  marginBottom: "12px",
                   opacity: mascotOpacityFinal,
                   transform: `translateY(${mascotTranslateYFinal}px)`,
                 }}
@@ -389,6 +398,20 @@ export default function CinematicHeroScroll({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/logo-white.svg" alt="Leo Mây" className="w-full h-full object-contain object-center" />
                 </div>
+              </div>
+              {/* Arrow down — below logo; extra margin so "Leo. Giữa trời riêng" doesn't overlap */}
+              <div
+                className="flex shrink-0 justify-center hero-scroll-arrow-bounce"
+                style={{ marginTop: "12px", marginBottom: "28px", opacity: scrollArrowOpacity }}
+                aria-hidden
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/brand/arrow-up.svg"
+                  alt=""
+                  className="w-6 h-6 object-contain opacity-80"
+                  style={{ transform: "rotate(180deg)" }}
+                />
               </div>
               {/* Zone 2: Headline — fixed min-height so container never changes; text fades in place */}
               <div
@@ -568,23 +591,25 @@ export default function CinematicHeroScroll({
           <AscentBar progress={heroProgress} intensity={particleIntensity} />
         </div>
 
-        {/* Scroll arrow: bottom center, above footer; fades in at 1.2s, bounce; fades out when heroProgress > 0.05 */}
-        <div
-          className="absolute left-1/2 z-10 pointer-events-none hero-scroll-arrow-bounce"
-          style={{
-            bottom: `calc(${footerHeight}px + 20px + env(safe-area-inset-bottom, 0px))`,
-            opacity: scrollArrowOpacity,
-          }}
-          aria-hidden
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/brand/arrow-up.svg"
-            alt=""
-            className="w-6 h-6 sm:w-8 sm:h-8 object-contain opacity-80"
-            style={{ transform: "rotate(180deg)" }}
-          />
-        </div>
+        {/* Scroll arrow: desktop only (bottom center above footer); mobile uses two arrows around logo */}
+        {!isMobile && (
+          <div
+            className="absolute left-1/2 z-10 pointer-events-none hero-scroll-arrow-bounce"
+            style={{
+              bottom: `calc(${footerHeight}px + 20px + env(safe-area-inset-bottom, 0px))`,
+              opacity: scrollArrowOpacity,
+            }}
+            aria-hidden
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/arrow-up.svg"
+              alt=""
+              className="w-6 h-6 sm:w-8 sm:h-8 object-contain opacity-80"
+              style={{ transform: "rotate(180deg)" }}
+            />
+          </div>
+        )}
 
         {footerMessages && (
           <div
