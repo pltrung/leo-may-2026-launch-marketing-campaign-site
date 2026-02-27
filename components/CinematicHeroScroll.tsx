@@ -21,13 +21,13 @@ type HeadlineStage = { line1: string; line2: string; line3: string };
 const HEADLINE_STAGES_EN: HeadlineStage[] = [
   { line1: "CLIMB.", line2: "IN YOUR OWN", line3: "SKY." },
   { line1: "CONNECT.", line2: "IN THE SAME", line3: "RHYTHM." },
-  { line1: "BE HERE", line2: "IN EVERY", line3: "MOVEMENT." },
+  { line1: "BE HERE.", line2: "IN EVERY MOVE", line3: "MENT." },
   { line1: "BE FREE", line2: "YOUR", line3: "WAY." },
 ];
 const HEADLINE_STAGES_VI: HeadlineStage[] = [
   { line1: "LEO.", line2: "GIỮA TRỜI", line3: "RIÊNG." },
   { line1: "KẾT NỐI.", line2: "CHUNG MỘT", line3: "NHỊP." },
-  { line1: "HIỆN DIỆN", line2: "TRONG", line3: "CHUYỂN ĐỘNG." },
+  { line1: "HIỆN DIỆN.", line2: "TRONG CHUYỂN", line3: "ĐỘNG." },
   { line1: "TỰ DO", line2: "THEO", line3: "CÁCH BẠN." },
 ];
 
@@ -347,9 +347,22 @@ export default function CinematicHeroScroll({
             }}
           />
 
+          {/* GLB: own stable layer; on mobile anchored center + slight upward bias, never affected by text */}
           <div
-            className="absolute inset-0 pointer-events-none"
-            style={{ zIndex: zoomT > 0.05 ? 25 : 5 }}
+            className="absolute pointer-events-none"
+            style={{
+              zIndex: zoomT > 0.05 ? 25 : 5,
+              ...(isMobile
+                ? {
+                    left: "50%",
+                    top: "45%",
+                    transform: "translate(-50%, -50%)",
+                    width: "100%",
+                    height: "42vh",
+                    minHeight: "200px",
+                  }
+                : { inset: 0 }),
+            }}
           >
             <HeroIslandCanvas
               opacity={glbOpacity}
@@ -363,10 +376,10 @@ export default function CinematicHeroScroll({
             />
           </div>
 
-          {/* Mobile: locked vertical zones — no justify-center; fixed spacing so layout never reflows */}
+          {/* Mobile: text + CTA layer above GLB; position relative to stage, does not affect GLB */}
           {isMobile && (
             <div
-              className="absolute inset-x-0 top-0 bottom-0 z-30 flex flex-col items-center justify-center overflow-auto pointer-events-none"
+              className="absolute inset-0 z-30 flex flex-col items-center justify-center overflow-auto pointer-events-none"
               style={{
                 paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 1rem)`,
                 paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + 1rem)`,
@@ -399,21 +412,20 @@ export default function CinematicHeroScroll({
                 }}
               >
                 <h1
-                  className="relative font-bold text-center w-full max-w-[90vw]"
+                  className="relative flex flex-col items-center w-full max-w-[95vw] font-bold text-center"
                   style={{
-                    minHeight: "11em",
+                    minHeight: "5em",
                     marginBottom: 0,
                     fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
                     letterSpacing: headlineLetterSpacing,
-                    lineHeight: 1.25,
                   }}
                 >
                   {headlineStages.map((stage, i) => (
                     <span
                       key={i}
-                      className="absolute top-0 left-1/2 flex flex-col items-center justify-center w-full max-w-[90vw] text-center"
+                      className="absolute top-0 left-1/2 flex flex-col items-center justify-center w-full max-w-[95vw] text-center"
                       style={{
-                        minHeight: "11em",
+                        minHeight: "5em",
                         transform: `translate(-50%, ${headlineTranslateYsFinal[i] ?? 0}px)`,
                         opacity: headlineOpacitiesFinal[i] ?? 0,
                         transformOrigin: "center center",
@@ -421,39 +433,26 @@ export default function CinematicHeroScroll({
                       aria-hidden={(headlineOpacitiesFinal[i] ?? 0) < 0.01}
                     >
                       <span
-                        className="block whitespace-nowrap"
+                        className="block"
                         style={{
                           color: HERO_HEADLINE_ACCENTS[i] ?? HERO_HEADLINE_ACCENTS[0],
                           fontSize: "clamp(18px, 5.5vw, 32px)",
-                          lineHeight: 1.25,
+                          lineHeight: 1.2,
                           marginBottom: "6px",
                         }}
                       >
                         {stage.line1}
                       </span>
                       <span
-                        className="block text-white whitespace-nowrap"
+                        className="block whitespace-nowrap text-white"
                         style={{
-                          fontSize: "clamp(13px, 3.8vw, 22px)",
+                          fontSize: "clamp(11px, 3.2vw, 18px)",
                           fontWeight: 600,
                           letterSpacing: headlineLetterSpacing,
                           lineHeight: 1.25,
-                          marginBottom: "4px",
                         }}
                       >
-                        {stage.line2}
-                      </span>
-                      <span
-                        className="block text-white whitespace-nowrap"
-                        style={{
-                          fontSize: "clamp(13px, 3.8vw, 22px)",
-                          fontWeight: 600,
-                          letterSpacing: headlineLetterSpacing,
-                          lineHeight: 1.25,
-                          marginBottom: 0,
-                        }}
-                      >
-                        {stage.line3}
+                        {stage.line2} {stage.line3}
                       </span>
                     </span>
                   ))}
