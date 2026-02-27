@@ -10,12 +10,9 @@ import type { Locale } from "@/lib/i18n";
 interface CloudCardProps {
   cloud: CloudPersonality;
   onJoin: (cloud: CloudPersonality) => void;
-  /** Desktop: parent tracks which card is expanded so grid can use items-start (grow downward) */
-  isExpanded?: boolean;
-  onFlippedChange?: (flipped: boolean) => void;
 }
 
-export default function CloudCard({ cloud, onJoin, isExpanded, onFlippedChange }: CloudCardProps) {
+export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
   const locale = useLocale();
   const t = getMessages(locale).common;
   const story = locale === "vi" && cloud.storyVi ? cloud.storyVi : cloud.story;
@@ -26,9 +23,7 @@ export default function CloudCard({ cloud, onJoin, isExpanded, onFlippedChange }
   const cardRef = useRef<HTMLDivElement>(null);
 
   const handleCardClick = () => {
-    const next = !isFlipped;
-    setIsFlipped(next);
-    onFlippedChange?.(next);
+    setIsFlipped((prev) => !prev);
   };
 
   useEffect(() => {
@@ -36,17 +31,11 @@ export default function CloudCard({ cloud, onJoin, isExpanded, onFlippedChange }
     const handleClickOutside = (e: MouseEvent) => {
       if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
         setIsFlipped(false);
-        onFlippedChange?.(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isFlipped, onFlippedChange]);
-
-  // When parent clears expanded (e.g. another card opened), flip this one back
-  useEffect(() => {
-    if (isExpanded === false && isFlipped) setIsFlipped(false);
-  }, [isExpanded, isFlipped]);
+  }, [isFlipped]);
 
   const handleJoinClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -65,33 +54,23 @@ export default function CloudCard({ cloud, onJoin, isExpanded, onFlippedChange }
   })();
   const boxShadow = [defaultShadow, hoverGlow, activeGlow].filter(Boolean).join(", ");
 
-  const backContent = (
-    <>
-      <p className="font-body text-center text-sm leading-[1.5] flex-1 min-h-0 px-2 py-1 flex items-center justify-center text-[#1a1a1a]" style={{ opacity: 0.9 }}>
-        {story}
-      </p>
-      <div className="shrink-0 flex justify-center pt-4 pb-2">
-        <button
-          type="button"
-          onClick={handleJoinClick}
-          className="relative flex items-center justify-center min-w-[140px] min-h-[64px] w-full max-w-[180px] px-6 py-3 hover:opacity-90 transition-all duration-200 border-0 cursor-pointer rounded-2xl"
-          style={{
-            backgroundColor: accent,
-            color: cloud.joinTextHex ?? "#ffffff",
-            boxShadow: `0 0 24px ${accent}60, 0 4px 16px rgba(0,0,0,0.15)`,
-          }}
-        >
-          <span className="font-subheadline text-sm">{t.joinTeam} {cloud.name}</span>
-        </button>
-      </div>
-    </>
-  );
+  const sharedFaceStyle = {
+    backfaceVisibility: "hidden" as const,
+    WebkitBackfaceVisibility: "hidden" as const,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderColor,
+    borderWidth: "1px",
+    boxShadow,
+  };
 
   return (
     <div
       ref={cardRef}
-      className={`w-full min-w-[140px] max-w-[200px] lg:max-w-none aspect-[3/4] lg:max-h-[65vh] mx-auto cursor-pointer transition-all duration-300 ease-out ${isHovered && !isFlipped ? "-translate-y-1" : ""} ${isFlipped ? "lg:!max-w-[380px] lg:!min-h-[380px] lg:!max-h-[85vh] lg:!aspect-auto lg:self-start lg:z-10" : ""}`}
-      style={{ perspective: "1000px" }}
+      className="cloud-card w-full min-w-[140px] max-w-[200px] lg:max-w-none mx-auto cursor-pointer overflow-hidden rounded-[24px] aspect-[3/4] max-h-[65vh] lg:max-h-[65vh] transition-transform duration-300 ease-out"
+      style={{
+        perspective: 1000,
+        transform: isHovered && !isFlipped ? "translateY(-4px)" : undefined,
+      }}
       onClick={handleCardClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -99,56 +78,64 @@ export default function CloudCard({ cloud, onJoin, isExpanded, onFlippedChange }
       onMouseUp={() => setIsActive(false)}
     >
       <div
-        className="relative w-full h-full transition-transform duration-500 ease-out"
+        className="cloud-card-inner relative w-full h-full"
         style={{
           transformStyle: "preserve-3d",
           transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+          transition: "transform 0.6s ease",
         }}
       >
-        {/* Front */}
+        {/* Front: equal height, centered content */}
         <div
-          className="absolute inset-0 w-full h-full rounded-[24px] flex flex-col justify-between p-5 lg:p-8 border backdrop-blur-[12px] transition-all duration-200 overflow-hidden"
-          style={{
-            backfaceVisibility: "hidden",
-            WebkitBackfaceVisibility: "hidden",
-            backgroundColor: "rgba(255,255,255,0.92)",
-            borderColor,
-            borderWidth: "1px",
-            boxShadow,
-          }}
+          className="cloud-card-front absolute inset-0 flex flex-col items-center justify-center text-center rounded-[24px] p-6 border backdrop-blur-[12px]"
+          style={sharedFaceStyle}
         >
-          <div className="flex flex-col items-center justify-center flex-1 min-h-0">
-            <div className="mb-3" style={{ color: accent }}>
-              <CloudIconByType cloudId={cloud.id} className="w-12 h-12 sm:w-14 sm:h-14" />
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <span className="font-subheadline text-base sm:text-lg text-center leading-tight" style={{ color: accent }}>
-                {cloud.name}
-              </span>
-              <span
-                className="font-body text-xs sm:text-sm text-center tracking-[0.5px]"
-                style={{ color: accent, opacity: 0.85 }}
-              >
-                {shortName}
-              </span>
-            </div>
+          <div className="mb-3" style={{ color: accent }}>
+            <CloudIconByType cloudId={cloud.id} className="w-12 h-12 sm:w-14 sm:h-14" />
           </div>
+          <span className="font-subheadline text-base sm:text-lg leading-tight" style={{ color: accent }}>
+            {cloud.name}
+          </span>
+          <span
+            className="font-body text-xs sm:text-sm tracking-[0.5px] mt-0.5"
+            style={{ color: accent, opacity: 0.85 }}
+          >
+            {shortName}
+          </span>
         </div>
 
-        {/* Back: same flip on mobile and desktop; on desktop card is larger so text fits */}
+        {/* Back: equal height, scrollable story inside card boundary, no overflow outside */}
         <div
-          className="absolute inset-0 w-full h-full rounded-[24px] flex flex-col justify-between p-5 lg:p-8 border transition-all duration-200 backdrop-blur-[12px] overflow-y-auto overflow-x-hidden"
+          className="cloud-card-back absolute inset-0 flex flex-col items-center justify-center text-center rounded-[24px] p-6 border backdrop-blur-[12px]"
           style={{
-            backfaceVisibility: "hidden",
-            WebkitBackfaceVisibility: "hidden",
+            ...sharedFaceStyle,
             transform: "rotateY(180deg)",
-            backgroundColor: "rgba(255,255,255,0.92)",
-            borderColor,
-            borderWidth: "1px",
-            boxShadow,
           }}
         >
-          {backContent}
+          <div className="flex-1 min-h-0 w-full flex flex-col items-center justify-center">
+            <div className="cloud-card-back-scroll w-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-width:none] text-center flex items-center justify-center">
+              <p
+                className="font-body text-sm leading-[1.5] text-[#1a1a1a] px-1"
+                style={{ opacity: 0.9 }}
+              >
+                {story}
+              </p>
+            </div>
+          </div>
+          <div className="shrink-0 flex justify-center pt-4 pb-0">
+            <button
+              type="button"
+              onClick={handleJoinClick}
+              className="flex items-center justify-center min-w-[140px] min-h-[56px] w-full max-w-[180px] px-6 py-3 hover:opacity-90 transition-opacity duration-200 border-0 cursor-pointer rounded-2xl"
+              style={{
+                backgroundColor: accent,
+                color: cloud.joinTextHex ?? "#ffffff",
+                boxShadow: `0 0 24px ${accent}60, 0 4px 16px rgba(0,0,0,0.15)`,
+              }}
+            >
+              <span className="font-subheadline text-sm">{t.joinTeam} {cloud.name}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
