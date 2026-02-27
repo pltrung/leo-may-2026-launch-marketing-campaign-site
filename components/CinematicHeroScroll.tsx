@@ -391,7 +391,7 @@ export default function CinematicHeroScroll({
                 <h1
                   className="relative font-bold text-white text-center min-h-[1.3em] leading-tight w-full max-w-[90vw]"
                   style={{
-                    marginBottom: "6px",
+                    marginBottom: isMobile ? "4px" : "6px",
                     fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
                     fontSize: "clamp(18px, 5.5vw, 32px)",
                     letterSpacing: headlineLetterSpacing,
@@ -414,7 +414,7 @@ export default function CinematicHeroScroll({
                 <p
                   className="text-white/80 leading-snug text-[13px] text-center"
                   style={{
-                    marginBottom: isMobile ? "34px" : "22px",
+                    marginBottom: isMobile ? "42px" : "22px",
                     opacity: metaOpacity,
                     fontFamily: "MiSans-Regular, sans-serif",
                   }}
