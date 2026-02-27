@@ -504,14 +504,14 @@ export default function CinematicHeroScroll({
             </div>
           )}
 
-          {/* Mobile: About Us CTA — above GLB/logo; only fades in after scroll is done at the end. Wrapper opacity controls visibility (button's .about-btn-breathe animation would override inline opacity). */}
+          {/* Mobile: About Us CTA — clearly above logo/GLB; only fades in after scroll is done at the end. Wrapper opacity controls visibility (button's .about-btn-breathe animation would override inline opacity). */}
           {isMobile && aboutUsLabel && onAboutUsClick && (() => {
             const mobileAboutOpacity = glbOpacity * smoothstep(0.88, 0.98, heroProgress);
             return (
             <div
               className="absolute left-1/2 z-[35] pointer-events-none"
               style={{
-                top: "38%",
+                top: "30%",
                 transform: "translateX(-50%)",
                 opacity: mobileAboutOpacity,
               }}
