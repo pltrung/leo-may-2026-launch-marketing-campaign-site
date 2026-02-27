@@ -504,14 +504,14 @@ export default function CinematicHeroScroll({
             </div>
           )}
 
-          {/* Mobile: About Us CTA — same size/layout as Join CTA; sits 20–30% from top, above logo/GLB; fades in at end of scroll. */}
+          {/* Mobile: About Us CTA — pill sized to surround the label (not same as Join CTA); top 20%, above logo/GLB; fades in at end of scroll (0.88–0.98), centered. */}
           {isMobile && aboutUsLabel && onAboutUsClick && (() => {
             const mobileAboutOpacity = glbOpacity * smoothstep(0.88, 0.98, heroProgress);
             return (
             <div
               className="absolute left-1/2 z-[35] pointer-events-none"
               style={{
-                top: "25%",
+                top: "20%",
                 transform: "translateX(-50%)",
                 opacity: mobileAboutOpacity,
               }}
@@ -523,7 +523,7 @@ export default function CinematicHeroScroll({
                   e.stopPropagation();
                   onAboutUsClick();
                 }}
-                className="px-6 py-3 rounded-full border border-white/70 text-white text-xs font-medium tracking-wider uppercase bg-transparent about-btn-breathe"
+                className="rounded-full border border-white/70 text-white text-xs font-medium tracking-wider uppercase bg-transparent about-btn-breathe px-5 py-2.5"
                 style={{
                   letterSpacing: "0.08em",
                   boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
