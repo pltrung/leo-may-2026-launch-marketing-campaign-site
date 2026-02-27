@@ -295,9 +295,10 @@ export default function CinematicHeroScroll({
   const mascotOpacityFinal = loadComplete ? mascotOpacity : loadMascotOpacity;
   const mascotTranslateYFinal = loadComplete ? mascotTranslateY : loadMascotY;
   const narrativeOpacityFinal = loadComplete ? narrativeStackOpacity : loadHeadlineOpacity;
-  const narrativeTranslateYFinal = loadComplete ? narrativeTranslateY : loadHeadlineY;
+  /** On mobile, zero vertical translate so layout stays fixed; only opacity animates (no jump/collision). */
+  const narrativeTranslateYFinal = loadComplete ? (isMobile ? 0 : narrativeTranslateY) : loadHeadlineY;
   const headlineOpacitiesFinal = loadComplete ? headlineOpacities : [1, 0, 0, 0];
-  const headlineTranslateYsFinal = loadComplete ? headlineTranslateYs : [loadHeadlineY, 0, 0, 0];
+  const headlineTranslateYsFinal = loadComplete ? (isMobile ? [0, 0, 0, 0] : headlineTranslateYs) : [loadHeadlineY, 0, 0, 0];
   const ctaOpacityFinal = loadComplete ? 1 : loadCTAOpacity;
   const ctaTranslateYFinal = loadComplete ? 0 : loadCTAY;
   const scrollArrowOpacity =
@@ -362,22 +363,24 @@ export default function CinematicHeroScroll({
             />
           </div>
 
-          {/* Mobile: balanced vertical stack — z-30 so above GLB (z-25) for CTA clicks; pointer-events-none so only CTA receives taps */}
+          {/* Mobile: locked vertical zones — no justify-center; fixed spacing so layout never reflows */}
           {isMobile && (
             <div
               className="absolute inset-x-0 top-0 bottom-0 z-30 flex flex-col items-center justify-center overflow-auto pointer-events-none"
               style={{
-                paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 0.75rem)`,
+                paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 1rem)`,
                 paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + 1rem)`,
                 paddingLeft: "1rem",
                 paddingRight: "1rem",
               }}
             >
-              {/* Logo — clear gap below so it never touches anchor; floats when load complete */}
+              {/* Zone 1: Logo — fixed height buffer so GLB zone stays stable */}
               <div
-                className="flex shrink-0 items-center justify-center w-[65%] max-w-[260px] max-h-[20vh] pointer-events-none"
+                className="flex shrink-0 items-center justify-center w-[65%] max-w-[260px] pointer-events-none"
                 style={{
-                  marginBottom: "40px",
+                  minHeight: "18vh",
+                  maxHeight: "20vh",
+                  marginBottom: "28px",
                   opacity: mascotOpacityFinal,
                   transform: `translateY(${mascotTranslateYFinal}px)`,
                 }}
@@ -387,31 +390,33 @@ export default function CinematicHeroScroll({
                   <img src="/logo-white.svg" alt="Leo Mây" className="w-full h-full object-contain object-center" />
                 </div>
               </div>
-              {/* Mobile: per-stage layout — row1 anchor, row2 phrase (smaller), row3 meta, then CTA; min gap so logo/GLB don’t touch anchor */}
+              {/* Zone 2: Headline — fixed min-height so container never changes; text fades in place */}
               <div
                 className="flex shrink-0 flex-col items-center text-center w-full max-w-[90vw] pointer-events-none"
                 style={{
-                  marginTop: "4px",
                   opacity: narrativeOpacityFinal,
                   transform: `translateY(${narrativeTranslateYFinal}px)`,
                 }}
               >
                 <h1
-                  className="relative font-bold text-center leading-tight w-full max-w-[90vw]"
+                  className="relative font-bold text-center w-full max-w-[90vw]"
                   style={{
-                    minHeight: "3.2em",
+                    minHeight: "11em",
                     marginBottom: 0,
                     fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
                     letterSpacing: headlineLetterSpacing,
+                    lineHeight: 1.25,
                   }}
                 >
                   {headlineStages.map((stage, i) => (
                     <span
                       key={i}
-                      className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center w-full max-w-[90vw] text-center"
+                      className="absolute top-0 left-1/2 flex flex-col items-center justify-center w-full max-w-[90vw] text-center"
                       style={{
-                        opacity: headlineOpacitiesFinal[i] ?? 0,
+                        minHeight: "11em",
                         transform: `translate(-50%, ${headlineTranslateYsFinal[i] ?? 0}px)`,
+                        opacity: headlineOpacitiesFinal[i] ?? 0,
+                        transformOrigin: "center center",
                       }}
                       aria-hidden={(headlineOpacitiesFinal[i] ?? 0) < 0.01}
                     >
@@ -420,7 +425,8 @@ export default function CinematicHeroScroll({
                         style={{
                           color: HERO_HEADLINE_ACCENTS[i] ?? HERO_HEADLINE_ACCENTS[0],
                           fontSize: "clamp(18px, 5.5vw, 32px)",
-                          marginBottom: "8px",
+                          lineHeight: 1.25,
+                          marginBottom: "6px",
                         }}
                       >
                         {stage.line1}
@@ -431,7 +437,8 @@ export default function CinematicHeroScroll({
                           fontSize: "clamp(13px, 3.8vw, 22px)",
                           fontWeight: 600,
                           letterSpacing: headlineLetterSpacing,
-                          marginBottom: "6px",
+                          lineHeight: 1.25,
+                          marginBottom: "4px",
                         }}
                       >
                         {stage.line2}
@@ -442,7 +449,8 @@ export default function CinematicHeroScroll({
                           fontSize: "clamp(13px, 3.8vw, 22px)",
                           fontWeight: 600,
                           letterSpacing: headlineLetterSpacing,
-                          marginBottom: "20px",
+                          lineHeight: 1.25,
+                          marginBottom: 0,
                         }}
                       >
                         {stage.line3}
@@ -454,9 +462,8 @@ export default function CinematicHeroScroll({
                   className="text-white/80 leading-snug text-center shrink-0"
                   style={{
                     fontSize: "13px",
-                    marginTop: 0,
+                    marginTop: "8px",
                     marginBottom: "44px",
-                    paddingTop: "6px",
                     opacity: metaOpacity,
                     fontFamily: "MiSans-Regular, sans-serif",
                   }}
@@ -464,11 +471,11 @@ export default function CinematicHeroScroll({
                   Premium Climbing Experience · HCMC · 2026
                 </p>
               </div>
-              {/* CTA — clear gap above meta line; pointer-events-auto so button is tappable */}
+              {/* Zone 3: CTA — fixed margin above so it never shifts with headline change */}
               <div
                 className="flex shrink-0 justify-center pointer-events-auto"
                 style={{
-                  marginTop: "14px",
+                  marginTop: "24px",
                   marginBottom: "48px",
                   opacity: ctaOpacityFinal,
                   transform: `translateY(${ctaTranslateYFinal}px)`,
