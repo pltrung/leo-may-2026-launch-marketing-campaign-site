@@ -15,19 +15,20 @@ const HeroIslandCanvas = dynamic(() => import("@/components/HeroIslandCanvas"), 
 /** Four brand colors for hero anchor words (one per stage) — from globals emphasis/hero palette */
 const HERO_HEADLINE_ACCENTS = ["#22c55e", "#3b82f6", "#FACC15", "#ff1744"] as const;
 
-type HeadlineStage = { anchor: string; phrase: string; phraseLine2?: string };
+/** Desktop + mobile: every stage has exactly 3 lines; line1 = anchor (brand color), line2/line3 = white */
+type HeadlineStage = { line1: string; line2: string; line3: string };
 
 const HEADLINE_STAGES_EN: HeadlineStage[] = [
-  { anchor: "CLIMB.", phrase: "IN YOUR OWN SKY." },
-  { anchor: "CONNECT.", phrase: "IN THE SAME.", phraseLine2: "RHYTHM." },
-  { anchor: "BE HERE.", phrase: "IN EVERY.", phraseLine2: "MOVEMENT." },
-  { anchor: "BE FREE.", phrase: "YOUR WAY." },
+  { line1: "CLIMB.", line2: "IN YOUR OWN", line3: "SKY." },
+  { line1: "CONNECT.", line2: "IN THE SAME", line3: "RHYTHM." },
+  { line1: "BE HERE", line2: "IN EVERY", line3: "MOVEMENT." },
+  { line1: "BE FREE", line2: "YOUR", line3: "WAY." },
 ];
 const HEADLINE_STAGES_VI: HeadlineStage[] = [
-  { anchor: "LEO.", phrase: "GIỮA TRỜI RIÊNG." },
-  { anchor: "KẾT NỐI.", phrase: "CHUNG MỘT.", phraseLine2: "NHỊP." },
-  { anchor: "HIỆN DIỆN.", phrase: "TRONG CHUYỂN.", phraseLine2: "ĐỘNG." },
-  { anchor: "TỰ DO.", phrase: "THEO CÁCH BẠN." },
+  { line1: "LEO.", line2: "GIỮA TRỜI", line3: "RIÊNG." },
+  { line1: "KẾT NỐI.", line2: "CHUNG MỘT", line3: "NHỊP." },
+  { line1: "HIỆN DIỆN", line2: "TRONG", line3: "CHUYỂN ĐỘNG." },
+  { line1: "TỰ DO", line2: "THEO", line3: "CÁCH BẠN." },
 ];
 
 function smoothstep(a: number, b: number, x: number): number {
@@ -422,7 +423,7 @@ export default function CinematicHeroScroll({
                           marginBottom: "8px",
                         }}
                       >
-                        {stage.anchor}
+                        {stage.line1}
                       </span>
                       <span
                         className="block text-white whitespace-nowrap"
@@ -430,24 +431,22 @@ export default function CinematicHeroScroll({
                           fontSize: "clamp(13px, 3.8vw, 22px)",
                           fontWeight: 600,
                           letterSpacing: headlineLetterSpacing,
-                          marginBottom: stage.phraseLine2 != null ? "6px" : "14px",
+                          marginBottom: "6px",
                         }}
                       >
-                        {stage.phrase}
+                        {stage.line2}
                       </span>
-                      {stage.phraseLine2 != null && (
-                        <span
-                          className="block text-white whitespace-nowrap"
-                          style={{
-                            fontSize: "clamp(13px, 3.8vw, 22px)",
-                            fontWeight: 600,
-                            letterSpacing: headlineLetterSpacing,
-                            marginBottom: "14px",
-                          }}
-                        >
-                          {stage.phraseLine2}
-                        </span>
-                      )}
+                      <span
+                        className="block text-white whitespace-nowrap"
+                        style={{
+                          fontSize: "clamp(13px, 3.8vw, 22px)",
+                          fontWeight: 600,
+                          letterSpacing: headlineLetterSpacing,
+                          marginBottom: "20px",
+                        }}
+                      >
+                        {stage.line3}
+                      </span>
                     </span>
                   ))}
                 </h1>
@@ -456,8 +455,8 @@ export default function CinematicHeroScroll({
                   style={{
                     fontSize: "13px",
                     marginTop: 0,
-                    marginBottom: "40px",
-                    paddingTop: "4px",
+                    marginBottom: "44px",
+                    paddingTop: "6px",
                     opacity: metaOpacity,
                     fontFamily: "MiSans-Regular, sans-serif",
                   }}
@@ -465,11 +464,11 @@ export default function CinematicHeroScroll({
                   Premium Climbing Experience · HCMC · 2026
                 </p>
               </div>
-              {/* CTA — clear gap above; pointer-events-auto so button is tappable */}
+              {/* CTA — clear gap above meta line; pointer-events-auto so button is tappable */}
               <div
                 className="flex shrink-0 justify-center pointer-events-auto"
                 style={{
-                  marginTop: "12px",
+                  marginTop: "14px",
                   marginBottom: "48px",
                   opacity: ctaOpacityFinal,
                   transform: `translateY(${ctaTranslateYFinal}px)`,
@@ -522,9 +521,9 @@ export default function CinematicHeroScroll({
                         }}
                         aria-hidden={(headlineOpacitiesFinal[i] ?? 0) < 0.01}
                       >
-                        <span className="block whitespace-nowrap" style={{ color: HERO_HEADLINE_ACCENTS[i] ?? HERO_HEADLINE_ACCENTS[0] }}>{stage.anchor}</span>
-                        <span className="block text-white mt-0.5 whitespace-nowrap">{stage.phrase}</span>
-                        {stage.phraseLine2 != null && <span className="block text-white mt-0.5 whitespace-nowrap">{stage.phraseLine2}</span>}
+                        <span className="block whitespace-nowrap" style={{ color: HERO_HEADLINE_ACCENTS[i] ?? HERO_HEADLINE_ACCENTS[0] }}>{stage.line1}</span>
+                        <span className="block text-white mt-0.5 whitespace-nowrap">{stage.line2}</span>
+                        <span className="block text-white mt-0.5 whitespace-nowrap">{stage.line3}</span>
                       </span>
                     ))}
                   </h1>
