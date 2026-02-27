@@ -11,11 +11,14 @@ export { preloadHeroClimbingHoldGLB };
 export default function HeroClimbingHoldCanvas({
   opacity,
   isMobile,
+  allowRotation = false,
   className,
   style,
 }: {
   opacity: number;
   isMobile: boolean;
+  /** When true, user can rotate sculpture (initial scroll); when false, locked for next scene. */
+  allowRotation?: boolean;
   className?: string;
   style?: React.CSSProperties;
 }) {
@@ -53,19 +56,20 @@ export default function HeroClimbingHoldCanvas({
         maxHeight: isMobile ? "120px" : "160px",
         opacity: fadeInProgress,
         transition: `opacity ${FADE_MS}ms ease-out`,
+        pointerEvents: allowRotation ? "auto" : "none",
         ...style,
       }}
       aria-hidden
     >
       {mounted && (
         <Canvas
-          camera={{ position: [0, 0.3, 1.8], fov: 26 }}
+          camera={{ position: [0, 0.3, 2.6], fov: 26 }}
           dpr={[1, 2]}
           gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
           frameloop="always"
           style={{ width: "100%", height: "100%" }}
         >
-          <HeroClimbingHoldGLB opacity={opacity} isMobile={isMobile} />
+          <HeroClimbingHoldGLB opacity={opacity} isMobile={isMobile} allowRotation={allowRotation} />
         </Canvas>
       )}
     </div>

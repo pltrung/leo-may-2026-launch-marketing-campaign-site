@@ -399,6 +399,7 @@ export default function CinematicHeroScroll({
                 <HeroClimbingHoldCanvas
                   opacity={1}
                   isMobile={true}
+                  allowRotation={heroProgress < 0.18}
                   className="w-full h-full"
                 />
               </div>
@@ -651,6 +652,7 @@ export default function CinematicHeroScroll({
                 <HeroClimbingHoldCanvas
                   opacity={1}
                   isMobile={false}
+                  allowRotation={heroProgress < 0.18}
                   className="w-full h-full"
                 />
               </div>

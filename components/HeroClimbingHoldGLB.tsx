@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useGLTF } from "@react-three/drei";
+import { useGLTF, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import type { Group, Mesh, Material } from "three";
 
@@ -15,11 +15,14 @@ function easeOutCubic(t: number): number {
 }
 
 const CAMERA_FOV = 26;
-const CAMERA_POSITION: [number, number, number] = [0, 0.3, 1.8];
-const SCALE_INITIAL = 1.6;
-const SCALE_FINAL_DESKTOP = 2.1;
-const SCALE_FINAL_MOBILE = 2.0;
-const SCALE_MAX = 2.2;
+const CAMERA_POSITION: [number, number, number] = [0, 0.3, 2.6];
+const ORBIT_DAMPING = 0.1;
+const radius = Math.sqrt(CAMERA_POSITION[1] ** 2 + CAMERA_POSITION[2] ** 2);
+const POLAR_ANGLE_LOCK = Math.acos(CAMERA_POSITION[1] / radius);
+const SCALE_INITIAL = 1.15;
+const SCALE_FINAL_DESKTOP = 1.45;
+const SCALE_FINAL_MOBILE = 1.35;
+const SCALE_MAX = 1.5;
 const SCALE_ANIM_MS = 400;
 const ROTATION_RAD_PER_SEC_DESKTOP = 0.3;
 const ROTATION_RAD_PER_SEC_MOBILE = 0.2;
@@ -38,9 +41,11 @@ export function preloadHeroClimbingHoldGLB(): void {
 function ClimbingHoldModel({
   opacity,
   isMobile,
+  allowRotation,
 }: {
   opacity: number;
   isMobile: boolean;
+  allowRotation: boolean;
 }) {
   const groupRef = useRef<Group>(null);
   const { scene } = useGLTF(GLB_URL);
@@ -86,8 +91,10 @@ function ClimbingHoldModel({
   useFrame((state, delta) => {
     if (!groupRef.current || !scene) return;
 
-    const rotSpeed = isMobile ? ROTATION_RAD_PER_SEC_MOBILE : ROTATION_RAD_PER_SEC_DESKTOP;
-    groupRef.current.rotation.y += delta * rotSpeed;
+    if (!allowRotation) {
+      const rotSpeed = isMobile ? ROTATION_RAD_PER_SEC_MOBILE : ROTATION_RAD_PER_SEC_DESKTOP;
+      groupRef.current.rotation.y += delta * rotSpeed;
+    }
 
     const now = state.clock.getElapsedTime() * 1000;
     if (scaleStartTime.current === null) scaleStartTime.current = now;
@@ -133,14 +140,29 @@ function CameraAndLights() {
 export default function HeroClimbingHoldGLB({
   opacity,
   isMobile,
+  allowRotation = false,
 }: {
   opacity: number;
   isMobile: boolean;
+  allowRotation?: boolean;
 }) {
   return (
     <>
       <CameraAndLights />
-      <ClimbingHoldModel opacity={opacity} isMobile={isMobile} />
+      {allowRotation && (
+        <OrbitControls
+          enableZoom={false}
+          enablePan={false}
+          enableRotate={true}
+          minPolarAngle={POLAR_ANGLE_LOCK}
+          maxPolarAngle={POLAR_ANGLE_LOCK}
+          target={[0, 0, 0]}
+          enableDamping
+          dampingFactor={ORBIT_DAMPING}
+          enabled={allowRotation}
+        />
+      )}
+      <ClimbingHoldModel opacity={opacity} isMobile={isMobile} allowRotation={allowRotation} />
     </>
   );
 }
