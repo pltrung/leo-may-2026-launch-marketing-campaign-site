@@ -500,28 +500,34 @@ export default function CinematicHeroScroll({
                 >
                   Premium Climbing Experience · HCMC · 2026
                 </p>
-                {/* About Us CTA: only when user has scrolled to bottom (GLB expanded to 0.99), same layout as Join CTA above GLB */}
-                {aboutUsLabel && onAboutUsClick && (
-                  <motion.button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAboutUsClick();
-                    }}
-                    className="mt-4 px-6 py-3 rounded-full border border-white/70 text-white text-xs font-medium tracking-wider uppercase bg-transparent about-btn-breathe"
-                    style={{
-                      letterSpacing: "0.08em",
-                      boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
-                      opacity: smoothstep(0.65, 0.85, heroProgress),
-                    }}
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 1.02 }}
-                    aria-label={aboutUsLabel}
-                  >
-                    {aboutUsLabel}
-                  </motion.button>
-                )}
               </div>
+            </div>
+          )}
+
+          {/* Mobile: About Us CTA — centered on top of GLB/logo; only when GLB visible and scaled to 0.99 */}
+          {isMobile && aboutUsLabel && onAboutUsClick && (
+            <div
+              className="absolute inset-0 z-[35] flex items-center justify-center pointer-events-none"
+              aria-hidden
+            >
+              <motion.button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAboutUsClick();
+                }}
+                className="pointer-events-auto px-6 py-3 rounded-full border border-white/70 text-white text-xs font-medium tracking-wider uppercase bg-transparent about-btn-breathe"
+                style={{
+                  letterSpacing: "0.08em",
+                  boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
+                  opacity: glbOpacity * smoothstep(0.65, 0.85, heroProgress),
+                }}
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 1.02 }}
+                aria-label={aboutUsLabel}
+              >
+                {aboutUsLabel}
+              </motion.button>
             </div>
           )}
 
@@ -591,12 +597,13 @@ export default function CinematicHeroScroll({
                   Premium Climbing Experience · HCMC · 2026
                 </p>
               </div>
-              {/* About Us CTA — desktop: bottom right, same vertical height as Join CTA; fades in at end of scroll when GLB finishes */}
+              {/* About Us CTA — desktop: anchored to right layout margin, same baseline as primary CTA; opacity-only fade, no position shift */}
               {aboutUsLabel && onAboutUsClick && (
                 <div
-                  className="absolute z-30 pointer-events-auto right-4 sm:right-6 md:right-8 bottom-[120px] flex flex-col items-end"
+                  className="absolute z-30 pointer-events-auto bottom-[120px] flex flex-col items-end"
                   style={{
-                    opacity: smoothstep(0.7, 0.95, heroProgress),
+                    right: "clamp(1.5rem, 7vw, 6rem)",
+                    opacity: smoothstep(0.78, 0.92, heroProgress),
                   }}
                 >
                   <motion.button
