@@ -296,7 +296,6 @@ export default function CountdownPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromMist = searchParams.get("fromMist") === "1";
-  const fromCinematic = searchParams.get("fromCinematic") === "1";
   const debugPerf = searchParams.get("debugPerf") === "1";
   const locale = useLocale();
   const [perfDelta, setPerfDelta] = useState<number>(0);
@@ -319,10 +318,7 @@ export default function CountdownPage() {
   const [upgradeSuccessToast, setUpgradeSuccessToast] = useState(false);
   const [verificationSuccessOverlay, setVerificationSuccessOverlay] = useState(false);
   const [shouldAnimateVerifiedBadge, setShouldAnimateVerifiedBadge] = useState(false);
-  const { phase } = useCountdownHeroEntrance({
-    startDelay: fromCinematic ? 0 : COUNTDOWN_BG_FADE_MS,
-    skipToContent: fromCinematic,
-  });
+  const { phase } = useCountdownHeroEntrance({ startDelay: COUNTDOWN_BG_FADE_MS });
   const teamCount = useTeamCount((user?.team ?? "may_nhe") as CloudType);
   const leaderboard = useLeaderboard();
   const { days, hours, minutes, seconds } = useCountdown();
@@ -562,15 +558,9 @@ export default function CountdownPage() {
       )}
       <motion.div
         className="flex flex-col w-full flex-1 min-h-0 overflow-x-hidden"
-        initial={{
-          opacity: fromMist || fromCinematic ? 0 : 1,
-          y: fromCinematic ? 20 : 0,
-        }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{
-          duration: fromCinematic ? 0.65 : fromMist ? 0.7 : 0,
-          ease: [0.22, 1, 0.36, 1],
-        }}
+        initial={{ opacity: fromMist ? 0 : 1 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: fromMist ? 0.7 : 0, ease: [0.22, 1, 0.36, 1] }}
       >
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-4 relative overflow-y-auto overflow-x-hidden min-h-0">
       {/* VN/EN fixed bottom-left (mobile + desktop) */}
