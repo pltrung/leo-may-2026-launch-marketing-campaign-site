@@ -347,22 +347,9 @@ export default function CinematicHeroScroll({
             }}
           />
 
-          {/* GLB: own stable layer; on mobile anchored center + slight upward bias, never affected by text */}
           <div
-            className="absolute pointer-events-none"
-            style={{
-              zIndex: zoomT > 0.05 ? 25 : 5,
-              ...(isMobile
-                ? {
-                    left: "50%",
-                    top: "45%",
-                    transform: "translate(-50%, -50%)",
-                    width: "100%",
-                    height: "42vh",
-                    minHeight: "200px",
-                  }
-                : { inset: 0 }),
-            }}
+            className="absolute inset-0 pointer-events-none"
+            style={{ zIndex: zoomT > 0.05 ? 25 : 5 }}
           >
             <HeroIslandCanvas
               opacity={glbOpacity}
@@ -376,12 +363,12 @@ export default function CinematicHeroScroll({
             />
           </div>
 
-          {/* Mobile: text + CTA layer above GLB; position relative to stage, does not affect GLB */}
+          {/* Mobile: text + CTA below GLB — extra top padding so anchor/phrase never touch GLB */}
           {isMobile && (
             <div
               className="absolute inset-0 z-30 flex flex-col items-center justify-center overflow-auto pointer-events-none"
               style={{
-                paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 1rem)`,
+                paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 1rem + 18vh)`,
                 paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + 1rem)`,
                 paddingLeft: "1rem",
                 paddingRight: "1rem",
@@ -461,7 +448,7 @@ export default function CinematicHeroScroll({
                   className="text-white/80 leading-snug text-center shrink-0"
                   style={{
                     fontSize: "13px",
-                    marginTop: "8px",
+                    marginTop: "28px",
                     marginBottom: "44px",
                     opacity: metaOpacity,
                     fontFamily: "MiSans-Regular, sans-serif",
