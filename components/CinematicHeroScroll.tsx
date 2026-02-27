@@ -380,7 +380,7 @@ export default function CinematicHeroScroll({
                   <img src="/logo-white.svg" alt="Leo Mây" className="w-full h-full object-contain object-center" />
                 </div>
               </div>
-              {/* Headline (one line) + meta — tight spacing so Your Move sits closer to meta line */}
+              {/* Mobile: meta above headline so "Premium…" sits right above "YOUR MOVE"; gap below YOUR MOVE = SHAPE THE STANDARD rhythm (56px) */}
               <div
                 className="flex shrink-0 flex-col items-center text-center w-full max-w-[90vw] pointer-events-none"
                 style={{
@@ -388,10 +388,20 @@ export default function CinematicHeroScroll({
                   transform: `translateY(${narrativeTranslateYFinal}px)`,
                 }}
               >
+                <p
+                  className="text-white/80 leading-snug text-[13px] text-center"
+                  style={{
+                    marginBottom: "8px",
+                    opacity: metaOpacity,
+                    fontFamily: "MiSans-Regular, sans-serif",
+                  }}
+                >
+                  Premium Climbing Experience · HCMC · 2026
+                </p>
                 <h1
                   className="relative font-bold text-white text-center min-h-[1.3em] leading-tight w-full max-w-[90vw]"
                   style={{
-                    marginBottom: isMobile ? "4px" : "6px",
+                    marginBottom: "56px",
                     fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
                     fontSize: "clamp(18px, 5.5vw, 32px)",
                     letterSpacing: headlineLetterSpacing,
@@ -411,16 +421,6 @@ export default function CinematicHeroScroll({
                     </span>
                   ))}
                 </h1>
-                <p
-                  className="text-white/80 leading-snug text-[13px] text-center"
-                  style={{
-                    marginBottom: isMobile ? "42px" : "22px",
-                    opacity: metaOpacity,
-                    fontFamily: "MiSans-Regular, sans-serif",
-                  }}
-                >
-                  Premium Climbing Experience · HCMC · 2026
-                </p>
               </div>
               {/* CTA — slightly below center; margin-bottom 40–60px for footer clearance; pointer-events-auto so button is tappable */}
               <div
