@@ -467,22 +467,10 @@ export default function CinematicHeroScroll({
                     </span>
                   ))}
                 </h1>
-                <p
-                  className="text-white/80 leading-snug text-center shrink-0"
-                  style={{
-                    fontSize: "13px",
-                    marginTop: "28px",
-                    marginBottom: "44px",
-                    opacity: metaOpacity,
-                    fontFamily: "MiSans-Regular, sans-serif",
-                  }}
-                >
-                  Premium Climbing Experience · HCMC · 2026
-                </p>
               </div>
-              {/* Zone 3: CTA — fixed margin above so it never shifts with headline change */}
+              {/* Zone 3: CTA first, then Premium Climbing Experience right below (small gap) */}
               <div
-                className="flex shrink-0 justify-center pointer-events-auto"
+                className="flex shrink-0 flex-col items-center justify-center pointer-events-auto"
                 style={{
                   marginTop: "24px",
                   marginBottom: "48px",
@@ -503,6 +491,18 @@ export default function CinematicHeroScroll({
                 >
                   {ctaLabel}
                 </motion.button>
+                <p
+                  className="text-white/80 leading-snug text-center shrink-0 pointer-events-none"
+                  style={{
+                    fontSize: "13px",
+                    marginTop: "12px",
+                    marginBottom: 0,
+                    opacity: metaOpacity,
+                    fontFamily: "MiSans-Regular, sans-serif",
+                  }}
+                >
+                  Premium Climbing Experience · HCMC · 2026
+                </p>
               </div>
             </div>
           )}
@@ -543,16 +543,11 @@ export default function CinematicHeroScroll({
                       </span>
                     ))}
                   </h1>
-                  <p
-                    className="text-white/80 mt-2 leading-snug text-[clamp(13px,1.2vw,16px)]"
-                    style={{ opacity: metaOpacity, fontFamily: "MiSans-Regular, sans-serif" }}
-                  >
-                    Premium Climbing Experience · HCMC · 2026
-                  </p>
                 </div>
               </div>
+              {/* CTA first, then Premium Climbing Experience right below (same position as before, meta pushed up) */}
               <div
-                className="absolute z-30 pointer-events-auto left-4 sm:left-6 md:left-8 bottom-[120px]"
+                className="absolute z-30 pointer-events-auto left-4 sm:left-6 md:left-8 bottom-[120px] flex flex-col items-start"
                 style={{
                   opacity: ctaOpacityFinal,
                   transform: `translateY(${ctaTranslateYFinal}px)`,
@@ -571,6 +566,25 @@ export default function CinematicHeroScroll({
                 >
                   {ctaLabel}
                 </motion.button>
+                <p
+                  className="text-white/80 mt-3 leading-snug text-[clamp(13px,1.2vw,16px)] pointer-events-none"
+                  style={{ opacity: metaOpacity, fontFamily: "MiSans-Regular, sans-serif" }}
+                >
+                  Premium Climbing Experience · HCMC · 2026
+                </p>
+              </div>
+              {/* Arrow up — desktop: right above logo, fades with scroll */}
+              <div
+                className="absolute left-1/2 z-30 pointer-events-none hero-scroll-arrow-bounce"
+                style={{
+                  top: "calc(50% - 120px)",
+                  transform: "translate(-50%, -50%)",
+                  opacity: scrollArrowOpacity,
+                }}
+                aria-hidden
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/brand/arrow-up.svg" alt="" className="w-6 h-6 sm:w-8 sm:h-8 object-contain opacity-80" />
               </div>
               <div
                 className="absolute left-1/2 top-1/2 z-30 flex items-center justify-center pointer-events-none w-[38%] max-w-[280px]"
