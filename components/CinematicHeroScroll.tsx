@@ -6,11 +6,13 @@ import { motion } from "framer-motion";
 import type { Locale } from "@/lib/i18n";
 import type { MascotPartColors } from "@/lib/mascotSpeciesColors";
 import { preloadHeroIslandGLB } from "@/components/HeroIslandGLB";
+import { preloadHeroClimbingHoldGLB } from "@/components/HeroClimbingHoldCanvas";
 import { HERO_BG } from "@/lib/heroConstants";
 import { getMessages } from "@/lib/messages";
 import AscentBar from "@/components/AscentBar";
 
 const HeroIslandCanvas = dynamic(() => import("@/components/HeroIslandCanvas"), { ssr: false });
+const HeroClimbingHoldCanvas = dynamic(() => import("@/components/HeroClimbingHoldCanvas"), { ssr: false });
 
 /** Four brand colors for hero anchor words (one per stage) — from globals emphasis/hero palette */
 const HERO_HEADLINE_ACCENTS = ["#22c55e", "#3b82f6", "#FACC15", "#ff1744"] as const;
@@ -117,6 +119,7 @@ export default function CinematicHeroScroll({
 
   useEffect(() => {
     preloadHeroIslandGLB();
+    preloadHeroClimbingHoldGLB();
   }, []);
 
   useEffect(() => {
@@ -380,21 +383,24 @@ export default function CinematicHeroScroll({
                 paddingRight: "1rem",
               }}
             >
-              {/* Zone 1: Logo — fixed height buffer so GLB zone stays stable */}
+              {/* Zone 1: Premium rotating sculptural brand object (climbing hold GLB) — mobile 90–120px height; fade out 500ms (same as fade-in) on transition to section 2/3/4 */}
               <div
-                className="flex shrink-0 items-center justify-center w-[65%] max-w-[260px] pointer-events-none"
+                className="flex shrink-0 items-center justify-center w-full max-w-[260px] pointer-events-none"
                 style={{
-                  minHeight: "18vh",
-                  maxHeight: "20vh",
+                  height: "clamp(90px, 18vh, 120px)",
+                  minHeight: "90px",
+                  maxHeight: "120px",
                   marginBottom: "12px",
                   opacity: mascotOpacityFinal,
                   transform: `translateY(${mascotTranslateYFinal}px)`,
+                  transition: "opacity 500ms ease-out",
                 }}
               >
-                <div className={`w-full h-full flex items-center justify-center ${loadComplete ? "hero-mascot-float" : ""}`}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/logo-white.svg" alt="Leo Mây" className="w-full h-full object-contain object-center" />
-                </div>
+                <HeroClimbingHoldCanvas
+                  opacity={1}
+                  isMobile={true}
+                  className="w-full h-full"
+                />
               </div>
               {/* Arrow down — below logo; extra margin so "Leo. Giữa trời riêng" doesn't overlap */}
               <div
@@ -631,17 +637,22 @@ export default function CinematicHeroScroll({
                   </motion.button>
                 </div>
               )}
+              {/* Premium rotating sculptural brand object (climbing hold GLB) — desktop 120–160px height; fade out 500ms (same as fade-in) on transition to section 2/3/4 */}
               <div
-                className="absolute left-1/2 top-1/2 z-30 flex items-center justify-center pointer-events-none w-[38%] max-w-[280px]"
+                className="absolute left-1/2 top-1/2 z-30 flex items-center justify-center pointer-events-none"
                 style={{
+                  width: "clamp(120px, 20vw, 200px)",
+                  height: "clamp(120px, 14vh, 160px)",
                   opacity: mascotOpacityFinal,
                   transform: `translate(-50%, calc(-50% + ${mascotTranslateYFinal}px))`,
+                  transition: "opacity 500ms ease-out",
                 }}
               >
-                <div className={loadComplete ? "hero-mascot-float w-full h-full flex items-center justify-center" : "w-full h-full"}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/logo-white.svg" alt="Leo Mây" className="w-full h-full object-contain object-center" />
-                </div>
+                <HeroClimbingHoldCanvas
+                  opacity={1}
+                  isMobile={false}
+                  className="w-full h-full"
+                />
               </div>
             </>
           )}
