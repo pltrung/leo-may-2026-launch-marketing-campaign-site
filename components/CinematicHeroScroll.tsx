@@ -131,6 +131,8 @@ export default function CinematicHeroScroll({
   const [desktopFinalCameraZ, setDesktopFinalCameraZ] = useState(6);
   /** When tab is hidden (app switch), canvases lose WebGL/context; unmount them and remount on visible to avoid broken screen on return. */
   const [tabVisible, setTabVisible] = useState(true);
+  /** On mobile, after tab has been hidden once, do not remount GLB (climbing hold + island) to avoid client error and lag from heavy WebGL re-init. */
+  const mobileSkipGlbAfterHiddenRef = useRef(false);
 
   useEffect(() => {
     preloadHeroIslandGLB();
@@ -139,7 +141,13 @@ export default function CinematicHeroScroll({
 
   useEffect(() => {
     if (typeof document === "undefined") return;
-    const onVis = () => setTabVisible(document.visibilityState !== "hidden");
+    const onVis = () => {
+      const visible = document.visibilityState !== "hidden";
+      if (!visible && typeof window !== "undefined" && window.innerWidth <= 768) {
+        mobileSkipGlbAfterHiddenRef.current = true;
+      }
+      setTabVisible(visible);
+    };
     onVis(); // sync initial
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
@@ -374,8 +382,8 @@ export default function CinematicHeroScroll({
           <HeroStarfield heroTransitioning={(p >= 0.12 && p <= 0.26) || (p >= 0.74 && p <= 0.92)} />
         )}
 
-        {/* Full-viewport climbing-hold GLB layer; unmount when tab hidden to avoid lost WebGL context after app switch. */}
-        {tabVisible && (
+        {/* Full-viewport climbing-hold GLB layer; unmount when tab hidden. On mobile, do not remount after hidden (avoids GLB re-init error/lag). */}
+        {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (
           <div
             className="absolute inset-0 z-10 flex items-center justify-center"
             style={{
@@ -425,7 +433,7 @@ export default function CinematicHeroScroll({
             }}
           />
 
-          {tabVisible && (
+          {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (
             <div
               className="absolute inset-0 pointer-events-none"
               style={{ zIndex: zoomT > 0.05 ? 25 : 5 }}
