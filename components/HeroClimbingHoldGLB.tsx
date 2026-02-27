@@ -19,10 +19,10 @@ const CAMERA_POSITION: [number, number, number] = [0, 0.3, 2.6];
 const ORBIT_DAMPING = 0.1;
 const radius = Math.sqrt(CAMERA_POSITION[1] ** 2 + CAMERA_POSITION[2] ** 2);
 const POLAR_ANGLE_LOCK = Math.acos(CAMERA_POSITION[1] / radius);
-const SCALE_INITIAL = 1.15;
-const SCALE_FINAL_DESKTOP = 1.45;
-const SCALE_FINAL_MOBILE = 1.35;
-const SCALE_MAX = 1.5;
+const SCALE_INITIAL = 1.45;
+const SCALE_FINAL_DESKTOP = 1.75;
+const SCALE_FINAL_MOBILE = 1.65;
+const SCALE_MAX = 1.85;
 const SCALE_ANIM_MS = 400;
 const ROTATION_RAD_PER_SEC_DESKTOP = 0.3;
 const ROTATION_RAD_PER_SEC_MOBILE = 0.2;
@@ -41,11 +41,9 @@ export function preloadHeroClimbingHoldGLB(): void {
 function ClimbingHoldModel({
   opacity,
   isMobile,
-  allowRotation,
 }: {
   opacity: number;
   isMobile: boolean;
-  allowRotation: boolean;
 }) {
   const groupRef = useRef<Group>(null);
   const { scene } = useGLTF(GLB_URL);
@@ -91,10 +89,8 @@ function ClimbingHoldModel({
   useFrame((state, delta) => {
     if (!groupRef.current || !scene) return;
 
-    if (!allowRotation) {
-      const rotSpeed = isMobile ? ROTATION_RAD_PER_SEC_MOBILE : ROTATION_RAD_PER_SEC_DESKTOP;
-      groupRef.current.rotation.y += delta * rotSpeed;
-    }
+    const rotSpeed = isMobile ? ROTATION_RAD_PER_SEC_MOBILE : ROTATION_RAD_PER_SEC_DESKTOP;
+    groupRef.current.rotation.y += delta * rotSpeed;
 
     const now = state.clock.getElapsedTime() * 1000;
     if (scaleStartTime.current === null) scaleStartTime.current = now;
@@ -162,7 +158,7 @@ export default function HeroClimbingHoldGLB({
           enabled={allowRotation}
         />
       )}
-      <ClimbingHoldModel opacity={opacity} isMobile={isMobile} allowRotation={allowRotation} />
+      <ClimbingHoldModel opacity={opacity} isMobile={isMobile} />
     </>
   );
 }
