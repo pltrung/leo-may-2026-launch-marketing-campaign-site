@@ -504,13 +504,16 @@ export default function CinematicHeroScroll({
             </div>
           )}
 
-          {/* Mobile: About Us CTA — above GLB/logo; only fades in after scroll is done at the end */}
-          {isMobile && aboutUsLabel && onAboutUsClick && (
+          {/* Mobile: About Us CTA — above GLB/logo; only fades in after scroll is done at the end. Wrapper opacity controls visibility (button's .about-btn-breathe animation would override inline opacity). */}
+          {isMobile && aboutUsLabel && onAboutUsClick && (() => {
+            const mobileAboutOpacity = glbOpacity * smoothstep(0.88, 0.98, heroProgress);
+            return (
             <div
               className="absolute left-1/2 z-[35] pointer-events-none"
               style={{
                 top: "38%",
                 transform: "translateX(-50%)",
+                opacity: mobileAboutOpacity,
               }}
               aria-hidden
             >
@@ -520,11 +523,11 @@ export default function CinematicHeroScroll({
                   e.stopPropagation();
                   onAboutUsClick();
                 }}
-                className="pointer-events-auto px-6 py-3 rounded-full border border-white/70 text-white text-xs font-medium tracking-wider uppercase bg-transparent about-btn-breathe"
+                className="rounded-full border border-white/70 text-white text-xs font-medium tracking-wider uppercase bg-transparent about-btn-breathe"
                 style={{
                   letterSpacing: "0.08em",
                   boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
-                  opacity: glbOpacity * smoothstep(0.88, 0.98, heroProgress),
+                  pointerEvents: mobileAboutOpacity > 0.01 ? "auto" : "none",
                 }}
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 1.02 }}
@@ -533,7 +536,8 @@ export default function CinematicHeroScroll({
                 {aboutUsLabel}
               </motion.button>
             </div>
-          )}
+            );
+          })()}
 
           {/* Desktop: narrative, CTA, logo — z-30 so above GLB layer (z-25) for CTA clicks */}
           {!isMobile && (
@@ -601,12 +605,12 @@ export default function CinematicHeroScroll({
                   Premium Climbing Experience · HCMC · 2026
                 </p>
               </div>
-              {/* About Us CTA — desktop: right below GLB, centered relative to viewport (GLB max size) */}
+              {/* About Us CTA — desktop: below GLB with clear gap, centered; not touching GLB */}
               {aboutUsLabel && onAboutUsClick && (
                 <div
                   className="absolute left-1/2 z-30 pointer-events-auto flex flex-col items-center justify-center"
                   style={{
-                    top: "58%",
+                    top: "68%",
                     transform: "translateX(-50%)",
                     opacity: smoothstep(0.78, 0.92, heroProgress),
                   }}
