@@ -47,7 +47,8 @@ export default function CountdownTransition({ variant, onComplete }: CountdownTr
         {lines.map((word, i) => (
           <motion.span
             key={word}
-            className="font-headline text-2xl sm:text-3xl md:text-4xl tracking-[0.2em] text-white/92"
+            className="font-headline text-2xl sm:text-3xl md:text-4xl tracking-[0.2em] text-white"
+            style={{ color: "#fff" }}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
