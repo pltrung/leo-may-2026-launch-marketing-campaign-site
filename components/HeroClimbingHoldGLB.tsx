@@ -14,15 +14,20 @@ function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
-const CAMERA_FOV = 30;
-const CAMERA_POSITION: [number, number, number] = [0, 0.7, 2.4];
-const SCALE_INITIAL = 0.85;
-const SCALE_FINAL_DESKTOP = 0.99;
-const SCALE_FINAL_MOBILE = 0.92;
-const SCALE_MAX = 1.05;
-const SCALE_ANIM_MS = 300;
+const CAMERA_FOV = 26;
+const CAMERA_POSITION: [number, number, number] = [0, 0.3, 1.8];
+const SCALE_INITIAL = 1.6;
+const SCALE_FINAL_DESKTOP = 2.1;
+const SCALE_FINAL_MOBILE = 2.0;
+const SCALE_MAX = 2.2;
+const SCALE_ANIM_MS = 400;
 const ROTATION_RAD_PER_SEC_DESKTOP = 0.3;
 const ROTATION_RAD_PER_SEC_MOBILE = 0.2;
+
+/** Match architectural wall GLB: cool light neutral gray, matte stone, same material family. */
+const MATERIAL_BASE_COLOR = new THREE.Color(0.82, 0.83, 0.85);
+const MATERIAL_ROUGHNESS = 0.72;
+const MATERIAL_METALNESS = 0;
 
 export function preloadHeroClimbingHoldGLB(): void {
   if (typeof window === "undefined") return;
@@ -52,6 +57,19 @@ function ClimbingHoldModel({
         mats.forEach((mat: Material) => {
           mat.transparent = true;
           materialsRef.current.push(mat);
+          if ("color" in mat && mat.color) {
+            (mat as THREE.MeshStandardMaterial).color.copy(MATERIAL_BASE_COLOR);
+          }
+          if ("roughness" in mat) {
+            (mat as THREE.MeshStandardMaterial).roughness = MATERIAL_ROUGHNESS;
+          }
+          if ("metalness" in mat) {
+            (mat as THREE.MeshStandardMaterial).metalness = MATERIAL_METALNESS;
+          }
+          const std = mat as THREE.MeshStandardMaterial;
+          if (std.normalMap && "normalScale" in std) {
+            std.normalScale.set(0.6, 0.6);
+          }
         });
       }
     });

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import HeroClimbingHoldGLB, { preloadHeroClimbingHoldGLB } from "./HeroClimbingHoldGLB";
 
-const FADE_MS = 500;
+const FADE_MS = 180;
 
 export { preloadHeroClimbingHoldGLB };
 
@@ -59,7 +59,7 @@ export default function HeroClimbingHoldCanvas({
     >
       {mounted && (
         <Canvas
-          camera={{ position: [0, 0.7, 2.4], fov: 30 }}
+          camera={{ position: [0, 0.3, 1.8], fov: 26 }}
           dpr={[1, 2]}
           gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
           frameloop="always"
