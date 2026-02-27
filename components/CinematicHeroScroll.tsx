@@ -19,14 +19,14 @@ type HeadlineStage = { anchor: string; phrase: string; phraseLine2?: string };
 
 const HEADLINE_STAGES_EN: HeadlineStage[] = [
   { anchor: "CLIMB.", phrase: "IN YOUR OWN SKY." },
-  { anchor: "CONNECT.", phrase: "IN THE SAME", phraseLine2: "RHYTHM." },
-  { anchor: "BE HERE.", phrase: "IN EVERY", phraseLine2: "MOVEMENT." },
+  { anchor: "CONNECT.", phrase: "IN THE SAME.", phraseLine2: "RHYTHM." },
+  { anchor: "BE HERE.", phrase: "IN EVERY.", phraseLine2: "MOVEMENT." },
   { anchor: "BE FREE.", phrase: "YOUR WAY." },
 ];
 const HEADLINE_STAGES_VI: HeadlineStage[] = [
   { anchor: "LEO.", phrase: "GIỮA TRỜI RIÊNG." },
-  { anchor: "KẾT NỐI.", phrase: "CHUNG MỘT", phraseLine2: "NHỊP." },
-  { anchor: "HIỆN DIỆN.", phrase: "TRONG CHUYỂN", phraseLine2: "ĐỘNG." },
+  { anchor: "KẾT NỐI.", phrase: "CHUNG MỘT.", phraseLine2: "NHỊP." },
+  { anchor: "HIỆN DIỆN.", phrase: "TRONG CHUYỂN.", phraseLine2: "ĐỘNG." },
   { anchor: "TỰ DO.", phrase: "THEO CÁCH BẠN." },
 ];
 
@@ -269,7 +269,8 @@ export default function CinematicHeroScroll({
   if (!Number.isFinite(cameraDistance) || cameraDistance < CAMERA_Z_MIN) cameraDistance = CAMERA_Z_MIN;
   const cameraFov = 45;
   const glbRotationSpeed = p >= 0.95 ? 0.6 : 1;
-  const modelOffsetYFinal = isMobile ? 0.38 + 0.06 * smoothstep(0.85, 1, p) : 0;
+  /** On mobile, keep GLB lower so it doesn’t touch the anchor text; desktop unchanged */
+  const modelOffsetYFinal = isMobile ? 0.22 + 0.05 * smoothstep(0.85, 1, p) : 0;
   const narrativeTranslateYBase = -FADE_Y_PX * smoothstep(0.82, 0.98, p);
   const narrativeTranslateY =
     isMobile ? narrativeTranslateYBase + 56 * smoothstep(0.88, 1, p) : narrativeTranslateYBase;
@@ -371,11 +372,11 @@ export default function CinematicHeroScroll({
                 paddingRight: "1rem",
               }}
             >
-              {/* Logo — margin-bottom 24–32px; floats when load complete */}
+              {/* Logo — clear gap below so it never touches anchor; floats when load complete */}
               <div
                 className="flex shrink-0 items-center justify-center w-[65%] max-w-[260px] max-h-[20vh] pointer-events-none"
                 style={{
-                  marginBottom: "28px",
+                  marginBottom: "40px",
                   opacity: mascotOpacityFinal,
                   transform: `translateY(${mascotTranslateYFinal}px)`,
                 }}
@@ -385,10 +386,11 @@ export default function CinematicHeroScroll({
                   <img src="/logo-white.svg" alt="Leo Mây" className="w-full h-full object-contain object-center" />
                 </div>
               </div>
-              {/* Mobile: per-stage layout — row1 anchor, row2 phrase (smaller), row3 meta, then CTA; spacing consistent through scroll */}
+              {/* Mobile: per-stage layout — row1 anchor, row2 phrase (smaller), row3 meta, then CTA; min gap so logo/GLB don’t touch anchor */}
               <div
                 className="flex shrink-0 flex-col items-center text-center w-full max-w-[90vw] pointer-events-none"
                 style={{
+                  marginTop: "4px",
                   opacity: narrativeOpacityFinal,
                   transform: `translateY(${narrativeTranslateYFinal}px)`,
                 }}
@@ -428,11 +430,24 @@ export default function CinematicHeroScroll({
                           fontSize: "clamp(13px, 3.8vw, 22px)",
                           fontWeight: 600,
                           letterSpacing: headlineLetterSpacing,
-                          marginBottom: "14px",
+                          marginBottom: stage.phraseLine2 != null ? "6px" : "14px",
                         }}
                       >
-                        {stage.phrase}{stage.phraseLine2 != null ? ` ${stage.phraseLine2}` : ""}
+                        {stage.phrase}
                       </span>
+                      {stage.phraseLine2 != null && (
+                        <span
+                          className="block text-white whitespace-nowrap"
+                          style={{
+                            fontSize: "clamp(13px, 3.8vw, 22px)",
+                            fontWeight: 600,
+                            letterSpacing: headlineLetterSpacing,
+                            marginBottom: "14px",
+                          }}
+                        >
+                          {stage.phraseLine2}
+                        </span>
+                      )}
                     </span>
                   ))}
                 </h1>
@@ -507,9 +522,9 @@ export default function CinematicHeroScroll({
                         }}
                         aria-hidden={(headlineOpacitiesFinal[i] ?? 0) < 0.01}
                       >
-                        <span className="block" style={{ color: HERO_HEADLINE_ACCENTS[i] ?? HERO_HEADLINE_ACCENTS[0] }}>{stage.anchor}</span>
-                        <span className="block text-white mt-0.5">{stage.phrase}</span>
-                        {stage.phraseLine2 != null && <span className="block text-white mt-0.5">{stage.phraseLine2}</span>}
+                        <span className="block whitespace-nowrap" style={{ color: HERO_HEADLINE_ACCENTS[i] ?? HERO_HEADLINE_ACCENTS[0] }}>{stage.anchor}</span>
+                        <span className="block text-white mt-0.5 whitespace-nowrap">{stage.phrase}</span>
+                        {stage.phraseLine2 != null && <span className="block text-white mt-0.5 whitespace-nowrap">{stage.phraseLine2}</span>}
                       </span>
                     ))}
                   </h1>
