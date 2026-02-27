@@ -330,10 +330,10 @@ export default function CinematicHeroScroll({
           background: HERO_BG,
         }}
       >
-        {/* Subtle starfield behind GLB: full-screen canvas, z-index -1, pointer-events none; twinkle + slow drift + occasional shooting star */}
+        {/* Subtle starfield behind GLB */}
         <HeroStarfield heroTransitioning={(p >= 0.12 && p <= 0.26) || (p >= 0.74 && p <= 0.92)} />
 
-        {/* Full-viewport climbing-hold GLB layer: owns hero stage on desktop and mobile; content overlays above. On mobile, overlay keeps same vertical rhythm (no box) so layout/animation unchanged after GLB fades. */}
+        {/* Full-viewport climbing-hold GLB layer */}
         <div
           className="absolute inset-0 z-10 flex items-center justify-center"
           style={{
@@ -403,7 +403,7 @@ export default function CinematicHeroScroll({
             <div
               className="absolute inset-0 z-30 flex flex-col items-center justify-start overflow-auto pointer-events-none"
               style={{
-                paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 1rem + 36vh)`,
+                paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px) + 1rem + 42vh)`,
                 paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + 1rem)`,
                 paddingLeft: "1rem",
                 paddingRight: "1rem",
