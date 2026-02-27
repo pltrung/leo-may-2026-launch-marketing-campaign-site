@@ -167,7 +167,7 @@ function HomeContent() {
   const heroEase = [0.22, 1, 0.36, 1] as const;
   const showCinematicLayers = USE_CINEMATIC_HERO && !showClouds;
   const footerMessages = getMessages(locale).footer;
-  const aboutUsLabel = getMessages(locale).aboutUs;
+  const aboutUsLabel = getMessages(locale).countdown.aboutUs;
 
   return (
     <div
@@ -180,10 +180,10 @@ function HomeContent() {
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />
 
-      {/* About Us CTA: appears when user scrolls up at top (hero); same as countdown; mobile top-20, desktop right above logo */}
+      {/* About Us CTA: appears when user scrolls up at top (hero); just above logo on mobile and desktop */}
       {showCinematicLayers && showAboutUsCTA && (
         <motion.div
-          className="fixed left-1/2 z-[45] -translate-x-1/2 top-20 md:top-[calc(50%-100px)]"
+          className="fixed left-1/2 z-[45] -translate-x-1/2 top-[calc(50%-100px)]"
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -12 }}
