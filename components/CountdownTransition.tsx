@@ -6,12 +6,11 @@ import { useLocale } from "./LocaleProvider";
 import { getMessages } from "@/lib/messages";
 import { HERO_BG } from "@/lib/heroConstants";
 
-const HOLDS_DURATION_MS = 700;
-const TEXT_DELAY_MS = 400;
-const TEXT_STAGGER_MS = 380;
-const HOLD_AFTER_TEXT_MS = 600;
-/** Total: holds + text delay + (words * stagger) + hold ≈ 2.2s */
-const TOTAL_MS = HOLDS_DURATION_MS + TEXT_DELAY_MS + 3 * TEXT_STAGGER_MS + HOLD_AFTER_TEXT_MS;
+const TEXT_DELAY_MS = 300;
+const TEXT_STAGGER_MS = 350;
+const HOLD_AFTER_TEXT_MS = 500;
+/** Total: text delay + (words * stagger) + hold ≈ 1.85s */
+const TOTAL_MS = TEXT_DELAY_MS + 3 * TEXT_STAGGER_MS + HOLD_AFTER_TEXT_MS;
 
 export type CountdownTransitionVariant = "return" | "forms";
 
@@ -21,8 +20,8 @@ interface CountdownTransitionProps {
 }
 
 /**
- * Smooth transition to countdown: holds fade in first, then "YOUR CLOUD RETURNS" / "YOUR CLOUD FORMS".
- * No mist — same-world feel, then navigate to countdown page.
+ * Transition to countdown: black background + "YOUR CLOUD RETURNS" / "YOUR CLOUD FORMS" only.
+ * Matches countdown page’s full black look (no holds).
  */
 export default function CountdownTransition({ variant, onComplete }: CountdownTransitionProps) {
   const locale = useLocale();
@@ -44,24 +43,6 @@ export default function CountdownTransition({ variant, onComplete }: CountdownTr
         style={{ background: HERO_BG }}
         aria-hidden
       />
-      <motion.div
-        className="absolute inset-0 -z-[1] overflow-hidden pointer-events-none"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.7 }}
-        transition={{
-          duration: HOLDS_DURATION_MS / 1000,
-          ease: [0.22, 1, 0.36, 1],
-        }}
-        aria-hidden
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/brand/holds.svg"
-          alt=""
-          className="w-full h-full object-cover"
-          style={{ objectFit: "cover" }}
-        />
-      </motion.div>
       <div className="relative z-[1] flex flex-col items-center justify-center gap-1 sm:gap-2 text-center px-4">
         {lines.map((word, i) => (
           <motion.span
