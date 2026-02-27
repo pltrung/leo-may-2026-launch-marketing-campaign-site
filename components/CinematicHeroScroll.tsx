@@ -12,17 +12,22 @@ import AscentBar from "@/components/AscentBar";
 
 const HeroIslandCanvas = dynamic(() => import("@/components/HeroIslandCanvas"), { ssr: false });
 
-const HEADLINES_EN = [
-  "CLIMB WITH INTENTION.",
-  "ASCEND TOGETHER.",
-  "SHAPE THE STANDARD.",
-  "YOUR MOVE.",
+/** Four brand colors for hero anchor words (one per stage) — from globals emphasis/hero palette */
+const HERO_HEADLINE_ACCENTS = ["#22c55e", "#3b82f6", "#FACC15", "#ff1744"] as const;
+
+type HeadlineStage = { anchor: string; phrase: string };
+
+const HEADLINE_STAGES_EN: HeadlineStage[] = [
+  { anchor: "CLIMB.", phrase: "IN YOUR OWN SKY." },
+  { anchor: "CONNECT.", phrase: "IN THE SAME RHYTHM." },
+  { anchor: "BE HERE.", phrase: "IN EVERY MOVEMENT." },
+  { anchor: "BE FREE.", phrase: "YOUR WAY." },
 ];
-const HEADLINES_VI = [
-  "LEO CÓ CHỦ ĐÍCH.",
-  "VƯƠN CAO CÙNG NHAU.",
-  "ĐỊNH HÌNH CHUẨN MỰC.",
-  "ĐẾN LƯỢT BẠN.",
+const HEADLINE_STAGES_VI: HeadlineStage[] = [
+  { anchor: "LEO.", phrase: "GIỮA TRỜI RIÊNG." },
+  { anchor: "KẾT NỐI.", phrase: "CHUNG MỘT NHỊP." },
+  { anchor: "HIỆN DIỆN.", phrase: "TRONG CHUYỂN ĐỘNG." },
+  { anchor: "TỰ DO.", phrase: "THEO CÁCH BẠN." },
 ];
 
 function smoothstep(a: number, b: number, x: number): number {
@@ -171,7 +176,7 @@ export default function CinematicHeroScroll({
   }, [heroProgress]);
 
   const p = Number.isFinite(heroProgress) ? Math.max(0, Math.min(1, heroProgress)) : 0;
-  const headlines = locale === "vi" ? HEADLINES_VI : HEADLINES_EN;
+  const headlineStages = locale === "vi" ? HEADLINE_STAGES_VI : HEADLINE_STAGES_EN;
   const ctaLabel = getMessages(locale as "en" | "vi").hero.ctaFoundingAscent;
 
   const FADE_Y_PX = 20;
@@ -389,7 +394,7 @@ export default function CinematicHeroScroll({
                 }}
               >
                 <h1
-                  className="relative font-bold text-white text-center min-h-[1.3em] leading-tight w-full max-w-[90vw]"
+                  className="relative font-bold text-center min-h-[1.3em] leading-tight w-full max-w-[90vw]"
                   style={{
                     marginBottom: isMobile ? "4px" : "6px",
                     fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
@@ -397,7 +402,7 @@ export default function CinematicHeroScroll({
                     letterSpacing: headlineLetterSpacing,
                   }}
                 >
-                  {headlines.map((line, i) => (
+                  {headlineStages.map((stage, i) => (
                     <span
                       key={i}
                       className="absolute top-0 left-1/2 -translate-x-1/2 block w-full max-w-[90vw] text-center whitespace-nowrap overflow-hidden text-ellipsis"
@@ -407,7 +412,9 @@ export default function CinematicHeroScroll({
                       }}
                       aria-hidden={(headlineOpacitiesFinal[i] ?? 0) < 0.01}
                     >
-                      {line}
+                      <span style={{ color: HERO_HEADLINE_ACCENTS[i] ?? HERO_HEADLINE_ACCENTS[0] }}>{stage.anchor}</span>
+                      {" "}
+                      <span className="text-white">{stage.phrase}</span>
                     </span>
                   ))}
                 </h1>
@@ -469,7 +476,7 @@ export default function CinematicHeroScroll({
                     className="relative font-bold text-white tracking-tight leading-[1.2] text-[clamp(28px,5vw,48px)] md:text-[clamp(36px,4vw,56px)] lg:text-[clamp(48px,5vw,72px)] min-h-[4.5em]"
                     style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
                   >
-                    {headlines.map((line, i) => (
+                    {headlineStages.map((stage, i) => (
                       <span
                         key={i}
                         className="absolute top-0 block w-full left-0 right-0"
@@ -479,7 +486,8 @@ export default function CinematicHeroScroll({
                         }}
                         aria-hidden={(headlineOpacitiesFinal[i] ?? 0) < 0.01}
                       >
-                        {line}
+                        <span className="block" style={{ color: HERO_HEADLINE_ACCENTS[i] ?? HERO_HEADLINE_ACCENTS[0] }}>{stage.anchor}</span>
+                        <span className="block text-white mt-0.5">{stage.phrase}</span>
                       </span>
                     ))}
                   </h1>
