@@ -1841,7 +1841,12 @@ body.hero-ready .hero-scroll {
     overflow: hidden;
   }
 
-  html.cloud-selection-view .cloud-selection-screen .cloud-selector-container {
+  /* Hide mobile stack + Randomize on desktop; only 6-card grid shows */
+  html.cloud-selection-view .cloud-selection-screen > .cloud-selection-container {
+    display: none !important;
+  }
+
+  html.cloud-selection-view .cloud-selection-screen > .cloud-selector-container:not(.cloud-selection-container) {
     flex: 1 1 0;
     min-height: 0;
     display: flex;
