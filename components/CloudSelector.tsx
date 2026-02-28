@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { clouds, CloudPersonality } from "@/lib/cloudData";
 import CloudCard from "./CloudCard";
@@ -24,7 +25,7 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
   const [isRandomizeTapping, setIsRandomizeTapping] = useState(false);
   const stackRef = useRef<CloudStackMobileHandle>(null);
   const locale = useLocale();
-  const { whatTypeOfCloud, subtext, randomizeButton } = getMessages(locale).cloudSelector;
+  const { whatTypeOfCloud, subtext, returnToHero, randomizeButton } = getMessages(locale).cloudSelector;
 
   useEffect(() => {
     const check = () => setIsMobile(typeof window !== "undefined" && window.innerWidth <= 768);
@@ -46,6 +47,25 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
         transition={{ delay: 0.4, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
         <Logo className="w-[110px] md:w-[220px] max-w-[110px] md:max-w-none h-auto object-contain object-left" />
+      </motion.div>
+
+      {/* Return to hero: top-right — same position as language/CTA on hero */}
+      <motion.div
+        className="fixed top-4 right-4 z-30 md:top-8 md:right-8"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: isMobile ? 0.08 : 0.5, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <Link
+          href={`/${locale}`}
+          className="inline-flex items-center gap-1.5 py-2 px-3 rounded-full border border-white/50 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/70 transition-colors"
+          aria-label={returnToHero}
+        >
+          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          {returnToHero}
+        </Link>
       </motion.div>
 
       {/* Header: on mobile 80ms (after cards); on desktop 700ms. Desktop: reduced spacing. */}

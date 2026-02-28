@@ -82,10 +82,9 @@ function HomeContent() {
   }, []);
 
   useEffect(() => {
-    if (searchParams.get("clouds") === "1") {
-      setShowClouds(true);
-      window.scrollTo({ top: 0, behavior: "auto" });
-    }
+    const clouds = searchParams.get("clouds") === "1";
+    setShowClouds(clouds);
+    if (clouds) window.scrollTo({ top: 0, behavior: "auto" });
   }, [searchParams]);
 
   useEffect(() => {

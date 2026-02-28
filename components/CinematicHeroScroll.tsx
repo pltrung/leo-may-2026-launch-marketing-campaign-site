@@ -7,6 +7,7 @@ import type { Locale } from "@/lib/i18n";
 import type { MascotPartColors } from "@/lib/mascotSpeciesColors";
 import { preloadHeroIslandGLB } from "@/components/HeroIslandGLB";
 import { preloadHeroClimbingHoldGLB } from "@/components/HeroClimbingHoldCanvas";
+import ClientErrorBoundary from "@/components/ClientErrorBoundary";
 import { HERO_BG } from "@/lib/heroConstants";
 import { getMessages } from "@/lib/messages";
 import AscentBar from "@/components/AscentBar";
@@ -359,7 +360,8 @@ export default function CinematicHeroScroll({
 
   /** Mobile: when we removed the sculpture box, the overlay became a single centered block. After first scroll the island GLB appears in the center and the text/CTA/meta (also centered) sit on top of it. Shift the block up once the island is visible so they don’t overlay. */
   const loadT = Math.min(loadElapsed, 1.5);
-  const loadMascotOpacity = smoothstep(0.35, 0.65, loadT);
+  /** Initial GLB (climbing hold) fades in over load sequence, like the 2nd GLB (island) fades in on scroll. */
+  const loadMascotOpacity = smoothstep(0.15, 0.7, loadT);
   const loadMascotY = 32 * (1 - smoothstep(0.35, 0.65, loadT));
   const loadHeadlineOpacity = smoothstep(0.5, 0.8, loadT);
   const loadHeadlineY = 18 * (1 - smoothstep(0.5, 0.8, loadT));
@@ -395,32 +397,36 @@ export default function CinematicHeroScroll({
           background: HERO_BG,
         }}
       >
-        {/* Subtle starfield behind GLB; unmount when tab hidden so we get fresh canvas on return (avoids broken screen after app switch). */}
+        {/* Subtle starfield behind GLB; inner boundary so a throw here doesn't take down the whole hero (e.g. after clouds→back on mobile). */}
         {tabVisible && (
-          <HeroStarfield heroTransitioning={(p >= 0.12 && p <= 0.26) || (p >= 0.74 && p <= 0.92)} />
+          <ClientErrorBoundary fallback={null}>
+            <HeroStarfield heroTransitioning={(p >= 0.12 && p <= 0.26) || (p >= 0.74 && p <= 0.92)} />
+          </ClientErrorBoundary>
         )}
 
-        {/* Full-viewport climbing-hold GLB layer; unmount when tab hidden. On mobile, do not remount after hidden (avoids GLB re-init error/lag). */}
+        {/* Full-viewport climbing-hold GLB layer; inner boundary so re-mount after clouds→back doesn't show full-screen error. */}
         {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (
-          <div
-            className="absolute inset-0 z-10 flex items-center justify-center"
-            style={{
-              width: "100vw",
-              height: "100dvh",
-              opacity: mascotOpacityFinal,
-              transform: `translateY(${mascotTranslateYFinal}px)`,
-              transition: "opacity 500ms ease-out",
-            }}
-            aria-hidden
-          >
-            <HeroClimbingHoldCanvas
-              opacity={1}
-              isMobile={isMobile}
-              allowRotation={heroProgress < 0.18}
-              className="w-full h-full"
-              style={{ minHeight: "unset", maxHeight: "none" }}
-            />
-          </div>
+          <ClientErrorBoundary fallback={null}>
+            <div
+              className="absolute inset-0 z-10 flex items-center justify-center"
+              style={{
+                width: "100vw",
+                height: "100dvh",
+                opacity: mascotOpacityFinal,
+                transform: `translateY(${mascotTranslateYFinal}px)`,
+                transition: "opacity 500ms ease-out",
+              }}
+              aria-hidden
+            >
+              <HeroClimbingHoldCanvas
+                opacity={1}
+                isMobile={isMobile}
+                allowRotation={heroProgress < 0.18}
+                className="w-full h-full"
+                style={{ minHeight: "unset", maxHeight: "none" }}
+              />
+            </div>
+          </ClientErrorBoundary>
         )}
 
         {/* Content area: overlays above GLB (z-20); padding for header/safe-area and breathing room */}
@@ -452,21 +458,23 @@ export default function CinematicHeroScroll({
           />
 
           {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{ zIndex: zoomT > 0.05 ? 25 : 5 }}
-            >
-              <HeroIslandCanvas
-                opacity={glbOpacity}
-                scale={glbScale}
-                cameraDistance={cameraDistance}
-                fov={cameraFov}
-                rotationSpeedMultiplier={glbRotationSpeed}
-                onFramingReady={setDesktopFinalCameraZ}
-                shouldMount={glbMounted}
-                modelOffsetY={modelOffsetYFinal}
-              />
-            </div>
+            <ClientErrorBoundary fallback={null}>
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{ zIndex: zoomT > 0.05 ? 25 : 5 }}
+              >
+                <HeroIslandCanvas
+                  opacity={glbOpacity}
+                  scale={glbScale}
+                  cameraDistance={cameraDistance}
+                  fov={cameraFov}
+                  rotationSpeedMultiplier={glbRotationSpeed}
+                  onFramingReady={setDesktopFinalCameraZ}
+                  shouldMount={glbMounted}
+                  modelOffsetY={modelOffsetYFinal}
+                />
+              </div>
+            </ClientErrorBoundary>
           )}
 
           {/* Mobile: full-viewport GLB is in layer above; overlay = headline → CTA → arrow. Same top spacing as with box so layout/animation unchanged when GLB fades into next scenes. */}

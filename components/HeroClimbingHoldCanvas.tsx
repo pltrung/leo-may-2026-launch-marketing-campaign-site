@@ -4,7 +4,8 @@ import React, { useState, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import HeroClimbingHoldGLB, { preloadHeroClimbingHoldGLB } from "./HeroClimbingHoldGLB";
 
-const FADE_MS = 180;
+/** Fade-in duration for initial GLB (match feel of 2nd GLB scroll-driven fade). */
+const FADE_MS = 380;
 
 export { preloadHeroClimbingHoldGLB };
 

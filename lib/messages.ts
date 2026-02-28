@@ -79,6 +79,7 @@ const en = {
   cloudSelector: {
     whatTypeOfCloud: "What type of cloud are you?",
     subtext: "Choose the cloud that fits you — then join the waitlist for Leo Mây's launch.",
+    returnToHero: "Return",
     swipeUp: "Swipe up",
     randomizeButton: "Randomize ✨",
   },
@@ -388,6 +389,7 @@ const vi: Messages = {
   cloudSelector: {
     whatTypeOfCloud: "Bạn là kiểu mây nào?",
     subtext: "Chọn kiểu mây phù hợp với bạn — sau đó tham gia danh sách chờ cho ngày ra mắt Leo Mây.",
+    returnToHero: "Quay lại",
     swipeUp: "Vuốt lên",
     randomizeButton: "Ngẫu nhiên ✨",
   },
