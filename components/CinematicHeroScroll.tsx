@@ -753,7 +753,7 @@ export default function CinematicHeroScroll({
             className="absolute left-1/2 z-10 pointer-events-none hero-scroll-arrow-drift"
             style={{
               bottom: `calc(${footerHeight}px + 20px + env(safe-area-inset-bottom, 0px))`,
-              opacity: scrollArrowOpacity * 0.88,
+              opacity: 1,
               filter: "drop-shadow(0 0 6px rgba(255,255,255,0.25))",
             }}
             aria-hidden
