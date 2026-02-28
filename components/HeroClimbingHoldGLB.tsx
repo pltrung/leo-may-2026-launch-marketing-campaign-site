@@ -6,8 +6,8 @@ import { useGLTF, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import type { Group, Mesh, Material } from "three";
 
-/** Place glb-human-climbing-hold.glb in public/ so it is served at this path. */
-const GLB_URL = "/glb-human-climbing-hold.glb";
+/** Place glb-leo-climbing-hold.glb in public/ so it is served at this path. */
+const GLB_URL = "/glb-leo-climbing-hold.glb";
 
 /** easeOutCubic */
 function easeOutCubic(t: number): number {
