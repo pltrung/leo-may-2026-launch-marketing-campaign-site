@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -295,7 +295,7 @@ function useLeaderboard() {
 
 import { useWaitlist } from "@/lib/useWaitlist";
 
-export default function CountdownPage() {
+function CountdownPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromMist = searchParams.get("fromMist") === "1";
@@ -1393,5 +1393,23 @@ export default function CountdownPage() {
       </AnimatePresence>
       </motion.div>
     </div>
+  );
+}
+
+function CountdownPageFallback() {
+  return (
+    <div
+      className="min-h-[100dvh] w-full flex items-center justify-center"
+      style={{ background: HERO_BG }}
+      aria-hidden
+    />
+  );
+}
+
+export default function CountdownPage() {
+  return (
+    <Suspense fallback={<CountdownPageFallback />}>
+      <CountdownPageContent />
+    </Suspense>
   );
 }

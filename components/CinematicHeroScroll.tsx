@@ -44,6 +44,7 @@ const HEADLINE_STAGES_VI: HeadlineStage[] = [
 ];
 
 function smoothstep(a: number, b: number, x: number): number {
+  if (b === a || !Number.isFinite(a) || !Number.isFinite(b)) return Number.isFinite(x) && x >= b ? 1 : 0;
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
 }
@@ -142,13 +143,17 @@ export default function CinematicHeroScroll({
   useEffect(() => {
     if (typeof document === "undefined") return;
     const onVis = () => {
-      const visible = document.visibilityState !== "hidden";
-      if (!visible && typeof window !== "undefined" && window.innerWidth <= 768) {
-        mobileSkipGlbAfterHiddenRef.current = true;
+      try {
+        const visible = document.visibilityState !== "hidden";
+        if (!visible && typeof window !== "undefined" && window.innerWidth <= 768) {
+          mobileSkipGlbAfterHiddenRef.current = true;
+        }
+        setTabVisible(visible);
+      } catch {
+        setTabVisible(true);
       }
-      setTabVisible(visible);
     };
-    onVis(); // sync initial
+    // Only react to visibilitychange; do not sync on mount so we don't hide GLBs when tab reports "hidden" on load (e.g. desktop with unfocused window).
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
   }, []);
@@ -219,10 +224,18 @@ export default function CinematicHeroScroll({
         // guard so scroll handler never throws
       }
     };
-    onScroll();
+    // Defer first scroll read to next frame so we don't run during fragile init (avoids client error on refresh with restored scroll).
+    const rafId = requestAnimationFrame(() => {
+      try {
+        onScroll();
+      } catch {
+        // no-op
+      }
+    });
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
     return () => {
+      cancelAnimationFrame(rafId);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -447,6 +460,7 @@ export default function CinematicHeroScroll({
                 onFramingReady={setDesktopFinalCameraZ}
                 shouldMount={glbMounted}
                 modelOffsetY={modelOffsetYFinal}
+                isMobile={isMobile}
               />
             </div>
           )}

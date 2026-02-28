@@ -26,8 +26,12 @@ export default function HeroClimbingHoldCanvas({
   const [fadeInProgress, setFadeInProgress] = useState(0);
 
   useEffect(() => {
+    if (isMobile) {
+      const t = setTimeout(() => setMounted(true), 100);
+      return () => clearTimeout(t);
+    }
     setMounted(true);
-  }, []);
+  }, [isMobile]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -64,8 +68,13 @@ export default function HeroClimbingHoldCanvas({
       {mounted && (
         <Canvas
           camera={{ position: [0, 0.3, 2.6], fov: 26 }}
-          dpr={[1, 2]}
-          gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+          dpr={isMobile ? [1, 1] : [1, 2]}
+          gl={{
+            alpha: true,
+            antialias: !isMobile,
+            powerPreference: isMobile ? "default" : "high-performance",
+            stencil: false,
+          }}
           frameloop="always"
           style={{ width: "100%", height: "100%" }}
         >

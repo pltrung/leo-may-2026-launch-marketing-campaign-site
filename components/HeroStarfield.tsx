@@ -171,8 +171,10 @@ export default function HeroStarfield({
     };
 
     resize();
+    const parent = canvas.parentElement;
+    if (!parent) return;
     const ro = new ResizeObserver(resize);
-    ro.observe(canvas.parentElement!);
+    ro.observe(parent);
 
     const tick = (now: number) => {
       if (!mountedRef.current) return;
