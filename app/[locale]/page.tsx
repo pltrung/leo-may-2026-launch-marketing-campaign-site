@@ -2,7 +2,6 @@
 
 import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
-import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import BrandBackground from "@/components/BrandBackground";
 import { getMessages } from "@/lib/messages";
@@ -18,6 +17,7 @@ import HeroScroll7 from "@/components/HeroScroll7";
 import ClientErrorBoundary from "@/components/ClientErrorBoundary";
 import CloudSelector from "@/components/CloudSelector";
 import HeroFallback from "@/components/HeroFallback";
+import Logo from "@/components/Logo";
 import SignupModal from "@/components/SignupModal";
 import AboutUsModal from "@/components/AboutUsModal";
 import CloudFooter from "@/components/CloudFooter";
@@ -85,6 +85,7 @@ function HomeContent() {
     const clouds = searchParams.get("clouds") === "1";
     setShowClouds(clouds);
     if (clouds) window.scrollTo({ top: 0, behavior: "auto" });
+    else window.scrollTo({ top: 0, behavior: "auto" }); // when returning to hero, scroll to top so initial view is visible
   }, [searchParams]);
 
   useEffect(() => {
@@ -168,14 +169,7 @@ function HomeContent() {
             transition={{ duration: 0.5, delay: 0, ease: [0.22, 1, 0.36, 1] }}
             className="flex items-center"
           >
-            <Image
-              src="/logo-white.svg"
-              alt="Leo Mây"
-              width={180}
-              height={72}
-              className="h-8 w-auto object-contain md:h-[3.25rem]"
-              priority
-            />
+            <Logo className="w-[110px] md:w-[220px] max-w-[110px] md:max-w-none h-auto object-contain object-left" />
           </motion.div>
           <motion.div
             initial={{ opacity: 0 }}

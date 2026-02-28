@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useLocale } from "./LocaleProvider";
 
 interface LogoProps {
@@ -10,6 +10,7 @@ interface LogoProps {
 
 export default function Logo({ className = "h-8 w-auto object-contain" }: LogoProps) {
   const locale = useLocale();
+  const router = useRouter();
   const pathname = usePathname();
   const homePath = `/${locale}`;
   const isOnHome = pathname === homePath || pathname === `${homePath}/`;
@@ -17,7 +18,7 @@ export default function Logo({ className = "h-8 w-auto object-contain" }: LogoPr
   const handleClick = (e: React.MouseEvent) => {
     if (document.body.classList.contains("cloud-selection-view")) {
       e.preventDefault();
-      window.location.href = homePath;
+      router.replace(homePath, { scroll: true });
     } else if (isOnHome) {
       e.preventDefault();
       window.scrollTo({ top: 0, behavior: "smooth" });

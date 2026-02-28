@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { clouds, CloudPersonality } from "@/lib/cloudData";
 import CloudCard from "./CloudCard";
@@ -24,8 +24,13 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
   const [randomizePhase, setRandomizePhase] = useState<"hidden" | "breathing">("hidden");
   const [isRandomizeTapping, setIsRandomizeTapping] = useState(false);
   const stackRef = useRef<CloudStackMobileHandle>(null);
+  const router = useRouter();
   const locale = useLocale();
   const { whatTypeOfCloud, subtext, returnToHero, randomizeButton } = getMessages(locale).cloudSelector;
+
+  const goToInitial = () => {
+    router.replace(`/${locale}`, { scroll: true });
+  };
 
   useEffect(() => {
     const check = () => setIsMobile(typeof window !== "undefined" && window.innerWidth <= 768);
@@ -125,8 +130,9 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.4, ease: BUTTON_EASE }}
         >
-          <Link
-            href={`/${locale}`}
+          <button
+            type="button"
+            onClick={goToInitial}
             className="inline-flex items-center gap-1.5 py-2 px-3 rounded-full border border-white/50 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/70 transition-colors"
             aria-label={returnToHero}
           >
@@ -134,7 +140,7 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             {returnToHero}
-          </Link>
+          </button>
         </motion.div>
       </div>
 
@@ -166,8 +172,9 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
         animate={{ opacity: 1 }}
         transition={{ delay: 1.2, duration: 0.4, ease: BUTTON_EASE }}
       >
-        <Link
-          href={`/${locale}`}
+        <button
+          type="button"
+          onClick={goToInitial}
           className="inline-flex items-center gap-1.5 py-2 px-4 rounded-full border border-white/50 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/70 transition-colors"
           aria-label={returnToHero}
         >
@@ -175,7 +182,7 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
           {returnToHero}
-        </Link>
+        </button>
       </motion.div>
     </section>
   );
