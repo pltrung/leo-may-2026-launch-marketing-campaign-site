@@ -135,11 +135,23 @@ export default function CinematicHeroScroll({
   const [tabVisible, setTabVisible] = useState(true);
   /** On mobile, after tab has been hidden once, do not remount GLB (climbing hold + island) to avoid client error and lag from heavy WebGL re-init. */
   const mobileSkipGlbAfterHiddenRef = useRef(false);
+  /** On mobile, defer GLB mount so hero shell (starfield, content) paints first after return from clouds — avoids slow/frozen feel. */
+  const [glbDeferredReady, setGlbDeferredReady] = useState(false);
 
   /** When locale changes (e.g. EN/VN switch), reset skip-GLB ref so GLBs show again after language change or refresh. */
   useEffect(() => {
     mobileSkipGlbAfterHiddenRef.current = false;
   }, [locale]);
+
+  /** On mobile only: delay mounting GLB layers so initial paint is fast after return to hero. */
+  useEffect(() => {
+    if (!isMobile) {
+      setGlbDeferredReady(true);
+      return;
+    }
+    const t = setTimeout(() => setGlbDeferredReady(true), 380);
+    return () => clearTimeout(t);
+  }, [isMobile]);
 
   useEffect(() => {
     preloadHeroIslandGLB();
@@ -404,8 +416,8 @@ export default function CinematicHeroScroll({
           </ClientErrorBoundary>
         )}
 
-        {/* Full-viewport climbing-hold GLB layer; inner boundary so re-mount after clouds→back doesn't show full-screen error. */}
-        {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (
+        {/* Full-viewport climbing-hold GLB layer; on mobile defer so hero paints first after return. */}
+        {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (glbDeferredReady || !isMobile) && (
           <ClientErrorBoundary fallback={null}>
             <div
               className="absolute inset-0 z-10 flex items-center justify-center"
@@ -457,7 +469,7 @@ export default function CinematicHeroScroll({
             }}
           />
 
-          {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (
+          {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (glbDeferredReady || !isMobile) && (
             <ClientErrorBoundary fallback={null}>
               <div
                 className="absolute inset-0 pointer-events-none"
