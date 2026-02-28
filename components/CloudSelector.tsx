@@ -49,25 +49,6 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
         <Logo className="w-[110px] md:w-[220px] max-w-[110px] md:max-w-none h-auto object-contain object-left" />
       </motion.div>
 
-      {/* Return to hero: top-right — same position as language/CTA on hero */}
-      <motion.div
-        className="fixed top-4 right-4 z-30 md:top-8 md:right-8"
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: isMobile ? 0.08 : 0.5, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      >
-        <Link
-          href={`/${locale}`}
-          className="inline-flex items-center gap-1.5 py-2 px-3 rounded-full border border-white/50 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/70 transition-colors"
-          aria-label={returnToHero}
-        >
-          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          {returnToHero}
-        </Link>
-      </motion.div>
-
       {/* Header: on mobile 80ms (after cards); on desktop 700ms. Desktop: reduced spacing. */}
       <motion.div
         className="cloud-selection-header relative flex flex-col items-center w-full max-w-2xl mx-auto mt-2 md:mt-0 md:mb-8 lg:mb-2 lg:flex-shrink-0 z-10 transition-opacity duration-400"
@@ -111,7 +92,7 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
         >
           <motion.button
             type="button"
-            className={`randomize-btn rounded-full border border-white/50 bg-white/10 px-5 py-2.5 text-sm font-medium text-white/95 backdrop-blur-sm select-none ${randomizePhase === "breathing" ? "randomize-btn-breathing" : ""} ${isRandomizeTapping ? "randomize-btn-tapping" : ""}`}
+            className={`randomize-btn rounded-full border px-5 py-2.5 text-sm font-medium backdrop-blur-sm select-none md:border-white/50 md:bg-white/10 md:text-white/95 max-md:border-white/80 max-md:bg-white/20 max-md:text-white max-md:shadow-[0_0_20px_rgba(255,255,255,0.25)] max-md:py-3 max-md:px-6 ${randomizePhase === "breathing" ? "randomize-btn-breathing" : ""} ${isRandomizeTapping ? "randomize-btn-tapping" : ""}`}
             onClick={() => {
               if (randomizePhase !== "breathing") setRandomizePhase("breathing");
               setIsRandomizeTapping(true);
@@ -137,6 +118,24 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
             {randomizeButton}
           </motion.button>
         </motion.div>
+        {/* Mobile: Return below Randomize */}
+        <motion.div
+          className="lg:hidden flex-shrink-0 mt-4 mb-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3, duration: 0.4, ease: BUTTON_EASE }}
+        >
+          <Link
+            href={`/${locale}`}
+            className="inline-flex items-center gap-1.5 py-2 px-3 rounded-full border border-white/50 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/70 transition-colors"
+            aria-label={returnToHero}
+          >
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            {returnToHero}
+          </Link>
+        </motion.div>
       </div>
 
       {/* Desktop only (1024px+): one viewport, 6 cards in a row; fixed-height flip, no expand */}
@@ -159,6 +158,25 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
           ))}
         </div>
       </div>
+
+      {/* Return to hero: right above footer, desktop only (mobile Return is inside lg:hidden block above) */}
+      <motion.div
+        className="hidden lg:flex flex-shrink-0 justify-center pt-4 pb-6"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.2, duration: 0.4, ease: BUTTON_EASE }}
+      >
+        <Link
+          href={`/${locale}`}
+          className="inline-flex items-center gap-1.5 py-2 px-4 rounded-full border border-white/50 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/70 transition-colors"
+          aria-label={returnToHero}
+        >
+          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          {returnToHero}
+        </Link>
+      </motion.div>
     </section>
   );
 }
