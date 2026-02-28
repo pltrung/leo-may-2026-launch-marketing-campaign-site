@@ -15,12 +15,14 @@ import HeroScroll4 from "@/components/HeroScroll4";
 import HeroScroll5 from "@/components/HeroScroll5";
 import HeroScroll6 from "@/components/HeroScroll6";
 import HeroScroll7 from "@/components/HeroScroll7";
+import ClientErrorBoundary from "@/components/ClientErrorBoundary";
 import CloudSelector from "@/components/CloudSelector";
+import HeroFallback from "@/components/HeroFallback";
 import SignupModal from "@/components/SignupModal";
 import AboutUsModal from "@/components/AboutUsModal";
 import CloudFooter from "@/components/CloudFooter";
 import KnowYourTeamButton from "@/components/KnowYourTeamButton";
-import LanguageSwitch from "@/components/LanguageSwitch";
+import SafeLanguageSwitch from "@/components/SafeLanguageSwitch";
 import HeroScrollObserver from "@/components/HeroScrollObserver";
 import MistAscent from "@/components/MistAscent";
 import { useTransitionOverlay } from "@/context/TransitionOverlayContext";
@@ -182,7 +184,7 @@ function HomeContent() {
             transition={{ duration: 0.5, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className="flex items-center gap-3"
           >
-            <LanguageSwitch />
+            <SafeLanguageSwitch />
             <KnowYourTeamButton show onFoundTeam={() => transitionToCountdown("return")} />
           </motion.div>
         </header>
@@ -199,7 +201,7 @@ function HomeContent() {
           transition={{ duration: 0.8, delay: transitionActive ? 0 : heroReady ? 0.5 : 0, ease: heroEase }}
           style={{ pointerEvents: transitionActive ? "none" : "auto", willChange: "transform, opacity" }}
         >
-          <LanguageSwitch />
+          <SafeLanguageSwitch />
           <KnowYourTeamButton show onFoundTeam={() => transitionToCountdown("return")} />
         </motion.div>
       )}
@@ -208,19 +210,21 @@ function HomeContent() {
         {!showClouds ? (
           USE_CINEMATIC_HERO ? (
             <div key="cinematic-hero" className="relative z-0" style={{ opacity: heroContentOpacity }}>
-              <CinematicHeroScroll
-                partColors={heroMascotPartColors}
-                onJoin={handleAscendClick}
-                locale={locale}
-                headerHeight={HERO_HEADER_PX}
-                footerHeight={HERO_FOOTER_PX}
-                wrapperVh={HERO_WRAPPER_VH}
-                footerMessages={footerMessages}
-                heroReady={heroReady}
-                onCenterLogoGone={handleCenterLogoGone}
-                aboutUsLabel={aboutUsLabel}
-                onAboutUsClick={() => setAboutOpen(true)}
-              />
+              <ClientErrorBoundary fallback={(retry) => <HeroFallback onRetry={retry} />}>
+                <CinematicHeroScroll
+                  partColors={heroMascotPartColors}
+                  onJoin={handleAscendClick}
+                  locale={locale}
+                  headerHeight={HERO_HEADER_PX}
+                  footerHeight={HERO_FOOTER_PX}
+                  wrapperVh={HERO_WRAPPER_VH}
+                  footerMessages={footerMessages}
+                  heroReady={heroReady}
+                  onCenterLogoGone={handleCenterLogoGone}
+                  aboutUsLabel={aboutUsLabel}
+                  onAboutUsClick={() => setAboutOpen(true)}
+                />
+              </ClientErrorBoundary>
             </div>
           ) : (
             <motion.div

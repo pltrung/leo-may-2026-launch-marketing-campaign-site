@@ -135,6 +135,11 @@ export default function CinematicHeroScroll({
   /** On mobile, after tab has been hidden once, do not remount GLB (climbing hold + island) to avoid client error and lag from heavy WebGL re-init. */
   const mobileSkipGlbAfterHiddenRef = useRef(false);
 
+  /** When locale changes (e.g. EN/VN switch), reset skip-GLB ref so GLBs show again after language change or refresh. */
+  useEffect(() => {
+    mobileSkipGlbAfterHiddenRef.current = false;
+  }, [locale]);
+
   useEffect(() => {
     preloadHeroIslandGLB();
     preloadHeroClimbingHoldGLB();

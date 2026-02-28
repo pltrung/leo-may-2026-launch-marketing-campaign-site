@@ -9,9 +9,10 @@ import { getUser, clearUser } from "@/lib/userStorage";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { getCloudById } from "@/lib/cloudData";
 import type { CloudType } from "@/lib/cloudData";
+import ClientErrorBoundary from "@/components/ClientErrorBoundary";
 import CloudIconByType from "@/components/CloudIcons";
 import CloudFooter from "@/components/CloudFooter";
-import LanguageSwitch from "@/components/LanguageSwitch";
+import SafeLanguageSwitch from "@/components/SafeLanguageSwitch";
 import AboutUsModal from "@/components/AboutUsModal";
 import PowerYourCloudShareModal, { buildShareMessage } from "@/components/PowerYourCloudShareModal";
 import PowerYourCloudModal from "@/components/PowerYourCloudModal";
@@ -41,7 +42,10 @@ import VerificationModal from "@/components/VerificationModal";
 import { createBrowserClient } from "@/lib/supabaseBrowser";
 import { HERO_BG } from "@/lib/heroConstants";
 
-const HeroStarfield = dynamic(() => import("@/components/HeroStarfield"), { ssr: false });
+const HeroStarfield = dynamic(
+  () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
+  { ssr: false }
+);
 
 const PENDING_REF_CODE_KEY = "leo_may_pending_ref_code";
 const COUNTDOWN_INTRO_VIEW_COUNT_KEY = "leo_may_countdown_intro_view_count";
@@ -454,10 +458,18 @@ function CountdownPageContent() {
     }
   }, [verified, router, locale]);
 
+  const perfMountedRef = useRef(true);
+  useEffect(() => {
+    perfMountedRef.current = true;
+    return () => {
+      perfMountedRef.current = false;
+    };
+  }, []);
   useEffect(() => {
     if (!debugPerf) return;
     let rafId: number;
     const tick = (t: number) => {
+      if (!perfMountedRef.current) return;
       if (perfRef.current) {
         const delta = t - perfRef.current;
         perfAccRef.current += delta;
@@ -561,7 +573,8 @@ function CountdownPageContent() {
         transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         style={{ visibility: phase === "content" ? "visible" : "hidden", pointerEvents: phase === "content" ? "auto" : "none" }}
       >
-        <LanguageSwitch />
+        <SafeLanguageSwitch />
+
       </motion.div>
       {/* Full black background (no holds — matches countdown transition) */}
       <div
@@ -1406,10 +1419,31 @@ function CountdownPageFallback() {
   );
 }
 
+function CountdownPageErrorFallback({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div
+      className="min-h-[100dvh] w-full flex flex-col items-center justify-center gap-4"
+      style={{ background: HERO_BG }}
+      role="alert"
+    >
+      <p className="text-white/70 text-sm">Something went wrong.</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="px-5 py-2.5 rounded-full border border-white/50 text-white/90 text-sm font-medium hover:bg-white/10 transition-colors"
+      >
+        Try again
+      </button>
+    </div>
+  );
+}
+
 export default function CountdownPage() {
   return (
     <Suspense fallback={<CountdownPageFallback />}>
-      <CountdownPageContent />
+      <ClientErrorBoundary fallback={(retry) => <CountdownPageErrorFallback onRetry={retry} />}>
+        <CountdownPageContent />
+      </ClientErrorBoundary>
     </Suspense>
   );
 }
