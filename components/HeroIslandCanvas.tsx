@@ -53,7 +53,6 @@ export default function HeroIslandCanvas({
   shouldMount,
   className,
   modelOffsetY = 0,
-  isMobile = false,
 }: {
   opacity: number;
   scale: number;
@@ -64,7 +63,6 @@ export default function HeroIslandCanvas({
   shouldMount?: boolean;
   className?: string;
   modelOffsetY?: number;
-  isMobile?: boolean;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -85,13 +83,8 @@ export default function HeroIslandCanvas({
       {mounted && (
         <Canvas
           camera={{ position: [0, 0, DEFAULT_CAMERA_Z], fov: 45 }}
-          dpr={isMobile ? [1, 1] : [1, 2]}
-          gl={{
-            alpha: true,
-            antialias: !isMobile,
-            powerPreference: isMobile ? "default" : "high-performance",
-            stencil: false,
-          }}
+          dpr={[1, 2]}
+          gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
           frameloop="always"
         >
           <CameraPushIn cameraDistance={cameraDistance} fov={fov} />
