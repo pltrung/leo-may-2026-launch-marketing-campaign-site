@@ -24,7 +24,7 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
   const [isRandomizeTapping, setIsRandomizeTapping] = useState(false);
   const stackRef = useRef<CloudStackMobileHandle>(null);
   const locale = useLocale();
-  const { whatTypeOfCloud, randomizeButton } = getMessages(locale).cloudSelector;
+  const { whatTypeOfCloud, subtext, randomizeButton } = getMessages(locale).cloudSelector;
 
   useEffect(() => {
     const check = () => setIsMobile(typeof window !== "undefined" && window.innerWidth <= 768);
@@ -62,6 +62,9 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
         <h2 className="cloud-selection-title font-headline text-[22px] sm:text-[26px] md:text-[32px] leading-[1.2] md:text-5xl lg:text-4xl lg:leading-tight text-center text-white tracking-headline pl-20 pr-20 md:px-4 max-md:whitespace-nowrap">
           {whatTypeOfCloud}
         </h2>
+        <p className="cloud-selection-subtext mt-2 md:mt-3 text-center text-white/80 text-sm sm:text-base md:text-lg max-w-xl mx-auto px-2 font-normal tracking-normal">
+          {subtext}
+        </p>
       </motion.div>
 
       {/* Mobile/tablet: cloud stack + Randomize (stack shows until lg; desktop grid only at 1024px+) */}
