@@ -11,6 +11,7 @@ import ClientErrorBoundary from "@/components/ClientErrorBoundary";
 import { HERO_BG } from "@/lib/heroConstants";
 import { getMessages } from "@/lib/messages";
 import AscentBar from "@/components/AscentBar";
+import { useTransitionOverlay } from "@/context/TransitionOverlayContext";
 
 const HeroIslandCanvas = dynamic(
   () => import("@/components/HeroIslandCanvas").catch(() => ({ default: () => null })),
@@ -35,13 +36,13 @@ const HEADLINE_STAGES_EN: HeadlineStage[] = [
   { line1: "CLIMB.", line2: "IN YOUR OWN", line3: "SKY." },
   { line1: "CONNECT.", line2: "IN THE SAME", line3: "RHYTHM." },
   { line1: "BE HERE.", line2: "IN EVERY", line3: "MOVEMENT." },
-  { line1: "BE FREE", line2: "YOUR", line3: "WAY." },
+  { line1: "BE FREE.", line2: "YOUR", line3: "WAY." },
 ];
 const HEADLINE_STAGES_VI: HeadlineStage[] = [
   { line1: "LEO.", line2: "GIỮA TRỜI", line3: "RIÊNG." },
   { line1: "KẾT NỐI.", line2: "CHUNG MỘT", line3: "NHỊP." },
   { line1: "HIỆN DIỆN.", line2: "TRONG CHUYỂN", line3: "ĐỘNG." },
-  { line1: "TỰ DO", line2: "THEO", line3: "CÁCH BẠN." },
+  { line1: "TỰ DO.", line2: "THEO", line3: "CÁCH BẠN." },
 ];
 
 function smoothstep(a: number, b: number, x: number): number {
@@ -120,6 +121,9 @@ export default function CinematicHeroScroll({
 }: CinematicHeroScrollProps) {
   const isMobile = useIsMobile();
   const isDesktop = useIsDesktop();
+  const { phase: overlayPhase } = useTransitionOverlay();
+  const overlayPhaseRef = useRef(overlayPhase);
+  overlayPhaseRef.current = overlayPhase;
   const [heroProgress, setHeroProgress] = useState(0);
   const rafRef = useRef<number>(0);
   const pendingRef = useRef<number | null>(null);
@@ -163,7 +167,13 @@ export default function CinematicHeroScroll({
     const onVis = () => {
       try {
         const visible = document.visibilityState !== "hidden";
-        if (!visible && typeof window !== "undefined" && window.innerWidth <= 768) {
+        // Only skip GLB when tab actually went hidden (e.g. app switch), not during route transition (TV off to clouds).
+        if (
+          !visible &&
+          typeof window !== "undefined" &&
+          window.innerWidth <= 768 &&
+          overlayPhaseRef.current === "idle"
+        ) {
           mobileSkipGlbAfterHiddenRef.current = true;
         }
         setTabVisible(visible);

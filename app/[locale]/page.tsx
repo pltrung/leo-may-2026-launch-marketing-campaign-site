@@ -49,6 +49,22 @@ function HomeContent() {
   const { phase: overlayPhase, startTransition } = useTransitionOverlay();
   const transitionActive = overlayPhase !== "idle";
 
+  /** Clouds view entrance after TV turn-on: 1) dark, 2) holds, 3) content. Only when landing from transition. */
+  type CloudsEntranceStep = "background" | "holds" | "content";
+  const [cloudsEntranceStep, setCloudsEntranceStep] = useState<CloudsEntranceStep>("background");
+  const prevOverlayPhaseRef = useRef<typeof overlayPhase>("idle");
+  const cloudsEntranceTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  /** Increment when returning from clouds so hero gets a fresh mount and GLB re-inits (fixes mobile GLB not showing after Return). */
+  const [heroMountKey, setHeroMountKey] = useState(0);
+  const prevShowCloudsRef = useRef(showClouds);
+  useEffect(() => {
+    if (prevShowCloudsRef.current === true && showClouds === false) {
+      setHeroMountKey((k) => k + 1);
+    }
+    prevShowCloudsRef.current = showClouds;
+  }, [showClouds]);
+
   /** Hero → Pick Your Cloud: global overlay collapses, then replace URL; overlay expands after new view is ready. */
   const handleAscendClick = useCallback(() => {
     timersRef.current.forEach(clearTimeout);
@@ -102,6 +118,33 @@ function HomeContent() {
     if (showClouds) document.documentElement.classList.add("cloud-selection-view");
     return () => document.documentElement.classList.remove("cloud-selection-view");
   }, [showClouds]);
+
+  /** Clouds entrance sequence after TV turn-on: dark (0ms) → holds (350ms) → content (350+500+280ms). */
+  useEffect(() => {
+    if (!showClouds) {
+      setCloudsEntranceStep("background");
+      cloudsEntranceTimersRef.current.forEach(clearTimeout);
+      cloudsEntranceTimersRef.current = [];
+      prevOverlayPhaseRef.current = "idle";
+      return;
+    }
+    if (overlayPhase !== "idle") {
+      setCloudsEntranceStep("background");
+      prevOverlayPhaseRef.current = overlayPhase;
+      return;
+    }
+    const prev = prevOverlayPhaseRef.current;
+    prevOverlayPhaseRef.current = "idle";
+    if (prev === "expanding") {
+      setCloudsEntranceStep("background");
+      cloudsEntranceTimersRef.current.forEach(clearTimeout);
+      const t1 = setTimeout(() => setCloudsEntranceStep("holds"), 350);
+      const t2 = setTimeout(() => setCloudsEntranceStep("content"), 350 + 500 + 280);
+      cloudsEntranceTimersRef.current = [t1, t2];
+      return () => cloudsEntranceTimersRef.current.forEach(clearTimeout);
+    }
+    setCloudsEntranceStep("content");
+  }, [showClouds, overlayPhase]);
 
   const userForMascot = getUser();
   const cloudForMascot = userForMascot?.team ? getCloudById(userForMascot.team) : null;
@@ -158,7 +201,10 @@ function HomeContent() {
       style={{ minHeight: "100dvh" }}
     >
       <main className="relative z-10 flex-1 min-h-0">
-      <BrandBackground />
+      <BrandBackground
+        cloudsView={showClouds}
+        cloudsEntranceStep={showClouds ? cloudsEntranceStep : undefined}
+      />
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />
 
@@ -212,7 +258,7 @@ function HomeContent() {
       <AnimatePresence mode="wait">
         {!showClouds ? (
           USE_CINEMATIC_HERO ? (
-            <div key="cinematic-hero" className="relative z-0" style={{ opacity: heroContentOpacity }}>
+            <div key={`cinematic-hero-${heroMountKey}`} className="relative z-0" style={{ opacity: heroContentOpacity }}>
               <ClientErrorBoundary fallback={(retry) => <HeroFallback onRetry={retry} />}>
                 <CinematicHeroScroll
                   partColors={heroMascotPartColors}
@@ -246,11 +292,10 @@ function HomeContent() {
             key="clouds"
             className="relative z-0"
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            animate={{ opacity: cloudsEntranceStep === "content" ? 1 : 0 }}
             exit={{ opacity: 0 }}
             transition={{
-              duration: 0.6,
-              delay: 0.15,
+              duration: 0.65,
               ease: [0.22, 1, 0.36, 1],
             }}
           >
