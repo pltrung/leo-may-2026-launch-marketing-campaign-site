@@ -392,7 +392,7 @@ export default function CinematicHeroScroll({
   const ctaOpacityFinal = loadComplete ? 1 : loadCTAOpacity;
   const ctaTranslateYFinal = loadComplete ? 0 : loadCTAY;
   const scrollArrowOpacity =
-    loadComplete ? (p <= 0.05 ? 1 : 1 - smoothstep(0.05, 0.12, p)) : loadArrowOpacity;
+    loadComplete ? (p <= 0.05 ? 1 : 1 - smoothstep(0.05, 0.18, p)) : loadArrowOpacity;
 
   return (
     <div
@@ -753,7 +753,7 @@ export default function CinematicHeroScroll({
             className="absolute left-1/2 z-10 pointer-events-none hero-scroll-arrow-drift"
             style={{
               bottom: `calc(${footerHeight}px + 20px + env(safe-area-inset-bottom, 0px))`,
-              opacity: 1,
+              opacity: scrollArrowOpacity,
               filter: "drop-shadow(0 0 6px rgba(255,255,255,0.25))",
             }}
             aria-hidden
