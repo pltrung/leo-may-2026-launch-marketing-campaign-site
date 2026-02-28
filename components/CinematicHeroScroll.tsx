@@ -591,24 +591,27 @@ export default function CinematicHeroScroll({
                   Premium Climbing Experience · HCMC · 2026
                 </p>
               </div>
-              {/* Arrow: same content container as headline/CTA; optically centered, 80px above bottom, premium drift */}
+              {/* Arrow: same content container as headline/CTA; scroll opacity on wrapper so it fades; drift animation on inner */}
               <div
-                className="absolute left-1/2 z-20 pointer-events-none hero-scroll-arrow-drift"
+                className="absolute left-1/2 z-20 pointer-events-none"
                 style={{
                   bottom: "calc(80px + env(safe-area-inset-bottom, 0px))",
                   marginLeft: 3,
+                  transform: "translateX(-50%)",
                   opacity: scrollArrowOpacity * 0.88,
                   filter: "drop-shadow(0 0 6px rgba(255,255,255,0.25))",
                 }}
                 aria-hidden
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/brand/arrow-up.svg"
-                  alt=""
-                  className="w-7 h-7 object-contain"
-                  style={{ transform: "rotate(180deg)" }}
-                />
+                <div className="hero-scroll-arrow-drift">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/brand/arrow-up.svg"
+                    alt=""
+                    className="w-7 h-7 object-contain"
+                    style={{ transform: "rotate(180deg)" }}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -747,24 +750,27 @@ export default function CinematicHeroScroll({
           <AscentBar progress={heroProgress} intensity={particleIntensity} />
         </div>
 
-        {/* Scroll arrow: desktop only (bottom center above footer); premium drift, no bounce */}
+        {/* Scroll arrow: desktop only (bottom center above footer); scroll opacity on wrapper so it fades; drift on inner */}
         {!isMobile && (
           <div
-            className="absolute left-1/2 z-10 pointer-events-none hero-scroll-arrow-drift"
+            className="absolute left-1/2 z-10 pointer-events-none"
             style={{
               bottom: `calc(${footerHeight}px + 20px + env(safe-area-inset-bottom, 0px))`,
+              transform: "translateX(-50%)",
               opacity: scrollArrowOpacity,
               filter: "drop-shadow(0 0 6px rgba(255,255,255,0.25))",
             }}
             aria-hidden
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/brand/arrow-up.svg"
-              alt=""
-              className="w-11 h-11 sm:w-14 sm:h-14 object-contain"
-              style={{ transform: "rotate(180deg)" }}
-            />
+            <div className="hero-scroll-arrow-drift">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/arrow-up.svg"
+                alt=""
+                className="w-11 h-11 sm:w-14 sm:h-14 object-contain"
+                style={{ transform: "rotate(180deg)" }}
+              />
+            </div>
           </div>
         )}
 

@@ -576,14 +576,18 @@ function CountdownPageContent() {
         <SafeLanguageSwitch />
 
       </motion.div>
-      {/* Full black background (no holds — matches countdown transition) */}
+      {/* Full background (no holds — matches countdown transition); starfield layer above so stars are visible */}
       <div
-        className="fixed inset-0 -z-10 pointer-events-none"
-        style={{ background: HERO_BG }}
+        className="fixed inset-0 pointer-events-none"
+        style={{ background: HERO_BG, zIndex: -20 }}
         aria-hidden
       />
       {/* Same subtle starfield as hero: twinkle, slow drift, occasional shooting star */}
-      <div className="fixed inset-0 -z-10 pointer-events-none w-full h-full" aria-hidden>
+      <div
+        className="fixed inset-0 pointer-events-none w-full h-full min-h-[100dvh]"
+        style={{ zIndex: -10 }}
+        aria-hidden
+      >
         <HeroStarfield heroTransitioning={false} />
       </div>
 
