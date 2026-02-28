@@ -591,17 +591,22 @@ export default function CinematicHeroScroll({
                   Premium Climbing Experience · HCMC · 2026
                 </p>
               </div>
-              {/* Arrow down — below CTA on initial scroll; margin so footer doesn't overlap */}
+              {/* Arrow: same content container as headline/CTA; optically centered, 80px above bottom, premium drift */}
               <div
-                className="flex shrink-0 justify-center hero-scroll-arrow-bounce"
-                style={{ marginTop: "12px", marginBottom: "28px", opacity: scrollArrowOpacity }}
+                className="absolute left-1/2 z-20 pointer-events-none hero-scroll-arrow-drift"
+                style={{
+                  bottom: "calc(80px + env(safe-area-inset-bottom, 0px))",
+                  marginLeft: 3,
+                  opacity: scrollArrowOpacity * 0.88,
+                  filter: "drop-shadow(0 0 6px rgba(255,255,255,0.25))",
+                }}
                 aria-hidden
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/brand/arrow-up.svg"
                   alt=""
-                  className="w-6 h-6 object-contain opacity-80"
+                  className="w-7 h-7 object-contain"
                   style={{ transform: "rotate(180deg)" }}
                 />
               </div>
@@ -742,13 +747,14 @@ export default function CinematicHeroScroll({
           <AscentBar progress={heroProgress} intensity={particleIntensity} />
         </div>
 
-        {/* Scroll arrow: desktop only (bottom center above footer); mobile uses two arrows around logo */}
+        {/* Scroll arrow: desktop only (bottom center above footer); premium drift, no bounce */}
         {!isMobile && (
           <div
-            className="absolute left-1/2 z-10 pointer-events-none hero-scroll-arrow-bounce"
+            className="absolute left-1/2 z-10 pointer-events-none hero-scroll-arrow-drift"
             style={{
               bottom: `calc(${footerHeight}px + 20px + env(safe-area-inset-bottom, 0px))`,
-              opacity: scrollArrowOpacity,
+              opacity: scrollArrowOpacity * 0.88,
+              filter: "drop-shadow(0 0 6px rgba(255,255,255,0.25))",
             }}
             aria-hidden
           >
@@ -756,7 +762,7 @@ export default function CinematicHeroScroll({
             <img
               src="/brand/arrow-up.svg"
               alt=""
-              className="w-6 h-6 sm:w-8 sm:h-8 object-contain opacity-80"
+              className="w-11 h-11 sm:w-14 sm:h-14 object-contain"
               style={{ transform: "rotate(180deg)" }}
             />
           </div>
