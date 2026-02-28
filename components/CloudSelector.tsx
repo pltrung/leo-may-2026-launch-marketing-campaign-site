@@ -55,7 +55,7 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
         transition={{ delay: 0.4, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
         <Logo
-          className="w-[110px] md:w-[165px] max-w-[110px] md:max-w-none h-auto object-contain object-left"
+          className="w-[110px] md:w-[140px] max-w-[110px] md:max-w-none h-auto object-contain object-left"
           onNavigateToHome={onReturnToHero}
         />
       </motion.div>

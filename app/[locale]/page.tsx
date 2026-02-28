@@ -179,7 +179,7 @@ function HomeContent() {
             transition={{ duration: 0.5, delay: 0, ease: [0.22, 1, 0.36, 1] }}
             className="flex items-center"
           >
-            <Logo className="w-[110px] md:w-[165px] max-w-[110px] md:max-w-none h-auto object-contain object-left" />
+            <Logo className="w-[110px] md:w-[140px] max-w-[110px] md:max-w-none h-auto object-contain object-left" />
           </motion.div>
           <motion.div
             initial={{ opacity: 0 }}
