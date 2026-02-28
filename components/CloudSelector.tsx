@@ -16,9 +16,11 @@ const BUTTON_EASE = [0.22, 1, 0.36, 1] as const;
 
 interface CloudSelectorProps {
   onSelect: (cloud: CloudPersonality) => void;
+  /** When provided, Return and Logo use this (e.g. TV transition) instead of direct router.replace. */
+  onReturnToHero?: () => void;
 }
 
-export default function CloudSelector({ onSelect }: CloudSelectorProps) {
+export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelectorProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [randomizePhase, setRandomizePhase] = useState<"hidden" | "breathing">("hidden");
@@ -29,7 +31,8 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
   const { whatTypeOfCloud, subtext, returnToHero, randomizeButton } = getMessages(locale).cloudSelector;
 
   const goToInitial = () => {
-    router.replace(`/${locale}`, { scroll: true });
+    if (onReturnToHero) onReturnToHero();
+    else router.replace(`/${locale}`, { scroll: true });
   };
 
   useEffect(() => {
@@ -51,7 +54,10 @@ export default function CloudSelector({ onSelect }: CloudSelectorProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
-        <Logo className="w-[110px] md:w-[220px] max-w-[110px] md:max-w-none h-auto object-contain object-left" />
+        <Logo
+          className="w-[110px] md:w-[165px] max-w-[110px] md:max-w-none h-auto object-contain object-left"
+          onNavigateToHome={onReturnToHero}
+        />
       </motion.div>
 
       {/* Header: on mobile 80ms (after cards); on desktop 700ms. Desktop: reduced spacing. */}

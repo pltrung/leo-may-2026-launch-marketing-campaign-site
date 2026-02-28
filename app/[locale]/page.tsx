@@ -57,6 +57,12 @@ function HomeContent() {
     startTransition(`/${locale}?clouds=1`, "replace");
   }, [locale, startTransition]);
 
+  /** Clouds → Hero: same TV off/on transition, then replace URL to initial. */
+  const handleReturnToHero = useCallback(() => {
+    setHeroOpacity(1);
+    startTransition(`/${locale}`, "replace");
+  }, [locale, startTransition]);
+
   /** Login/team found or Confirm & ascend → Countdown: close modal (if any), then global overlay transition. */
   const transitionToCountdown = useCallback(
     (_variant: "return" | "forms") => {
@@ -84,8 +90,12 @@ function HomeContent() {
   useEffect(() => {
     const clouds = searchParams.get("clouds") === "1";
     setShowClouds(clouds);
-    if (clouds) window.scrollTo({ top: 0, behavior: "auto" });
-    else window.scrollTo({ top: 0, behavior: "auto" }); // when returning to hero, scroll to top so initial view is visible
+    if (clouds) {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    } else {
+      setHeroOpacity(1); // when returning from clouds, hero was faded to 0 — restore so hero is visible
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
   }, [searchParams]);
 
   useEffect(() => {
@@ -169,7 +179,7 @@ function HomeContent() {
             transition={{ duration: 0.5, delay: 0, ease: [0.22, 1, 0.36, 1] }}
             className="flex items-center"
           >
-            <Logo className="w-[110px] md:w-[220px] max-w-[110px] md:max-w-none h-auto object-contain object-left" />
+            <Logo className="w-[110px] md:w-[165px] max-w-[110px] md:max-w-none h-auto object-contain object-left" />
           </motion.div>
           <motion.div
             initial={{ opacity: 0 }}
@@ -244,7 +254,7 @@ function HomeContent() {
               ease: [0.22, 1, 0.36, 1],
             }}
           >
-            <CloudSelector onSelect={setSelectedCloud} />
+            <CloudSelector onSelect={setSelectedCloud} onReturnToHero={handleReturnToHero} />
           </motion.div>
         )}
       </AnimatePresence>

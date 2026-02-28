@@ -6,9 +6,11 @@ import { useLocale } from "./LocaleProvider";
 
 interface LogoProps {
   className?: string;
+  /** When provided and on cloud selector, used instead of router (e.g. to run TV transition). */
+  onNavigateToHome?: () => void;
 }
 
-export default function Logo({ className = "h-8 w-auto object-contain" }: LogoProps) {
+export default function Logo({ className = "h-8 w-auto object-contain", onNavigateToHome }: LogoProps) {
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
@@ -18,7 +20,8 @@ export default function Logo({ className = "h-8 w-auto object-contain" }: LogoPr
   const handleClick = (e: React.MouseEvent) => {
     if (document.body.classList.contains("cloud-selection-view")) {
       e.preventDefault();
-      router.replace(homePath, { scroll: true });
+      if (onNavigateToHome) onNavigateToHome();
+      else router.replace(homePath, { scroll: true });
     } else if (isOnHome) {
       e.preventDefault();
       window.scrollTo({ top: 0, behavior: "smooth" });
