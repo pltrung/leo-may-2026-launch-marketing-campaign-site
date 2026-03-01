@@ -31,6 +31,8 @@ export interface NoSpawnRect {
 const FRICTION = 0.985;
 const RESTITUTION = 0.75;
 const COLLISION_ITERATIONS = 3;
+/** Minimum gap between cloud centers (so clouds don’t overlap or sit too close) */
+const MIN_CLOUD_GAP = 28;
 
 function rand(min: number, max: number): number {
   return min + Math.random() * (max - min);
@@ -41,6 +43,22 @@ function isInNoSpawn(x: number, y: number, r: number, noSpawn: NoSpawnRect): boo
   const dy = Math.abs(y - noSpawn.cy);
   const margin = r + 20;
   return dx < noSpawn.halfW + margin && dy < noSpawn.halfH + margin;
+}
+
+function isTooCloseToOthers(
+  x: number,
+  y: number,
+  radius: number,
+  existing: CloudState[]
+): boolean {
+  const minDist = radius + MIN_CLOUD_GAP;
+  for (const c of existing) {
+    const dx = x - c.x;
+    const dy = y - c.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < minDist + c.radius) return true;
+  }
+  return false;
 }
 
 export function createClouds(
@@ -54,7 +72,7 @@ export function createClouds(
   const clouds: CloudState[] = [];
   const padding = sizeMax + 30;
   let attempts = 0;
-  const maxAttempts = count * 25;
+  const maxAttempts = count * 60;
 
   for (let i = 0; i < count && attempts < maxAttempts; attempts++) {
     const sizePx = Math.round(rand(sizeMin, sizeMax));
@@ -62,6 +80,7 @@ export function createClouds(
     const x = rand(padding, viewport.width - padding);
     const y = rand(padding, viewport.height - padding);
     if (isInNoSpawn(x, y, radius, noSpawn)) continue;
+    if (isTooCloseToOthers(x, y, radius, clouds)) continue;
     clouds.push({
       id: i,
       x,
