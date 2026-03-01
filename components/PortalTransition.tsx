@@ -105,7 +105,7 @@ export default function PortalTransition({
         position: "fixed",
         inset: 0,
         zIndex: 999998,
-        pointerEvents: state === "hero" ? "none" : "auto",
+        pointerEvents: "auto",
         overflow: "hidden",
       }}
     >
