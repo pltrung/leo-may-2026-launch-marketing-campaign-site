@@ -147,6 +147,7 @@ export default function CinematicHeroScroll({
   const [videoRevealDone, setVideoRevealDone] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoRevealFiredRef = useRef(false);
+  const videoHoldTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /** When locale changes (e.g. EN/VN switch), reset skip-GLB ref so GLBs show again after language change or refresh. */
   useEffect(() => {
@@ -169,10 +170,10 @@ export default function CinematicHeroScroll({
     preloadHeroIslandGLB();
   }, []);
 
-  /** Fallback: if video never loads (e.g. missing file), reveal headline + arrow after 4s so content still appears. */
+  /** Fallback: only if video never loads (e.g. missing file); 15s so a ~5s video always triggers reveal from playback first. */
   useEffect(() => {
     if (videoRevealDone) return;
-    const t = setTimeout(() => setVideoRevealDone(true), 4000);
+    const t = setTimeout(() => setVideoRevealDone(true), 15000);
     return () => clearTimeout(t);
   }, [videoRevealDone]);
 
@@ -231,6 +232,15 @@ export default function CinematicHeroScroll({
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (videoHoldTimeoutRef.current) {
+        clearTimeout(videoHoldTimeoutRef.current);
+        videoHoldTimeoutRef.current = null;
+      }
     };
   }, []);
 
@@ -470,7 +480,10 @@ export default function CinematicHeroScroll({
                 zIndex: 0,
                 opacity: mascotOpacityFinal * 0.85,
                 transition: "opacity 500ms ease-out, transform 500ms ease-out",
-                transform: `translateY(${mascotTranslateYFinal}px)`,
+                transform: isMobile
+                  ? `translateY(${mascotTranslateYFinal}px) scale(0.5)`
+                  : `translateY(${mascotTranslateYFinal}px)`,
+                transformOrigin: "center center",
               }}
               aria-hidden
             >
@@ -478,7 +491,6 @@ export default function CinematicHeroScroll({
                 ref={videoRef}
                 autoPlay
                 muted
-                loop
                 playsInline
                 preload="auto"
                 className="w-full h-full object-cover"
@@ -486,8 +498,8 @@ export default function CinematicHeroScroll({
                   position: "absolute",
                   top: "50%",
                   left: "50%",
-                  width: isMobile ? "92%" : "88%",
-                  height: isMobile ? "92%" : "88%",
+                  width: isMobile ? "100%" : "88%",
+                  height: isMobile ? "100%" : "88%",
                   transform: "translate(-50%, -50%)",
                   objectFit: "cover",
                   objectPosition: "center center",
@@ -510,6 +522,16 @@ export default function CinematicHeroScroll({
                     setVideoRevealDone(true);
                   }
                 }}
+                onEnded={() => {
+                  const el = videoRef.current;
+                  if (!el) return;
+                  el.pause();
+                  videoHoldTimeoutRef.current = setTimeout(() => {
+                    videoHoldTimeoutRef.current = null;
+                    el.currentTime = 0;
+                    el.play();
+                  }, 5000);
+                }}
                 aria-hidden
               >
                 {/* Place video-1-trial.mp4 in public/ (e.g. copy from downloads/leo may ip folder); keep under 3–5MB, optimized mp4 for performance. */}
@@ -521,7 +543,7 @@ export default function CinematicHeroScroll({
               style={{
                 zIndex: 1,
                 background: "linear-gradient(to bottom, rgba(255,255,255,0.25), rgba(255,255,255,0.45))",
-                opacity: mascotOpacityFinal,
+                opacity: mascotOpacityFinal * 0.85,
                 transition: "opacity 500ms ease-out",
               }}
               aria-hidden
