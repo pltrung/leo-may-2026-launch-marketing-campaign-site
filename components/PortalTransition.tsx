@@ -68,7 +68,7 @@ export default function PortalTransition({
       setMaskStyle(
         `radial-gradient(circle at 50% 50%, transparent 0, transparent ${r}, black ${r})`
       );
-      skyOpacity.set(1 - 0.3 * eased);
+      skyOpacity.set(1 - 0.5 * eased);
       setRimRadius(t < 0.02 ? 0 : rVmax);
       setRimOpacity(elapsed < 0.85 ? 1 : Math.max(0, 1 - (elapsed - 0.85) / 0.15));
       if (t < 1) {
@@ -144,7 +144,7 @@ export default function PortalTransition({
         </motion.div>
       </div>
 
-      {/* Rim glow: ring at portal edge during expansion */}
+      {/* Rim glow: visible ring at portal edge so the iris reads on black (spec: bluish-white, blur) */}
       {state === "transitioning" && !reduceMotion && rimOpacity > 0 && (
         <svg
           className="portal-rim"
@@ -161,15 +161,29 @@ export default function PortalTransition({
           preserveAspectRatio="xMidYMid slice"
           aria-hidden
         >
+          {/* Outer soft glow so edge is visible against black sky */}
           <circle
             cx="160"
             cy="160"
             r={Math.min(160, rimRadius)}
             fill="none"
-            stroke="rgba(180, 210, 255, 0.4)"
-            strokeWidth="0.5"
+            stroke="rgba(200, 220, 255, 0.5)"
+            strokeWidth="2"
             style={{
-              filter: "blur(4px)",
+              filter: "blur(8px)",
+              opacity: rimOpacity,
+            }}
+          />
+          {/* Inner crisp edge for clear iris boundary */}
+          <circle
+            cx="160"
+            cy="160"
+            r={Math.min(160, rimRadius)}
+            fill="none"
+            stroke="rgba(255, 255, 255, 0.35)"
+            strokeWidth="0.8"
+            style={{
+              filter: "blur(1px)",
               opacity: rimOpacity,
             }}
           />
