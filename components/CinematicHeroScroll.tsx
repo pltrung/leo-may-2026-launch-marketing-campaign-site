@@ -145,9 +145,11 @@ export default function CinematicHeroScroll({
   const [glbDeferredReady, setGlbDeferredReady] = useState(false);
   /** True when video has entered the last second of its first run; gates first headline + arrow reveal. */
   const [videoRevealDone, setVideoRevealDone] = useState(false);
+  /** True when video has finished its first run; we fade out the video layer (no replay). */
+  const [videoFirstRunEnded, setVideoFirstRunEnded] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoRevealFiredRef = useRef(false);
-  const videoHoldTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const videoSlowMoSetRef = useRef(false);
 
   /** When locale changes (e.g. EN/VN switch), reset skip-GLB ref so GLBs show again after language change or refresh. */
   useEffect(() => {
@@ -232,15 +234,6 @@ export default function CinematicHeroScroll({
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (videoHoldTimeoutRef.current) {
-        clearTimeout(videoHoldTimeoutRef.current);
-        videoHoldTimeoutRef.current = null;
-      }
     };
   }, []);
 
@@ -478,12 +471,15 @@ export default function CinematicHeroScroll({
               className="absolute inset-0 w-full h-full flex items-center justify-center"
               style={{
                 zIndex: 0,
-                opacity: mascotOpacityFinal * 0.85,
-                transition: "opacity 500ms ease-out, transform 500ms ease-out",
+                opacity: videoFirstRunEnded ? 0 : mascotOpacityFinal * 0.85,
+                transition: "opacity 800ms ease-out, transform 500ms ease-out",
                 transform: isMobile
-                  ? `translateY(${mascotTranslateYFinal}px) scale(0.5)`
+                  ? `translateY(${mascotTranslateYFinal}px) scale(0.65)`
                   : `translateY(${mascotTranslateYFinal}px)`,
                 transformOrigin: "center center",
+                background: HERO_BG,
+                WebkitMaskImage: "radial-gradient(ellipse 88% 88% at 50% 50%, black 72%, transparent 100%)",
+                maskImage: "radial-gradient(ellipse 88% 88% at 50% 50%, black 72%, transparent 100%)",
               }}
               aria-hidden
             >
@@ -496,21 +492,25 @@ export default function CinematicHeroScroll({
                 className="w-full h-full object-cover"
                 style={{
                   position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  width: isMobile ? "100%" : "88%",
-                  height: isMobile ? "100%" : "88%",
-                  transform: "translate(-50%, -50%)",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
                   objectFit: "cover",
                   objectPosition: "center center",
+                  transform: isMobile ? undefined : "scale(0.9)",
+                  transformOrigin: "center center",
                 }}
                 onTimeUpdate={() => {
-                  if (videoRevealFiredRef.current) return;
                   const el = videoRef.current;
                   if (!el || !Number.isFinite(el.duration) || el.duration <= 0) return;
-                  if (el.currentTime >= el.duration - 1) {
+                  if (!videoRevealFiredRef.current && el.currentTime >= el.duration - 1) {
                     videoRevealFiredRef.current = true;
                     setVideoRevealDone(true);
+                  }
+                  if (!videoSlowMoSetRef.current && el.currentTime >= el.duration - 1) {
+                    videoSlowMoSetRef.current = true;
+                    el.playbackRate = 0.5;
                   }
                 }}
                 onLoadedMetadata={() => {
@@ -523,14 +523,7 @@ export default function CinematicHeroScroll({
                   }
                 }}
                 onEnded={() => {
-                  const el = videoRef.current;
-                  if (!el) return;
-                  el.pause();
-                  videoHoldTimeoutRef.current = setTimeout(() => {
-                    videoHoldTimeoutRef.current = null;
-                    el.currentTime = 0;
-                    el.play();
-                  }, 5000);
+                  setVideoFirstRunEnded(true);
                 }}
                 aria-hidden
               >
@@ -543,8 +536,8 @@ export default function CinematicHeroScroll({
               style={{
                 zIndex: 1,
                 background: "linear-gradient(to bottom, rgba(255,255,255,0.25), rgba(255,255,255,0.45))",
-                opacity: mascotOpacityFinal * 0.85,
-                transition: "opacity 500ms ease-out",
+                opacity: videoFirstRunEnded ? 0 : mascotOpacityFinal * 0.85,
+                transition: "opacity 800ms ease-out",
               }}
               aria-hidden
             />
