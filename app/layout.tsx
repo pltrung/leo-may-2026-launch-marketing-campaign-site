@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import LoadingScreen from "@/components/LoadingScreen";
 import GlobalImgSafeguard from "@/components/GlobalImgSafeguard";
+import LandingGate from "@/components/LandingGate";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
@@ -38,11 +39,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-[100dvh] antialiased overflow-x-hidden">
         <GlobalImgSafeguard />
-        <LoadingScreen />
-        {children}
-        <Script id="loading-controller" strategy="afterInteractive">
-          {`setTimeout(function(){var e=document.getElementById("loading-screen");e&&e.remove();document.body.classList.add("loaded");setTimeout(function(){document.body.classList.add("hero-ready");},600);},2000);`}
-        </Script>
+        <LandingGate>{children}</LandingGate>
       </body>
     </html>
   );

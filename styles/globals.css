@@ -73,11 +73,11 @@ body {
   color: rgba(255,255,255,0.8);
 }
 
-/* Brand background fades in first (body.loaded), then hero sequence (body.hero-ready) */
+/* Hero page fades in only after portal (body.hero-ready). Other pages use body.loaded. */
 #hero-page {
   opacity: 0;
 }
-body.loaded #hero-page {
+body.hero-ready #hero-page {
   animation: heroPageFadeIn 0.6s ease forwards;
 }
 
