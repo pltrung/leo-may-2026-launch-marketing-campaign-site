@@ -15,6 +15,8 @@ export type PortalState = "loadingSky" | "exploreIdle" | "transitioning" | "hero
 
 const PORTAL_DURATION_MS = 580;
 const REDUCED_MOTION_FADE_MS = 250;
+/** Portal starts at pill (center); small vmax ≈ pill-sized so it feels like it opens from the button into the world */
+const PORTAL_START_VMAX = 3;
 
 function easeOutExpo(t: number): number {
   return t >= 1 ? 1 : 1 - Math.pow(2, -10 * t);
@@ -53,24 +55,23 @@ export default function PortalTransition({
     const duration = PORTAL_DURATION_MS / 1000;
     startRef.current = performance.now() / 1000;
 
-    // Immediate "window" at 24px (spec)
+    // Start at pill (center 50% 50%) — small circle so portal feels like it opens from the pill
     setMaskStyle(
-      "radial-gradient(circle at 50% 50%, transparent 0, transparent 24px, black 24px)"
+      `radial-gradient(circle at 50% 50%, transparent 0, transparent ${PORTAL_START_VMAX}vmax, black ${PORTAL_START_VMAX}vmax)`
     );
 
     const tick = (now: number) => {
       const elapsed = (now / 1000 - startRef.current) / duration;
       const t = Math.min(1, elapsed);
       const eased = easeOutExpo(t);
-      // Expand from 24px to 160vmax
-      const rVmax = 24 + (160 - 24) * eased;
-      const r = t < 0.02 ? "24px" : `${rVmax}vmax`;
+      // Expand from pill (small vmax) to full world (160vmax) — rim is the opening edge
+      const rVmax = PORTAL_START_VMAX + (160 - PORTAL_START_VMAX) * eased;
       setMaskStyle(
-        `radial-gradient(circle at 50% 50%, transparent 0, transparent ${r}, black ${r})`
+        `radial-gradient(circle at 50% 50%, transparent 0, transparent ${rVmax}vmax, black ${rVmax}vmax)`
       );
       skyOpacity.set(1 - 0.5 * eased);
-      setRimRadius(t < 0.02 ? 0 : rVmax);
-      setRimOpacity(elapsed < 0.85 ? 1 : Math.max(0, 1 - (elapsed - 0.85) / 0.15));
+      setRimRadius(rVmax);
+      setRimOpacity(elapsed < 0.92 ? 1 : Math.max(0, 1 - (elapsed - 0.92) / 0.08));
       if (t < 1) {
         rafRef.current = requestAnimationFrame(tick);
       } else {
@@ -99,7 +100,7 @@ export default function PortalTransition({
     isTransitioningState && maskStyle
       ? maskStyle
       : isTransitioningState
-        ? "radial-gradient(circle at 50% 50%, transparent 0, transparent 24px, black 24px)"
+        ? `radial-gradient(circle at 50% 50%, transparent 0, transparent ${PORTAL_START_VMAX}vmax, black ${PORTAL_START_VMAX}vmax)`
         : undefined;
 
   return (
@@ -144,7 +145,7 @@ export default function PortalTransition({
         </motion.div>
       </div>
 
-      {/* Rim glow: visible ring at portal edge so the iris reads on black (spec: bluish-white, blur) */}
+      {/* Rim: solid ring at the opening edge — grows from pill (center) into the new world */}
       {state === "transitioning" && !reduceMotion && rimOpacity > 0 && (
         <svg
           className="portal-rim"
@@ -161,31 +162,14 @@ export default function PortalTransition({
           preserveAspectRatio="xMidYMid slice"
           aria-hidden
         >
-          {/* Outer soft glow so edge is visible against black sky */}
           <circle
             cx="160"
             cy="160"
             r={Math.min(160, rimRadius)}
             fill="none"
-            stroke="rgba(200, 220, 255, 0.5)"
-            strokeWidth="2"
-            style={{
-              filter: "blur(8px)",
-              opacity: rimOpacity,
-            }}
-          />
-          {/* Inner crisp edge for clear iris boundary */}
-          <circle
-            cx="160"
-            cy="160"
-            r={Math.min(160, rimRadius)}
-            fill="none"
-            stroke="rgba(255, 255, 255, 0.35)"
-            strokeWidth="0.8"
-            style={{
-              filter: "blur(1px)",
-              opacity: rimOpacity,
-            }}
+            stroke="rgba(220, 235, 255, 0.9)"
+            strokeWidth="5"
+            style={{ opacity: rimOpacity }}
           />
         </svg>
       )}
