@@ -21,8 +21,9 @@ const BOB_AMPLITUDE = 4;
 const BOB_PERIOD_MS = 4000;
 const MOBILE_BREAKPOINT = 768;
 
-const EYES_LEFT_SRC = "/brand/cloud-eyes-left.svg";
-const EYES_RIGHT_SRC = "/brand/cloud-eyes-right.svg";
+/** Full cloud SVGs from downloads (cloud with eyes) — used as the cloud body */
+const CLOUD_LEFT_SRC = "/brand/cloud-eyes-left.svg";
+const CLOUD_RIGHT_SRC = "/brand/cloud-eyes-right.svg";
 
 interface CloudPlaygroundProps {
   /** When true, freeze physics and fade out (e.g. Explore clicked) */
@@ -280,7 +281,7 @@ function CloudNode({
   onPointerDown: (e: React.PointerEvent) => void;
 }) {
   const w = cloud.sizePx;
-  const h = Math.round(w * 0.5);
+  const cloudSrc = cloud.id % 2 === 0 ? CLOUD_LEFT_SRC : CLOUD_RIGHT_SRC;
 
   return (
     <div
@@ -290,7 +291,6 @@ function CloudNode({
         left: cloud.x,
         top: cloud.y,
         width: w,
-        height: h,
         transform: `translate(-50%, -50%) translateY(${bobY}px) rotate(${cloud.rotation}rad) scale(${isDragging ? 1.03 : 1})`,
         transformOrigin: "50% 50%",
         cursor: isDragging ? "grabbing" : "grab",
@@ -298,88 +298,23 @@ function CloudNode({
         pointerEvents: "auto",
         zIndex: isDragging ? 100 : 1,
         willChange: isDragging ? "transform" : "auto",
+        filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.12)) drop-shadow(0 0 0 1px rgba(255,255,255,0.2))",
       }}
       onPointerDown={onPointerDown}
     >
-      <div
+      <img
+        src={cloudSrc}
+        alt=""
+        aria-hidden
+        draggable={false}
         style={{
-          position: "relative",
+          display: "block",
           width: "100%",
-          height: "100%",
-          borderRadius: "50% 50% 45% 45%",
-          background: "rgba(255,255,255,0.92)",
-          boxShadow:
-            "0 8px 24px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.3), 0 2px 8px rgba(0,0,0,0.08)",
+          height: "auto",
+          pointerEvents: "none",
+          transform: `translate(${eyeOffsetX}px, ${eyeOffsetY}px)`,
         }}
-      >
-        <div
-          style={{
-            position: "absolute",
-            left: "50%",
-            top: "50%",
-            transform: `translate(calc(-50% + ${eyeOffsetX}px), calc(-50% + ${eyeOffsetY}px))`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: w * 0.12,
-          }}
-        >
-          <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <img
-              src={EYES_LEFT_SRC}
-              alt=""
-              aria-hidden
-              style={{
-                width: w * 0.18,
-                height: "auto",
-                opacity: 0.9,
-                pointerEvents: "none",
-              }}
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-                const next = e.currentTarget.nextElementSibling as HTMLElement;
-                if (next) next.style.display = "block";
-              }}
-            />
-            <span
-              style={{
-                width: w * 0.1,
-                height: w * 0.08,
-                borderRadius: "50%",
-                background: "rgba(0,40,80,0.5)",
-                display: "none",
-              }}
-            />
-          </span>
-          <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <img
-              src={EYES_RIGHT_SRC}
-              alt=""
-              aria-hidden
-              style={{
-                width: w * 0.18,
-                height: "auto",
-                opacity: 0.9,
-                pointerEvents: "none",
-              }}
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-                const next = e.currentTarget.nextElementSibling as HTMLElement;
-                if (next) next.style.display = "block";
-              }}
-            />
-            <span
-              style={{
-                width: w * 0.1,
-                height: w * 0.08,
-                borderRadius: "50%",
-                background: "rgba(0,40,80,0.5)",
-                display: "none",
-              }}
-            />
-          </span>
-        </div>
-      </div>
+      />
     </div>
   );
 }
