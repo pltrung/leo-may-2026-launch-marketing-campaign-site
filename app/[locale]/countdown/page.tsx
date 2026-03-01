@@ -564,7 +564,10 @@ function CountdownPageContent() {
           ease: [0.22, 1, 0.36, 1],
         }}
       >
-      <main className="flex-1 flex flex-col items-center justify-center px-4 py-4 relative overflow-y-auto overflow-x-hidden min-h-0">
+      <main
+        className="flex-1 flex flex-col items-center justify-center px-4 py-4 relative overflow-y-auto overflow-x-hidden min-h-0"
+        style={{ zIndex: 10 }}
+      >
       {/* VN/EN fixed bottom-left (mobile + desktop) */}
       <motion.div
         className="fixed bottom-6 left-6 z-[60] scale-90 opacity-80 md:scale-100 md:opacity-100"
@@ -670,7 +673,10 @@ function CountdownPageContent() {
         {t.logOut}
       </motion.button>
 
-      <div className="flex flex-col items-center w-full max-w-lg mx-auto flex-1 pt-4 pb-14 md:pb-3">
+      <div
+        className="flex flex-col items-center w-full max-w-lg mx-auto flex-1 pt-4 pb-14 md:pb-3"
+        style={{ position: "relative", zIndex: 5 }}
+      >
         <motion.div
           className="joined-card shrink-0 countdown-spacing-after-card"
           data-cloud-type={cloud.id}
