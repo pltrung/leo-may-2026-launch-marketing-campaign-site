@@ -153,13 +153,15 @@ export default function CinematicHeroScroll({
     mobileSkipGlbAfterHiddenRef.current = false;
   }, [locale]);
 
-  /** On mobile only: delay mounting GLB layers so initial paint is fast after return to hero. */
+  /** On mobile: short defer when tab is visible (e.g. after language switch) so GLBs show faster; longer defer when tab was hidden to avoid slow first paint after app switch. */
   useEffect(() => {
     if (!isMobile) {
       setGlbDeferredReady(true);
       return;
     }
-    const t = setTimeout(() => setGlbDeferredReady(true), 380);
+    const visible = typeof document !== "undefined" && document.visibilityState === "visible";
+    const delayMs = visible ? 120 : 380;
+    const t = setTimeout(() => setGlbDeferredReady(true), delayMs);
     return () => clearTimeout(t);
   }, [isMobile]);
 
@@ -280,6 +282,11 @@ export default function CinematicHeroScroll({
   useEffect(() => {
     if (heroProgress >= 0.2) setGlbMounted(true);
   }, [heroProgress]);
+
+  /** Once we're ready to show GLB layers (defer passed), allow island to mount so it can render from cache without waiting for scroll to 0.2 (helps after language switch). */
+  useEffect(() => {
+    if (glbDeferredReady) setGlbMounted(true);
+  }, [glbDeferredReady]);
 
   const p = Number.isFinite(heroProgress) ? Math.max(0, Math.min(1, heroProgress)) : 0;
   const headlineStages = locale === "vi" ? HEADLINE_STAGES_VI : HEADLINE_STAGES_EN;
