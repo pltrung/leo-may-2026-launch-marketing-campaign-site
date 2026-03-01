@@ -11,6 +11,12 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
+
+const CoinTransitionOverlay = dynamic(
+  () => import("@/components/CoinTransitionOverlay").then((m) => m.default),
+  { ssr: false }
+);
 
 const Z_INDEX = 9999;
 const DOT_SIZE_PX = 16;
@@ -56,15 +62,20 @@ export function useTransitionOverlay(): TransitionOverlayContextValue {
   return ctx;
 }
 
+function isCountdownTarget(pathname: string): boolean {
+  return pathname !== "" && (pathname === "/countdown" || pathname.endsWith("/countdown"));
+}
+
 export function TransitionOverlayProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [phase, setPhase] = useState<TransitionPhase>("idle");
-  const targetPathnameRef = useRef<string | null>(null);
+  const [targetPathname, setTargetPathname] = useState<string | null>(null);
   const pendingNavRef = useRef<{ href: string; mode: "push" | "replace" } | null>(null);
 
   const startTransition = useCallback((href: string, mode: "push" | "replace") => {
-    targetPathnameRef.current = getPathnameFromHref(href);
+    const target = getPathnameFromHref(href);
+    setTargetPathname(target);
     pendingNavRef.current = { href, mode };
     setPhase("collapsing");
   }, []);
@@ -85,15 +96,14 @@ export function TransitionOverlayProvider({ children }: { children: ReactNode })
   }, [router]);
 
   useEffect(() => {
-    const target = targetPathnameRef.current;
-    if (phase !== "holding" || !target) return;
-    if (pathname === target) {
+    if (phase !== "holding" || !targetPathname) return;
+    if (pathname === targetPathname) {
       setPhase("expanding");
     }
-  }, [phase, pathname]);
+  }, [phase, pathname, targetPathname]);
 
   const onExpandComplete = useCallback(() => {
-    targetPathnameRef.current = null;
+    setTargetPathname(null);
     setPhase("idle");
   }, []);
 
@@ -103,11 +113,19 @@ export function TransitionOverlayProvider({ children }: { children: ReactNode })
     <TransitionOverlayContext.Provider value={{ phase, startTransition }}>
       {children}
       {showOverlay && (
-        <TransitionOverlayLayer
-          phase={phase}
-          onCollapseComplete={onCollapseComplete}
-          onExpandComplete={onExpandComplete}
-        />
+        isCountdownTarget(targetPathname ?? "") ? (
+          <CoinTransitionOverlay
+            phase={phase}
+            onCollapseComplete={onCollapseComplete}
+            onExpandComplete={onExpandComplete}
+          />
+        ) : (
+          <TransitionOverlayLayer
+            phase={phase}
+            onCollapseComplete={onCollapseComplete}
+            onExpandComplete={onExpandComplete}
+          />
+        )
       )}
     </TransitionOverlayContext.Provider>
   );

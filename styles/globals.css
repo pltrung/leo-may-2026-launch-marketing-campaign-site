@@ -306,7 +306,7 @@ body.hero-ready .hero-scroll {
   animation: mistDriftSlow 20s ease-in-out infinite 0.5s;
 }
 
-/* Phase 3: Text fades in per-line (handled by SkyTransition motion) */
+/* Phase 3: Text fades in per-line */
 
 @keyframes mistDriftSlow {
   0%, 100% { transform: translate(0, 0) scale(1); }
