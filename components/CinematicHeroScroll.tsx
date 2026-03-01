@@ -50,6 +50,10 @@ const HEADLINE_STAGES_VI: HeadlineStage[] = [
   { line1: "TỰ DO.", line2: "THEO", line3: "CÁCH BẠN." },
 ];
 
+/** Unified video→GLB handoff: same duration and easing so fade-out and fade-in feel like one motion (desktop + mobile). */
+const VIDEO_GLB_HANDOFF_MS = 1400;
+const VIDEO_GLB_HANDOFF_EASING = "cubic-bezier(0.22, 0.61, 0.36, 1)";
+
 function smoothstep(a: number, b: number, x: number): number {
   if (b === a || !Number.isFinite(a) || !Number.isFinite(b)) return Number.isFinite(x) && x >= b ? 1 : 0;
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
@@ -154,6 +158,8 @@ export default function CinematicHeroScroll({
   const [videoFirstRunEnded, setVideoFirstRunEnded] = useState(false);
   /** On mobile, delay mounting climbing-hold GLB until after video has released GPU; avoids WebGL context failure. */
   const [mobilePostVideoGlbReady, setMobilePostVideoGlbReady] = useState(false);
+  /** When true, climbing-hold wrapper animates from 0→1; set after a brief delay so the node exists at 0 first (premium fade on desktop and mobile). */
+  const [climbingHoldFadeIn, setClimbingHoldFadeIn] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoRevealFiredRef = useRef(false);
 
@@ -186,12 +192,23 @@ export default function CinematicHeroScroll({
     return () => clearTimeout(t);
   }, [videoRevealDone]);
 
-  /** On mobile, defer climbing-hold GLB mount until ~400ms after video ends so GPU can release video decoder before WebGL context. */
+  /** On mobile, defer climbing-hold GLB mount briefly after video ends so GPU can release decoder; short delay so GLB starts fading in while video is still fading out (overlap = connected handoff). */
   useEffect(() => {
     if (!videoFirstRunEnded || !isMobile) return;
-    const t = setTimeout(() => setMobilePostVideoGlbReady(true), 400);
+    const t = setTimeout(() => setMobilePostVideoGlbReady(true), 220);
     return () => clearTimeout(t);
   }, [videoFirstRunEnded, isMobile]);
+
+  /** Start climbing-hold fade-in on next frame so it’s in sync with video fade-out (same HANDOFF timing); one frame at opacity 0 so the transition runs. */
+  useEffect(() => {
+    if (!videoFirstRunEnded) {
+      setClimbingHoldFadeIn(false);
+      return;
+    }
+    if (isMobile && !mobilePostVideoGlbReady) return;
+    const raf = requestAnimationFrame(() => setClimbingHoldFadeIn(true));
+    return () => cancelAnimationFrame(raf);
+  }, [videoFirstRunEnded, isMobile, mobilePostVideoGlbReady]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -488,7 +505,7 @@ export default function CinematicHeroScroll({
               style={{
                 zIndex: 0,
                 opacity: videoFirstRunEnded ? 0 : mascotOpacityFinal * 0.85,
-                transition: "opacity 800ms ease-out, transform 500ms ease-out",
+                transition: `opacity ${VIDEO_GLB_HANDOFF_MS}ms ${VIDEO_GLB_HANDOFF_EASING}, transform 500ms ease-out`,
                 transform: `translateY(${mascotTranslateYFinal}px)`,
                 transformOrigin: "center center",
                 background: HERO_BG,
@@ -555,14 +572,14 @@ export default function CinematicHeroScroll({
                 zIndex: 1,
                 background: "linear-gradient(to bottom, rgba(255,255,255,0.25), rgba(255,255,255,0.45))",
                 opacity: videoFirstRunEnded ? 0 : mascotOpacityFinal * 0.85,
-                transition: "opacity 800ms ease-out",
+                transition: `opacity ${VIDEO_GLB_HANDOFF_MS}ms ${VIDEO_GLB_HANDOFF_EASING}`,
               }}
               aria-hidden
             />
           </>
         )}
 
-        {/* Climbing-hold GLB: on desktop mounted from start (hidden); on mobile mount only after video ends + delay to avoid WebGL conflict. Fades in when video ends. */}
+        {/* Climbing-hold GLB: on desktop mounted from start (hidden); on mobile mount shortly after video ends. Video and GLB use same handoff duration/easing for a connected crossfade. */}
         {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (glbDeferredReady || !isMobile) && (!isMobile || mobilePostVideoGlbReady) && (
           <ClientErrorBoundary fallback={null}>
             <div
@@ -571,9 +588,9 @@ export default function CinematicHeroScroll({
               style={{
                 width: "100vw",
                 height: "100dvh",
-                opacity: videoFirstRunEnded ? mascotOpacityFinal : 0,
+                opacity: videoFirstRunEnded && climbingHoldFadeIn ? mascotOpacityFinal : 0,
                 transform: `translateY(${mascotTranslateYFinal}px)`,
-                transition: "opacity 800ms ease-out, transform 500ms ease-out",
+                transition: `opacity ${VIDEO_GLB_HANDOFF_MS}ms ${VIDEO_GLB_HANDOFF_EASING}, transform 500ms ease-out`,
               }}
               aria-hidden
             >
@@ -582,7 +599,7 @@ export default function CinematicHeroScroll({
                 isMobile={isMobile}
                 allowRotation={heroProgress < 0.18}
                 className="w-full h-full"
-                style={{ minHeight: "unset", maxHeight: "none" }}
+                style={isMobile ? undefined : { minHeight: "unset", maxHeight: "none" }}
               />
             </div>
           </ClientErrorBoundary>
