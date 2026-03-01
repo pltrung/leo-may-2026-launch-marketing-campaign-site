@@ -24,6 +24,7 @@ import CloudFooter from "@/components/CloudFooter";
 import KnowYourTeamButton from "@/components/KnowYourTeamButton";
 import SafeLanguageSwitch from "@/components/SafeLanguageSwitch";
 import HeroScrollObserver from "@/components/HeroScrollObserver";
+import HeroMusic from "@/components/HeroMusic";
 import MistAscent from "@/components/MistAscent";
 import { useTransitionOverlay } from "@/context/TransitionOverlayContext";
 import { CloudPersonality, getCloudById } from "@/lib/cloudData";
@@ -207,6 +208,7 @@ function HomeContent() {
       />
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />
+      {!showClouds && <HeroMusic heroReady={heroReady} />}
 
       {showCinematicLayers && (
         <header
