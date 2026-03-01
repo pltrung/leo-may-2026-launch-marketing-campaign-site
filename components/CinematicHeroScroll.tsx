@@ -51,17 +51,12 @@ const HEADLINE_STAGES_VI: HeadlineStage[] = [
 ];
 
 /** Unified video→GLB handoff: same duration and easing so fade-out and fade-in feel like one motion (desktop + mobile). */
-const VIDEO_GLB_HANDOFF_MS = 1400;
-const VIDEO_GLB_HANDOFF_EASING = "cubic-bezier(0.22, 0.61, 0.36, 1)";
+const VIDEO_GLB_HANDOFF_MS = 1800;
+const VIDEO_GLB_HANDOFF_EASING = "cubic-bezier(0.16, 1, 0.3, 1)";
 
-/** Small TV off/on transition when video ends: black overlay fades in (video “off”) then fades out to reveal scene. */
-const TV_OFF_MS = 250;
-const TV_ON_MS = 300;
-const TV_TOTAL_MS = TV_OFF_MS + TV_ON_MS;
-
-/** Delay before headline/CTA/arrow start fading in after video→scene handoff; then fade duration. */
-const NARRATIVE_REVEAL_DELAY_MS = 1000;
-const NARRATIVE_REVEAL_FADE_MS = 600;
+/** Narrative (headline, CTA, arrow) starts after scene has settled; then a soft, long fade. */
+const NARRATIVE_REVEAL_DELAY_MS = 800;
+const NARRATIVE_REVEAL_FADE_MS = 1000;
 
 function smoothstep(a: number, b: number, x: number): number {
   if (b === a || !Number.isFinite(a) || !Number.isFinite(b)) return Number.isFinite(x) && x >= b ? 1 : 0;
@@ -169,16 +164,19 @@ export default function CinematicHeroScroll({
   const [mobilePostVideoGlbReady, setMobilePostVideoGlbReady] = useState(false);
   /** When true, climbing-hold wrapper animates from 0→1; set after a brief delay so the node exists at 0 first (premium fade on desktop and mobile). */
   const [climbingHoldFadeIn, setClimbingHoldFadeIn] = useState(false);
-  /** When video ends we start TV off/on transition; timestamp drives overlay and triggers videoFirstRunEnded after TV_OFF_MS. */
-  const [videoEndedAt, setVideoEndedAt] = useState<number | null>(null);
-  /** TV transition overlay opacity (0→1 = TV off, 1→0 = TV on). */
-  const [tvOverlayOpacity, setTvOverlayOpacity] = useState(0);
-  /** When videoFirstRunEnded was set; used to drive narrative reveal (1s delay then 0.6s fade). */
+  /** When videoFirstRunEnded was set; used to drive narrative reveal (delay then fade). */
   const videoFirstRunEndedAtRef = useRef<number | null>(null);
-  /** Narrative (headline, CTA, arrow) fade-in: 0 until 1s after scene appears, then 0→1 over 0.6s. */
+  /** Persists across remounts (e.g. Strict Mode); prevents video from ever showing again after end and avoids double handoff. */
+  const videoHasEndedRef = useRef(false);
+  /** Narrative (headline, CTA, arrow) fade-in: delay after scene then soft fade. */
   const [narrativeRevealOpacity, setNarrativeRevealOpacity] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoRevealFiredRef = useRef(false);
+
+  /** After remount (e.g. React Strict Mode), restore "video ended" so we never flash the video again. */
+  useEffect(() => {
+    if (videoHasEndedRef.current) setVideoFirstRunEnded(true);
+  }, []);
 
   /** When locale changes (e.g. EN/VN switch), reset skip-GLB ref so GLBs show again after language change or refresh. */
   useEffect(() => {
@@ -215,31 +213,6 @@ export default function CinematicHeroScroll({
     const t = setTimeout(() => setMobilePostVideoGlbReady(true), 220);
     return () => clearTimeout(t);
   }, [videoFirstRunEnded, isMobile]);
-
-  /** TV off/on transition when video ends: overlay 0→1 (off), then at TV_OFF_MS set videoFirstRunEnded and overlay 1→0 (on). */
-  useEffect(() => {
-    if (videoEndedAt == null) return;
-    const start = videoEndedAt;
-    const t = setTimeout(() => {
-      videoFirstRunEndedAtRef.current = performance.now();
-      setVideoFirstRunEnded(true);
-    }, TV_OFF_MS);
-    let raf = 0;
-    const tick = () => {
-      const elapsed = performance.now() - start;
-      if (elapsed < TV_OFF_MS) {
-        setTvOverlayOpacity(smoothstep(0, TV_OFF_MS, elapsed));
-      } else {
-        setTvOverlayOpacity(1 - smoothstep(TV_OFF_MS, TV_TOTAL_MS, elapsed));
-      }
-      if (elapsed < TV_TOTAL_MS) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => {
-      clearTimeout(t);
-      cancelAnimationFrame(raf);
-    };
-  }, [videoEndedAt]);
 
   /** Start climbing-hold fade-in on next frame so it's in sync with video fade-out (same HANDOFF timing); one frame at opacity 0 so the transition runs. */
   useEffect(() => {
@@ -611,7 +584,10 @@ export default function CinematicHeroScroll({
                   }
                 }}
                 onEnded={() => {
-                  setVideoEndedAt(performance.now());
+                  if (videoHasEndedRef.current) return;
+                  videoHasEndedRef.current = true;
+                  videoFirstRunEndedAtRef.current = performance.now();
+                  setVideoFirstRunEnded(true);
                 }}
                 aria-hidden
               >
@@ -658,19 +634,6 @@ export default function CinematicHeroScroll({
               />
             </div>
           </ClientErrorBoundary>
-        )}
-
-        {/* TV off/on transition: brief black overlay when video ends, then fades out to reveal scene. */}
-        {videoEndedAt != null && (
-          <div
-            className="absolute inset-0 w-full h-full pointer-events-none"
-            style={{
-              zIndex: 15,
-              background: "#000",
-              opacity: tvOverlayOpacity,
-            }}
-            aria-hidden
-          />
         )}
 
         {/* Content area: above video + GLB (z-20) so text and buttons are on top and clickable; matches pre-video mobile layout. */}
