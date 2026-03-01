@@ -54,6 +54,15 @@ const HEADLINE_STAGES_VI: HeadlineStage[] = [
 const VIDEO_GLB_HANDOFF_MS = 1400;
 const VIDEO_GLB_HANDOFF_EASING = "cubic-bezier(0.22, 0.61, 0.36, 1)";
 
+/** Small TV off/on transition when video ends: black overlay fades in (video “off”) then fades out to reveal scene. */
+const TV_OFF_MS = 250;
+const TV_ON_MS = 300;
+const TV_TOTAL_MS = TV_OFF_MS + TV_ON_MS;
+
+/** Delay before headline/CTA/arrow start fading in after video→scene handoff; then fade duration. */
+const NARRATIVE_REVEAL_DELAY_MS = 1000;
+const NARRATIVE_REVEAL_FADE_MS = 600;
+
 function smoothstep(a: number, b: number, x: number): number {
   if (b === a || !Number.isFinite(a) || !Number.isFinite(b)) return Number.isFinite(x) && x >= b ? 1 : 0;
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
@@ -160,6 +169,14 @@ export default function CinematicHeroScroll({
   const [mobilePostVideoGlbReady, setMobilePostVideoGlbReady] = useState(false);
   /** When true, climbing-hold wrapper animates from 0→1; set after a brief delay so the node exists at 0 first (premium fade on desktop and mobile). */
   const [climbingHoldFadeIn, setClimbingHoldFadeIn] = useState(false);
+  /** When video ends we start TV off/on transition; timestamp drives overlay and triggers videoFirstRunEnded after TV_OFF_MS. */
+  const [videoEndedAt, setVideoEndedAt] = useState<number | null>(null);
+  /** TV transition overlay opacity (0→1 = TV off, 1→0 = TV on). */
+  const [tvOverlayOpacity, setTvOverlayOpacity] = useState(0);
+  /** When videoFirstRunEnded was set; used to drive narrative reveal (1s delay then 0.6s fade). */
+  const videoFirstRunEndedAtRef = useRef<number | null>(null);
+  /** Narrative (headline, CTA, arrow) fade-in: 0 until 1s after scene appears, then 0→1 over 0.6s. */
+  const [narrativeRevealOpacity, setNarrativeRevealOpacity] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoRevealFiredRef = useRef(false);
 
@@ -199,7 +216,32 @@ export default function CinematicHeroScroll({
     return () => clearTimeout(t);
   }, [videoFirstRunEnded, isMobile]);
 
-  /** Start climbing-hold fade-in on next frame so it’s in sync with video fade-out (same HANDOFF timing); one frame at opacity 0 so the transition runs. */
+  /** TV off/on transition when video ends: overlay 0→1 (off), then at TV_OFF_MS set videoFirstRunEnded and overlay 1→0 (on). */
+  useEffect(() => {
+    if (videoEndedAt == null) return;
+    const start = videoEndedAt;
+    const t = setTimeout(() => {
+      videoFirstRunEndedAtRef.current = performance.now();
+      setVideoFirstRunEnded(true);
+    }, TV_OFF_MS);
+    let raf = 0;
+    const tick = () => {
+      const elapsed = performance.now() - start;
+      if (elapsed < TV_OFF_MS) {
+        setTvOverlayOpacity(smoothstep(0, TV_OFF_MS, elapsed));
+      } else {
+        setTvOverlayOpacity(1 - smoothstep(TV_OFF_MS, TV_TOTAL_MS, elapsed));
+      }
+      if (elapsed < TV_TOTAL_MS) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      clearTimeout(t);
+      cancelAnimationFrame(raf);
+    };
+  }, [videoEndedAt]);
+
+  /** Start climbing-hold fade-in on next frame so it's in sync with video fade-out (same HANDOFF timing); one frame at opacity 0 so the transition runs. */
   useEffect(() => {
     if (!videoFirstRunEnded) {
       setClimbingHoldFadeIn(false);
@@ -209,6 +251,27 @@ export default function CinematicHeroScroll({
     const raf = requestAnimationFrame(() => setClimbingHoldFadeIn(true));
     return () => cancelAnimationFrame(raf);
   }, [videoFirstRunEnded, isMobile, mobilePostVideoGlbReady]);
+
+  /** Narrative (headline, CTA, arrow) fades in 1s after scene appears, over 0.6s. */
+  useEffect(() => {
+    if (!videoFirstRunEnded || videoFirstRunEndedAtRef.current == null) return;
+    const start = videoFirstRunEndedAtRef.current;
+    let raf = 0;
+    const tick = () => {
+      const elapsed = performance.now() - start;
+      if (elapsed < NARRATIVE_REVEAL_DELAY_MS) {
+        setNarrativeRevealOpacity(0);
+      } else {
+        const fadeElapsed = (elapsed - NARRATIVE_REVEAL_DELAY_MS) / 1000;
+        const t = Math.min(1, smoothstep(0, NARRATIVE_REVEAL_FADE_MS / 1000, fadeElapsed));
+        setNarrativeRevealOpacity(t);
+        if (t >= 1) return;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [videoFirstRunEnded]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -453,27 +516,23 @@ export default function CinematicHeroScroll({
 
   const mascotOpacityFinal = loadComplete ? mascotOpacity : loadMascotOpacity;
   const mascotTranslateYFinal = loadComplete ? mascotTranslateY : loadMascotY;
-  /** All hero content (narrative, headlines, CTA, arrow, footer) only appears after last second of first video run. */
-  const narrativeOpacityFinal = videoRevealDone
-    ? (loadComplete ? narrativeStackOpacity : loadHeadlineOpacity)
-    : 0;
+  /** Narrative multiplier: smooth 1s delay + 0.6s fade after scene appears; fallback to 1 if 15s reveal timeout fired. */
+  const narrativeMultiplier = narrativeRevealOpacity > 0 ? narrativeRevealOpacity : (videoRevealDone ? 1 : 0);
+  /** All hero content (narrative, headlines, CTA, arrow, footer) fades in 1s after video→scene handoff, or immediately if 15s fallback. */
+  const narrativeOpacityFinal = narrativeMultiplier * (loadComplete ? narrativeStackOpacity : 1);
   /** On mobile, zero vertical translate so layout stays fixed; only opacity animates (no jump/collision). */
   const narrativeTranslateYFinal = loadComplete ? (isMobile ? 0 : narrativeTranslateY) : loadHeadlineY;
   const headlineOpacitiesFinal = [
-    videoRevealDone ? (loadComplete ? (headlineOpacities[0] ?? 0) : 1) : 0,
-    videoRevealDone ? (loadComplete ? (headlineOpacities[1] ?? 0) : 0) : 0,
-    videoRevealDone ? (loadComplete ? (headlineOpacities[2] ?? 0) : 0) : 0,
-    videoRevealDone ? (loadComplete ? (headlineOpacities[3] ?? 0) : 0) : 0,
+    narrativeMultiplier * (loadComplete ? (headlineOpacities[0] ?? 0) : 1),
+    narrativeMultiplier * (loadComplete ? (headlineOpacities[1] ?? 0) : 0),
+    narrativeMultiplier * (loadComplete ? (headlineOpacities[2] ?? 0) : 0),
+    narrativeMultiplier * (loadComplete ? (headlineOpacities[3] ?? 0) : 0),
   ];
   const headlineTranslateYsFinal = loadComplete ? (isMobile ? [0, 0, 0, 0] : headlineTranslateYs) : [loadHeadlineY, 0, 0, 0];
-  const ctaOpacityFinal = videoRevealDone ? (loadComplete ? 1 : loadCTAOpacity) : 0;
+  const ctaOpacityFinal = narrativeMultiplier * (loadComplete ? 1 : loadCTAOpacity);
   const ctaTranslateYFinal = loadComplete ? 0 : loadCTAY;
-  const scrollArrowOpacity = videoRevealDone
-    ? (loadComplete ? (p <= 0.05 ? 1 : 1 - smoothstep(0.05, 0.18, p)) : 1)
-    : 0;
-  const footerOpacityFinal = videoRevealDone
-    ? (loadComplete ? heroFooterOpacity : loadFooterOpacity)
-    : 0;
+  const scrollArrowOpacity = narrativeMultiplier * (loadComplete ? (p <= 0.05 ? 1 : 1 - smoothstep(0.05, 0.18, p)) : 1);
+  const footerOpacityFinal = narrativeMultiplier * (loadComplete ? heroFooterOpacity : loadFooterOpacity);
 
   return (
     <div
@@ -541,12 +600,6 @@ export default function CinematicHeroScroll({
                     videoRevealFiredRef.current = true;
                     setVideoRevealDone(true);
                   }
-                  if (dur >= 1.5 && t >= dur - 1.5) {
-                    const seg = (t - (dur - 1.5)) / 1.5;
-                    const u = Math.max(0, Math.min(1, seg));
-                    const easeOut = 1 - (1 - u) ** 2;
-                    el.playbackRate = 1 - 0.42 * easeOut;
-                  }
                 }}
                 onLoadedMetadata={() => {
                   if (videoRevealFiredRef.current) return;
@@ -558,7 +611,7 @@ export default function CinematicHeroScroll({
                   }
                 }}
                 onEnded={() => {
-                  setVideoFirstRunEnded(true);
+                  setVideoEndedAt(performance.now());
                 }}
                 aria-hidden
               >
@@ -588,7 +641,9 @@ export default function CinematicHeroScroll({
               style={{
                 width: "100vw",
                 height: "100dvh",
-                opacity: videoFirstRunEnded && climbingHoldFadeIn ? mascotOpacityFinal : 0,
+                opacity: videoFirstRunEnded && climbingHoldFadeIn
+                  ? (isMobile ? mascotOpacityFinal * 0.55 : mascotOpacityFinal)
+                  : 0,
                 transform: `translateY(${mascotTranslateYFinal}px)`,
                 transition: `opacity ${VIDEO_GLB_HANDOFF_MS}ms ${VIDEO_GLB_HANDOFF_EASING}, transform 500ms ease-out`,
               }}
@@ -605,9 +660,22 @@ export default function CinematicHeroScroll({
           </ClientErrorBoundary>
         )}
 
-        {/* Content area: above video + overlay (z-2); padding for header/safe-area and breathing room */}
+        {/* TV off/on transition: brief black overlay when video ends, then fades out to reveal scene. */}
+        {videoEndedAt != null && (
+          <div
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            style={{
+              zIndex: 15,
+              background: "#000",
+              opacity: tvOverlayOpacity,
+            }}
+            aria-hidden
+          />
+        )}
+
+        {/* Content area: above video + GLB (z-20) so text and buttons are on top and clickable; matches pre-video mobile layout. */}
         <div
-          className="flex-1 min-h-0 relative flex flex-col items-center justify-center z-[2]"
+          className="flex-1 min-h-0 relative flex flex-col items-center justify-center z-20"
           style={{
             paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px))${isMobile ? " + 1.5rem" : ""}`,
             paddingBottom: isMobile ? "2rem" : undefined,
