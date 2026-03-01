@@ -69,12 +69,14 @@ export default function HeroClimbingHoldCanvas({
       {mounted && (
         <Canvas
           camera={{ position: [0, 0.3, 2.6], fov: 26 }}
-          dpr={isMobile ? [1, 1] : [1, 2]}
+          dpr={isMobile ? [1, 1] : [1, 1.5]}
           gl={{
             alpha: true,
             antialias: !isMobile,
             powerPreference: isMobile ? "default" : "high-performance",
             stencil: false,
+            depth: true,
+            failIfMajorPerformanceCaveat: false,
           }}
           frameloop="always"
           style={{ width: "100%", height: "100%" }}
