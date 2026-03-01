@@ -95,7 +95,7 @@ export default function CountdownCoinEntrance({ onComplete }: { onComplete: () =
       </div>
 
       <div
-        className="absolute inset-0 flex items-center justify-center pointer-events-none"
+        className="absolute inset-0 pointer-events-none"
         style={{
           zIndex: 1,
           perspective: "1200px",
@@ -103,11 +103,10 @@ export default function CountdownCoinEntrance({ onComplete }: { onComplete: () =
         }}
       >
         <motion.div
-          className="w-full h-full max-w-[min(80vw,400px)] max-h-[80vh]"
+          className="absolute inset-0 w-full h-full"
           style={{
             opacity: coinOpacity,
             transformStyle: "preserve-3d",
-            filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.4))",
           }}
         >
           <CoinEntranceErrorBoundary>
@@ -117,15 +116,6 @@ export default function CountdownCoinEntrance({ onComplete }: { onComplete: () =
           </CoinEntranceErrorBoundary>
         </motion.div>
       </div>
-
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          zIndex: 0,
-          boxShadow: "inset 0 0 80px 40px rgba(0,0,0,0.15)",
-        }}
-        aria-hidden
-      />
     </motion.div>
   );
 }

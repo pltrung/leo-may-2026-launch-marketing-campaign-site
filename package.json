@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "deploy": "git push origin main"
+    "deploy": "git push origin main",
+    "optimize:coin": "bash scripts/optimize-coin-glb.sh",
+    "optimize:hero-hold": "bash scripts/optimize-coin-glb.sh public/glb-leo-climbing-hold.glb public/glb-leo-climbing-hold.glb",
+    "optimize:glbs": "npm run optimize:coin && npm run optimize:hero-hold"
   },
   "dependencies": {
     "@react-three/drei": "^9.92.7",
