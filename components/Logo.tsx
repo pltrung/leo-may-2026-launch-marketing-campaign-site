@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocale } from "./LocaleProvider";
 
+const LOGO_SRC = "/logo-white.svg";
+
 interface LogoProps {
   className?: string;
   /** When provided and on cloud selector, used instead of router (e.g. to run TV transition). */
@@ -40,8 +42,12 @@ export default function Logo({ className = "h-8 w-auto object-contain", onNaviga
         className={linkClass}
         aria-label="Leo Mây — go to home"
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo-white.svg" alt="Leo Mây" className={className} />
+        {LOGO_SRC ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={LOGO_SRC} alt="Leo Mây" className={className} />
+          </>
+        ) : null}
       </button>
     );
   }
@@ -53,8 +59,12 @@ export default function Logo({ className = "h-8 w-auto object-contain", onNaviga
       className={linkClass}
       aria-label="Leo Mây — go to home"
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo-white.svg" alt="Leo Mây" className={className} />
+      {LOGO_SRC ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={LOGO_SRC} alt="Leo Mây" className={className} />
+        </>
+      ) : null}
     </Link>
   );
 }

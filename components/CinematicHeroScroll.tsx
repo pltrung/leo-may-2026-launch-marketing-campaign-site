@@ -26,6 +26,9 @@ const HeroStarfield = dynamic(
   { ssr: false }
 );
 
+/** Arrow asset — single source so img never renders with empty/undefined src. */
+const HERO_SCROLL_ARROW_SRC = "/brand/arrow-up.svg";
+
 /** Four brand colors for hero anchor words (one per stage) — from globals emphasis/hero palette */
 const HERO_HEADLINE_ACCENTS = ["#22c55e", "#3b82f6", "#FACC15", "#ff1744"] as const;
 
@@ -614,13 +617,17 @@ export default function CinematicHeroScroll({
                 aria-hidden
               >
                 <div className="hero-scroll-arrow-drift">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/brand/arrow-up.svg"
-                    alt=""
-                    className="w-7 h-7 object-contain"
-                    style={{ transform: "rotate(180deg)" }}
-                  />
+                  {HERO_SCROLL_ARROW_SRC ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={HERO_SCROLL_ARROW_SRC}
+                        alt=""
+                        className="w-7 h-7 object-contain"
+                        style={{ transform: "rotate(180deg)" }}
+                      />
+                    </>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -773,13 +780,17 @@ export default function CinematicHeroScroll({
             aria-hidden
           >
             <div className="hero-scroll-arrow-drift">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/brand/arrow-up.svg"
-                alt=""
-                className="w-11 h-11 sm:w-14 sm:h-14 object-contain"
-                style={{ transform: "rotate(180deg)" }}
-              />
+              {HERO_SCROLL_ARROW_SRC ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={HERO_SCROLL_ARROW_SRC}
+                    alt=""
+                    className="w-11 h-11 sm:w-14 sm:h-14 object-contain"
+                    style={{ transform: "rotate(180deg)" }}
+                  />
+                </>
+              ) : null}
             </div>
           </div>
         )}
