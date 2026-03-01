@@ -2,9 +2,6 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import LoadingScreen from "@/components/LoadingScreen";
 import GlobalImgSafeguard from "@/components/GlobalImgSafeguard";
-import TimeOfDayProvider from "@/components/TimeOfDayProvider";
-import GlobalSkyLayer from "@/components/GlobalSkyLayer";
-import ContrastOverlay from "@/components/ContrastOverlay";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
@@ -39,15 +36,10 @@ export default function RootLayout({
         <link rel="preload" href="/logo-white.svg" as="image" />
         <link rel="preload" href="/brand/cloud-copyright.svg" as="image" />
       </head>
-      <body className="min-h-[100dvh] antialiased overflow-x-hidden time-night">
-        <TimeOfDayProvider />
-        <GlobalSkyLayer />
-        <ContrastOverlay />
-        <div style={{ position: "relative", zIndex: 10 }}>
-          <GlobalImgSafeguard />
-          <LoadingScreen />
-          {children}
-        </div>
+      <body className="min-h-[100dvh] antialiased overflow-x-hidden">
+        <GlobalImgSafeguard />
+        <LoadingScreen />
+        {children}
         <Script id="loading-controller" strategy="afterInteractive">
           {`setTimeout(function(){var e=document.getElementById("loading-screen");e&&e.remove();document.body.classList.add("loaded");setTimeout(function(){document.body.classList.add("hero-ready");},600);},2000);`}
         </Script>

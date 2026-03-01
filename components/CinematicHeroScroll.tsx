@@ -13,7 +13,6 @@ import { HERO_BG } from "@/lib/heroConstants";
 import { getMessages } from "@/lib/messages";
 import AscentBar from "@/components/AscentBar";
 import { useTransitionOverlay } from "@/context/TransitionOverlayContext";
-import { useTimeOfDay } from "@/lib/useTimeOfDay";
 
 const HeroIslandCanvas = dynamic(
   () => import("@/components/HeroIslandCanvas").catch(() => ({ default: () => null })),
@@ -282,7 +281,6 @@ export default function CinematicHeroScroll({
     if (heroProgress >= 0.2) setGlbMounted(true);
   }, [heroProgress]);
 
-  const timeOfDay = useTimeOfDay();
   const p = Number.isFinite(heroProgress) ? Math.max(0, Math.min(1, heroProgress)) : 0;
   const headlineStages = locale === "vi" ? HEADLINE_STAGES_VI : HEADLINE_STAGES_EN;
   const ctaLabel = getMessages(locale as "en" | "vi").hero.ctaFoundingAscent;
@@ -425,11 +423,11 @@ export default function CinematicHeroScroll({
           top: 0,
           height: "100dvh",
           minHeight: "100dvh",
-          background: timeOfDay === "time-night" ? HERO_BG : "transparent",
+          background: HERO_BG,
         }}
       >
-        {/* Starfield only at night; other times use global sky layer. */}
-        {tabVisible && timeOfDay === "time-night" && (
+        {/* Subtle starfield behind GLB; inner boundary so a throw here doesn't take down the whole hero (e.g. after clouds→back on mobile). */}
+        {tabVisible && (
           <ClientErrorBoundary fallback={null}>
             <HeroStarfield heroTransitioning={(p >= 0.12 && p <= 0.26) || (p >= 0.74 && p <= 0.92)} />
           </ClientErrorBoundary>
@@ -472,9 +470,7 @@ export default function CinematicHeroScroll({
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
-              background: timeOfDay === "time-night"
-                ? `radial-gradient(ellipse 80% 70% at 50% 50%, rgba(18,18,24,0.5) 0%, ${HERO_BG} 70%)`
-                : "radial-gradient(ellipse 80% 70% at 50% 50%, rgba(18,18,24,0.35) 0%, transparent 70%)",
+              background: `radial-gradient(ellipse 80% 70% at 50% 50%, rgba(18,18,24,0.5) 0%, ${HERO_BG} 70%)`,
             }}
           />
           <div
@@ -806,7 +802,7 @@ export default function CinematicHeroScroll({
               height: footerHeight,
               minHeight: footerHeight,
               paddingBottom: "max(12px, env(safe-area-inset-bottom))",
-              background: timeOfDay === "time-night" ? HERO_BG : "transparent",
+              background: HERO_BG,
               opacity: loadComplete ? heroFooterOpacity : loadFooterOpacity,
               transform: loadComplete ? `translateY(${heroFooterTranslateY}px)` : "none",
             }}

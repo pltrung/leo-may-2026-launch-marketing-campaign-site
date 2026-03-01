@@ -8,107 +8,6 @@ body {
   background: #0B0B0F;
 }
 
-/* ========== Time-based environmental sky (Layer 1) + contrast overlay (Layer 2) ========== */
-.global-sky-layer > div {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  transition: opacity 0.45s ease-out;
-}
-body.time-night .global-sky-night,
-body.time-morning .global-sky-morning,
-body.time-sunset .global-sky-sunset {
-  opacity: 1;
-}
-
-/* Night: dark sky (stars from HeroStarfield in hero/countdown) */
-.global-sky-night {
-  background: #0B0B0F;
-}
-
-/* Morning: mid-tone cinematic blue, soft clouds, faint particles, sun glow */
-.global-sky-morning {
-  background: linear-gradient(180deg, #1a2744 0%, #243b5c 45%, #2d4a6f 100%);
-}
-.global-sky-morning::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse 90% 70% at 75% 15%, rgba(255,220,180,0.12) 0%, transparent 55%);
-  pointer-events: none;
-}
-@keyframes sky-cloud-drift-slow {
-  from { transform: translateX(0); }
-  to { transform: translateX(600px); }
-}
-@keyframes sky-particle-float {
-  from { transform: translateY(0); }
-  to { transform: translateY(-100px); }
-}
-
-.sky-morning-clouds {
-  position: absolute;
-  inset: 0;
-  opacity: 0.07;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 120'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.9, 0 0 0 0 0.9, 0 0 0 0 0.95, 0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)'/%3E%3C/svg%3E") repeat-x;
-  background-size: 600px 120px;
-  animation: sky-cloud-drift-slow 100s linear infinite;
-}
-.sky-morning-particles {
-  position: absolute;
-  inset: 0;
-  opacity: 0.2;
-  background-image: radial-gradient(1.2px 1.2px at 20px 80%%, rgba(255,255,255,0.25), transparent),
-    radial-gradient(1px 1px at 45px 35%%, rgba(255,255,255,0.2), transparent),
-    radial-gradient(1.2px 1.2px at 78px 65%%, rgba(255,255,255,0.22), transparent);
-  background-size: 120px 100px;
-  animation: sky-particle-float 30s linear infinite;
-}
-
-/* Sunset: warm gradient + subtle haze */
-.global-sky-sunset {
-  background: linear-gradient(180deg, #2d1f2e 0%, #4a2c2a 25%, #6b3a2e 50%, #3d2a3a 85%, #1e1825 100%);
-}
-.global-sky-sunset::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, transparent 0%, rgba(80,90,120,0.08) 50%, transparent 100%);
-  pointer-events: none;
-}
-
-/* Contrast overlay (Layer 2): ensure white logo readable on all skies */
-.global-contrast-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  transition: opacity 0.45s ease-out;
-}
-body.time-night .global-contrast-overlay {
-  background: linear-gradient(180deg, rgba(0,0,0,0.15) 0%, transparent 35%);
-  opacity: 1;
-}
-body.time-morning .global-contrast-overlay {
-  background: linear-gradient(180deg, rgba(10,15,28,0.55) 0%, rgba(10,15,28,0.2) 25%, transparent 50%);
-  opacity: 1;
-}
-body.time-sunset .global-contrast-overlay {
-  background: linear-gradient(180deg, rgba(30,25,40,0.4) 0%, rgba(40,35,55,0.15) 30%, transparent 60%);
-  opacity: 1;
-}
-
-/* Mascot glow: reduce in morning, medium at sunset, normal at night */
-body.time-morning .countdown-mascot-wrapper .mascot-ring {
-  --mascot-glow-scale: 0.7;
-}
-body.time-sunset .countdown-mascot-wrapper .mascot-ring {
-  --mascot-glow-scale: 0.85;
-}
-body.time-night .countdown-mascot-wrapper .mascot-ring {
-  --mascot-glow-scale: 1;
-}
-
 /* MiSans brand fonts */
 @font-face {
   font-family: "MiSans-Bold";
@@ -1153,7 +1052,7 @@ body.hero-ready .hero-scroll {
   border: 2px solid var(--cloud-aura);
   pointer-events: none;
   z-index: 1;
-  opacity: calc(0.5 * var(--mascot-glow-scale, 1));
+  opacity: 0.5;
 }
 /* No clipping: IP stays fully visible (up front) for every ranking. Ring still frames the mascot. */
 .evolution-mascot-inner {
@@ -1191,13 +1090,9 @@ body.hero-ready .hero-scroll {
   border-radius: 0;
   background: #0B0B0F;
   filter: none;
-  transition: filter 1200ms ease, background 0.45s ease;
+  transition: filter 1200ms ease;
   pointer-events: none;
   z-index: -1;
-}
-body.time-morning .countdown-page-root::before,
-body.time-sunset .countdown-page-root::before {
-  background: transparent;
 }
 .identity-rank {
   letter-spacing: 0.02em;
