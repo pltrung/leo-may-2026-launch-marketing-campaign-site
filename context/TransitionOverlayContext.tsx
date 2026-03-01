@@ -11,12 +11,6 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import dynamic from "next/dynamic";
-
-const CoinTransitionOverlay = dynamic(
-  () => import("@/components/CoinTransitionOverlay").then((m) => m.default),
-  { ssr: false }
-);
 
 const Z_INDEX = 9999;
 const DOT_SIZE_PX = 16;
@@ -60,10 +54,6 @@ export function useTransitionOverlay(): TransitionOverlayContextValue {
   const ctx = useContext(TransitionOverlayContext);
   if (!ctx) throw new Error("useTransitionOverlay must be used within TransitionOverlayProvider");
   return ctx;
-}
-
-function isCountdownTarget(pathname: string): boolean {
-  return pathname !== "" && (pathname === "/countdown" || pathname.endsWith("/countdown"));
 }
 
 export function TransitionOverlayProvider({ children }: { children: ReactNode }) {
@@ -113,19 +103,11 @@ export function TransitionOverlayProvider({ children }: { children: ReactNode })
     <TransitionOverlayContext.Provider value={{ phase, startTransition }}>
       {children}
       {showOverlay && (
-        isCountdownTarget(targetPathname ?? "") ? (
-          <CoinTransitionOverlay
-            phase={phase}
-            onCollapseComplete={onCollapseComplete}
-            onExpandComplete={onExpandComplete}
-          />
-        ) : (
-          <TransitionOverlayLayer
-            phase={phase}
-            onCollapseComplete={onCollapseComplete}
-            onExpandComplete={onExpandComplete}
-          />
-        )
+        <TransitionOverlayLayer
+          phase={phase}
+          onCollapseComplete={onCollapseComplete}
+          onExpandComplete={onExpandComplete}
+        />
       )}
     </TransitionOverlayContext.Provider>
   );
