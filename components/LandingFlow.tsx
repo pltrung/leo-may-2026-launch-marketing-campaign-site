@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { getMessages } from "@/lib/messages";
 import SafeImg, { isValidImgSrc } from "@/components/SafeImg";
 import PortalTransition, { type PortalState } from "@/components/PortalTransition";
+import ClientErrorBoundary from "@/components/ClientErrorBoundary";
 import { startHeroMusicFromUserGesture } from "@/components/HeroMusic";
 
 const LOGO_SRC = "/logo-white.svg";
@@ -21,8 +22,9 @@ export default function LandingFlow({ children }: { children: React.ReactNode })
   const [reduceMotion, setReduceMotion] = useState(false);
   const completedRef = useRef(false);
 
-  const isHome =
-    pathname === "/" || pathname === "/en" || pathname === "/vi";
+  const isHome = Boolean(
+    pathname && (pathname === "/" || pathname === "/en" || pathname === "/vi")
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -43,6 +45,8 @@ export default function LandingFlow({ children }: { children: React.ReactNode })
   const handleExplore = useCallback(() => {
     if (state !== "exploreIdle") return;
     startHeroMusicFromUserGesture();
+    document.body.classList.add("loaded");
+    document.body.classList.add("hero-ready");
     setState("transitioning");
   }, [state]);
 
@@ -50,8 +54,6 @@ export default function LandingFlow({ children }: { children: React.ReactNode })
     if (completedRef.current) return;
     completedRef.current = true;
     setState("hero");
-    document.body.classList.add("loaded");
-    document.body.classList.add("hero-ready");
   }, []);
 
   if (!isHome) {
@@ -61,12 +63,21 @@ export default function LandingFlow({ children }: { children: React.ReactNode })
   return (
     <>
       {/* Portal overlay: Sky + mask + Explore pill. Hidden when state === "hero". */}
-      <PortalTransition
-        state={state}
-        onExplore={handleExplore}
-        onTransitionComplete={handleTransitionComplete}
-        reduceMotion={reduceMotion}
-      />
+      <ClientErrorBoundary
+        fallback={() => {
+          if (typeof document !== "undefined") {
+            document.body.classList.add("loaded", "hero-ready");
+          }
+          return null;
+        }}
+      >
+        <PortalTransition
+          state={state}
+          onExplore={handleExplore}
+          onTransitionComplete={handleTransitionComplete}
+          reduceMotion={reduceMotion}
+        />
+      </ClientErrorBoundary>
 
       {/* Loading sky content (logo, cloud, text) — only during loadingSky */}
       {state === "loadingSky" && (
@@ -94,7 +105,7 @@ export default function LandingFlow({ children }: { children: React.ReactNode })
               ) : null}
             </div>
             <div className="loading-text">
-              {getMessages((pathname?.startsWith("/vi") ? "vi" : "en") as "en" | "vi").loading.preparingTheSky}
+              {getMessages((pathname?.startsWith("/vi") ? "vi" : "en") as "en" | "vi")?.loading?.preparingTheSky ?? "Preparing the sky"}
             </div>
           </div>
         </div>

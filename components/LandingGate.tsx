@@ -11,7 +11,9 @@ import LandingFlow from "@/components/LandingFlow";
  */
 export default function LandingGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isHome = pathname === "/" || pathname === "/en" || pathname === "/vi";
+  const isHome = Boolean(
+    pathname && (pathname === "/" || pathname === "/en" || pathname === "/vi")
+  );
 
   if (isHome) {
     return <LandingFlow>{children}</LandingFlow>;

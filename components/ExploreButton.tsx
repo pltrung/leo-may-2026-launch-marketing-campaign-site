@@ -58,10 +58,7 @@ export default function ExploreButton({ onExplore, disabled = false }: ExploreBu
             }
       }
       style={{
-        // Pill: glass, border, glow (base)
-        height: "clamp(44px, 10vw, 48px)",
-        paddingLeft: "clamp(18px, 4vw, 22px)",
-        paddingRight: "clamp(18px, 4vw, 22px)",
+        // Pill: glass, border, glow (base). Size in globals.css .explore-pill for responsive.
         border: "1px solid rgba(255,255,255,0.22)",
         background: "rgba(0,0,0,0.35)",
         backdropFilter: "blur(12px)",

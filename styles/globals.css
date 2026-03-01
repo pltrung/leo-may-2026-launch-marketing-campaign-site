@@ -73,6 +73,25 @@ body {
   color: rgba(255,255,255,0.8);
 }
 
+/* Explore pill: mobile size by default, much bigger on desktop */
+.explore-pill {
+  height: clamp(44px, 10vw, 48px);
+  min-height: 44px;
+  padding-left: clamp(18px, 4vw, 22px);
+  padding-right: clamp(18px, 4vw, 22px);
+  font-size: 1rem;
+}
+@media (min-width: 768px) {
+  .explore-pill {
+    height: 64px;
+    min-height: 64px;
+    padding-left: 32px;
+    padding-right: 32px;
+    font-size: 1.125rem;
+    letter-spacing: 0.04em;
+  }
+}
+
 /* Hero page fades in only after portal (body.hero-ready). Other pages use body.loaded. */
 #hero-page {
   opacity: 0;

@@ -94,6 +94,14 @@ export default function PortalTransition({
   const showExplore = state === "exploreIdle";
   const isTransitioning = state === "transitioning";
 
+  const isTransitioningState = state === "transitioning";
+  const overlayMask =
+    isTransitioningState && maskStyle
+      ? maskStyle
+      : isTransitioningState
+        ? "radial-gradient(circle at 50% 50%, transparent 0, transparent 24px, black 24px)"
+        : undefined;
+
   return (
     <motion.div
       className="portal-overlay"
@@ -107,6 +115,14 @@ export default function PortalTransition({
         zIndex: 999998,
         pointerEvents: "auto",
         overflow: "hidden",
+        WebkitMaskImage: overlayMask,
+        maskImage: overlayMask,
+        WebkitMaskSize: "100% 100%",
+        maskSize: "100% 100%",
+        WebkitMaskRepeat: "no-repeat",
+        maskRepeat: "no-repeat",
+        WebkitMaskPosition: "50% 50%",
+        maskPosition: "50% 50%",
       }}
     >
       {/* Base: Sky (stars + shooting lights) — always running when overlay visible */}
@@ -115,14 +131,6 @@ export default function PortalTransition({
           position: "absolute",
           inset: 0,
           background: HERO_BG,
-          WebkitMaskImage: state === "transitioning" ? maskStyle : undefined,
-          maskImage: state === "transitioning" ? maskStyle : undefined,
-          WebkitMaskSize: "100% 100%",
-          maskSize: "100% 100%",
-          WebkitMaskRepeat: "no-repeat",
-          maskRepeat: "no-repeat",
-          WebkitMaskPosition: "50% 50%",
-          maskPosition: "50% 50%",
         }}
       >
         <motion.div
