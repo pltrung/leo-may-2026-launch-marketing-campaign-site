@@ -18,17 +18,19 @@ export default function BrandBackground({
   const isCloudsEntrance = Boolean(cloudsView && cloudsEntranceStep);
   const holdsOpacity =
     !isCloudsEntrance ? 0.7 : cloudsEntranceStep === "background" ? 0 : 1;
+  const holdsScale = !isCloudsEntrance ? 1 : cloudsEntranceStep === "background" ? 0.97 : 1;
 
   return (
     <motion.div
       className="fixed inset-0 -z-10 overflow-hidden pointer-events-none animate-holds-layer"
       aria-hidden
       initial={false}
-      animate={{ opacity: holdsOpacity }}
+      animate={{ opacity: holdsOpacity, scale: holdsScale }}
       transition={{
-        duration: isCloudsEntrance && cloudsEntranceStep === "holds" ? 1 : 0.7,
-        ease: [0.22, 1, 0.36, 1],
+        duration: isCloudsEntrance && cloudsEntranceStep === "holds" ? 1.2 : 0.7,
+        ease: [0.16, 1, 0.3, 1],
       }}
+      style={{ transformOrigin: "50% 50%" }}
     >
       {isValidImgSrc(HOLDS_IMG_SRC) ? (
         <SafeImg

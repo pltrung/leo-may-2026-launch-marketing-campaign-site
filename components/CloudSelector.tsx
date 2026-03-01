@@ -13,6 +13,8 @@ import { getMessages } from "@/lib/messages";
 const RANDOMIZE_BUTTON_DELAY_MS = (1240 + 250) * 2;
 const RANDOMIZE_FADE_DURATION_MS = 900 * 2;
 const BUTTON_EASE = [0.22, 1, 0.36, 1] as const;
+/** Premium cinematic ease: smooth decelerating landing */
+const CINEMA_EASE = [0.16, 1, 0.3, 1] as const;
 
 interface CloudSelectorProps {
   onSelect: (cloud: CloudPersonality) => void;
@@ -47,12 +49,12 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
       id="clouds"
       className={`cloud-selection-screen relative w-full h-[100dvh] md:min-h-[100dvh] md:h-auto flex flex-col items-center overflow-x-hidden overflow-y-hidden md:overflow-y-auto lg:h-screen lg:overflow-hidden px-4 pb-4 pt-[88px] md:pb-16 md:pt-24 lg:pt-20 lg:pb-8 sm:px-6 ${detailsOpen ? "card-selected" : ""}`}
     >
-      {/* Logo: top-left — fades in (2x slower) */}
+      {/* Logo: top-left — cinematic reveal after holds */}
       <motion.div
         className="fixed top-0 left-0 p-4 z-30 md:pl-10 md:pt-8"
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8, duration: 1, ease: [0.22, 1, 0.36, 1] }}
+        initial={{ opacity: 0, y: 18, scale: 0.94 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ delay: 0.95, duration: 1.1, ease: CINEMA_EASE }}
       >
         <Logo
           className="w-[110px] md:w-[140px] max-w-[110px] md:max-w-none h-auto object-contain object-left"
@@ -60,15 +62,15 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
         />
       </motion.div>
 
-      {/* Header: on mobile 160ms (after cards); on desktop 1.4s (2x slower). */}
+      {/* Header: cinematic focus — subtle scale + blur-to-sharp */}
       <motion.div
         className="cloud-selection-header relative flex flex-col items-center w-full max-w-2xl mx-auto mt-2 md:mt-0 md:mb-8 lg:mb-2 lg:flex-shrink-0 z-10 transition-opacity duration-400"
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, y: 16, scale: 0.96, filter: "blur(8px)" }}
+        animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
         transition={{
-          delay: isMobile ? 0.16 : 1.4,
-          duration: 1.4,
-          ease: [0.22, 1, 0.36, 1],
+          delay: isMobile ? 0.2 : 1.5,
+          duration: 1.35,
+          ease: CINEMA_EASE,
         }}
       >
         <h2 className="cloud-selection-title font-headline text-[22px] sm:text-[26px] md:text-[32px] leading-[1.2] md:text-5xl lg:text-4xl lg:leading-tight text-center text-white tracking-headline pl-20 pr-20 md:px-4 max-md:whitespace-nowrap">
@@ -86,16 +88,16 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
         </div>
         <motion.div
           className="randomize-button-spacer"
-          initial={{ opacity: 0, y: 8, scale: 0.98, filter: "blur(4px)" }}
+          initial={{ opacity: 0, y: 12, scale: 0.96, filter: "blur(6px)" }}
           animate={
             randomizePhase === "hidden"
-              ? { opacity: 0, y: 8, scale: 0.98, filter: "blur(4px)" }
+              ? { opacity: 0, y: 12, scale: 0.96, filter: "blur(6px)" }
               : { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }
           }
           transition={{
             delay: randomizePhase === "hidden" ? RANDOMIZE_BUTTON_DELAY_MS / 1000 : 0,
-            duration: randomizePhase === "hidden" ? RANDOMIZE_FADE_DURATION_MS / 1000 : 0.5,
-            ease: BUTTON_EASE,
+            duration: randomizePhase === "hidden" ? RANDOMIZE_FADE_DURATION_MS / 1000 : 0.6,
+            ease: CINEMA_EASE,
           }}
           onAnimationComplete={() => {
             if (randomizePhase === "hidden" && !isRandomizeTapping) setRandomizePhase("breathing");
@@ -129,12 +131,12 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
             {randomizeButton}
           </motion.button>
         </motion.div>
-        {/* Mobile: Return below Randomize (2x slower) */}
+        {/* Mobile: Return below Randomize — soft landing */}
         <motion.div
           className="lg:hidden flex-shrink-0 mt-4 mb-2"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6, duration: 0.8, ease: BUTTON_EASE }}
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.7, duration: 0.85, ease: CINEMA_EASE }}
         >
           <button
             type="button"
@@ -157,12 +159,12 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
             <motion.div
               key={cloud.id}
               className="flex justify-center items-center w-full max-w-[200px]"
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 32, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{
-                delay: 1.8 + index * 0.2,
-                duration: 1.2,
-                ease: [0.22, 1, 0.36, 1],
+                delay: 1.95 + index * 0.22,
+                duration: 1.35,
+                ease: CINEMA_EASE,
               }}
             >
               <CloudCard cloud={cloud} onJoin={onSelect} />
@@ -171,12 +173,12 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
         </div>
       </div>
 
-      {/* Return to hero: right above footer, desktop only (2x slower) */}
+      {/* Return to hero: right above footer, desktop only — soft landing */}
       <motion.div
         className="hidden lg:flex flex-shrink-0 justify-center pt-4 pb-6"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 2.4, duration: 0.8, ease: BUTTON_EASE }}
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 2.55, duration: 0.85, ease: CINEMA_EASE }}
       >
         <button
           type="button"

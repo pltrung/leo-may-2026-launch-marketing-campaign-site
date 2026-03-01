@@ -119,7 +119,7 @@ function HomeContent() {
     return () => document.documentElement.classList.remove("cloud-selection-view");
   }, [showClouds]);
 
-  /** Clouds entrance sequence after TV turn-on: dark → holds → content (2x slower: 700ms → holds, 2260ms → content). */
+  /** Clouds entrance: black → holds (scale in) → content (staggered). More cinematic timing. */
   useEffect(() => {
     if (!showClouds) {
       setCloudsEntranceStep("background");
@@ -138,8 +138,11 @@ function HomeContent() {
     if (prev === "expanding") {
       setCloudsEntranceStep("background");
       cloudsEntranceTimersRef.current.forEach(clearTimeout);
-      const t1 = setTimeout(() => setCloudsEntranceStep("holds"), 700);
-      const t2 = setTimeout(() => setCloudsEntranceStep("content"), 700 + 1000 + 560);
+      const holdStart = 600;
+      const holdDuration = 1200;
+      const contentDelay = 600;
+      const t1 = setTimeout(() => setCloudsEntranceStep("holds"), holdStart);
+      const t2 = setTimeout(() => setCloudsEntranceStep("content"), holdStart + holdDuration + contentDelay);
       cloudsEntranceTimersRef.current = [t1, t2];
       return () => cloudsEntranceTimersRef.current.forEach(clearTimeout);
     }
@@ -291,12 +294,15 @@ function HomeContent() {
           <motion.div
             key="clouds"
             className="relative z-0"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: cloudsEntranceStep === "content" ? 1 : 0 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{
+              opacity: cloudsEntranceStep === "content" ? 1 : 0,
+              scale: cloudsEntranceStep === "content" ? 1 : 0.98,
+            }}
+            exit={{ opacity: 0, scale: 0.99 }}
             transition={{
-              duration: 0.65,
-              ease: [0.22, 1, 0.36, 1],
+              duration: cloudsEntranceStep === "content" ? 1 : 0.5,
+              ease: [0.16, 1, 0.3, 1],
             }}
           >
             <CloudSelector onSelect={setSelectedCloud} onReturnToHero={handleReturnToHero} />

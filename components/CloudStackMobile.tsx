@@ -124,6 +124,8 @@ const ENTRY_FADE_MS = 800;
 const ENTRY_SETTLE_MS = 200;
 const INERTIA_ENABLE_DELAY_MS = ENTRY_FADE_MS + ENTRY_SETTLE_MS;
 const EASE_PREMIUM = [0.22, 1, 0.36, 1] as [number, number, number, number];
+/** Cinematic entrance: smooth decelerating landing */
+const EASE_CINEMA = [0.16, 1, 0.3, 1] as [number, number, number, number];
 const CARD_SPACING = 60;
 
 /** Apple-style critically damped spring (no easing) */
@@ -263,15 +265,30 @@ function useSlotStyleFromTransition(
   return { transform, opacity, filter, zIndex, boxShadow };
 }
 
-/** Staggered depth-based entry: back → middle → front (2x slower fade-in) */
+/** Staggered depth-based entry: back → middle → front. Cinematic: deeper origin, smooth landing. */
 function getEntryConfig(offset: number) {
   if (offset === 2 || offset === -1) {
-    return { delay: 0, duration: 1.8, from: { opacity: 0, y: 20, scale: 0.94 }, to: { opacity: 1, y: 24, scale: 0.94 } };
+    return {
+      delay: 0,
+      duration: 2,
+      from: { opacity: 0, y: 28, scale: 0.9 },
+      to: { opacity: 1, y: 24, scale: 0.94 },
+    };
   }
   if (offset === 1) {
-    return { delay: 0.24, duration: 1.8, from: { opacity: 0, y: 16, scale: 0.97 }, to: { opacity: 1, y: 12, scale: 0.97 } };
+    return {
+      delay: 0.32,
+      duration: 2,
+      from: { opacity: 0, y: 20, scale: 0.93 },
+      to: { opacity: 1, y: 12, scale: 0.97 },
+    };
   }
-  return { delay: 0.48, duration: 2, from: { opacity: 0, y: 12, scale: 0.96 }, to: { opacity: 1, y: 0, scale: 1 } };
+  return {
+    delay: 0.64,
+    duration: 2.2,
+    from: { opacity: 0, y: 18, scale: 0.94 },
+    to: { opacity: 1, y: 0, scale: 1 },
+  };
 }
 
 /** Randomize: chaos → deceleration → lock-in (all via stackPosition keyframes) */
@@ -750,7 +767,7 @@ const CloudStackMobileInner = (
                 transition={{
                   delay: entry.delay,
                   duration: entry.duration,
-                  ease: EASE_PREMIUM,
+                  ease: EASE_CINEMA,
                 }}
               >
                 <CloudCardInner cloud={cloud} isActive={isActive} identityStyle={identityStyleByOffset[offset]} />
