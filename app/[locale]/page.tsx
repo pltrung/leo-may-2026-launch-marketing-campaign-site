@@ -119,7 +119,7 @@ function HomeContent() {
     return () => document.documentElement.classList.remove("cloud-selection-view");
   }, [showClouds]);
 
-  /** Clouds entrance: black → holds (scale in) → content (staggered). More cinematic timing. */
+  /** Clouds entrance: match VN/EN feel when coming from hero (short delay → content). Direct load / locale switch stays on content. */
   useEffect(() => {
     if (!showClouds) {
       setCloudsEntranceStep("background");
@@ -138,12 +138,9 @@ function HomeContent() {
     if (prev === "expanding") {
       setCloudsEntranceStep("background");
       cloudsEntranceTimersRef.current.forEach(clearTimeout);
-      const holdStart = 600;
-      const holdDuration = 2800; /* long enough for holds top-to-bottom reveal (2.6s) */
-      const contentDelay = 400;
-      const t1 = setTimeout(() => setCloudsEntranceStep("holds"), holdStart);
-      const t2 = setTimeout(() => setCloudsEntranceStep("content"), holdStart + holdDuration + contentDelay);
-      cloudsEntranceTimersRef.current = [t1, t2];
+      const contentDelay = 380;
+      const t = setTimeout(() => setCloudsEntranceStep("content"), contentDelay);
+      cloudsEntranceTimersRef.current = [t];
       return () => cloudsEntranceTimersRef.current.forEach(clearTimeout);
     }
     setCloudsEntranceStep("content");

@@ -268,30 +268,31 @@ function useSlotStyleFromTransition(
   return { transform, opacity, filter, zIndex, boxShadow };
 }
 
-/** Top-to-bottom stagger (same style as countdown): back → middle → front, with base delay from parent. */
+/** Mobile tiles: same feel as desktop — small y (6px), duration 1.1, stagger 0.18s between slots (match desktop card step). */
 const CONTENT_ENTRY_DURATION = 1.1;
+const MOBILE_STAGGER_STEP_S = 0.18;
 function getEntryConfig(offset: number, contentStaggerBaseMs: number) {
   const baseS = contentStaggerBaseMs / 1000;
   if (offset === 2 || offset === -1) {
     return {
       delay: baseS + 0,
       duration: CONTENT_ENTRY_DURATION,
-      from: { opacity: 0, y: 30, scale: 0.94 },
+      from: { opacity: 0, y: 24 + 6, scale: 0.94 },
       to: { opacity: 1, y: 24, scale: 0.94 },
       ease: EASE_APPLE_IN_OUT,
     };
   }
   if (offset === 1) {
     return {
-      delay: baseS + 0.22,
+      delay: baseS + MOBILE_STAGGER_STEP_S,
       duration: CONTENT_ENTRY_DURATION,
-      from: { opacity: 0, y: 18, scale: 0.97 },
+      from: { opacity: 0, y: 12 + 6, scale: 0.97 },
       to: { opacity: 1, y: 12, scale: 0.97 },
       ease: EASE_APPLE_IN_OUT,
     };
   }
   return {
-    delay: baseS + 0.44,
+    delay: baseS + MOBILE_STAGGER_STEP_S * 2,
     duration: CONTENT_ENTRY_DURATION,
     from: { opacity: 0, y: 6, scale: 1 },
     to: { opacity: 1, y: 0, scale: 1 },
