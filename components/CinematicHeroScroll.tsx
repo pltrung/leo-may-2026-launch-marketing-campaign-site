@@ -417,21 +417,26 @@ export default function CinematicHeroScroll({
 
   const mascotOpacityFinal = loadComplete ? mascotOpacity : loadMascotOpacity;
   const mascotTranslateYFinal = loadComplete ? mascotTranslateY : loadMascotY;
-  const narrativeOpacityFinal = loadComplete ? narrativeStackOpacity : loadHeadlineOpacity;
+  /** All hero content (narrative, headlines, CTA, arrow, footer) only appears after last second of first video run. */
+  const narrativeOpacityFinal = videoRevealDone
+    ? (loadComplete ? narrativeStackOpacity : loadHeadlineOpacity)
+    : 0;
   /** On mobile, zero vertical translate so layout stays fixed; only opacity animates (no jump/collision). */
   const narrativeTranslateYFinal = loadComplete ? (isMobile ? 0 : narrativeTranslateY) : loadHeadlineY;
-  /** First headline + arrow reveal only in last second of first video run (videoRevealDone); others still use loadComplete. */
   const headlineOpacitiesFinal = [
     videoRevealDone ? (loadComplete ? (headlineOpacities[0] ?? 0) : 1) : 0,
-    loadComplete ? (headlineOpacities[1] ?? 0) : 0,
-    loadComplete ? (headlineOpacities[2] ?? 0) : 0,
-    loadComplete ? (headlineOpacities[3] ?? 0) : 0,
+    videoRevealDone ? (loadComplete ? (headlineOpacities[1] ?? 0) : 0) : 0,
+    videoRevealDone ? (loadComplete ? (headlineOpacities[2] ?? 0) : 0) : 0,
+    videoRevealDone ? (loadComplete ? (headlineOpacities[3] ?? 0) : 0) : 0,
   ];
   const headlineTranslateYsFinal = loadComplete ? (isMobile ? [0, 0, 0, 0] : headlineTranslateYs) : [loadHeadlineY, 0, 0, 0];
-  const ctaOpacityFinal = loadComplete ? 1 : loadCTAOpacity;
+  const ctaOpacityFinal = videoRevealDone ? (loadComplete ? 1 : loadCTAOpacity) : 0;
   const ctaTranslateYFinal = loadComplete ? 0 : loadCTAY;
   const scrollArrowOpacity = videoRevealDone
     ? (loadComplete ? (p <= 0.05 ? 1 : 1 - smoothstep(0.05, 0.18, p)) : 1)
+    : 0;
+  const footerOpacityFinal = videoRevealDone
+    ? (loadComplete ? heroFooterOpacity : loadFooterOpacity)
     : 0;
 
   return (
@@ -460,7 +465,7 @@ export default function CinematicHeroScroll({
         {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (glbDeferredReady || !isMobile) && (
           <>
             <div
-              className="absolute inset-0 w-full h-full"
+              className="absolute inset-0 w-full h-full flex items-center justify-center"
               style={{
                 zIndex: 0,
                 opacity: mascotOpacityFinal * 0.85,
@@ -479,12 +484,13 @@ export default function CinematicHeroScroll({
                 className="w-full h-full object-cover"
                 style={{
                   position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  height: "100%",
+                  top: "50%",
+                  left: "50%",
+                  width: isMobile ? "92%" : "88%",
+                  height: isMobile ? "92%" : "88%",
+                  transform: "translate(-50%, -50%)",
                   objectFit: "cover",
-                  objectPosition: isMobile ? "center center" : "center center",
+                  objectPosition: "center center",
                 }}
                 onTimeUpdate={() => {
                   if (videoRevealFiredRef.current) return;
@@ -535,19 +541,24 @@ export default function CinematicHeroScroll({
             className="absolute inset-0 pointer-events-none"
             style={{
               background: `radial-gradient(ellipse 80% 70% at 50% 50%, rgba(18,18,24,0.5) 0%, ${HERO_BG} 70%)`,
+              opacity: videoRevealDone ? 1 : 0,
+              transition: "opacity 0.6s ease-out",
             }}
           />
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               boxShadow: isMobile ? "inset 0 0 15vh 8vh rgba(0,0,0,0.3)" : "inset 0 0 20vh 10vh rgba(0,0,0,0.25)",
+              opacity: videoRevealDone ? 1 : 0,
+              transition: "opacity 0.6s ease-out",
             }}
           />
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               background: "rgba(0,0,0,0.04)",
-              opacity: smoothstep(0.88, 1, p),
+              opacity: videoRevealDone ? smoothstep(0.88, 1, p) : 0,
+              transition: "opacity 0.6s ease-out",
             }}
           />
 
@@ -962,7 +973,7 @@ export default function CinematicHeroScroll({
               minHeight: footerHeight,
               paddingBottom: "max(12px, env(safe-area-inset-bottom))",
               background: HERO_BG,
-              opacity: loadComplete ? heroFooterOpacity : loadFooterOpacity,
+              opacity: footerOpacityFinal,
               transform: loadComplete ? `translateY(${heroFooterTranslateY}px)` : "none",
             }}
           >
