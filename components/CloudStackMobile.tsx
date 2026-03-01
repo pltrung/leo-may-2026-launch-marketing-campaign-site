@@ -8,6 +8,7 @@ import type { CloudType } from "@/lib/cloudData";
 import CloudIconByType from "./CloudIcons";
 import { useLocale } from "./LocaleProvider";
 import { getMessages } from "@/lib/messages";
+import { EASE_APPLE_IN_OUT } from "@/lib/enterCountdownHero";
 
 interface CloudDetailsModalProps {
   cloud: CloudPersonality;
@@ -118,6 +119,8 @@ export interface CloudStackMobileHandle {
 interface CloudStackMobileProps {
   onSelect: (cloud: CloudPersonality) => void;
   onDetailsOpenChange?: (open: boolean) => void;
+  /** Base delay (ms) for top-to-bottom stagger; cards start at this time (same style as countdown). */
+  contentStaggerBaseMs?: number;
 }
 
 const ENTRY_FADE_MS = 800;
@@ -265,29 +268,34 @@ function useSlotStyleFromTransition(
   return { transform, opacity, filter, zIndex, boxShadow };
 }
 
-/** Staggered depth-based entry: back → middle → front. Cinematic: deeper origin, smooth landing. */
-function getEntryConfig(offset: number) {
+/** Top-to-bottom stagger (same style as countdown): back → middle → front, with base delay from parent. */
+const CONTENT_ENTRY_DURATION = 1.1;
+function getEntryConfig(offset: number, contentStaggerBaseMs: number) {
+  const baseS = contentStaggerBaseMs / 1000;
   if (offset === 2 || offset === -1) {
     return {
-      delay: 0,
-      duration: 2,
-      from: { opacity: 0, y: 28, scale: 0.9 },
+      delay: baseS + 0,
+      duration: CONTENT_ENTRY_DURATION,
+      from: { opacity: 0, y: 30, scale: 0.94 },
       to: { opacity: 1, y: 24, scale: 0.94 },
+      ease: EASE_APPLE_IN_OUT,
     };
   }
   if (offset === 1) {
     return {
-      delay: 0.32,
-      duration: 2,
-      from: { opacity: 0, y: 20, scale: 0.93 },
+      delay: baseS + 0.22,
+      duration: CONTENT_ENTRY_DURATION,
+      from: { opacity: 0, y: 18, scale: 0.97 },
       to: { opacity: 1, y: 12, scale: 0.97 },
+      ease: EASE_APPLE_IN_OUT,
     };
   }
   return {
-    delay: 0.64,
-    duration: 2.2,
-    from: { opacity: 0, y: 18, scale: 0.94 },
+    delay: baseS + 0.44,
+    duration: CONTENT_ENTRY_DURATION,
+    from: { opacity: 0, y: 6, scale: 1 },
     to: { opacity: 1, y: 0, scale: 1 },
+    ease: EASE_APPLE_IN_OUT,
   };
 }
 
@@ -320,7 +328,7 @@ const ACTIVE_SCALE_SETTLE_DURATION_S = 0.15;
 const IDENTITY_LOCKIN_THRESHOLD = 0.85;
 
 const CloudStackMobileInner = (
-  { onSelect, onDetailsOpenChange }: CloudStackMobileProps,
+  { onSelect, onDetailsOpenChange, contentStaggerBaseMs = 0 }: CloudStackMobileProps,
   ref: React.Ref<CloudStackMobileHandle>
 ) => {
   const locale = useLocale();
@@ -733,7 +741,7 @@ const CloudStackMobileInner = (
             else if (positionClass === "next" || positionClass === "far") goNext();
             else goPrev();
           };
-          const entry = getEntryConfig(offset);
+          const entry = getEntryConfig(offset, contentStaggerBaseMs);
           const slotStyle = slotStylesByOffset[offset];
           return (
             <motion.div
@@ -767,7 +775,7 @@ const CloudStackMobileInner = (
                 transition={{
                   delay: entry.delay,
                   duration: entry.duration,
-                  ease: EASE_CINEMA,
+                  ease: entry.ease,
                 }}
               >
                 <CloudCardInner cloud={cloud} isActive={isActive} identityStyle={identityStyleByOffset[offset]} />

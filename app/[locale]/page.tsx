@@ -139,8 +139,8 @@ function HomeContent() {
       setCloudsEntranceStep("background");
       cloudsEntranceTimersRef.current.forEach(clearTimeout);
       const holdStart = 600;
-      const holdDuration = 1200;
-      const contentDelay = 600;
+      const holdDuration = 2800; /* long enough for holds top-to-bottom reveal (2.6s) */
+      const contentDelay = 400;
       const t1 = setTimeout(() => setCloudsEntranceStep("holds"), holdStart);
       const t2 = setTimeout(() => setCloudsEntranceStep("content"), holdStart + holdDuration + contentDelay);
       cloudsEntranceTimersRef.current = [t1, t2];
