@@ -41,6 +41,7 @@ import { getAscensionEnergyVars } from "@/lib/ascensionEnergy";
 import VerificationModal from "@/components/VerificationModal";
 import { createBrowserClient } from "@/lib/supabaseBrowser";
 import { HERO_BG } from "@/lib/heroConstants";
+import { useTimeOfDay } from "@/lib/useTimeOfDay";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -538,6 +539,7 @@ function CountdownPageContent() {
   const skyDominant = leadingTeamId || "default";
   const evolutionAbilityText = t.evolutionAbility?.[evolutionStageIndex] ?? t.yourCloudGathering;
   const mascotPartColors = getMascotPartColors(cloud.id);
+  const timeOfDay = useTimeOfDay();
 
   return (
     <div
@@ -579,26 +581,23 @@ function CountdownPageContent() {
         <SafeLanguageSwitch />
 
       </motion.div>
-      {/* 1) Dark background — bottom layer */}
-      <div
-        className="fixed inset-0 pointer-events-none"
-        style={{ background: HERO_BG, zIndex: 1 }}
-        aria-hidden
-      />
-      {/* 2) Starfield (twinkle, drift, shooting stars) — above dark, below all UI */}
-      <div
-        className="fixed inset-0 pointer-events-none"
-        style={{
-          zIndex: 2,
-          width: "100%",
-          height: "100%",
-          minWidth: "100vw",
-          minHeight: "100dvh",
-        }}
-        aria-hidden
-      >
-        <HeroStarfield heroTransitioning={false} />
-      </div>
+      {/* 1) Sky comes from global layer; no local dark layer so time-based sky shows through */}
+      {/* 2) Starfield only at night — above global sky, below UI */}
+      {timeOfDay === "time-night" && (
+        <div
+          className="fixed inset-0 pointer-events-none"
+          style={{
+            zIndex: 2,
+            width: "100%",
+            height: "100%",
+            minWidth: "100vw",
+            minHeight: "100dvh",
+          }}
+          aria-hidden
+        >
+          <HeroStarfield heroTransitioning={false} />
+        </div>
+      )}
 
       <AnimatePresence>
         {(phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" || phase === "phase4-micro-settle" || phase === "phase5-rest") && (
