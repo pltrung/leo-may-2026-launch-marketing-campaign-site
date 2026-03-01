@@ -56,12 +56,17 @@ export function useTransitionOverlay(): TransitionOverlayContextValue {
   return ctx;
 }
 
+const HIDDEN_RESET_MS = 4000;
+
 export function TransitionOverlayProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [phase, setPhase] = useState<TransitionPhase>("idle");
   const targetPathnameRef = useRef<string | null>(null);
   const pendingNavRef = useRef<{ href: string; mode: "push" | "replace" } | null>(null);
+  const hiddenAtRef = useRef<number | null>(null);
+  const phaseRef = useRef<TransitionPhase>(phase);
+  phaseRef.current = phase;
 
   const startTransition = useCallback((href: string, mode: "push" | "replace") => {
     targetPathnameRef.current = getPathnameFromHref(href);
@@ -95,6 +100,24 @@ export function TransitionOverlayProvider({ children }: { children: ReactNode })
   const onExpandComplete = useCallback(() => {
     targetPathnameRef.current = null;
     setPhase("idle");
+  }, []);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAtRef.current = Date.now();
+      } else {
+        const hiddenAt = hiddenAtRef.current;
+        hiddenAtRef.current = null;
+        if (hiddenAt != null && Date.now() - hiddenAt >= HIDDEN_RESET_MS && phaseRef.current !== "idle") {
+          targetPathnameRef.current = null;
+          pendingNavRef.current = null;
+          setPhase("idle");
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
   }, []);
 
   const showOverlay = phase !== "idle";

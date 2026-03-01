@@ -46,8 +46,8 @@ export default class ClientErrorBoundary extends Component<Props, State> {
       }
       return (
         <div
-          className="min-h-[50vh] flex flex-col items-center justify-center gap-4 p-6 text-center"
-          style={{ background: "#0a0a0a", color: "#e5e5e5" }}
+          className="fixed inset-0 min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center"
+          style={{ background: "#0B0B0F", color: "#e5e5e5" }}
           role="alert"
         >
           <p className="text-sm opacity-80">Something went wrong.</p>

@@ -54,7 +54,15 @@ export default function GlobalImgSafeguard() {
     const observer = new MutationObserver(processNodes);
     observer.observe(document.body, { childList: true, subtree: true });
 
-    return () => observer.disconnect();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") processNodes();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   return null;
