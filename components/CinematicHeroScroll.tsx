@@ -283,10 +283,10 @@ export default function CinematicHeroScroll({
     if (heroProgress >= 0.2) setGlbMounted(true);
   }, [heroProgress]);
 
-  /** Once we're ready to show GLB layers (defer passed), allow island to mount so it can render from cache without waiting for scroll to 0.2 (helps after language switch). */
+  /** Mobile only: once defer passed, allow island to mount without waiting for scroll to 0.2 (helps after language switch). Desktop unchanged — island still mounts only when heroProgress >= 0.2. */
   useEffect(() => {
-    if (glbDeferredReady) setGlbMounted(true);
-  }, [glbDeferredReady]);
+    if (isMobile && glbDeferredReady) setGlbMounted(true);
+  }, [isMobile, glbDeferredReady]);
 
   const p = Number.isFinite(heroProgress) ? Math.max(0, Math.min(1, heroProgress)) : 0;
   const headlineStages = locale === "vi" ? HEADLINE_STAGES_VI : HEADLINE_STAGES_EN;
