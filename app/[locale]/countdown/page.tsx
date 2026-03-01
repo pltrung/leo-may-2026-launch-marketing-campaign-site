@@ -16,7 +16,7 @@ import SafeLanguageSwitch from "@/components/SafeLanguageSwitch";
 import AboutUsModal from "@/components/AboutUsModal";
 import PowerYourCloudShareModal, { buildShareMessage } from "@/components/PowerYourCloudShareModal";
 import PowerYourCloudModal from "@/components/PowerYourCloudModal";
-import { CONTENT_STAGGER_MS, EASE_APPLE_IN_OUT } from "@/lib/enterCountdownHero";
+import { useCountdownHeroEntrance, CONTENT_STAGGER_MS, EASE_APPLE_IN_OUT, EASE_APPLE_SETTLE, EASE_MICRO_SETTLE } from "@/lib/enterCountdownHero";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
 import { useLocale } from "@/components/LocaleProvider";
@@ -41,11 +41,6 @@ import { getAscensionEnergyVars } from "@/lib/ascensionEnergy";
 import VerificationModal from "@/components/VerificationModal";
 import { createBrowserClient } from "@/lib/supabaseBrowser";
 import { HERO_BG } from "@/lib/heroConstants";
-
-const CountdownCoinEntrance = dynamic(
-  () => import("@/components/CountdownCoinEntrance").then((m) => m.default),
-  { ssr: false }
-);
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -234,6 +229,9 @@ function CountdownCloudsLayer({ partColors }: { partColors: MascotPartColors }) 
   );
 }
 
+/** Background + holds (ms); hero entrance starts after this. */
+const COUNTDOWN_BG_FADE_MS = 1000;
+
 /** Countdown target: December 1st 2026, 00:00 Vietnam (UTC+7) */
 const TARGET = new Date("2026-12-01T00:00:00+07:00");
 const REFERRAL_UNLOCK = 10;
@@ -304,9 +302,7 @@ import { useWaitlist } from "@/lib/useWaitlist";
 function CountdownPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [coinEntranceDone, setCoinEntranceDone] = useState(false);
-  /** Hero entrance is the coin (replaces previous mascot scale-in). After coin, show content. */
-  const effectivePhase: "hidden" | "content" = coinEntranceDone ? "content" : "hidden";
+  const fromMist = searchParams.get("fromMist") === "1";
   const debugPerf = searchParams.get("debugPerf") === "1";
   const locale = useLocale();
   const [perfDelta, setPerfDelta] = useState<number>(0);
@@ -329,6 +325,7 @@ function CountdownPageContent() {
   const [upgradeSuccessToast, setUpgradeSuccessToast] = useState(false);
   const [verificationSuccessOverlay, setVerificationSuccessOverlay] = useState(false);
   const [shouldAnimateVerifiedBadge, setShouldAnimateVerifiedBadge] = useState(false);
+  const { phase } = useCountdownHeroEntrance({ startDelay: COUNTDOWN_BG_FADE_MS });
   const teamCount = useTeamCount((user?.team ?? "may_nhe") as CloudType);
   const leaderboard = useLeaderboard();
   const { days, hours, minutes, seconds } = useCountdown();
@@ -350,7 +347,7 @@ function CountdownPageContent() {
 
   // Announcement (social) shows after the countdown intro; intro is always the first popup.
   useEffect(() => {
-    if (effectivePhase !== "content" || showAnnouncement || showCountdownIntro) return;
+    if (phase !== "content" || showAnnouncement || showCountdownIntro) return;
     let lastSeen = -1;
     try {
       if (typeof window !== "undefined") {
@@ -362,11 +359,11 @@ function CountdownPageContent() {
     }
     if (Number.isNaN(lastSeen)) lastSeen = -1;
     if (ANNOUNCEMENT_ID > lastSeen) setShowAnnouncement(true);
-  }, [effectivePhase, showAnnouncement, showCountdownIntro]);
+  }, [phase, showAnnouncement, showCountdownIntro]);
 
   // Countdown intro ("what this page is") is always the first popup every time (once per session). Then announcement, then verify/ceremony.
   useEffect(() => {
-    if (effectivePhase !== "content") return;
+    if (phase !== "content") return;
     if (showAnnouncement) return;
     let seenIntroThisSession = false;
     try {
@@ -390,7 +387,7 @@ function CountdownPageContent() {
     ceremonyShownOrDismissedRef.current = true;
     const currentTier = backendTierToDisplay(profile.tierLevel);
     setEvolutionCeremony({ displayTier: currentTier });
-  }, [effectivePhase, profile.tierLevel, profile.isVerified, evolutionCeremony, showAnnouncement]);
+  }, [phase, profile.tierLevel, profile.isVerified, evolutionCeremony, showAnnouncement]);
 
   useEffect(() => {
     const order = leaderboard.slice(0, 3).map((e) => e.id).join(",");
@@ -548,9 +545,6 @@ function CountdownPageContent() {
       data-sky-dominant={skyDominant}
       data-sky-unstable={skyUnstable ? "true" : "false"}
     >
-      {!coinEntranceDone && (
-        <CountdownCoinEntrance onComplete={() => setCoinEntranceDone(true)} />
-      )}
       {debugPerf && (
         <div
           className="fixed top-2 left-2 z-[200] bg-black/80 text-green-400 text-xs font-mono p-2 rounded pointer-events-none"
@@ -562,8 +556,13 @@ function CountdownPageContent() {
       )}
       <motion.div
         className="flex flex-col w-full flex-1 min-h-0 overflow-x-hidden"
-        initial={{ opacity: 1 }}
+        initial={{ opacity: fromMist ? 0 : 1 }}
         animate={{ opacity: 1 }}
+        transition={{
+          duration: fromMist ? 0.8 : 0,
+          delay: fromMist ? 0.1 : 0,
+          ease: [0.22, 1, 0.36, 1],
+        }}
       >
       <main
         className="flex-1 flex flex-col items-center justify-center px-4 py-4 relative overflow-y-auto overflow-x-hidden min-h-0"
@@ -573,9 +572,9 @@ function CountdownPageContent() {
       <motion.div
         className="fixed bottom-6 left-6 z-[60] scale-90 opacity-80 md:scale-100 md:opacity-100"
         initial={{ opacity: 0 }}
-        animate={{ opacity: effectivePhase === "content" ? 1 : 0 }}
-        transition={{ duration: 1.1, delay: effectivePhase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
-        style={{ visibility: effectivePhase === "content" ? "visible" : "hidden", pointerEvents: effectivePhase === "content" ? "auto" : "none" }}
+        animate={{ opacity: phase === "content" ? 1 : 0 }}
+        transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+        style={{ visibility: phase === "content" ? "visible" : "hidden", pointerEvents: phase === "content" ? "auto" : "none" }}
       >
         <SafeLanguageSwitch />
 
@@ -601,7 +600,52 @@ function CountdownPageContent() {
         <HeroStarfield heroTransitioning={false} />
       </div>
 
-      {/* Hero entrance is the coin (CountdownCoinEntrance); mascot hero scale-in removed. */}
+      <AnimatePresence>
+        {(phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" || phase === "phase4-micro-settle" || phase === "phase5-rest") && (
+          <motion.div
+            className="fixed inset-0 z-20 flex items-center justify-center pointer-events-none"
+            initial={false}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: EASE_APPLE_IN_OUT }}
+            aria-hidden
+          >
+            <motion.div
+              className="countdown-ip flex items-center justify-center mx-auto origin-center"
+              style={{ transformOrigin: "center center" }}
+              initial={{ scale: 0.35, opacity: 0, y: "0vh" }}
+              animate={{
+                scale:
+                  phase === "phase1-scale" || phase === "phase2-pause" ? 1.08 :
+                  phase === "phase3-settle" ? 1 :
+                  phase === "phase4-micro-settle" || phase === "phase5-rest" ? 0.998 : 1,
+                y:
+                  phase === "phase1-scale" || phase === "phase2-pause" ? "0vh" :
+                  phase === "phase3-settle" ? "4vh" :
+                  phase === "phase4-micro-settle" || phase === "phase5-rest" ? "4.02vh" : "4vh",
+                opacity: 1,
+              }}
+              transition={
+                phase === "phase1-scale"
+                  ? { duration: 0.8, ease: EASE_APPLE_IN_OUT }
+                  : phase === "phase2-pause"
+                  ? { duration: 0 }
+                  : phase === "phase3-settle"
+                  ? { duration: 0.9, ease: EASE_APPLE_SETTLE }
+                  : phase === "phase4-micro-settle"
+                  ? { duration: 0.12, ease: EASE_MICRO_SETTLE }
+                  : { duration: 0 }
+              }
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/ip-count-down.svg"
+                alt=""
+                className="w-full h-auto object-contain"
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Desktop: About Us top-left, Log out top-right (fixed) */}
       <motion.button
@@ -610,9 +654,9 @@ function CountdownPageContent() {
         className="about-btn-breathe hidden md:flex absolute top-8 left-10 z-10 py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 hover:scale-[1.02] transition-all duration-300 items-center justify-center"
         aria-label={t.aboutUs}
         initial={{ opacity: 0 }}
-        animate={{ opacity: effectivePhase === "content" ? 1 : 0 }}
-        transition={{ duration: 1.1, delay: effectivePhase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
-        style={{ visibility: effectivePhase === "content" ? "visible" : "hidden", pointerEvents: effectivePhase === "content" ? "auto" : "none" }}
+        animate={{ opacity: phase === "content" ? 1 : 0 }}
+        transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+        style={{ visibility: phase === "content" ? "visible" : "hidden", pointerEvents: phase === "content" ? "auto" : "none" }}
       >
         {t.aboutUs}
       </motion.button>
@@ -622,9 +666,9 @@ function CountdownPageContent() {
         className="hidden md:flex absolute top-8 right-10 z-10 py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors items-center justify-center"
         aria-label={t.logOut}
         initial={{ opacity: 0 }}
-        animate={{ opacity: effectivePhase === "content" ? 1 : 0 }}
-        transition={{ duration: 1.1, delay: effectivePhase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
-        style={{ visibility: effectivePhase === "content" ? "visible" : "hidden", pointerEvents: effectivePhase === "content" ? "auto" : "none" }}
+        animate={{ opacity: phase === "content" ? 1 : 0 }}
+        transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+        style={{ visibility: phase === "content" ? "visible" : "hidden", pointerEvents: phase === "content" ? "auto" : "none" }}
       >
         {t.logOut}
       </motion.button>
@@ -637,8 +681,8 @@ function CountdownPageContent() {
           className="joined-card shrink-0 countdown-spacing-after-card"
           data-cloud-type={cloud.id}
           initial={{ opacity: 0 }}
-          animate={{ opacity: effectivePhase === "content" ? 1 : 0 }}
-          transition={{ duration: 1.1, delay: effectivePhase === "content" ? CONTENT_STAGGER_MS[0] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+          animate={{ opacity: phase === "content" ? 1 : 0 }}
+          transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[0] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
           <p className="greeting flex items-center justify-center gap-2 flex-wrap">
             {t.hi} {firstName}
@@ -665,8 +709,8 @@ function CountdownPageContent() {
         <motion.div
           className="shrink-0 relative z-10 w-[min(90vw,200px)] sm:w-[min(85vw,240px)] md:w-[min(80vw,280px)] countdown-spacing-after-logo"
           initial={{ opacity: 0 }}
-          animate={{ opacity: effectivePhase === "content" ? 1 : 0 }}
-          transition={{ duration: 1.1, delay: effectivePhase === "content" ? CONTENT_STAGGER_MS[1] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+          animate={{ opacity: phase === "content" ? 1 : 0 }}
+          transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[1] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
           <Link href={`/${locale}`} className="block w-full h-auto" aria-label="Leo Mây — go to home">
             <img
@@ -682,24 +726,24 @@ function CountdownPageContent() {
           data-cloud-type={cloud.id}
           style={getAscensionEnergyVars(cloud.id) as React.CSSProperties}
           initial={{ opacity: 0 }}
-          animate={{ opacity: effectivePhase === "content" ? 1 : 0 }}
-          transition={{ duration: 1.1, delay: effectivePhase === "content" ? CONTENT_STAGGER_MS[2] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+          animate={{ opacity: phase === "content" ? 1 : 0 }}
+          transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[2] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
           <div className="mascot-ring" aria-hidden />
           <div className="evolution-mascot-inner">
             <motion.div
-              className={`countdown-ip mascot-svg origin-center ${effectivePhase === "content" ? "countdown-ip-float" : ""}`}
+              className={`countdown-ip mascot-svg origin-center ${phase === "content" ? "countdown-ip-float" : ""}`}
               style={{
                 transformOrigin: "center center",
-                visibility: effectivePhase === "hidden" ? "hidden" : "visible",
+                visibility: phase === "hidden" || phase === "phase1-scale" || phase === "phase2-pause" || phase === "phase3-settle" || phase === "phase4-micro-settle" ? "hidden" : "visible",
               }}
               initial={{ opacity: 0 }}
               animate={{
-                opacity: effectivePhase === "content" ? 1 : 0,
+                opacity: phase === "phase5-rest" || phase === "content" ? 1 : 0,
               }}
               transition={{
                 duration: 0.5,
-                delay: 0,
+                delay: phase === "phase5-rest" ? 0.15 : 0,
                 ease: EASE_APPLE_IN_OUT,
               }}
             >
@@ -745,8 +789,8 @@ function CountdownPageContent() {
             }}
             initial={{ opacity: 0, y: 6 }}
             animate={{
-              opacity: effectivePhase === "content" ? 1 : 0,
-              y: effectivePhase === "content" ? 0 : 6,
+              opacity: phase === "phase5-rest" || phase === "content" ? 1 : 0,
+              y: phase === "phase5-rest" || phase === "content" ? 0 : 6,
             }}
             transition={{
               duration: 0.6,
@@ -785,11 +829,11 @@ function CountdownPageContent() {
           }}
           initial={{ opacity: 0 }}
           animate={{
-            opacity: effectivePhase === "content" ? 1 : 0,
+            opacity: phase === "content" ? 1 : 0,
             scale: levelUpFlash ? 1.03 : 1,
           }}
           transition={{
-            opacity: { duration: 1.1, delay: effectivePhase === "content" ? CONTENT_STAGGER_MS[2] / 1000 : 0, ease: EASE_APPLE_IN_OUT },
+            opacity: { duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[2] / 1000 : 0, ease: EASE_APPLE_IN_OUT },
             scale: { duration: 0.25, ease: EASE_APPLE_IN_OUT },
           }}
         >
@@ -851,8 +895,8 @@ function CountdownPageContent() {
         <motion.div
           className="shrink-0 flex flex-col items-center gap-2 w-full countdown-spacing-after-share"
           initial={{ opacity: 0 }}
-          animate={{ opacity: effectivePhase === "content" ? 1 : 0 }}
-          transition={{ duration: 1.1, delay: effectivePhase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+          animate={{ opacity: phase === "content" ? 1 : 0 }}
+          transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
           {profile.isVerified ? (
             <>
@@ -895,8 +939,8 @@ function CountdownPageContent() {
         <motion.div
           className="countdown-timer-block shrink-0 w-full flex flex-col items-center countdown-spacing-after-timer"
           initial={{ opacity: 0 }}
-          animate={{ opacity: effectivePhase === "content" ? 1 : 0 }}
-          transition={{ duration: 1.1, delay: effectivePhase === "content" ? CONTENT_STAGGER_MS[3] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+          animate={{ opacity: phase === "content" ? 1 : 0 }}
+          transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[3] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
           <div className="flex items-center justify-center gap-0.5 sm:gap-1 md:gap-2 w-full max-w-full px-1">
             {[
@@ -966,8 +1010,8 @@ function CountdownPageContent() {
         <motion.div
           className="shrink-0 flex flex-col items-center w-full max-w-[320px] relative countdown-spacing-after-leaderboard"
           initial={{ opacity: 0 }}
-          animate={{ opacity: effectivePhase === "content" ? 1 : 0 }}
-          transition={{ duration: 1.1, delay: effectivePhase === "content" ? CONTENT_STAGGER_MS[4] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+          animate={{ opacity: phase === "content" ? 1 : 0 }}
+          transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[4] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         >
           <div className="absolute inset-0 rounded-2xl leaderboard-shimmer pointer-events-none -z-10" aria-hidden />
           <div className="flex flex-col gap-2 w-full mt-1">
@@ -1075,8 +1119,8 @@ function CountdownPageContent() {
         <motion.div
           className="shrink-0 w-full max-w-[360px] mt-4 countdown-rewards-section"
           initial={{ opacity: 0 }}
-          animate={{ opacity: effectivePhase === "content" ? 1 : 0 }}
-          transition={{ duration: 0.5, delay: effectivePhase === "content" ? CONTENT_STAGGER_MS[4] / 1000 + 0.3 : 0 }}
+          animate={{ opacity: phase === "content" ? 1 : 0 }}
+          transition={{ duration: 0.5, delay: phase === "content" ? CONTENT_STAGGER_MS[4] / 1000 + 0.3 : 0 }}
         >
           <p className="font-caption font-medium text-white/90 text-xs uppercase tracking-wider mb-3">
             {t.rewardsTitle}
@@ -1092,9 +1136,9 @@ function CountdownPageContent() {
         <motion.div
           className="flex flex-col items-center gap-3 md:hidden mt-6 mb-2"
           initial={{ opacity: 0 }}
-          animate={{ opacity: effectivePhase === "content" ? 1 : 0 }}
-          transition={{ duration: 1.1, delay: effectivePhase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
-          style={{ visibility: effectivePhase === "content" ? "visible" : "hidden", pointerEvents: effectivePhase === "content" ? "auto" : "none" }}
+          animate={{ opacity: phase === "content" ? 1 : 0 }}
+          transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+          style={{ visibility: phase === "content" ? "visible" : "hidden", pointerEvents: phase === "content" ? "auto" : "none" }}
         >
           <button
             type="button"
@@ -1137,7 +1181,7 @@ function CountdownPageContent() {
           <motion.div
             className="hidden md:block w-full max-w-[320px] mx-auto text-center py-3"
             initial={{ opacity: 0 }}
-            animate={{ opacity: effectivePhase === "content" ? 1 : 0 }}
+            animate={{ opacity: phase === "content" ? 1 : 0 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           >
             <div
@@ -1164,7 +1208,7 @@ function CountdownPageContent() {
         <motion.div
           className="w-full flex justify-center items-center gap-4 py-6 mt-2"
           initial={{ opacity: 0 }}
-          animate={{ opacity: effectivePhase === "content" ? 1 : 0 }}
+          animate={{ opacity: phase === "content" ? 1 : 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
           <a
@@ -1206,10 +1250,10 @@ function CountdownPageContent() {
       <motion.footer
         className="flex-shrink-0 relative z-10"
         initial={{ opacity: 0 }}
-        animate={{ opacity: effectivePhase === "content" ? 1 : 0 }}
+        animate={{ opacity: phase === "content" ? 1 : 0 }}
         transition={{
           duration: 1.1,
-          delay: effectivePhase === "content" ? CONTENT_STAGGER_MS[5] / 1000 + 0.25 : 0,
+          delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 + 0.25 : 0,
           ease: EASE_APPLE_IN_OUT,
         }}
       >

@@ -60,12 +60,11 @@ export function TransitionOverlayProvider({ children }: { children: ReactNode })
   const router = useRouter();
   const pathname = usePathname();
   const [phase, setPhase] = useState<TransitionPhase>("idle");
-  const [targetPathname, setTargetPathname] = useState<string | null>(null);
+  const targetPathnameRef = useRef<string | null>(null);
   const pendingNavRef = useRef<{ href: string; mode: "push" | "replace" } | null>(null);
 
   const startTransition = useCallback((href: string, mode: "push" | "replace") => {
-    const target = getPathnameFromHref(href);
-    setTargetPathname(target);
+    targetPathnameRef.current = getPathnameFromHref(href);
     pendingNavRef.current = { href, mode };
     setPhase("collapsing");
   }, []);
@@ -86,24 +85,15 @@ export function TransitionOverlayProvider({ children }: { children: ReactNode })
   }, [router]);
 
   useEffect(() => {
-    if (phase !== "holding" || !targetPathname) return;
-    if (pathname === targetPathname) {
+    const target = targetPathnameRef.current;
+    if (phase !== "holding" || !target) return;
+    if (pathname === target) {
       setPhase("expanding");
     }
-  }, [phase, pathname, targetPathname]);
-
-  /** Reset overlay when current path no longer matches target (e.g. browser back, bfcache restore).
-   * Fixes mobile black screen when returning to hero: overlay and hero opacity were stuck. */
-  useEffect(() => {
-    if (phase === "idle" || !targetPathname) return;
-    if (pathname === targetPathname) return;
-    pendingNavRef.current = null;
-    setTargetPathname(null);
-    setPhase("idle");
-  }, [pathname, phase, targetPathname]);
+  }, [phase, pathname]);
 
   const onExpandComplete = useCallback(() => {
-    setTargetPathname(null);
+    targetPathnameRef.current = null;
     setPhase("idle");
   }, []);
 
