@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { getMessages } from "@/lib/messages";
 import SafeImg, { isValidImgSrc } from "@/components/SafeImg";
 import PortalTransition, { type PortalState } from "@/components/PortalTransition";
+import type { ExploreOrigin } from "@/components/ExploreButton";
 import ClientErrorBoundary from "@/components/ClientErrorBoundary";
 import { startHeroMusicFromUserGesture } from "@/components/HeroMusic";
 
@@ -19,6 +20,7 @@ const LOADING_SKY_MS = 2000;
 export default function LandingFlow({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [state, setState] = useState<PortalState>("loadingSky");
+  const [exploreOrigin, setExploreOrigin] = useState<ExploreOrigin | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
   const completedRef = useRef(false);
 
@@ -42,11 +44,12 @@ export default function LandingFlow({ children }: { children: React.ReactNode })
     return () => clearTimeout(t);
   }, [isHome, state]);
 
-  const handleExplore = useCallback(() => {
+  const handleExplore = useCallback((origin?: ExploreOrigin) => {
     if (state !== "exploreIdle") return;
     startHeroMusicFromUserGesture();
     document.body.classList.add("loaded");
     document.body.classList.add("hero-ready");
+    setExploreOrigin(origin ?? null);
     setState("transitioning");
   }, [state]);
 
@@ -71,12 +74,14 @@ export default function LandingFlow({ children }: { children: React.ReactNode })
           return null;
         }}
       >
-        <PortalTransition
-          state={state}
-          onExplore={handleExplore}
-          onTransitionComplete={handleTransitionComplete}
-          reduceMotion={reduceMotion}
-        />
+      <PortalTransition
+        state={state}
+        onExplore={handleExplore}
+        onTransitionComplete={handleTransitionComplete}
+        reduceMotion={reduceMotion}
+        exploreLabel={getMessages((pathname?.startsWith("/vi") ? "vi" : "en") as "en" | "vi").explore}
+        exploreOrigin={exploreOrigin}
+      />
       </ClientErrorBoundary>
 
       {/* Loading sky content (logo, cloud, text) — only during loadingSky */}

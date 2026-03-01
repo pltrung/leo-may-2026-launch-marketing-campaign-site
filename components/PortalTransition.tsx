@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, useMotionValue } from "framer-motion";
+import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
 import ExploreButton from "@/components/ExploreButton";
+import type { ExploreOrigin } from "@/components/ExploreButton";
+import CloudPlayground from "@/components/CloudPlayground";
 import { HERO_BG } from "@/lib/heroConstants";
 
 const HeroStarfield = dynamic(
@@ -14,9 +16,10 @@ const HeroStarfield = dynamic(
 export type PortalState = "loadingSky" | "exploreIdle" | "transitioning" | "hero";
 
 const PORTAL_DURATION_MS = 580;
-const REDUCED_MOTION_FADE_MS = 250;
-/** Portal starts at pill (center); small vmax ≈ pill-sized so it feels like it opens from the button into the world */
-const PORTAL_START_VMAX = 3;
+const REDUCED_MOTION_FADE_MS = 200;
+/** Small circle so hero is visible inside the window immediately (18–30px equivalent in vmax) */
+const PORTAL_START_VMAX = 2.5;
+const PORTAL_END_VMAX = 160;
 
 function easeOutExpo(t: number): number {
   return t >= 1 ? 1 : 1 - Math.pow(2, -10 * t);
@@ -24,10 +27,11 @@ function easeOutExpo(t: number): number {
 
 interface PortalTransitionProps {
   state: PortalState;
-  onExplore: () => void;
+  onExplore: (origin?: ExploreOrigin) => void;
   onTransitionComplete: () => void;
-  /** When true, skip portal animation and use 250ms fade */
   reduceMotion?: boolean;
+  exploreLabel?: string;
+  exploreOrigin: ExploreOrigin | null;
 }
 
 export default function PortalTransition({
@@ -35,15 +39,20 @@ export default function PortalTransition({
   onExplore,
   onTransitionComplete,
   reduceMotion = false,
+  exploreLabel = "EXPLORE",
+  exploreOrigin,
 }: PortalTransitionProps) {
-  const skyOpacity = useMotionValue(1);
-  const [maskStyle, setMaskStyle] = useState<string>("");
-  const [rimRadius, setRimRadius] = useState(0);
-  const [rimOpacity, setRimOpacity] = useState(0);
+  const [portalR, setPortalR] = useState(PORTAL_START_VMAX);
+  const [rimOpacity, setRimOpacity] = useState(1);
   const rafRef = useRef<number>(0);
   const startRef = useRef<number>(0);
 
-  // Animate mask radius when transitioning (or reduced-motion fade)
+  const portalCx =
+    exploreOrigin?.x ?? (typeof window !== "undefined" ? window.innerWidth / 2 : 0);
+  const portalCy =
+    exploreOrigin?.y ?? (typeof window !== "undefined" ? window.innerHeight / 2 : 0);
+
+  // Animate portal radius and rim (or reduced-motion fade)
   useEffect(() => {
     if (state !== "transitioning") return;
 
@@ -55,23 +64,13 @@ export default function PortalTransition({
     const duration = PORTAL_DURATION_MS / 1000;
     startRef.current = performance.now() / 1000;
 
-    // Start at pill (center 50% 50%) — small circle so portal feels like it opens from the pill
-    setMaskStyle(
-      `radial-gradient(circle at 50% 50%, transparent 0, transparent ${PORTAL_START_VMAX}vmax, black ${PORTAL_START_VMAX}vmax)`
-    );
-
     const tick = (now: number) => {
       const elapsed = (now / 1000 - startRef.current) / duration;
       const t = Math.min(1, elapsed);
       const eased = easeOutExpo(t);
-      // Expand from pill (small vmax) to full world (160vmax) — rim is the opening edge
-      const rVmax = PORTAL_START_VMAX + (160 - PORTAL_START_VMAX) * eased;
-      setMaskStyle(
-        `radial-gradient(circle at 50% 50%, transparent 0, transparent ${rVmax}vmax, black ${rVmax}vmax)`
-      );
-      skyOpacity.set(1 - 0.5 * eased);
-      setRimRadius(rVmax);
-      setRimOpacity(elapsed < 0.92 ? 1 : Math.max(0, 1 - (elapsed - 0.92) / 0.08));
+      const rVmax = PORTAL_START_VMAX + (PORTAL_END_VMAX - PORTAL_START_VMAX) * eased;
+      setPortalR(rVmax);
+      setRimOpacity(t < 0.6 ? 1 : Math.max(0, 1 - (t - 0.6) / 0.4));
       if (t < 1) {
         rafRef.current = requestAnimationFrame(tick);
       } else {
@@ -82,7 +81,7 @@ export default function PortalTransition({
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [state, reduceMotion, onTransitionComplete, skyOpacity]);
+  }, [state, reduceMotion, onTransitionComplete]);
 
   const [fadeOut, setFadeOut] = useState(false);
   useEffect(() => {
@@ -95,13 +94,12 @@ export default function PortalTransition({
   const showExplore = state === "exploreIdle";
   const isTransitioning = state === "transitioning";
 
-  const isTransitioningState = state === "transitioning";
+  const rVmax = state === "transitioning" ? portalR : PORTAL_START_VMAX;
+
   const overlayMask =
-    isTransitioningState && maskStyle
-      ? maskStyle
-      : isTransitioningState
-        ? `radial-gradient(circle at 50% 50%, transparent 0, transparent ${PORTAL_START_VMAX}vmax, black ${PORTAL_START_VMAX}vmax)`
-        : undefined;
+    state === "transitioning"
+      ? `radial-gradient(circle at ${portalCx}px ${portalCy}px, transparent 0, transparent ${rVmax}vmax, black ${rVmax}vmax)`
+      : undefined;
 
   return (
     <motion.div
@@ -122,11 +120,11 @@ export default function PortalTransition({
         maskSize: "100% 100%",
         WebkitMaskRepeat: "no-repeat",
         maskRepeat: "no-repeat",
-        WebkitMaskPosition: "50% 50%",
-        maskPosition: "50% 50%",
+        WebkitMaskPosition: "0 0",
+        maskPosition: "0 0",
       }}
     >
-      {/* Base: Sky (stars + shooting lights) — always running when overlay visible */}
+      {/* Sky (stars + shooting lights) — runs continuously; mask reveals hero through circle */}
       <div
         style={{
           position: "absolute",
@@ -134,47 +132,44 @@ export default function PortalTransition({
           background: HERO_BG,
         }}
       >
-        <motion.div
-          style={{
-            position: "absolute",
-            inset: 0,
-            opacity: skyOpacity,
-          }}
-        >
-          {showSky && <HeroStarfield heroTransitioning={isTransitioning} />}
-        </motion.div>
+        {showSky && <HeroStarfield heroTransitioning={isTransitioning} />}
       </div>
 
-      {/* Rim: solid ring at the opening edge — grows from pill (center) into the new world */}
-      {state === "transitioning" && !reduceMotion && rimOpacity > 0 && (
-        <svg
-          className="portal-rim"
-          style={{
-            position: "absolute",
-            left: "50%",
-            top: "50%",
-            transform: "translate(-50%, -50%)",
-            width: "320vmax",
-            height: "320vmax",
-            pointerEvents: "none",
-          }}
-          viewBox="0 0 320 320"
-          preserveAspectRatio="xMidYMid slice"
-          aria-hidden
-        >
-          <circle
-            cx="160"
-            cy="160"
-            r={Math.min(160, rimRadius)}
-            fill="none"
-            stroke="rgba(220, 235, 255, 0.9)"
-            strokeWidth="5"
-            style={{ opacity: rimOpacity }}
-          />
-        </svg>
+      {/* Cloud playground: exploreIdle only; freezes and fades when Explore is clicked */}
+      {(state === "exploreIdle" || state === "transitioning") && (
+        <CloudPlayground
+          freeze={state === "transitioning"}
+          reduceMotion={!!reduceMotion}
+        />
       )}
 
-      {/* Explore pill — only in exploreIdle */}
+      {/* Single thin rim at portal edge: gradient ring + blur, fades out by 60% of expansion */}
+      {state === "transitioning" && !reduceMotion && rimOpacity > 0 && (
+        <>
+          <div
+            aria-hidden
+            style={{
+              position: "fixed",
+              inset: 0,
+              pointerEvents: "none",
+              background: `radial-gradient(circle at ${portalCx}px ${portalCy}px, transparent calc(${rVmax}vmax - 2px), rgba(180,220,255,0.95) ${rVmax}vmax, transparent calc(${rVmax}vmax + 2px))`,
+              filter: "blur(10px)",
+              opacity: rimOpacity,
+            }}
+          />
+          <div
+            aria-hidden
+            style={{
+              position: "fixed",
+              inset: 0,
+              pointerEvents: "none",
+              background: `radial-gradient(circle at ${portalCx}px ${portalCy}px, transparent calc(${rVmax}vmax - 1px), rgba(255,255,255,0.4) ${rVmax}vmax, transparent calc(${rVmax}vmax + 1px))`,
+              opacity: rimOpacity,
+            }}
+          />
+        </>
+      )}
+
       {showExplore && (
         <div
           style={{
@@ -188,7 +183,7 @@ export default function PortalTransition({
             zIndex: 10,
           }}
         >
-          <ExploreButton onExplore={onExplore} disabled={isTransitioning} />
+          <ExploreButton onExplore={onExplore} disabled={isTransitioning} label={exploreLabel} />
         </div>
       )}
     </motion.div>

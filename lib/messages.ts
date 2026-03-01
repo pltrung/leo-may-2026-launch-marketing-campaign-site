@@ -228,6 +228,7 @@ const en = {
   loading: {
     preparingTheSky: "Preparing the sky",
   },
+  explore: "EXPLORE",
   knowYourCloud: {
     button: "Login",
     loginTitle: "Login your credentials",
@@ -541,6 +542,7 @@ const vi: Messages = {
   loading: {
     preparingTheSky: "Đang chuẩn bị bầu trời",
   },
+  explore: "KHÁM PHÁ",
   knowYourCloud: {
     button: "Đăng nhập",
     loginTitle: "Đăng nhập tài khoản của bạn",
