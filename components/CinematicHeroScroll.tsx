@@ -225,9 +225,12 @@ export default function CinematicHeroScroll({
     return () => cancelAnimationFrame(raf);
   }, [videoFirstRunEnded, isMobile, mobilePostVideoGlbReady]);
 
-  /** Narrative (headline, CTA, arrow) fades in 1s after scene appears, over 0.6s. */
+  /** Narrative (headline, CTA, arrow) fades in after delay then over NARRATIVE_REVEAL_FADE_MS. Run only once per video end so we don't get double fade. */
+  const narrativeRevealDoneRef = useRef(false);
+  if (!videoFirstRunEnded) narrativeRevealDoneRef.current = false;
   useEffect(() => {
     if (!videoFirstRunEnded || videoFirstRunEndedAtRef.current == null) return;
+    if (narrativeRevealDoneRef.current) return;
     const start = videoFirstRunEndedAtRef.current;
     let raf = 0;
     const tick = () => {
@@ -238,7 +241,10 @@ export default function CinematicHeroScroll({
         const fadeElapsed = (elapsed - NARRATIVE_REVEAL_DELAY_MS) / 1000;
         const t = Math.min(1, smoothstep(0, NARRATIVE_REVEAL_FADE_MS / 1000, fadeElapsed));
         setNarrativeRevealOpacity(t);
-        if (t >= 1) return;
+        if (t >= 1) {
+          narrativeRevealDoneRef.current = true;
+          return;
+        }
       }
       raf = requestAnimationFrame(tick);
     };
@@ -489,8 +495,8 @@ export default function CinematicHeroScroll({
 
   const mascotOpacityFinal = loadComplete ? mascotOpacity : loadMascotOpacity;
   const mascotTranslateYFinal = loadComplete ? mascotTranslateY : loadMascotY;
-  /** Narrative multiplier: smooth 1s delay + 0.6s fade after scene appears; fallback to 1 if 15s reveal timeout fired. */
-  const narrativeMultiplier = narrativeRevealOpacity > 0 ? narrativeRevealOpacity : (videoRevealDone ? 1 : 0);
+  /** After video ends we only use narrativeRevealOpacity (0 → delay → fade in). Before that, use videoRevealDone so 15s fallback still shows text. Avoids text jumping from 1 to ~0 then fading in. */
+  const narrativeMultiplier = videoFirstRunEnded ? narrativeRevealOpacity : (videoRevealDone ? 1 : 0);
   /** All hero content (narrative, headlines, CTA, arrow, footer) fades in 1s after video→scene handoff, or immediately if 15s fallback. */
   const narrativeOpacityFinal = narrativeMultiplier * (loadComplete ? narrativeStackOpacity : 1);
   /** On mobile, zero vertical translate so layout stays fixed; only opacity animates (no jump/collision). */
