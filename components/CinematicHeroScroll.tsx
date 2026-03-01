@@ -599,7 +599,7 @@ export default function CinematicHeroScroll({
                 isMobile={isMobile}
                 allowRotation={heroProgress < 0.18}
                 className="w-full h-full"
-                style={isMobile ? undefined : { minHeight: "unset", maxHeight: "none" }}
+                style={{ minHeight: "unset", maxHeight: "none" }}
               />
             </div>
           </ClientErrorBoundary>
