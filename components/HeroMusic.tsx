@@ -4,9 +4,46 @@ import { useEffect, useRef } from "react";
 
 const HERO_MUSIC_SRC = "/As%20We%20Are.mp3";
 
+let sharedAudio: HTMLAudioElement | null = null;
+let sharedStarted = false;
+
+/**
+ * Call from within a user gesture (e.g. Explore button tap). Required on mobile for audio to play.
+ * Safe to call multiple times; only starts once.
+ */
+export function startHeroMusicFromUserGesture(): void {
+  if (typeof window === "undefined" || sharedStarted) return;
+  if (sharedAudio) {
+    sharedAudio.play().catch(() => {});
+    return;
+  }
+  const audio = document.createElement("audio");
+  audio.src = HERO_MUSIC_SRC;
+  audio.preload = "auto";
+  audio.setAttribute("aria-hidden", "true");
+  audio.style.position = "absolute";
+  audio.style.width = "0";
+  audio.style.height = "0";
+  audio.style.opacity = "0";
+  audio.style.pointerEvents = "none";
+  document.body.appendChild(audio);
+  sharedAudio = audio;
+  audio.play().then(
+    () => {
+      sharedStarted = true;
+    },
+    () => {}
+  );
+}
+
+export function isHeroMusicStarted(): boolean {
+  return sharedStarted || (sharedAudio != null && !sharedAudio.paused);
+}
+
 /**
  * Plays hero background music when the hero entrance begins (heroReady).
- * Works on desktop and mobile: if autoplay is blocked (e.g. mobile), starts on first user interaction.
+ * On mobile, music is started from the Explore tap (startHeroMusicFromUserGesture); this component
+ * then just skips so we don't create a second audio or remove the one that's playing.
  */
 export default function HeroMusic({ heroReady }: { heroReady: boolean }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -14,6 +51,7 @@ export default function HeroMusic({ heroReady }: { heroReady: boolean }) {
 
   useEffect(() => {
     if (typeof window === "undefined" || !heroReady || startedRef.current) return;
+    if (isHeroMusicStarted()) return;
 
     const audio = document.createElement("audio");
     audio.src = HERO_MUSIC_SRC;
@@ -40,9 +78,7 @@ export default function HeroMusic({ heroReady }: { heroReady: boolean }) {
           startedRef.current = true;
           removeListeners();
         },
-        (_err: unknown) => {
-          // Autoplay blocked (e.g. mobile); keep interaction listeners so first tap starts music
-        }
+        () => {}
       );
     };
 

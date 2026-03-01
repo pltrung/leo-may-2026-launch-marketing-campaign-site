@@ -97,7 +97,7 @@ export default function PortalTransition({
   return (
     <motion.div
       className="portal-overlay"
-      aria-hidden={state === "hero"}
+      aria-hidden={false}
       initial={false}
       animate={{ opacity: fadeOut ? 0 : 1 }}
       transition={{ duration: reduceMotion ? REDUCED_MOTION_FADE_MS / 1000 : 0 }}

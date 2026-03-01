@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { getMessages } from "@/lib/messages";
 import SafeImg, { isValidImgSrc } from "@/components/SafeImg";
 import PortalTransition, { type PortalState } from "@/components/PortalTransition";
+import { startHeroMusicFromUserGesture } from "@/components/HeroMusic";
 
 const LOGO_SRC = "/logo-white.svg";
 const CLOUD_SRC = "/brand/cloud-copyright.svg";
@@ -41,6 +42,7 @@ export default function LandingFlow({ children }: { children: React.ReactNode })
 
   const handleExplore = useCallback(() => {
     if (state !== "exploreIdle") return;
+    startHeroMusicFromUserGesture();
     setState("transitioning");
   }, [state]);
 
