@@ -50,19 +50,6 @@ const HEADLINE_STAGES_VI: HeadlineStage[] = [
   { line1: "TỰ DO.", line2: "THEO", line3: "CÁCH BẠN." },
 ];
 
-/** Unified video→GLB handoff: same duration and easing so fade-out and fade-in feel like one motion (desktop + mobile). */
-const VIDEO_GLB_HANDOFF_MS = 1800;
-const VIDEO_GLB_HANDOFF_EASING = "cubic-bezier(0.16, 1, 0.3, 1)";
-
-/** On desktop, delay GLB fade-in start so video has a head start (overlap = same elevated feel as mobile). */
-const DESKTOP_GLB_FADE_DELAY_MS = 200;
-
-/** Narrative (headline, CTA, arrow) starts after scene has settled; then a soft, long fade. */
-const NARRATIVE_REVEAL_DELAY_MS = 800;
-const NARRATIVE_REVEAL_FADE_MS = 1000;
-/** Throttle narrative opacity updates to avoid desktop lag (rAF every frame = 60+ re-renders). */
-const NARRATIVE_TICK_MS = 50;
-
 function smoothstep(a: number, b: number, x: number): number {
   if (b === a || !Number.isFinite(a) || !Number.isFinite(b)) return Number.isFinite(x) && x >= b ? 1 : 0;
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
@@ -161,27 +148,6 @@ export default function CinematicHeroScroll({
   const [glbRemountKey, setGlbRemountKey] = useState(0);
   /** On mobile, defer GLB mount so hero shell (starfield, content) paints first after return from clouds — avoids slow/frozen feel. */
   const [glbDeferredReady, setGlbDeferredReady] = useState(false);
-  /** True when video has entered the last second of its first run; gates first headline + arrow reveal. */
-  const [videoRevealDone, setVideoRevealDone] = useState(false);
-  /** True when video has finished its first run; we fade out the video layer (no replay). */
-  const [videoFirstRunEnded, setVideoFirstRunEnded] = useState(false);
-  /** On mobile, delay mounting climbing-hold GLB until after video has released GPU; avoids WebGL context failure. */
-  const [mobilePostVideoGlbReady, setMobilePostVideoGlbReady] = useState(false);
-  /** When true, climbing-hold wrapper animates from 0→1; set after a brief delay so the node exists at 0 first (premium fade on desktop and mobile). */
-  const [climbingHoldFadeIn, setClimbingHoldFadeIn] = useState(false);
-  /** When videoFirstRunEnded was set; used to drive narrative reveal (delay then fade). */
-  const videoFirstRunEndedAtRef = useRef<number | null>(null);
-  /** Persists across remounts (e.g. Strict Mode); prevents video from ever showing again after end and avoids double handoff. */
-  const videoHasEndedRef = useRef(false);
-  /** Narrative (headline, CTA, arrow) fade-in: delay after scene then soft fade. */
-  const [narrativeRevealOpacity, setNarrativeRevealOpacity] = useState(0);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const videoRevealFiredRef = useRef(false);
-
-  /** After remount (e.g. React Strict Mode), restore "video ended" so we never flash the video again. */
-  useEffect(() => {
-    if (videoHasEndedRef.current) setVideoFirstRunEnded(true);
-  }, []);
 
   /** When locale changes (e.g. EN/VN switch), reset skip-GLB ref so GLBs show again after language change or refresh. */
   useEffect(() => {
@@ -204,73 +170,6 @@ export default function CinematicHeroScroll({
     preloadHeroIslandGLB();
     preloadHeroClimbingHoldGLB();
   }, []);
-
-  /** Fallback: only if video never loads (e.g. missing file); 15s so a ~5s video always triggers reveal from playback first. */
-  useEffect(() => {
-    if (videoRevealDone) return;
-    const t = setTimeout(() => setVideoRevealDone(true), 15000);
-    return () => clearTimeout(t);
-  }, [videoRevealDone]);
-
-  /** On mobile, defer climbing-hold GLB mount briefly after video ends so GPU can release decoder; short delay so GLB starts fading in while video is still fading out (overlap = connected handoff). */
-  useEffect(() => {
-    if (!videoFirstRunEnded || !isMobile) return;
-    const t = setTimeout(() => setMobilePostVideoGlbReady(true), 220);
-    return () => clearTimeout(t);
-  }, [videoFirstRunEnded, isMobile]);
-
-  /** Start climbing-hold fade-in: on desktop delay slightly so video has a head start (elevated overlap like mobile); on mobile next frame after GLB mounts. */
-  useEffect(() => {
-    if (!videoFirstRunEnded) {
-      setClimbingHoldFadeIn(false);
-      return;
-    }
-    if (isMobile && !mobilePostVideoGlbReady) return;
-    if (isMobile) {
-      const raf = requestAnimationFrame(() => setClimbingHoldFadeIn(true));
-      return () => cancelAnimationFrame(raf);
-    }
-    const t = setTimeout(() => setClimbingHoldFadeIn(true), DESKTOP_GLB_FADE_DELAY_MS);
-    return () => clearTimeout(t);
-  }, [videoFirstRunEnded, isMobile, mobilePostVideoGlbReady]);
-
-  /** Narrative (headline, CTA, arrow) fades in after delay then over NARRATIVE_REVEAL_FADE_MS. Throttled updates to avoid desktop lag. */
-  const narrativeRevealDoneRef = useRef(false);
-  const narrativeRevealStartedRef = useRef(false);
-  const narrativeLastTickRef = useRef(0);
-  if (!videoFirstRunEnded) {
-    narrativeRevealDoneRef.current = false;
-    narrativeRevealStartedRef.current = false;
-  }
-  useEffect(() => {
-    if (!videoFirstRunEnded || videoFirstRunEndedAtRef.current == null) return;
-    if (narrativeRevealDoneRef.current || narrativeRevealStartedRef.current) return;
-    narrativeRevealStartedRef.current = true;
-    const start = videoFirstRunEndedAtRef.current;
-    narrativeLastTickRef.current = 0;
-    let raf = 0;
-    const tick = () => {
-      const elapsed = performance.now() - start;
-      if (elapsed < NARRATIVE_REVEAL_DELAY_MS) {
-        if (narrativeLastTickRef.current === 0) setNarrativeRevealOpacity(0);
-      } else {
-        const fadeElapsed = (elapsed - NARRATIVE_REVEAL_DELAY_MS) / 1000;
-        const t = Math.min(1, smoothstep(0, NARRATIVE_REVEAL_FADE_MS / 1000, fadeElapsed));
-        const tickSlot = Math.floor(elapsed / NARRATIVE_TICK_MS);
-        if (tickSlot > narrativeLastTickRef.current || t >= 1) {
-          narrativeLastTickRef.current = tickSlot;
-          setNarrativeRevealOpacity(t);
-        }
-        if (t >= 1) {
-          narrativeRevealDoneRef.current = true;
-          return;
-        }
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [videoFirstRunEnded]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -510,28 +409,18 @@ export default function CinematicHeroScroll({
   const loadCTAY = 16 * (1 - smoothstep(0.65, 0.95, loadT));
   const loadArrowOpacity = smoothstep(0.85, 1.15, loadT);
   const loadFooterOpacity = smoothstep(1.0, 1.35, loadT);
-  /** Darken overlay fades in with video start (same load window as video/mascot) so the rectangle video feels soft from the beginning; same on mobile and desktop. */
-  const heroDarkenOpacity = smoothstep(0.1, 0.6, loadT);
 
   const mascotOpacityFinal = loadComplete ? mascotOpacity : loadMascotOpacity;
   const mascotTranslateYFinal = loadComplete ? mascotTranslateY : loadMascotY;
-  /** After video ends we only use narrativeRevealOpacity (0 → delay → fade in). Before that, use videoRevealDone so 15s fallback still shows text. Avoids text jumping from 1 to ~0 then fading in. */
-  const narrativeMultiplier = videoFirstRunEnded ? narrativeRevealOpacity : (videoRevealDone ? 1 : 0);
-  /** All hero content (narrative, headlines, CTA, arrow, footer) fades in 1s after video→scene handoff, or immediately if 15s fallback. */
-  const narrativeOpacityFinal = narrativeMultiplier * (loadComplete ? narrativeStackOpacity : 1);
+  const narrativeOpacityFinal = loadComplete ? narrativeStackOpacity : loadHeadlineOpacity;
   /** On mobile, zero vertical translate so layout stays fixed; only opacity animates (no jump/collision). */
   const narrativeTranslateYFinal = loadComplete ? (isMobile ? 0 : narrativeTranslateY) : loadHeadlineY;
-  const headlineOpacitiesFinal = [
-    narrativeMultiplier * (loadComplete ? (headlineOpacities[0] ?? 0) : 1),
-    narrativeMultiplier * (loadComplete ? (headlineOpacities[1] ?? 0) : 0),
-    narrativeMultiplier * (loadComplete ? (headlineOpacities[2] ?? 0) : 0),
-    narrativeMultiplier * (loadComplete ? (headlineOpacities[3] ?? 0) : 0),
-  ];
+  const headlineOpacitiesFinal = loadComplete ? headlineOpacities : [1, 0, 0, 0];
   const headlineTranslateYsFinal = loadComplete ? (isMobile ? [0, 0, 0, 0] : headlineTranslateYs) : [loadHeadlineY, 0, 0, 0];
-  const ctaOpacityFinal = narrativeMultiplier * (loadComplete ? 1 : loadCTAOpacity);
+  const ctaOpacityFinal = loadComplete ? 1 : loadCTAOpacity;
   const ctaTranslateYFinal = loadComplete ? 0 : loadCTAY;
-  const scrollArrowOpacity = narrativeMultiplier * (loadComplete ? (p <= 0.05 ? 1 : 1 - smoothstep(0.05, 0.18, p)) : 1);
-  const footerOpacityFinal = narrativeMultiplier * (loadComplete ? heroFooterOpacity : loadFooterOpacity);
+  const scrollArrowOpacity =
+    loadComplete ? (p <= 0.05 ? 1 : 1 - smoothstep(0.05, 0.18, p)) : loadArrowOpacity;
 
   return (
     <div
@@ -555,99 +444,18 @@ export default function CinematicHeroScroll({
           </ClientErrorBoundary>
         )}
 
-        {/* Looping background video (replaces climbing-hold GLB); same fade in/out as GLB: load sequence then scroll 0.14→0.28. Mobile: same defer as GLB so timing matches. */}
+        {/* Full-viewport climbing-hold GLB layer; on mobile defer so hero paints first after return. key forces remount when returning from background so WebGL is recreated. */}
         {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (glbDeferredReady || !isMobile) && (
-          <>
-            <div
-              className="absolute inset-0 w-full h-full flex items-center justify-center"
-              style={{
-                zIndex: 0,
-                opacity: videoFirstRunEnded ? 0 : mascotOpacityFinal * 0.85,
-                transition: `opacity ${VIDEO_GLB_HANDOFF_MS}ms ${VIDEO_GLB_HANDOFF_EASING}, transform 500ms ease-out`,
-                transform: `translateY(${mascotTranslateYFinal}px)`,
-                transformOrigin: "center center",
-                background: HERO_BG,
-                WebkitMaskImage: "radial-gradient(ellipse 88% 88% at 50% 50%, black 72%, transparent 100%)",
-                maskImage: "radial-gradient(ellipse 88% 88% at 50% 50%, black 72%, transparent 100%)",
-              }}
-              aria-hidden
-            >
-              <video
-                ref={videoRef}
-                autoPlay
-                muted
-                playsInline
-                preload="auto"
-                className="w-full h-full"
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  height: "100%",
-                  objectFit: isMobile ? "contain" : "cover",
-                  objectPosition: "center center",
-                  transform: isMobile ? undefined : "scale(0.9)",
-                  transformOrigin: "center center",
-                }}
-                onTimeUpdate={() => {
-                  const el = videoRef.current;
-                  if (!el || !Number.isFinite(el.duration) || el.duration <= 0) return;
-                  const dur = el.duration;
-                  const t = el.currentTime;
-                  if (!videoRevealFiredRef.current && t >= dur - 1) {
-                    videoRevealFiredRef.current = true;
-                    setVideoRevealDone(true);
-                  }
-                }}
-                onLoadedMetadata={() => {
-                  if (videoRevealFiredRef.current) return;
-                  const el = videoRef.current;
-                  if (!el || !Number.isFinite(el.duration)) return;
-                  if (el.duration <= 1 || el.currentTime >= el.duration - 1) {
-                    videoRevealFiredRef.current = true;
-                    setVideoRevealDone(true);
-                  }
-                }}
-                onEnded={() => {
-                  if (videoHasEndedRef.current) return;
-                  videoHasEndedRef.current = true;
-                  videoFirstRunEndedAtRef.current = performance.now();
-                  setVideoFirstRunEnded(true);
-                }}
-                aria-hidden
-              >
-                {/* Place video-1-trial.mp4 in public/ (e.g. copy from downloads/leo may ip folder); keep under 3–5MB, optimized mp4 for performance. */}
-                <source src="/video-1-trial.mp4" type="video/mp4" />
-              </video>
-            </div>
-            <div
-              className="absolute inset-0 w-full h-full pointer-events-none"
-              style={{
-                zIndex: 1,
-                background: "linear-gradient(to bottom, rgba(255,255,255,0.25), rgba(255,255,255,0.45))",
-                opacity: videoFirstRunEnded ? 0 : mascotOpacityFinal * 0.85,
-                transition: `opacity ${VIDEO_GLB_HANDOFF_MS}ms ${VIDEO_GLB_HANDOFF_EASING}`,
-              }}
-              aria-hidden
-            />
-          </>
-        )}
-
-        {/* Climbing-hold GLB: on desktop mounted from start (hidden); on mobile mount shortly after video ends. Video and GLB use same handoff duration/easing for a connected crossfade. */}
-        {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (glbDeferredReady || !isMobile) && (!isMobile || mobilePostVideoGlbReady) && (
           <ClientErrorBoundary fallback={null}>
             <div
-              key={isMobile ? `post-video-${glbRemountKey}` : glbRemountKey}
+              key={glbRemountKey}
               className="absolute inset-0 z-10 flex items-center justify-center"
               style={{
                 width: "100vw",
                 height: "100dvh",
-                opacity: videoFirstRunEnded && climbingHoldFadeIn
-                  ? (isMobile ? mascotOpacityFinal * 0.55 : mascotOpacityFinal)
-                  : 0,
+                opacity: mascotOpacityFinal,
                 transform: `translateY(${mascotTranslateYFinal}px)`,
-                transition: `opacity ${VIDEO_GLB_HANDOFF_MS}ms ${VIDEO_GLB_HANDOFF_EASING}, transform 500ms ease-out`,
+                transition: "opacity 500ms ease-out",
               }}
               aria-hidden
             >
@@ -662,7 +470,7 @@ export default function CinematicHeroScroll({
           </ClientErrorBoundary>
         )}
 
-        {/* Content area: above video + GLB (z-20) so text and buttons are on top and clickable; matches pre-video mobile layout. */}
+        {/* Content area: overlays above GLB (z-20); padding for header/safe-area and breathing room */}
         <div
           className="flex-1 min-h-0 relative flex flex-col items-center justify-center z-20"
           style={{
@@ -674,24 +482,19 @@ export default function CinematicHeroScroll({
             className="absolute inset-0 pointer-events-none"
             style={{
               background: `radial-gradient(ellipse 80% 70% at 50% 50%, rgba(18,18,24,0.5) 0%, ${HERO_BG} 70%)`,
-              opacity: heroDarkenOpacity,
-              transition: "opacity 0.6s ease-out",
             }}
           />
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               boxShadow: isMobile ? "inset 0 0 15vh 8vh rgba(0,0,0,0.3)" : "inset 0 0 20vh 10vh rgba(0,0,0,0.25)",
-              opacity: heroDarkenOpacity,
-              transition: "opacity 0.6s ease-out",
             }}
           />
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               background: "rgba(0,0,0,0.04)",
-              opacity: videoRevealDone ? smoothstep(0.88, 1, p) : 0,
-              transition: "opacity 0.6s ease-out",
+              opacity: smoothstep(0.88, 1, p),
             }}
           />
 
@@ -753,7 +556,6 @@ export default function CinematicHeroScroll({
                         transform: `translate(-50%, ${headlineTranslateYsFinal[i] ?? 0}px)`,
                         opacity: headlineOpacitiesFinal[i] ?? 0,
                         transformOrigin: "center center",
-                        transition: "opacity 0.6s ease-out",
                       }}
                       aria-hidden={(headlineOpacitiesFinal[i] ?? 0) < 0.01}
                     >
@@ -872,7 +674,6 @@ export default function CinematicHeroScroll({
                   transform: "translateX(-50%)",
                   opacity: scrollArrowOpacity * 0.88,
                   filter: "drop-shadow(0 0 6px rgba(255,255,255,0.25))",
-                  transition: "opacity 0.6s ease-out",
                 }}
                 aria-hidden
               >
@@ -952,7 +753,6 @@ export default function CinematicHeroScroll({
                         style={{
                           opacity: headlineOpacitiesFinal[i] ?? 0,
                           transform: `translateY(${headlineTranslateYsFinal[i] ?? 0}px)`,
-                          transition: "opacity 0.6s ease-out",
                         }}
                         aria-hidden={(headlineOpacitiesFinal[i] ?? 0) < 0.01}
                       >
@@ -1081,7 +881,6 @@ export default function CinematicHeroScroll({
               transform: "translateX(-50%)",
               opacity: scrollArrowOpacity,
               filter: "drop-shadow(0 0 6px rgba(255,255,255,0.25))",
-              transition: "opacity 0.6s ease-out",
             }}
             aria-hidden
           >
@@ -1106,7 +905,7 @@ export default function CinematicHeroScroll({
               minHeight: footerHeight,
               paddingBottom: "max(12px, env(safe-area-inset-bottom))",
               background: HERO_BG,
-              opacity: footerOpacityFinal,
+              opacity: loadComplete ? heroFooterOpacity : loadFooterOpacity,
               transform: loadComplete ? `translateY(${heroFooterTranslateY}px)` : "none",
             }}
           >
