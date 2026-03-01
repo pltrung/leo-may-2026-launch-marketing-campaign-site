@@ -490,7 +490,10 @@ function CountdownPageContent() {
   const handleLogout = () => {
     getSupabaseBrowserClient().auth.signOut().catch(() => {});
     clearUser();
-    router.replace(`/${locale}`);
+    // Full page navigation to avoid client-side exception when unmounting countdown
+    // and mounting home (avoids React state/async races during client-side nav).
+    const path = typeof locale === "string" && locale ? `/${locale}` : "/en";
+    window.location.href = path;
   };
 
   if (!user || verified === false) return null;
