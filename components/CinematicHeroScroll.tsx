@@ -54,6 +54,9 @@ const HEADLINE_STAGES_VI: HeadlineStage[] = [
 const VIDEO_GLB_HANDOFF_MS = 1800;
 const VIDEO_GLB_HANDOFF_EASING = "cubic-bezier(0.16, 1, 0.3, 1)";
 
+/** On desktop, delay GLB fade-in start so video has a head start (overlap = same elevated feel as mobile). */
+const DESKTOP_GLB_FADE_DELAY_MS = 200;
+
 /** Narrative (headline, CTA, arrow) starts after scene has settled; then a soft, long fade. */
 const NARRATIVE_REVEAL_DELAY_MS = 800;
 const NARRATIVE_REVEAL_FADE_MS = 1000;
@@ -214,15 +217,19 @@ export default function CinematicHeroScroll({
     return () => clearTimeout(t);
   }, [videoFirstRunEnded, isMobile]);
 
-  /** Start climbing-hold fade-in on next frame so it's in sync with video fade-out (same HANDOFF timing); one frame at opacity 0 so the transition runs. */
+  /** Start climbing-hold fade-in: on desktop delay slightly so video has a head start (elevated overlap like mobile); on mobile next frame after GLB mounts. */
   useEffect(() => {
     if (!videoFirstRunEnded) {
       setClimbingHoldFadeIn(false);
       return;
     }
     if (isMobile && !mobilePostVideoGlbReady) return;
-    const raf = requestAnimationFrame(() => setClimbingHoldFadeIn(true));
-    return () => cancelAnimationFrame(raf);
+    if (isMobile) {
+      const raf = requestAnimationFrame(() => setClimbingHoldFadeIn(true));
+      return () => cancelAnimationFrame(raf);
+    }
+    const t = setTimeout(() => setClimbingHoldFadeIn(true), DESKTOP_GLB_FADE_DELAY_MS);
+    return () => clearTimeout(t);
   }, [videoFirstRunEnded, isMobile, mobilePostVideoGlbReady]);
 
   /** Narrative (headline, CTA, arrow) fades in after delay then over NARRATIVE_REVEAL_FADE_MS. Run only once per video end so we don't get double fade. */
