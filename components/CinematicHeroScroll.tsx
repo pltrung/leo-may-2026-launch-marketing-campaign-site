@@ -60,6 +60,8 @@ const DESKTOP_GLB_FADE_DELAY_MS = 200;
 /** Narrative (headline, CTA, arrow) starts after scene has settled; then a soft, long fade. */
 const NARRATIVE_REVEAL_DELAY_MS = 800;
 const NARRATIVE_REVEAL_FADE_MS = 1000;
+/** Throttle narrative opacity updates to avoid desktop lag (rAF every frame = 60+ re-renders). */
+const NARRATIVE_TICK_MS = 50;
 
 function smoothstep(a: number, b: number, x: number): number {
   if (b === a || !Number.isFinite(a) || !Number.isFinite(b)) return Number.isFinite(x) && x >= b ? 1 : 0;
@@ -232,22 +234,33 @@ export default function CinematicHeroScroll({
     return () => clearTimeout(t);
   }, [videoFirstRunEnded, isMobile, mobilePostVideoGlbReady]);
 
-  /** Narrative (headline, CTA, arrow) fades in after delay then over NARRATIVE_REVEAL_FADE_MS. Run only once per video end so we don't get double fade. */
+  /** Narrative (headline, CTA, arrow) fades in after delay then over NARRATIVE_REVEAL_FADE_MS. Throttled updates to avoid desktop lag. */
   const narrativeRevealDoneRef = useRef(false);
-  if (!videoFirstRunEnded) narrativeRevealDoneRef.current = false;
+  const narrativeRevealStartedRef = useRef(false);
+  const narrativeLastTickRef = useRef(0);
+  if (!videoFirstRunEnded) {
+    narrativeRevealDoneRef.current = false;
+    narrativeRevealStartedRef.current = false;
+  }
   useEffect(() => {
     if (!videoFirstRunEnded || videoFirstRunEndedAtRef.current == null) return;
-    if (narrativeRevealDoneRef.current) return;
+    if (narrativeRevealDoneRef.current || narrativeRevealStartedRef.current) return;
+    narrativeRevealStartedRef.current = true;
     const start = videoFirstRunEndedAtRef.current;
+    narrativeLastTickRef.current = 0;
     let raf = 0;
     const tick = () => {
       const elapsed = performance.now() - start;
       if (elapsed < NARRATIVE_REVEAL_DELAY_MS) {
-        setNarrativeRevealOpacity(0);
+        if (narrativeLastTickRef.current === 0) setNarrativeRevealOpacity(0);
       } else {
         const fadeElapsed = (elapsed - NARRATIVE_REVEAL_DELAY_MS) / 1000;
         const t = Math.min(1, smoothstep(0, NARRATIVE_REVEAL_FADE_MS / 1000, fadeElapsed));
-        setNarrativeRevealOpacity(t);
+        const tickSlot = Math.floor(elapsed / NARRATIVE_TICK_MS);
+        if (tickSlot > narrativeLastTickRef.current || t >= 1) {
+          narrativeLastTickRef.current = tickSlot;
+          setNarrativeRevealOpacity(t);
+        }
         if (t >= 1) {
           narrativeRevealDoneRef.current = true;
           return;
