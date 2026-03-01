@@ -1,5 +1,6 @@
 /**
- * Lightweight 2D physics for floating clouds: friction, drift, boundary bounce, cloud-cloud collision.
+ * Lightweight 2D physics for floating clouds: friction, boundary bounce, cloud-cloud collision.
+ * No wind/drift — clouds just float (bob in place) until dragged.
  */
 
 export interface CloudState {
@@ -29,7 +30,6 @@ export interface NoSpawnRect {
 
 const FRICTION = 0.985;
 const RESTITUTION = 0.75;
-const DRIFT_STRENGTH = 0.12;
 const COLLISION_ITERATIONS = 3;
 
 function rand(min: number, max: number): number {
@@ -66,8 +66,8 @@ export function createClouds(
       id: i,
       x,
       y,
-      vx: rand(-0.8, 0.8),
-      vy: rand(-0.5, 0.5),
+      vx: 0,
+      vy: 0,
       radius,
       sizePx,
       rotation: rand(-6, 6) * (Math.PI / 180),
@@ -82,18 +82,11 @@ export function stepClouds(
   clouds: CloudState[],
   viewport: Viewport,
   dt: number,
-  options: { drift?: boolean; windScale?: number } = {}
+  _options?: { drift?: boolean; windScale?: number }
 ): void {
-  const drift = options.drift !== false;
-  const windScale = options.windScale ?? 1;
-
   for (const c of clouds) {
     c.vx *= FRICTION;
     c.vy *= FRICTION;
-    if (drift) {
-      c.vx += DRIFT_STRENGTH * windScale * 0.02;
-      c.vy += (Math.sin(c.floatPhase + dt * 0.001) * 0.01) * windScale;
-    }
     c.x += c.vx * dt;
     c.y += c.vy * dt;
   }
