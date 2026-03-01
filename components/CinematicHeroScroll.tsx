@@ -143,6 +143,10 @@ export default function CinematicHeroScroll({
   const [glbRemountKey, setGlbRemountKey] = useState(0);
   /** On mobile, defer GLB mount so hero shell (starfield, content) paints first after return from clouds — avoids slow/frozen feel. */
   const [glbDeferredReady, setGlbDeferredReady] = useState(false);
+  /** True when video has entered the last second of its first run; gates first headline + arrow reveal. */
+  const [videoRevealDone, setVideoRevealDone] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRevealFiredRef = useRef(false);
 
   /** When locale changes (e.g. EN/VN switch), reset skip-GLB ref so GLBs show again after language change or refresh. */
   useEffect(() => {
@@ -164,6 +168,13 @@ export default function CinematicHeroScroll({
   useEffect(() => {
     preloadHeroIslandGLB();
   }, []);
+
+  /** Fallback: if video never loads (e.g. missing file), reveal headline + arrow after 4s so content still appears. */
+  useEffect(() => {
+    if (videoRevealDone) return;
+    const t = setTimeout(() => setVideoRevealDone(true), 4000);
+    return () => clearTimeout(t);
+  }, [videoRevealDone]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -409,12 +420,19 @@ export default function CinematicHeroScroll({
   const narrativeOpacityFinal = loadComplete ? narrativeStackOpacity : loadHeadlineOpacity;
   /** On mobile, zero vertical translate so layout stays fixed; only opacity animates (no jump/collision). */
   const narrativeTranslateYFinal = loadComplete ? (isMobile ? 0 : narrativeTranslateY) : loadHeadlineY;
-  const headlineOpacitiesFinal = loadComplete ? headlineOpacities : [1, 0, 0, 0];
+  /** First headline + arrow reveal only in last second of first video run (videoRevealDone); others still use loadComplete. */
+  const headlineOpacitiesFinal = [
+    videoRevealDone ? (loadComplete ? (headlineOpacities[0] ?? 0) : 1) : 0,
+    loadComplete ? (headlineOpacities[1] ?? 0) : 0,
+    loadComplete ? (headlineOpacities[2] ?? 0) : 0,
+    loadComplete ? (headlineOpacities[3] ?? 0) : 0,
+  ];
   const headlineTranslateYsFinal = loadComplete ? (isMobile ? [0, 0, 0, 0] : headlineTranslateYs) : [loadHeadlineY, 0, 0, 0];
   const ctaOpacityFinal = loadComplete ? 1 : loadCTAOpacity;
   const ctaTranslateYFinal = loadComplete ? 0 : loadCTAY;
-  const scrollArrowOpacity =
-    loadComplete ? (p <= 0.05 ? 1 : 1 - smoothstep(0.05, 0.18, p)) : loadArrowOpacity;
+  const scrollArrowOpacity = videoRevealDone
+    ? (loadComplete ? (p <= 0.05 ? 1 : 1 - smoothstep(0.05, 0.18, p)) : 1)
+    : 0;
 
   return (
     <div
@@ -445,13 +463,14 @@ export default function CinematicHeroScroll({
               className="absolute inset-0 w-full h-full"
               style={{
                 zIndex: 0,
-                opacity: mascotOpacityFinal * 0.7,
+                opacity: mascotOpacityFinal * 0.85,
                 transition: "opacity 500ms ease-out, transform 500ms ease-out",
                 transform: `translateY(${mascotTranslateYFinal}px)`,
               }}
               aria-hidden
             >
               <video
+                ref={videoRef}
                 autoPlay
                 muted
                 loop
@@ -467,6 +486,24 @@ export default function CinematicHeroScroll({
                   objectFit: "cover",
                   objectPosition: isMobile ? "center center" : "center center",
                 }}
+                onTimeUpdate={() => {
+                  if (videoRevealFiredRef.current) return;
+                  const el = videoRef.current;
+                  if (!el || !Number.isFinite(el.duration) || el.duration <= 0) return;
+                  if (el.currentTime >= el.duration - 1) {
+                    videoRevealFiredRef.current = true;
+                    setVideoRevealDone(true);
+                  }
+                }}
+                onLoadedMetadata={() => {
+                  if (videoRevealFiredRef.current) return;
+                  const el = videoRef.current;
+                  if (!el || !Number.isFinite(el.duration)) return;
+                  if (el.duration <= 1 || el.currentTime >= el.duration - 1) {
+                    videoRevealFiredRef.current = true;
+                    setVideoRevealDone(true);
+                  }
+                }}
                 aria-hidden
               >
                 {/* Place video-1-trial.mp4 in public/ (e.g. copy from downloads/leo may ip folder); keep under 3–5MB, optimized mp4 for performance. */}
@@ -477,7 +514,7 @@ export default function CinematicHeroScroll({
               className="absolute inset-0 w-full h-full pointer-events-none"
               style={{
                 zIndex: 1,
-                background: "linear-gradient(to bottom, rgba(255,255,255,0.6), rgba(255,255,255,0.8))",
+                background: "linear-gradient(to bottom, rgba(255,255,255,0.25), rgba(255,255,255,0.45))",
                 opacity: mascotOpacityFinal,
                 transition: "opacity 500ms ease-out",
               }}
@@ -572,6 +609,7 @@ export default function CinematicHeroScroll({
                         transform: `translate(-50%, ${headlineTranslateYsFinal[i] ?? 0}px)`,
                         opacity: headlineOpacitiesFinal[i] ?? 0,
                         transformOrigin: "center center",
+                        transition: "opacity 0.6s ease-out",
                       }}
                       aria-hidden={(headlineOpacitiesFinal[i] ?? 0) < 0.01}
                     >
@@ -690,6 +728,7 @@ export default function CinematicHeroScroll({
                   transform: "translateX(-50%)",
                   opacity: scrollArrowOpacity * 0.88,
                   filter: "drop-shadow(0 0 6px rgba(255,255,255,0.25))",
+                  transition: "opacity 0.6s ease-out",
                 }}
                 aria-hidden
               >
@@ -769,6 +808,7 @@ export default function CinematicHeroScroll({
                         style={{
                           opacity: headlineOpacitiesFinal[i] ?? 0,
                           transform: `translateY(${headlineTranslateYsFinal[i] ?? 0}px)`,
+                          transition: "opacity 0.6s ease-out",
                         }}
                         aria-hidden={(headlineOpacitiesFinal[i] ?? 0) < 0.01}
                       >
@@ -897,6 +937,7 @@ export default function CinematicHeroScroll({
               transform: "translateX(-50%)",
               opacity: scrollArrowOpacity,
               filter: "drop-shadow(0 0 6px rgba(255,255,255,0.25))",
+              transition: "opacity 0.6s ease-out",
             }}
             aria-hidden
           >
