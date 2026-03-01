@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import type { Locale } from "@/lib/i18n";
 import type { MascotPartColors } from "@/lib/mascotSpeciesColors";
 import { preloadHeroIslandGLB } from "@/components/HeroIslandGLB";
+import { preloadHeroClimbingHoldGLB } from "@/components/HeroClimbingHoldCanvas";
 import ClientErrorBoundary from "@/components/ClientErrorBoundary";
 import SafeImg, { isValidImgSrc } from "@/components/SafeImg";
 import { HERO_BG } from "@/lib/heroConstants";
@@ -16,6 +17,10 @@ import { useTransitionOverlay } from "@/context/TransitionOverlayContext";
 
 const HeroIslandCanvas = dynamic(
   () => import("@/components/HeroIslandCanvas").catch(() => ({ default: () => null })),
+  { ssr: false }
+);
+const HeroClimbingHoldCanvas = dynamic(
+  () => import("@/components/HeroClimbingHoldCanvas").catch(() => ({ default: () => null })),
   { ssr: false }
 );
 const HeroStarfield = dynamic(
@@ -149,7 +154,6 @@ export default function CinematicHeroScroll({
   const [videoFirstRunEnded, setVideoFirstRunEnded] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoRevealFiredRef = useRef(false);
-  const videoSlowMoSetRef = useRef(false);
 
   /** When locale changes (e.g. EN/VN switch), reset skip-GLB ref so GLBs show again after language change or refresh. */
   useEffect(() => {
@@ -170,6 +174,7 @@ export default function CinematicHeroScroll({
 
   useEffect(() => {
     preloadHeroIslandGLB();
+    preloadHeroClimbingHoldGLB();
   }, []);
 
   /** Fallback: only if video never loads (e.g. missing file); 15s so a ~5s video always triggers reveal from playback first. */
@@ -473,9 +478,7 @@ export default function CinematicHeroScroll({
                 zIndex: 0,
                 opacity: videoFirstRunEnded ? 0 : mascotOpacityFinal * 0.85,
                 transition: "opacity 800ms ease-out, transform 500ms ease-out",
-                transform: isMobile
-                  ? `translateY(${mascotTranslateYFinal}px) scale(0.65)`
-                  : `translateY(${mascotTranslateYFinal}px)`,
+                transform: `translateY(${mascotTranslateYFinal}px)`,
                 transformOrigin: "center center",
                 background: HERO_BG,
                 WebkitMaskImage: "radial-gradient(ellipse 88% 88% at 50% 50%, black 72%, transparent 100%)",
@@ -489,14 +492,14 @@ export default function CinematicHeroScroll({
                 muted
                 playsInline
                 preload="auto"
-                className="w-full h-full object-cover"
+                className="w-full h-full"
                 style={{
                   position: "absolute",
                   top: 0,
                   left: 0,
                   width: "100%",
                   height: "100%",
-                  objectFit: "cover",
+                  objectFit: isMobile ? "contain" : "cover",
                   objectPosition: "center center",
                   transform: isMobile ? undefined : "scale(0.9)",
                   transformOrigin: "center center",
@@ -504,13 +507,17 @@ export default function CinematicHeroScroll({
                 onTimeUpdate={() => {
                   const el = videoRef.current;
                   if (!el || !Number.isFinite(el.duration) || el.duration <= 0) return;
-                  if (!videoRevealFiredRef.current && el.currentTime >= el.duration - 1) {
+                  const dur = el.duration;
+                  const t = el.currentTime;
+                  if (!videoRevealFiredRef.current && t >= dur - 1) {
                     videoRevealFiredRef.current = true;
                     setVideoRevealDone(true);
                   }
-                  if (!videoSlowMoSetRef.current && el.currentTime >= el.duration - 1) {
-                    videoSlowMoSetRef.current = true;
-                    el.playbackRate = 0.5;
+                  if (dur >= 1.5 && t >= dur - 1.5) {
+                    const seg = (t - (dur - 1.5)) / 1.5;
+                    const u = Math.max(0, Math.min(1, seg));
+                    const easeOut = 1 - (1 - u) ** 2;
+                    el.playbackRate = 1 - 0.42 * easeOut;
                   }
                 }}
                 onLoadedMetadata={() => {
@@ -542,6 +549,32 @@ export default function CinematicHeroScroll({
               aria-hidden
             />
           </>
+        )}
+
+        {/* Climbing-hold GLB: mounted from start (hidden) so it's ready; fades in when video ends, same layout as before. */}
+        {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (glbDeferredReady || !isMobile) && (
+          <ClientErrorBoundary fallback={null}>
+            <div
+              key={glbRemountKey}
+              className="absolute inset-0 z-10 flex items-center justify-center"
+              style={{
+                width: "100vw",
+                height: "100dvh",
+                opacity: videoFirstRunEnded ? mascotOpacityFinal : 0,
+                transform: `translateY(${mascotTranslateYFinal}px)`,
+                transition: "opacity 800ms ease-out, transform 500ms ease-out",
+              }}
+              aria-hidden
+            >
+              <HeroClimbingHoldCanvas
+                opacity={1}
+                isMobile={isMobile}
+                allowRotation={heroProgress < 0.18}
+                className="w-full h-full"
+                style={{ minHeight: "unset", maxHeight: "none" }}
+              />
+            </div>
+          </ClientErrorBoundary>
         )}
 
         {/* Content area: above video + overlay (z-2); padding for header/safe-area and breathing room */}
