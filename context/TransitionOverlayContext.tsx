@@ -92,6 +92,16 @@ export function TransitionOverlayProvider({ children }: { children: ReactNode })
     }
   }, [phase, pathname, targetPathname]);
 
+  /** Reset overlay when current path no longer matches target (e.g. browser back, bfcache restore).
+   * Fixes mobile black screen when returning to hero: overlay and hero opacity were stuck. */
+  useEffect(() => {
+    if (phase === "idle" || !targetPathname) return;
+    if (pathname === targetPathname) return;
+    pendingNavRef.current = null;
+    setTargetPathname(null);
+    setPhase("idle");
+  }, [pathname, phase, targetPathname]);
+
   const onExpandComplete = useCallback(() => {
     setTargetPathname(null);
     setPhase("idle");
