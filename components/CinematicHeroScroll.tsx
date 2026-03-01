@@ -6,7 +6,6 @@ import { motion } from "framer-motion";
 import type { Locale } from "@/lib/i18n";
 import type { MascotPartColors } from "@/lib/mascotSpeciesColors";
 import { preloadHeroIslandGLB } from "@/components/HeroIslandGLB";
-import { preloadHeroClimbingHoldGLB } from "@/components/HeroClimbingHoldCanvas";
 import ClientErrorBoundary from "@/components/ClientErrorBoundary";
 import SafeImg, { isValidImgSrc } from "@/components/SafeImg";
 import { HERO_BG } from "@/lib/heroConstants";
@@ -17,10 +16,6 @@ import { useTransitionOverlay } from "@/context/TransitionOverlayContext";
 
 const HeroIslandCanvas = dynamic(
   () => import("@/components/HeroIslandCanvas").catch(() => ({ default: () => null })),
-  { ssr: false }
-);
-const HeroClimbingHoldCanvas = dynamic(
-  () => import("@/components/HeroClimbingHoldCanvas").catch(() => ({ default: () => null })),
   { ssr: false }
 );
 const HeroStarfield = dynamic(
@@ -168,7 +163,6 @@ export default function CinematicHeroScroll({
 
   useEffect(() => {
     preloadHeroIslandGLB();
-    preloadHeroClimbingHoldGLB();
   }, []);
 
   useEffect(() => {
@@ -444,35 +438,57 @@ export default function CinematicHeroScroll({
           </ClientErrorBoundary>
         )}
 
-        {/* Full-viewport climbing-hold GLB layer; on mobile defer so hero paints first after return. key forces remount when returning from background so WebGL is recreated. */}
+        {/* Looping background video (replaces climbing-hold GLB); same fade in/out as GLB: load sequence then scroll 0.14→0.28. Mobile: same defer as GLB so timing matches. */}
         {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (glbDeferredReady || !isMobile) && (
-          <ClientErrorBoundary fallback={null}>
+          <>
             <div
-              key={glbRemountKey}
-              className="absolute inset-0 z-10 flex items-center justify-center"
+              className="absolute inset-0 w-full h-full"
               style={{
-                width: "100vw",
-                height: "100dvh",
-                opacity: mascotOpacityFinal,
+                zIndex: 0,
+                opacity: mascotOpacityFinal * 0.7,
+                transition: "opacity 500ms ease-out, transform 500ms ease-out",
                 transform: `translateY(${mascotTranslateYFinal}px)`,
-                transition: "opacity 500ms ease-out",
               }}
               aria-hidden
             >
-              <HeroClimbingHoldCanvas
-                opacity={1}
-                isMobile={isMobile}
-                allowRotation={heroProgress < 0.18}
-                className="w-full h-full"
-                style={{ minHeight: "unset", maxHeight: "none" }}
-              />
+              <video
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="auto"
+                className="w-full h-full object-cover"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  objectPosition: isMobile ? "center center" : "center center",
+                }}
+                aria-hidden
+              >
+                {/* Place video-1-trial.mp4 in public/ (e.g. copy from downloads/leo may ip folder); keep under 3–5MB, optimized mp4 for performance. */}
+                <source src="/video-1-trial.mp4" type="video/mp4" />
+              </video>
             </div>
-          </ClientErrorBoundary>
+            <div
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              style={{
+                zIndex: 1,
+                background: "linear-gradient(to bottom, rgba(255,255,255,0.6), rgba(255,255,255,0.8))",
+                opacity: mascotOpacityFinal,
+                transition: "opacity 500ms ease-out",
+              }}
+              aria-hidden
+            />
+          </>
         )}
 
-        {/* Content area: overlays above GLB (z-20); padding for header/safe-area and breathing room */}
+        {/* Content area: above video + overlay (z-2); padding for header/safe-area and breathing room */}
         <div
-          className="flex-1 min-h-0 relative flex flex-col items-center justify-center z-20"
+          className="flex-1 min-h-0 relative flex flex-col items-center justify-center z-[2]"
           style={{
             paddingTop: `calc(${headerHeight}px + env(safe-area-inset-top, 0px))${isMobile ? " + 1.5rem" : ""}`,
             paddingBottom: isMobile ? "2rem" : undefined,
