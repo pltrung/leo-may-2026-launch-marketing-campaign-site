@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import LoadingScreen from "@/components/LoadingScreen";
+import GlobalImgSafeguard from "@/components/GlobalImgSafeguard";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
@@ -36,6 +37,7 @@ export default function RootLayout({
         <link rel="preload" href="/brand/cloud-copyright.svg" as="image" />
       </head>
       <body className="min-h-[100dvh] antialiased overflow-x-hidden">
+        <GlobalImgSafeguard />
         <LoadingScreen />
         {children}
         <Script id="loading-controller" strategy="afterInteractive">

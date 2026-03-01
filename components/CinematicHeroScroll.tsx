@@ -8,6 +8,7 @@ import type { MascotPartColors } from "@/lib/mascotSpeciesColors";
 import { preloadHeroIslandGLB } from "@/components/HeroIslandGLB";
 import { preloadHeroClimbingHoldGLB } from "@/components/HeroClimbingHoldCanvas";
 import ClientErrorBoundary from "@/components/ClientErrorBoundary";
+import SafeImg, { isValidImgSrc } from "@/components/SafeImg";
 import { HERO_BG } from "@/lib/heroConstants";
 import { getMessages } from "@/lib/messages";
 import AscentBar from "@/components/AscentBar";
@@ -138,10 +139,12 @@ export default function CinematicHeroScroll({
   const loadStartRef = useRef<number | null>(null);
   const entranceStartedRef = useRef(false);
   const [desktopFinalCameraZ, setDesktopFinalCameraZ] = useState(6);
-  /** When tab is hidden (app switch), canvases lose WebGL/context; unmount them and remount on visible to avoid broken screen on return. */
+  /** When tab is hidden (app switch), canvases lose WebGL/context; remount on visible so GLBs show again with fresh context. */
   const [tabVisible, setTabVisible] = useState(true);
-  /** On mobile, after tab has been hidden once, do not remount GLB (climbing hold + island) to avoid client error and lag from heavy WebGL re-init. */
+  /** On mobile, after tab has been hidden once we skip GLB until visible again; then we remount (glbRemountKey) so WebGL is recreated and GLBs render. */
   const mobileSkipGlbAfterHiddenRef = useRef(false);
+  /** Increment when returning from background on mobile so climbing-hold and island canvases remount and get a fresh WebGL context. */
+  const [glbRemountKey, setGlbRemountKey] = useState(0);
   /** On mobile, defer GLB mount so hero shell (starfield, content) paints first after return from clouds — avoids slow/frozen feel. */
   const [glbDeferredReady, setGlbDeferredReady] = useState(false);
 
@@ -170,14 +173,15 @@ export default function CinematicHeroScroll({
     const onVis = () => {
       try {
         const visible = document.visibilityState !== "hidden";
+        const mobile = typeof window !== "undefined" && window.innerWidth <= 768;
         // Only skip GLB when tab actually went hidden (e.g. app switch), not during route transition (TV off to clouds).
-        if (
-          !visible &&
-          typeof window !== "undefined" &&
-          window.innerWidth <= 768 &&
-          overlayPhaseRef.current === "idle"
-        ) {
+        if (!visible && mobile && overlayPhaseRef.current === "idle") {
           mobileSkipGlbAfterHiddenRef.current = true;
+        }
+        // When returning from background on mobile, allow GLBs again and remount so WebGL context is recreated (fixes GLB disappearing after app switch).
+        if (visible && mobile && mobileSkipGlbAfterHiddenRef.current) {
+          mobileSkipGlbAfterHiddenRef.current = false;
+          setGlbRemountKey((k) => k + 1);
         }
         setTabVisible(visible);
       } catch {
@@ -429,10 +433,11 @@ export default function CinematicHeroScroll({
           </ClientErrorBoundary>
         )}
 
-        {/* Full-viewport climbing-hold GLB layer; on mobile defer so hero paints first after return. */}
+        {/* Full-viewport climbing-hold GLB layer; on mobile defer so hero paints first after return. key forces remount when returning from background so WebGL is recreated. */}
         {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (glbDeferredReady || !isMobile) && (
           <ClientErrorBoundary fallback={null}>
             <div
+              key={glbRemountKey}
               className="absolute inset-0 z-10 flex items-center justify-center"
               style={{
                 width: "100vw",
@@ -485,6 +490,7 @@ export default function CinematicHeroScroll({
           {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (glbDeferredReady || !isMobile) && (
             <ClientErrorBoundary fallback={null}>
               <div
+                key={glbRemountKey}
                 className="absolute inset-0 pointer-events-none"
                 style={{ zIndex: zoomT > 0.05 ? 25 : 5 }}
               >
@@ -617,16 +623,13 @@ export default function CinematicHeroScroll({
                 aria-hidden
               >
                 <div className="hero-scroll-arrow-drift">
-                  {HERO_SCROLL_ARROW_SRC ? (
-                    <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={HERO_SCROLL_ARROW_SRC}
-                        alt=""
-                        className="w-7 h-7 object-contain"
-                        style={{ transform: "rotate(180deg)" }}
-                      />
-                    </>
+                  {isValidImgSrc(HERO_SCROLL_ARROW_SRC) ? (
+                    <SafeImg
+                      src={HERO_SCROLL_ARROW_SRC}
+                      alt=""
+                      className="w-7 h-7 object-contain"
+                      style={{ transform: "rotate(180deg)" }}
+                    />
                   ) : null}
                 </div>
               </div>
@@ -780,16 +783,13 @@ export default function CinematicHeroScroll({
             aria-hidden
           >
             <div className="hero-scroll-arrow-drift">
-              {HERO_SCROLL_ARROW_SRC ? (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={HERO_SCROLL_ARROW_SRC}
-                    alt=""
-                    className="w-11 h-11 sm:w-14 sm:h-14 object-contain"
-                    style={{ transform: "rotate(180deg)" }}
-                  />
-                </>
+              {isValidImgSrc(HERO_SCROLL_ARROW_SRC) ? (
+                <SafeImg
+                  src={HERO_SCROLL_ARROW_SRC}
+                  alt=""
+                  className="w-11 h-11 sm:w-14 sm:h-14 object-contain"
+                  style={{ transform: "rotate(180deg)" }}
+                />
               ) : null}
             </div>
           </div>

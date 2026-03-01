@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocale } from "./LocaleProvider";
+import SafeImg, { isValidImgSrc } from "./SafeImg";
 
 const LOGO_SRC = "/logo-white.svg";
 
@@ -42,12 +43,9 @@ export default function Logo({ className = "h-8 w-auto object-contain", onNaviga
         className={linkClass}
         aria-label="Leo Mây — go to home"
       >
-        {LOGO_SRC ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={LOGO_SRC} alt="Leo Mây" className={className} />
-          </>
-        ) : null}
+      {isValidImgSrc(LOGO_SRC) ? (
+        <SafeImg src={LOGO_SRC} alt="Leo Mây" className={className} />
+      ) : null}
       </button>
     );
   }
@@ -59,11 +57,8 @@ export default function Logo({ className = "h-8 w-auto object-contain", onNaviga
       className={linkClass}
       aria-label="Leo Mây — go to home"
     >
-      {LOGO_SRC ? (
-        <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={LOGO_SRC} alt="Leo Mây" className={className} />
-        </>
+      {isValidImgSrc(LOGO_SRC) ? (
+        <SafeImg src={LOGO_SRC} alt="Leo Mây" className={className} />
       ) : null}
     </Link>
   );

@@ -2,7 +2,10 @@
 
 import { useEffect } from "react";
 import { motion } from "framer-motion";
+import SafeImg, { isValidImgSrc } from "@/components/SafeImg";
 import { HERO_BG } from "@/lib/heroConstants";
+
+const HOLDS_SRC = "/brand/holds.svg";
 
 interface HoldsRevealTransitionProps {
   onComplete?: () => void;
@@ -44,13 +47,14 @@ export default function HoldsRevealTransition({
         }}
         aria-hidden
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/brand/holds.svg"
-          alt=""
-          className="w-full h-full object-cover"
-          style={{ objectFit: "cover" }}
-        />
+        {isValidImgSrc(HOLDS_SRC) ? (
+          <SafeImg
+            src={HOLDS_SRC}
+            alt=""
+            className="w-full h-full object-cover"
+            style={{ objectFit: "cover" }}
+          />
+        ) : null}
       </motion.div>
     </div>
   );
