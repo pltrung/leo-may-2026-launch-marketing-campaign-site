@@ -263,15 +263,15 @@ function useSlotStyleFromTransition(
   return { transform, opacity, filter, zIndex, boxShadow };
 }
 
-/** Staggered depth-based entry: back → middle → front (front settles last) */
+/** Staggered depth-based entry: back → middle → front (2x slower fade-in) */
 function getEntryConfig(offset: number) {
   if (offset === 2 || offset === -1) {
-    return { delay: 0, duration: 0.9, from: { opacity: 0, y: 20, scale: 0.94 }, to: { opacity: 1, y: 24, scale: 0.94 } };
+    return { delay: 0, duration: 1.8, from: { opacity: 0, y: 20, scale: 0.94 }, to: { opacity: 1, y: 24, scale: 0.94 } };
   }
   if (offset === 1) {
-    return { delay: 0.12, duration: 0.9, from: { opacity: 0, y: 16, scale: 0.97 }, to: { opacity: 1, y: 12, scale: 0.97 } };
+    return { delay: 0.24, duration: 1.8, from: { opacity: 0, y: 16, scale: 0.97 }, to: { opacity: 1, y: 12, scale: 0.97 } };
   }
-  return { delay: 0.24, duration: 1, from: { opacity: 0, y: 12, scale: 0.96 }, to: { opacity: 1, y: 0, scale: 1 } };
+  return { delay: 0.48, duration: 2, from: { opacity: 0, y: 12, scale: 0.96 }, to: { opacity: 1, y: 0, scale: 1 } };
 }
 
 /** Randomize: chaos → deceleration → lock-in (all via stackPosition keyframes) */

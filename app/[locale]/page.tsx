@@ -119,7 +119,7 @@ function HomeContent() {
     return () => document.documentElement.classList.remove("cloud-selection-view");
   }, [showClouds]);
 
-  /** Clouds entrance sequence after TV turn-on: dark (0ms) → holds (350ms) → content (350+500+280ms). */
+  /** Clouds entrance sequence after TV turn-on: dark → holds → content (2x slower: 700ms → holds, 2260ms → content). */
   useEffect(() => {
     if (!showClouds) {
       setCloudsEntranceStep("background");
@@ -138,8 +138,8 @@ function HomeContent() {
     if (prev === "expanding") {
       setCloudsEntranceStep("background");
       cloudsEntranceTimersRef.current.forEach(clearTimeout);
-      const t1 = setTimeout(() => setCloudsEntranceStep("holds"), 350);
-      const t2 = setTimeout(() => setCloudsEntranceStep("content"), 350 + 500 + 280);
+      const t1 = setTimeout(() => setCloudsEntranceStep("holds"), 700);
+      const t2 = setTimeout(() => setCloudsEntranceStep("content"), 700 + 1000 + 560);
       cloudsEntranceTimersRef.current = [t1, t2];
       return () => cloudsEntranceTimersRef.current.forEach(clearTimeout);
     }

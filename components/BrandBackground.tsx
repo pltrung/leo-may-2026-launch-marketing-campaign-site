@@ -25,7 +25,7 @@ export default function BrandBackground({
       initial={false}
       animate={{ opacity: holdsOpacity }}
       transition={{
-        duration: isCloudsEntrance && cloudsEntranceStep === "holds" ? 0.5 : 0.35,
+        duration: isCloudsEntrance && cloudsEntranceStep === "holds" ? 1 : 0.7,
         ease: [0.22, 1, 0.36, 1],
       }}
     >

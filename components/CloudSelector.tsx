@@ -10,8 +10,8 @@ import Logo from "./Logo";
 import { useLocale } from "./LocaleProvider";
 import { getMessages } from "@/lib/messages";
 
-const RANDOMIZE_BUTTON_DELAY_MS = 1240 + 250;
-const RANDOMIZE_FADE_DURATION_MS = 900;
+const RANDOMIZE_BUTTON_DELAY_MS = (1240 + 250) * 2;
+const RANDOMIZE_FADE_DURATION_MS = 900 * 2;
 const BUTTON_EASE = [0.22, 1, 0.36, 1] as const;
 
 interface CloudSelectorProps {
@@ -47,12 +47,12 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
       id="clouds"
       className={`cloud-selection-screen relative w-full h-[100dvh] md:min-h-[100dvh] md:h-auto flex flex-col items-center overflow-x-hidden overflow-y-hidden md:overflow-y-auto lg:h-screen lg:overflow-hidden px-4 pb-4 pt-[88px] md:pb-16 md:pt-24 lg:pt-20 lg:pb-8 sm:px-6 ${detailsOpen ? "card-selected" : ""}`}
     >
-      {/* Logo: top-left — fades in 400–900ms */}
+      {/* Logo: top-left — fades in (2x slower) */}
       <motion.div
         className="fixed top-0 left-0 p-4 z-30 md:pl-10 md:pt-8"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ delay: 0.8, duration: 1, ease: [0.22, 1, 0.36, 1] }}
       >
         <Logo
           className="w-[110px] md:w-[140px] max-w-[110px] md:max-w-none h-auto object-contain object-left"
@@ -60,14 +60,14 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
         />
       </motion.div>
 
-      {/* Header: on mobile 80ms (after cards); on desktop 700ms. Desktop: reduced spacing. */}
+      {/* Header: on mobile 160ms (after cards); on desktop 1.4s (2x slower). */}
       <motion.div
         className="cloud-selection-header relative flex flex-col items-center w-full max-w-2xl mx-auto mt-2 md:mt-0 md:mb-8 lg:mb-2 lg:flex-shrink-0 z-10 transition-opacity duration-400"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{
-          delay: isMobile ? 0.08 : 0.7,
-          duration: 0.7,
+          delay: isMobile ? 0.16 : 1.4,
+          duration: 1.4,
           ease: [0.22, 1, 0.36, 1],
         }}
       >
@@ -129,12 +129,12 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
             {randomizeButton}
           </motion.button>
         </motion.div>
-        {/* Mobile: Return below Randomize */}
+        {/* Mobile: Return below Randomize (2x slower) */}
         <motion.div
           className="lg:hidden flex-shrink-0 mt-4 mb-2"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.3, duration: 0.4, ease: BUTTON_EASE }}
+          transition={{ delay: 0.6, duration: 0.8, ease: BUTTON_EASE }}
         >
           <button
             type="button"
@@ -160,8 +160,8 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
-                delay: 0.9 + index * 0.1,
-                duration: 0.6,
+                delay: 1.8 + index * 0.2,
+                duration: 1.2,
                 ease: [0.22, 1, 0.36, 1],
               }}
             >
@@ -171,12 +171,12 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
         </div>
       </div>
 
-      {/* Return to hero: right above footer, desktop only (mobile Return is inside lg:hidden block above) */}
+      {/* Return to hero: right above footer, desktop only (2x slower) */}
       <motion.div
         className="hidden lg:flex flex-shrink-0 justify-center pt-4 pb-6"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 1.2, duration: 0.4, ease: BUTTON_EASE }}
+        transition={{ delay: 2.4, duration: 0.8, ease: BUTTON_EASE }}
       >
         <button
           type="button"
