@@ -152,6 +152,8 @@ export default function CinematicHeroScroll({
   const [videoRevealDone, setVideoRevealDone] = useState(false);
   /** True when video has finished its first run; we fade out the video layer (no replay). */
   const [videoFirstRunEnded, setVideoFirstRunEnded] = useState(false);
+  /** On mobile, delay mounting climbing-hold GLB until after video has released GPU; avoids WebGL context failure. */
+  const [mobilePostVideoGlbReady, setMobilePostVideoGlbReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoRevealFiredRef = useRef(false);
 
@@ -183,6 +185,13 @@ export default function CinematicHeroScroll({
     const t = setTimeout(() => setVideoRevealDone(true), 15000);
     return () => clearTimeout(t);
   }, [videoRevealDone]);
+
+  /** On mobile, defer climbing-hold GLB mount until ~400ms after video ends so GPU can release video decoder before WebGL context. */
+  useEffect(() => {
+    if (!videoFirstRunEnded || !isMobile) return;
+    const t = setTimeout(() => setMobilePostVideoGlbReady(true), 400);
+    return () => clearTimeout(t);
+  }, [videoFirstRunEnded, isMobile]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -422,6 +431,8 @@ export default function CinematicHeroScroll({
   const loadCTAY = 16 * (1 - smoothstep(0.65, 0.95, loadT));
   const loadArrowOpacity = smoothstep(0.85, 1.15, loadT);
   const loadFooterOpacity = smoothstep(1.0, 1.35, loadT);
+  /** Darken overlay fades in with video start (same load window as video/mascot) so the rectangle video feels soft from the beginning; same on mobile and desktop. */
+  const heroDarkenOpacity = smoothstep(0.1, 0.6, loadT);
 
   const mascotOpacityFinal = loadComplete ? mascotOpacity : loadMascotOpacity;
   const mascotTranslateYFinal = loadComplete ? mascotTranslateY : loadMascotY;
@@ -551,11 +562,11 @@ export default function CinematicHeroScroll({
           </>
         )}
 
-        {/* Climbing-hold GLB: mounted from start (hidden) so it's ready; fades in when video ends, same layout as before. */}
-        {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (glbDeferredReady || !isMobile) && (
+        {/* Climbing-hold GLB: on desktop mounted from start (hidden); on mobile mount only after video ends + delay to avoid WebGL conflict. Fades in when video ends. */}
+        {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (glbDeferredReady || !isMobile) && (!isMobile || mobilePostVideoGlbReady) && (
           <ClientErrorBoundary fallback={null}>
             <div
-              key={glbRemountKey}
+              key={isMobile ? `post-video-${glbRemountKey}` : glbRemountKey}
               className="absolute inset-0 z-10 flex items-center justify-center"
               style={{
                 width: "100vw",
@@ -589,7 +600,7 @@ export default function CinematicHeroScroll({
             className="absolute inset-0 pointer-events-none"
             style={{
               background: `radial-gradient(ellipse 80% 70% at 50% 50%, rgba(18,18,24,0.5) 0%, ${HERO_BG} 70%)`,
-              opacity: videoRevealDone ? 1 : 0,
+              opacity: heroDarkenOpacity,
               transition: "opacity 0.6s ease-out",
             }}
           />
@@ -597,7 +608,7 @@ export default function CinematicHeroScroll({
             className="absolute inset-0 pointer-events-none"
             style={{
               boxShadow: isMobile ? "inset 0 0 15vh 8vh rgba(0,0,0,0.3)" : "inset 0 0 20vh 10vh rgba(0,0,0,0.25)",
-              opacity: videoRevealDone ? 1 : 0,
+              opacity: heroDarkenOpacity,
               transition: "opacity 0.6s ease-out",
             }}
           />
