@@ -36,6 +36,7 @@ const USE_CINEMATIC_HERO = true;
 const HERO_WRAPPER_VH = 430;
 const HERO_HEADER_PX = 64;
 const HERO_FOOTER_PX = 56;
+const DESKTOP_BREAKPOINT_PX = 768;
 
 function HomeContent() {
   const router = useRouter();
@@ -56,15 +57,25 @@ function HomeContent() {
   const prevOverlayPhaseRef = useRef<typeof overlayPhase>("idle");
   const cloudsEntranceTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  /** Increment when returning from clouds so hero gets a fresh mount and GLB re-inits (fixes mobile GLB not showing after Return). */
+  /** On desktop we keep hero mounted when on clouds (hidden) so GLB is instant on return; on mobile we remount (fixes GLB not showing after Return). */
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const check = () => setIsDesktop(typeof window !== "undefined" && window.innerWidth > DESKTOP_BREAKPOINT_PX);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  /** Increment when returning from clouds so hero gets a fresh mount and GLB re-inits (mobile only; desktop keeps hero mounted). */
   const [heroMountKey, setHeroMountKey] = useState(0);
   const prevShowCloudsRef = useRef(showClouds);
   useEffect(() => {
+    if (isDesktop) return;
     if (prevShowCloudsRef.current === true && showClouds === false) {
       setHeroMountKey((k) => k + 1);
     }
     prevShowCloudsRef.current = showClouds;
-  }, [showClouds]);
+  }, [showClouds, isDesktop]);
 
   /** Hero → Pick Your Cloud: global overlay collapses, then replace URL; overlay expands after new view is ready. */
   const handleAscendClick = useCallback(() => {
@@ -257,57 +268,111 @@ function HomeContent() {
         </motion.div>
       )}
 
-      <AnimatePresence mode="wait">
-        {!showClouds ? (
-          USE_CINEMATIC_HERO ? (
-            <div key={`cinematic-hero-${heroMountKey}`} className="relative z-0" style={{ opacity: heroContentOpacity }}>
-              <ClientErrorBoundary fallback={(retry) => <HeroFallback onRetry={retry} />}>
-                <CinematicHeroScroll
-                  partColors={heroMascotPartColors}
-                  onJoin={handleAscendClick}
-                  locale={locale}
-                  headerHeight={HERO_HEADER_PX}
-                  footerHeight={HERO_FOOTER_PX}
-                  wrapperVh={HERO_WRAPPER_VH}
-                  footerMessages={footerMessages}
-                  heroReady={heroReady}
-                  onCenterLogoGone={handleCenterLogoGone}
-                  aboutUsLabel={aboutUsLabel}
-                  onAboutUsClick={() => setAboutOpen(true)}
-                />
-              </ClientErrorBoundary>
-            </div>
+      {/* Desktop + cinematic: keep hero mounted when on clouds (hidden) so GLB stays in GPU — return from Pick my clouds is instant. Mobile: unmount/remount so GLB shows correctly after return. */}
+      {USE_CINEMATIC_HERO && isDesktop ? (
+        <>
+          <div
+            className="relative z-0"
+            style={{
+              opacity: heroContentOpacity,
+              visibility: showClouds ? "hidden" : "visible",
+              position: showClouds ? "absolute" : "relative",
+              inset: showClouds ? 0 : undefined,
+              pointerEvents: showClouds ? "none" : "auto",
+              zIndex: showClouds ? -1 : 0,
+            }}
+            aria-hidden={showClouds}
+          >
+            <ClientErrorBoundary fallback={(retry) => <HeroFallback onRetry={retry} />}>
+              <CinematicHeroScroll
+                partColors={heroMascotPartColors}
+                onJoin={handleAscendClick}
+                locale={locale}
+                headerHeight={HERO_HEADER_PX}
+                footerHeight={HERO_FOOTER_PX}
+                wrapperVh={HERO_WRAPPER_VH}
+                footerMessages={footerMessages}
+                heroReady={heroReady}
+                onCenterLogoGone={handleCenterLogoGone}
+                aboutUsLabel={aboutUsLabel}
+                onAboutUsClick={() => setAboutOpen(true)}
+              />
+            </ClientErrorBoundary>
+          </div>
+          <AnimatePresence mode="wait">
+            {showClouds && (
+              <motion.div
+                key="clouds"
+                className="relative z-0"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{
+                  opacity: cloudsEntranceStep === "content" ? 1 : 0,
+                  scale: cloudsEntranceStep === "content" ? 1 : 0.98,
+                }}
+                exit={{ opacity: 0, scale: 0.99 }}
+                transition={{
+                  duration: cloudsEntranceStep === "content" ? 1 : 0.5,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+              >
+                <CloudSelector onSelect={setSelectedCloud} onReturnToHero={handleReturnToHero} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
+      ) : (
+        <AnimatePresence mode="wait">
+          {!showClouds ? (
+            USE_CINEMATIC_HERO ? (
+              <div key={`cinematic-hero-${heroMountKey}`} className="relative z-0" style={{ opacity: heroContentOpacity }}>
+                <ClientErrorBoundary fallback={(retry) => <HeroFallback onRetry={retry} />}>
+                  <CinematicHeroScroll
+                    partColors={heroMascotPartColors}
+                    onJoin={handleAscendClick}
+                    locale={locale}
+                    headerHeight={HERO_HEADER_PX}
+                    footerHeight={HERO_FOOTER_PX}
+                    wrapperVh={HERO_WRAPPER_VH}
+                    footerMessages={footerMessages}
+                    heroReady={heroReady}
+                    onCenterLogoGone={handleCenterLogoGone}
+                    aboutUsLabel={aboutUsLabel}
+                    onAboutUsClick={() => setAboutOpen(true)}
+                  />
+                </ClientErrorBoundary>
+              </div>
+            ) : (
+              <motion.div
+                key="legacy-hero"
+                className="relative z-0"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: heroContentOpacity }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: transitionActive ? 0.5 : 0.3, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <LegacyHeroScroll partColors={heroMascotPartColors} onJoin={handleAscendClick} />
+              </motion.div>
+            )
           ) : (
             <motion.div
-              key="legacy-hero"
+              key="clouds"
               className="relative z-0"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: heroContentOpacity }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: transitionActive ? 0.5 : 0.3, ease: [0.22, 1, 0.36, 1] }}
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{
+                opacity: cloudsEntranceStep === "content" ? 1 : 0,
+                scale: cloudsEntranceStep === "content" ? 1 : 0.98,
+              }}
+              exit={{ opacity: 0, scale: 0.99 }}
+              transition={{
+                duration: cloudsEntranceStep === "content" ? 1 : 0.5,
+                ease: [0.16, 1, 0.3, 1],
+              }}
             >
-              <LegacyHeroScroll partColors={heroMascotPartColors} onJoin={handleAscendClick} />
+              <CloudSelector onSelect={setSelectedCloud} onReturnToHero={handleReturnToHero} />
             </motion.div>
-          )
-        ) : (
-          <motion.div
-            key="clouds"
-            className="relative z-0"
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{
-              opacity: cloudsEntranceStep === "content" ? 1 : 0,
-              scale: cloudsEntranceStep === "content" ? 1 : 0.98,
-            }}
-            exit={{ opacity: 0, scale: 0.99 }}
-            transition={{
-              duration: cloudsEntranceStep === "content" ? 1 : 0.5,
-              ease: [0.16, 1, 0.3, 1],
-            }}
-          >
-            <CloudSelector onSelect={setSelectedCloud} onReturnToHero={handleReturnToHero} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
+      )}
 
       </main>
 

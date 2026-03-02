@@ -73,22 +73,23 @@ body {
   color: rgba(255,255,255,0.8);
 }
 
-/* Explore pill: mobile size by default, much bigger on desktop */
+/* Explore pill: larger on mobile and desktop, with room for fade-in */
 .explore-pill {
-  height: clamp(44px, 10vw, 48px);
-  min-height: 44px;
-  padding-left: clamp(18px, 4vw, 22px);
-  padding-right: clamp(18px, 4vw, 22px);
-  font-size: 1rem;
+  height: clamp(52px, 12vw, 58px);
+  min-height: 52px;
+  padding-left: clamp(24px, 5vw, 28px);
+  padding-right: clamp(24px, 5vw, 28px);
+  font-size: 1.1rem;
+  letter-spacing: 0.04em;
 }
 @media (min-width: 768px) {
   .explore-pill {
-    height: 64px;
-    min-height: 64px;
-    padding-left: 32px;
-    padding-right: 32px;
-    font-size: 1.125rem;
-    letter-spacing: 0.04em;
+    height: 80px;
+    min-height: 80px;
+    padding-left: 44px;
+    padding-right: 44px;
+    font-size: 1.35rem;
+    letter-spacing: 0.06em;
   }
 }
 

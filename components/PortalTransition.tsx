@@ -171,7 +171,10 @@ export default function PortalTransition({
       )}
 
       {showExplore && (
-        <div
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.55, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
           style={{
             position: "absolute",
             left: "50%",
@@ -184,7 +187,7 @@ export default function PortalTransition({
           }}
         >
           <ExploreButton onExplore={onExplore} disabled={isTransitioning} label={exploreLabel} />
-        </div>
+        </motion.div>
       )}
     </motion.div>
   );

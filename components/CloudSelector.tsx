@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { clouds, CloudPersonality } from "@/lib/cloudData";
 import CloudCard from "./CloudCard";
@@ -20,7 +19,7 @@ const CONTENT_DURATION = 1.1;
 
 interface CloudSelectorProps {
   onSelect: (cloud: CloudPersonality) => void;
-  /** When provided, Return and Logo use this (e.g. TV transition) instead of direct router.replace. */
+  /** When provided, Logo uses this to navigate home (e.g. TV transition). */
   onReturnToHero?: () => void;
 }
 
@@ -30,14 +29,8 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
   const [randomizePhase, setRandomizePhase] = useState<"hidden" | "breathing">("hidden");
   const [isRandomizeTapping, setIsRandomizeTapping] = useState(false);
   const stackRef = useRef<CloudStackMobileHandle>(null);
-  const router = useRouter();
   const locale = useLocale();
-  const { whatTypeOfCloud, subtext, returnToHero, randomizeButton } = getMessages(locale).cloudSelector;
-
-  const goToInitial = () => {
-    if (onReturnToHero) onReturnToHero();
-    else router.replace(`/${locale}`, { scroll: true });
-  };
+  const { whatTypeOfCloud, subtext, randomizeButton } = getMessages(locale).cloudSelector;
 
   useEffect(() => {
     const check = () => setIsMobile(typeof window !== "undefined" && window.innerWidth <= 768);
@@ -129,25 +122,6 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
             {randomizeButton}
           </motion.button>
         </motion.div>
-        {/* Mobile: Return — top-to-bottom stagger [6] */}
-        <motion.div
-          className="lg:hidden flex-shrink-0 mt-4 mb-2"
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: CLOUD_STAGGER_MS[6] / 1000, duration: CONTENT_DURATION, ease: EASE_APPLE_IN_OUT }}
-        >
-          <button
-            type="button"
-            onClick={goToInitial}
-            className="inline-flex items-center gap-1.5 py-2 px-3 rounded-full border border-white/50 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/70 transition-colors"
-            aria-label={returnToHero}
-          >
-            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            {returnToHero}
-          </button>
-        </motion.div>
       </div>
 
       {/* Desktop only (1024px+): one viewport, 6 cards in a row; fixed-height flip, no expand */}
@@ -170,26 +144,6 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
           ))}
         </div>
       </div>
-
-      {/* Return to hero: desktop only — top-to-bottom stagger [6] */}
-      <motion.div
-        className="hidden lg:flex flex-shrink-0 justify-center pt-4 pb-6"
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: CLOUD_STAGGER_MS[6] / 1000, duration: CONTENT_DURATION, ease: EASE_APPLE_IN_OUT }}
-      >
-        <button
-          type="button"
-          onClick={goToInitial}
-          className="inline-flex items-center gap-1.5 py-2 px-4 rounded-full border border-white/50 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/70 transition-colors"
-          aria-label={returnToHero}
-        >
-          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          {returnToHero}
-        </button>
-      </motion.div>
     </section>
   );
 }

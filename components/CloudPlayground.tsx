@@ -7,6 +7,7 @@ import {
   useState,
   useMemo,
 } from "react";
+import { motion } from "framer-motion";
 import type { CloudState } from "@/lib/cloudPhysics";
 import {
   createClouds,
@@ -24,6 +25,11 @@ const MOBILE_BREAKPOINT = 768;
 /** Full cloud SVGs from downloads (cloud with eyes) — used as the cloud body */
 const CLOUD_LEFT_SRC = "/brand/cloud-eyes-left.svg";
 const CLOUD_RIGHT_SRC = "/brand/cloud-eyes-right.svg";
+
+/** Chicken-pox entrance: clouds appear one by one, fast (after Explore button fade-in). */
+const CLOUD_ENTRANCE_BASE_DELAY_S = 0.5;
+const CLOUD_ENTRANCE_STAGGER_S = 0.048;
+const CLOUD_ENTRANCE_DURATION_S = 0.22;
 
 interface CloudPlaygroundProps {
   /** When true, freeze physics and fade out (e.g. Explore clicked) */
@@ -235,7 +241,7 @@ export default function CloudPlayground({ freeze, reduceMotion = false }: CloudP
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
     >
-      {clouds.map((c) => {
+      {clouds.map((c, index) => {
         const isDragging = dragState?.id === c.id;
         const bob = getBobOffset(c.floatPhase, bobTime);
         const eyeOffset =
@@ -253,6 +259,7 @@ export default function CloudPlayground({ freeze, reduceMotion = false }: CloudP
           <CloudNode
             key={c.id}
             cloud={c}
+            cloudIndex={index}
             bobY={isDragging ? 0 : bob}
             isDragging={isDragging}
             eyeOffsetX={eyeOffset.x}
@@ -267,6 +274,7 @@ export default function CloudPlayground({ freeze, reduceMotion = false }: CloudP
 
 function CloudNode({
   cloud,
+  cloudIndex,
   bobY,
   isDragging,
   eyeOffsetX,
@@ -274,6 +282,7 @@ function CloudNode({
   onPointerDown,
 }: {
   cloud: CloudState;
+  cloudIndex: number;
   bobY: number;
   isDragging: boolean;
   eyeOffsetX: number;
@@ -282,10 +291,18 @@ function CloudNode({
 }) {
   const w = cloud.sizePx;
   const cloudSrc = cloud.id % 2 === 0 ? CLOUD_LEFT_SRC : CLOUD_RIGHT_SRC;
+  const entranceDelay = CLOUD_ENTRANCE_BASE_DELAY_S + cloudIndex * CLOUD_ENTRANCE_STAGGER_S;
 
   return (
-    <div
+    <motion.div
       role="presentation"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{
+        duration: CLOUD_ENTRANCE_DURATION_S,
+        delay: entranceDelay,
+        ease: [0.22, 1, 0.36, 1],
+      }}
       style={{
         position: "fixed",
         left: cloud.x,
@@ -315,6 +332,6 @@ function CloudNode({
           transform: `translate(${eyeOffsetX}px, ${eyeOffsetY}px)`,
         }}
       />
-    </div>
+    </motion.div>
   );
 }
