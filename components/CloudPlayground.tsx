@@ -22,9 +22,16 @@ const BOB_AMPLITUDE = 4;
 const BOB_PERIOD_MS = 4000;
 const MOBILE_BREAKPOINT = 768;
 
-/** Full cloud SVGs from downloads (cloud with eyes) — used as the cloud body */
+/** Full cloud SVGs from downloads (cloud with eyes) — used as the cloud body. Eye fill #0242FF is replaced at runtime with cloud.eyeColor. */
 const CLOUD_LEFT_SRC = "/brand/cloud-eyes-left.svg";
 const CLOUD_RIGHT_SRC = "/brand/cloud-eyes-right.svg";
+
+const EYE_FILL_ORIGINAL = "#0242FF";
+
+function svgToDataUrl(svgText: string, eyeColor: string): string {
+  const filled = svgText.replace(new RegExp(EYE_FILL_ORIGINAL.replace("#", "\\#"), "g"), eyeColor);
+  return "data:image/svg+xml," + encodeURIComponent(filled);
+}
 
 /** Chicken-pox entrance: clouds appear one by one, fast (after Explore button fade-in). */
 const CLOUD_ENTRANCE_BASE_DELAY_S = 0.5;
@@ -46,6 +53,7 @@ export default function CloudPlayground({ freeze, reduceMotion = false, onFirstD
   const noSpawnRef = useRef<NoSpawnRect>({ cx: 400, cy: 300, halfW: 80, halfH: 32 });
   const rafRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
+  const frameRef = useRef<number>(0);
   const pointerIdRef = useRef<number | null>(null);
   const dragCloudIdRef = useRef<number | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -54,6 +62,8 @@ export default function CloudPlayground({ freeze, reduceMotion = false, onFirstD
   const [fadeOut, setFadeOut] = useState(false);
   const [dragState, setDragState] = useState<{ id: number; startX: number; startY: number } | null>(null);
   const hasFiredFirstDragRef = useRef(false);
+  const [leftSvgText, setLeftSvgText] = useState<string | null>(null);
+  const [rightSvgText, setRightSvgText] = useState<string | null>(null);
 
   const isMobile = typeof window !== "undefined" ? window.innerWidth < MOBILE_BREAKPOINT : true;
   const cloudCount = useMemo(
@@ -78,6 +88,18 @@ export default function CloudPlayground({ freeze, reduceMotion = false, onFirstD
     );
     setClouds([...cloudsRef.current]);
   }, [cloudCount, sizeMin, sizeMax, isMobile]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    fetch(CLOUD_LEFT_SRC)
+      .then((r) => r.text())
+      .then(setLeftSvgText)
+      .catch(() => {});
+    fetch(CLOUD_RIGHT_SRC)
+      .then((r) => r.text())
+      .then(setRightSvgText)
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -111,9 +133,11 @@ export default function CloudPlayground({ freeze, reduceMotion = false, onFirstD
         rafRef.current = requestAnimationFrame(tick);
         return;
       }
+      frameRef.current += 1;
       stepClouds(cloudsRef.current, viewportRef.current, dt, {
         drift: true,
         windScale: reduceMotion ? 0.3 : 1,
+        frame: frameRef.current,
       });
       setClouds((prev) => {
         if (prev.length !== cloudsRef.current.length) return prev;
@@ -281,6 +305,8 @@ export default function CloudPlayground({ freeze, reduceMotion = false, onFirstD
             isDragging={isDragging}
             eyeOffsetX={eyeOffset.x}
             eyeOffsetY={eyeOffset.y}
+            leftSvgText={leftSvgText}
+            rightSvgText={rightSvgText}
             onPointerDown={(e) => handlePointerDown(e, c.id)}
           />
         );
@@ -307,6 +333,8 @@ function CloudNode({
   isDragging,
   eyeOffsetX,
   eyeOffsetY,
+  leftSvgText,
+  rightSvgText,
   onPointerDown,
 }: {
   cloud: CloudState;
@@ -317,10 +345,19 @@ function CloudNode({
   isDragging: boolean;
   eyeOffsetX: number;
   eyeOffsetY: number;
+  leftSvgText: string | null;
+  rightSvgText: string | null;
   onPointerDown: (e: React.PointerEvent) => void;
 }) {
   const w = cloud.sizePx;
-  const cloudSrc = cloud.id % 2 === 0 ? CLOUD_LEFT_SRC : CLOUD_RIGHT_SRC;
+  const isLeft = cloud.id % 2 === 0;
+  const template = isLeft ? leftSvgText : rightSvgText;
+  const cloudSrc =
+    template != null
+      ? svgToDataUrl(template, cloud.eyeColor)
+      : isLeft
+        ? CLOUD_LEFT_SRC
+        : CLOUD_RIGHT_SRC;
   const entranceDelay = CLOUD_ENTRANCE_BASE_DELAY_S + cloudIndex * CLOUD_ENTRANCE_STAGGER_S;
 
   const dist = Math.sqrt((cloud.x - centerX) ** 2 + (cloud.y - centerY) ** 2);

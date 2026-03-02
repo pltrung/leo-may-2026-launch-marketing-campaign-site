@@ -3,6 +3,8 @@
  * No wind/drift — clouds just float (bob in place) until dragged.
  */
 
+import { HERO_ACCENT_COLORS } from "@/lib/heroConstants";
+
 /** 0 = background (smaller, slower, blur), 1 = mid, 2 = foreground (larger, shadow, faster) */
 export type CloudLayer = 0 | 1 | 2;
 
@@ -17,6 +19,10 @@ export interface CloudState {
   rotation: number;
   floatPhase: number;
   layer: CloudLayer;
+  /** Hero accent color for cloud eyes (randomized per cloud). */
+  eyeColor: string;
+  /** Last frame when this cloud's eye color changed due to collision (for cooldown). */
+  lastEyeColorChangeFrame: number;
 }
 
 export interface Viewport {
@@ -37,6 +43,12 @@ const RESTITUTION = 0.75;
 const COLLISION_ITERATIONS = 3;
 /** Minimum gap between cloud centers (so clouds don’t overlap or sit too close) */
 const MIN_CLOUD_GAP = 28;
+/** Frames to wait before the same cloud can get its eye color changed by collision again */
+const COLLISION_EYE_COLOR_COOLDOWN_FRAMES = 40;
+
+function pickRandomAccentColor(): string {
+  return HERO_ACCENT_COLORS[Math.floor(Math.random() * HERO_ACCENT_COLORS.length)];
+}
 
 function rand(min: number, max: number): number {
   return min + Math.random() * (max - min);
@@ -85,6 +97,7 @@ export function createClouds(
     const y = rand(padding, viewport.height - padding);
     if (isInNoSpawn(x, y, radius, noSpawn)) continue;
     if (isTooCloseToOthers(x, y, radius, clouds)) continue;
+    const eyeColor = HERO_ACCENT_COLORS[Math.floor(Math.random() * HERO_ACCENT_COLORS.length)];
     clouds.push({
       id: i,
       x,
@@ -96,6 +109,8 @@ export function createClouds(
       rotation: rand(-6, 6) * (Math.PI / 180),
       floatPhase: rand(0, Math.PI * 2),
       layer: 1,
+      eyeColor,
+      lastEyeColorChangeFrame: -999,
     });
     i++;
   }
@@ -115,10 +130,11 @@ export function stepClouds(
   clouds: CloudState[],
   viewport: Viewport,
   dt: number,
-  options?: { drift?: boolean; windScale?: number }
+  options?: { drift?: boolean; windScale?: number; frame?: number }
 ): void {
   const windScale = options?.windScale ?? 1;
   const drift = options?.drift ?? false;
+  const frame = options?.frame ?? 0;
   for (const c of clouds) {
     if (drift) {
       const d = LAYER_DRIFT[c.layer] * windScale * 0.08;
@@ -180,6 +196,14 @@ export function stepClouds(
             a.vy += k * dvn * ny;
             b.vx -= k * dvn * nx;
             b.vy -= k * dvn * ny;
+          }
+          if (frame - a.lastEyeColorChangeFrame >= COLLISION_EYE_COLOR_COOLDOWN_FRAMES) {
+            a.eyeColor = pickRandomAccentColor();
+            a.lastEyeColorChangeFrame = frame;
+          }
+          if (frame - b.lastEyeColorChangeFrame >= COLLISION_EYE_COLOR_COOLDOWN_FRAMES) {
+            b.eyeColor = pickRandomAccentColor();
+            b.lastEyeColorChangeFrame = frame;
           }
         }
       }
