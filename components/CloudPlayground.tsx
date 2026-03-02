@@ -45,13 +45,11 @@ interface CloudPlaygroundProps {
   reduceMotion?: boolean;
   /** Called once when the user starts dragging a cloud (mouse drag or touch long-press + drag). */
   onFirstDrag?: () => void;
-  /** Called with a point on a cloud's edge (so the arrow tip touches the cloud). */
+  /** Called with a random cloud position so the drag hint arrow can point at it. */
   onHintTarget?: (x: number, y: number) => void;
-  /** Approximate viewport position the hint arrow originates from; used to pick the edge point the arrow should point at. */
-  hintOrigin?: { x: number; y: number } | null;
 }
 
-export default function CloudPlayground({ freeze, reduceMotion = false, onFirstDrag, onHintTarget, hintOrigin }: CloudPlaygroundProps) {
+export default function CloudPlayground({ freeze, reduceMotion = false, onFirstDrag, onHintTarget }: CloudPlaygroundProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cloudsRef = useRef<CloudState[]>([]);
   const viewportRef = useRef<Viewport>({ width: 800, height: 600 });
@@ -68,7 +66,6 @@ export default function CloudPlayground({ freeze, reduceMotion = false, onFirstD
   const [dragState, setDragState] = useState<{ id: number; startX: number; startY: number } | null>(null);
   const hasFiredFirstDragRef = useRef(false);
   const hasReportedHintTargetRef = useRef(false);
-  const reportedCloudIdRef = useRef<number | null>(null);
   const [leftSvgText, setLeftSvgText] = useState<string | null>(null);
   const [rightSvgText, setRightSvgText] = useState<string | null>(null);
 
@@ -99,27 +96,11 @@ export default function CloudPlayground({ freeze, reduceMotion = false, onFirstD
   }, [cloudCount, sizeMin, sizeMax, isMobile]);
 
   useEffect(() => {
-    if (hintOrigin !== undefined) hasReportedHintTargetRef.current = false;
-  }, [hintOrigin]);
-
-  useEffect(() => {
     if (!onHintTarget || clouds.length === 0 || hasReportedHintTargetRef.current) return;
-    const origin = hintOrigin ?? { x: viewportRef.current.width * 0.12 + 50, y: viewportRef.current.height * 0.8 - 50 };
-    const prevId = reportedCloudIdRef.current;
-    const c =
-      prevId != null
-        ? clouds.find((x) => x.id === prevId) ?? clouds[Math.floor(Math.random() * clouds.length)]
-        : clouds[Math.floor(Math.random() * clouds.length)];
-    reportedCloudIdRef.current = c.id;
     hasReportedHintTargetRef.current = true;
-    const dx = origin.x - c.x;
-    const dy = origin.y - c.y;
-    const d = Math.sqrt(dx * dx + dy * dy) || 1;
-    const r = c.radius ?? c.sizePx / 2;
-    const edgeX = c.x + (dx / d) * r;
-    const edgeY = c.y + (dy / d) * r;
-    onHintTarget(edgeX, edgeY);
-  }, [clouds, onHintTarget, hintOrigin]);
+    const c = clouds[Math.floor(Math.random() * clouds.length)];
+    onHintTarget(c.x, c.y);
+  }, [clouds, onHintTarget]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

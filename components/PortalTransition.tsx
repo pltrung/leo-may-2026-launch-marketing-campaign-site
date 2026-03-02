@@ -66,19 +66,6 @@ export default function PortalTransition({
   const locale = (params?.locale as Locale) ?? "en";
 
   const [hintTarget, setHintTarget] = useState<{ x: number; y: number } | null>(null);
-  const [hintOrigin, setHintOrigin] = useState<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const update = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      setHintOrigin({ x: w * 0.12 + 45, y: h * 0.8 - 50 });
-    };
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
 
   /* Do not restore hintDismissed from sessionStorage so the "touch the clouds" arrow shows every time on explore page until user drags. */
 
@@ -223,7 +210,6 @@ export default function PortalTransition({
             reduceMotion={!!reduceMotion}
             onFirstDrag={handleFirstDrag}
             onHintTarget={(x, y) => setHintTarget({ x, y })}
-            hintOrigin={hintOrigin}
           />
         </ClientErrorBoundary>
       )}
