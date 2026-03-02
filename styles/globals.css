@@ -130,6 +130,54 @@ body {
   }
 }
 
+/* ---------- Explore page only: Leo Mây logo — layered cinematic halo ---------- */
+.logo-wrapper {
+  position: relative;
+  animation: logoHaloPulse 4.2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.logo-wrapper::before {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(
+    circle at 50% 38%,
+    rgba(79, 163, 255, 0.45) 0%,
+    rgba(79, 163, 255, 0.25) 18%,
+    rgba(79, 163, 255, 0.12) 35%,
+    rgba(79, 163, 255, 0.05) 55%,
+    transparent 75%
+  );
+  filter: blur(40px);
+  z-index: -1;
+}
+
+@keyframes logoHaloPulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1.06;
+    transform: scale(1.015);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Edge bloom + mid energy + outer diffusion on logo (Explore page only) */
+.explore-logo-glow {
+  filter:
+    drop-shadow(0 0 8px rgba(255, 255, 255, 0.85))
+    drop-shadow(0 0 14px rgba(79, 163, 255, 0.75))
+    drop-shadow(0 0 32px rgba(79, 163, 255, 0.45))
+    drop-shadow(0 0 70px rgba(79, 163, 255, 0.22))
+    drop-shadow(0 0 140px rgba(79, 163, 255, 0.12));
+}
+
 /* Hero page fades in only after portal + starfield hold (body.hero-ready). Cinematic: scene fades in into view. */
 #hero-page {
   opacity: 0;

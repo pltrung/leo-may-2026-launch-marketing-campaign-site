@@ -298,42 +298,29 @@ export default function PortalTransition({
           }}
         >
           <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: "inherit" }}>
-          {/* Very subtle radial ambient behind logo — low opacity, does not overpower stars */}
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              left: "50%",
-              top: "28px",
-              transform: "translate(-50%, -50%)",
-              width: "min(280px, 70vw)",
-              height: "140px",
-              background:
-                "radial-gradient(ellipse 80% 50% at 50% 50%, rgba(180,200,255,0.06) 0%, rgba(120,160,220,0.03) 50%, transparent 70%)",
-              pointerEvents: "none",
-            }}
-          />
-          {/* Centered white logo above button: fade in 600ms, slight upward motion, subtle glow */}
+          {/* Explore page logo: layered cinematic halo (backlight + edge bloom + mid + outer diffusion in CSS) */}
           {isValidImgSrc(EXPLORE_LOGO_SRC) && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-              style={{
-                position: "relative",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                filter: "drop-shadow(0 0 24px rgba(140,180,255,0.2)) drop-shadow(0 0 48px rgba(100,140,220,0.12))",
-              }}
-            >
-              <SafeImg
-                src={EXPLORE_LOGO_SRC}
-                alt="Leo Mây"
-                className="h-auto w-[clamp(240px,56vw,320px)] max-w-[320px] object-contain"
-                style={{ display: "block" }}
-              />
-            </motion.div>
+            <div className="logo-wrapper">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                className="explore-logo-glow"
+                style={{
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <SafeImg
+                  src={EXPLORE_LOGO_SRC}
+                  alt="Leo Mây"
+                  className="h-auto w-[clamp(240px,56vw,320px)] max-w-[320px] object-contain"
+                  style={{ display: "block" }}
+                />
+              </motion.div>
+            </div>
           )}
           <ExploreButton onExplore={onExplore} disabled={isTransitioning} label={exploreLabel} />
           </div>
