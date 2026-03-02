@@ -1477,7 +1477,7 @@ body.hero-ready .hero-scroll {
     0 0 60px rgba(2, 66, 255, 0.2);
 }
 
-/* Mobile/tablet (max-width: 1023px): one viewport, no scroll; clear header / content / footer zones */
+/* Mobile/tablet (max-width: 1023px): min-height 100dvh, allow scroll — prevents overlap/cramping */
 @media (max-width: 1023px) {
   html.cloud-selection-view .page-container > main {
     z-index: 20;
@@ -1486,19 +1486,12 @@ body.hero-ready .hero-scroll {
     z-index: 5;
   }
 
-  /* Lock to one viewport so layout feels full and footer sits at bottom with breathing room */
+  /* Do NOT lock height/overflow: content needs room so header, card, button, footer don't overlap */
   html.cloud-selection-view .page-wrapper {
-    height: 100dvh;
-    max-height: 100dvh;
-    overflow: hidden;
+    min-height: 100dvh;
   }
 
-  html.cloud-selection-view .cloud-selection-screen {
-    height: 100%;
-    min-height: 0;
-  }
-
-  /* Section: fill viewport, clear header/footer zones */
+  /* Section: at least viewport tall, flex column so header / content / footer stack with no overlap */
   .cloud-selection-screen {
     width: 100%;
     min-height: 100dvh;
@@ -1509,9 +1502,9 @@ body.hero-ready .hero-scroll {
     box-sizing: border-box;
   }
 
-  /* Minimum gap between Randomize button and footer so they never touch */
+  /* Clear gap between Randomize and footer */
   .cloud-selector-footer-wrap {
-    padding-top: 48px;
+    padding-top: 40px;
     padding-bottom: 0;
   }
 
@@ -1879,11 +1872,10 @@ body.hero-ready .hero-scroll {
   }
 }
 
-/* Mobile phones: swipe guide position; title single row */
+/* Mobile phones: swipe guide below header so it doesn't overlap title */
 @media (max-width: 768px) {
   .swipe-guide {
-    top: 26vh;
-    top: 26dvh;
+    top: 42dvh;
   }
 
   .cloud-selection-title {
@@ -1892,20 +1884,22 @@ body.hero-ready .hero-scroll {
   }
 }
 
-/* Desktop (1024px+): one viewport, no scroll — lock height and overflow */
+/* Desktop (1024px+): min-height 100dvh, flex column — no overlap; scroll if content taller than viewport */
 @media (min-width: 1024px) {
   html.cloud-selection-view .page-wrapper {
-    height: 100dvh;
-    max-height: 100dvh;
-    overflow: hidden;
+    min-height: 100dvh;
   }
 
   html.cloud-selection-view .cloud-selection-screen {
-    height: 100%;
-    min-height: 0;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  html.cloud-selection-view .cloud-selection-header {
+    flex-shrink: 0;
+    margin-bottom: 1rem;
   }
 
   html.cloud-selection-view .cloud-selector {
