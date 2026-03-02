@@ -115,10 +115,10 @@ export default function ExploreDragHint({ text, visible, target }: ExploreDragHi
       }}
       style={{
         position: "absolute",
-        left: "14%",
-        bottom: "22%",
-        maxWidth: "min(160px, 38vw)",
-        zIndex: 10,
+        left: "12%",
+        bottom: "20%",
+        maxWidth: "min(180px, 42vw)",
+        zIndex: 25,
         pointerEvents: "none",
         display: "flex",
         flexDirection: "column",
@@ -140,11 +140,12 @@ export default function ExploreDragHint({ text, visible, target }: ExploreDragHi
         <span
           style={{
             fontFamily: "var(--font-sans, system-ui, sans-serif)",
-            fontSize: "clamp(11px, 2.5vw, 13px)",
+            fontSize: "clamp(12px, 2.8vw, 14px)",
             fontWeight: 600,
-            color: "rgba(255,255,255,0.95)",
+            color: "rgba(255,255,255,0.98)",
             letterSpacing: "0.02em",
             lineHeight: 1.35,
+            textShadow: "0 0 12px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3)",
           }}
         >
           {text}

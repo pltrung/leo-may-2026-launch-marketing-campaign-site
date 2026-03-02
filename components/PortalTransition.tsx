@@ -67,14 +67,7 @@ export default function PortalTransition({
 
   const [hintTarget, setHintTarget] = useState<{ x: number; y: number } | null>(null);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      setHintDismissed(window.sessionStorage.getItem(EXPLORE_HINT_DISMISSED_KEY) === "1");
-    } catch {
-      setHintDismissed(false);
-    }
-  }, []);
+  /* Do not restore hintDismissed from sessionStorage so the "touch the clouds" arrow shows every time on explore page until user drags. */
 
   const handleFirstDrag = useCallback(() => {
     setHintDismissed(true);
