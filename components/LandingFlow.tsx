@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { getMessages } from "@/lib/messages";
 import SafeImg, { isValidImgSrc } from "@/components/SafeImg";
 import PortalTransition, { type PortalState } from "@/components/PortalTransition";
@@ -26,7 +26,6 @@ const LOADING_SKY_MS = 2000;
  */
 export default function LandingFlow({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [state, setState] = useState<PortalState>("loadingSky");
   const [exploreOrigin, setExploreOrigin] = useState<ExploreOrigin | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -68,11 +67,7 @@ export default function LandingFlow({ children }: { children: React.ReactNode })
       document.body.classList.add("hero-page-visible");
     }
     setState("hero");
-    // Navigate to cloud selector so the user sees "Pick your cloud" instead of the hero.
-    const base = pathname ?? "/";
-    const cloudsUrl = base.includes("?") ? `${base}&clouds=1` : `${base}?clouds=1`;
-    router.replace(cloudsUrl, { scroll: false });
-  }, [pathname, router]);
+  }, []);
 
   if (!isHome) {
     return <>{children}</>;

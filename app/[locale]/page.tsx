@@ -290,37 +290,41 @@ function HomeContent() {
       {USE_CINEMATIC_HERO && isDesktop ? (
         <>
           <div
-            className="relative z-0"
-            style={{
-              opacity: heroContentOpacity,
-              visibility: showClouds ? "hidden" : "visible",
-              position: showClouds ? "absolute" : "relative",
-              inset: showClouds ? 0 : undefined,
-              pointerEvents: showClouds ? "none" : "auto",
-              zIndex: showClouds ? -1 : 0,
-            }}
-            aria-hidden={showClouds}
+            className={`relative z-0 flex flex-col ${showClouds ? "flex-1 min-h-0" : ""}`}
+            style={{ opacity: heroContentOpacity }}
           >
-            <ClientErrorBoundary fallback={(retry) => <HeroFallback onRetry={retry} />}>
-              <CinematicHeroScroll
-                partColors={heroMascotPartColors}
-                onJoin={handleAscendClick}
-                locale={locale}
-                headerHeight={HERO_HEADER_PX}
-                footerHeight={HERO_FOOTER_PX}
-                wrapperVh={HERO_WRAPPER_VH}
-                footerMessages={footerMessages}
-                heroReady={heroReady}
-                onCenterLogoGone={handleCenterLogoGone}
-                aboutUsLabel={aboutUsLabel}
-                onAboutUsClick={() => setAboutOpen(true)}
-                skipWebGL={skipWebGL}
-              />
-            </ClientErrorBoundary>
+            {/* Hide only the hero when on clouds; keep wrapper visible so CloudSelector is shown. */}
+            <div
+              style={{
+                visibility: showClouds ? "hidden" : "visible",
+                position: showClouds ? "absolute" : "relative",
+                inset: showClouds ? 0 : undefined,
+                pointerEvents: showClouds ? "none" : "auto",
+                zIndex: showClouds ? -1 : 0,
+              }}
+              aria-hidden={showClouds}
+            >
+              <ClientErrorBoundary fallback={(retry) => <HeroFallback onRetry={retry} />}>
+                <CinematicHeroScroll
+                  partColors={heroMascotPartColors}
+                  onJoin={handleAscendClick}
+                  locale={locale}
+                  headerHeight={HERO_HEADER_PX}
+                  footerHeight={HERO_FOOTER_PX}
+                  wrapperVh={HERO_WRAPPER_VH}
+                  footerMessages={footerMessages}
+                  heroReady={heroReady}
+                  onCenterLogoGone={handleCenterLogoGone}
+                  aboutUsLabel={aboutUsLabel}
+                  onAboutUsClick={() => setAboutOpen(true)}
+                  skipWebGL={skipWebGL}
+                />
+              </ClientErrorBoundary>
+            </div>
             {showClouds && (
               <motion.div
                 key="clouds"
-                className="relative z-0 h-full min-h-0 flex flex-col"
+                className="relative z-0 flex-1 min-h-0 flex flex-col"
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{
                   opacity: cloudsEntranceStep === "content" ? 1 : 0,
