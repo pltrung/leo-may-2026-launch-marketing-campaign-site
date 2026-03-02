@@ -492,16 +492,17 @@ export default function CinematicHeroScroll({
             paddingBottom: isMobile ? "2rem" : undefined,
           }}
         >
+          {/* Light vignette only — keep starfield at full brightness so post-Explore feels like one world */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
-              background: `radial-gradient(ellipse 80% 70% at 50% 50%, rgba(18,18,24,0.5) 0%, ${HERO_BG} 70%)`,
+              background: `radial-gradient(ellipse 80% 70% at 50% 50%, rgba(18,18,24,0.18) 0%, transparent 70%)`,
             }}
           />
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
-              boxShadow: isMobile ? "inset 0 0 15vh 8vh rgba(0,0,0,0.3)" : "inset 0 0 20vh 10vh rgba(0,0,0,0.25)",
+              boxShadow: isMobile ? "inset 0 0 15vh 8vh rgba(0,0,0,0.12)" : "inset 0 0 20vh 10vh rgba(0,0,0,0.1)",
             }}
           />
           <div
