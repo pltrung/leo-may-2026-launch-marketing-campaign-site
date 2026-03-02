@@ -26,7 +26,9 @@ import SafeLanguageSwitch from "@/components/SafeLanguageSwitch";
 import HeroScrollObserver from "@/components/HeroScrollObserver";
 import HeroMusic from "@/components/HeroMusic";
 import MistAscent from "@/components/MistAscent";
+import HeroStarfield from "@/components/HeroStarfield";
 import { useTransitionOverlay } from "@/context/TransitionOverlayContext";
+import { HERO_BG } from "@/lib/heroConstants";
 import { CloudPersonality, getCloudById } from "@/lib/cloudData";
 import { getUser } from "@/lib/userStorage";
 import type { Locale } from "@/lib/i18n";
@@ -217,6 +219,17 @@ function HomeContent() {
         cloudsView={showClouds}
         cloudsEntranceStep={showClouds ? cloudsEntranceStep : undefined}
       />
+      {showClouds && (
+        <div
+          className="fixed inset-0 -z-10 overflow-hidden pointer-events-none"
+          aria-hidden
+          style={{ background: HERO_BG }}
+        >
+          <ClientErrorBoundary fallback={null}>
+            <HeroStarfield heroTransitioning={false} />
+          </ClientErrorBoundary>
+        </div>
+      )}
       {!showClouds && <MistAscent />}
       <HeroScrollObserver />
       {!showClouds && <HeroMusic heroReady={heroReady} />}

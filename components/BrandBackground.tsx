@@ -11,7 +11,7 @@ type CloudsEntranceStep = "background" | "holds" | "content";
 const HOLDS_REVEAL_EASE = [0.5, 0, 0.75, 0] as const;
 const HOLDS_REVEAL_DURATION = 2.6;
 
-/** Holds overlay only. Background comes from html/body (#0B0B0F). On clouds view: opacity + top-to-bottom clip reveal. */
+/** Holds overlay only. Background comes from html/body (#0B0B0F). Pick-your-cloud uses hero-style starfield instead — no holds. */
 export default function BrandBackground({
   cloudsView,
   cloudsEntranceStep,
@@ -19,6 +19,8 @@ export default function BrandBackground({
   cloudsView?: boolean;
   cloudsEntranceStep?: CloudsEntranceStep;
 }) {
+  if (cloudsView) return null;
+
   const isCloudsEntrance = Boolean(cloudsView && cloudsEntranceStep);
   const holdsOpacity =
     !isCloudsEntrance ? 0.7 : cloudsEntranceStep === "background" ? 0 : 1;
