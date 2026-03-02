@@ -5,17 +5,20 @@ import { motion } from "framer-motion";
 
 export type ExploreOrigin = { x: number; y: number };
 
-/** Premium activation-switch: white pill, layered blue halo. Idle = gentle breathing glow. */
+/** Base layers: inner soft shadow + depth (never animated). */
+const BASE_SHADOW =
+  "inset 0 1px 2px rgba(0,0,0,0.08), 0 8px 20px rgba(0,0,0,0.15)";
+/** Controlled glow — reduced blur, premium feel. Idle breathing. */
 const GLOW_IDLE_A =
-  "0 0 0 1px rgba(120,160,255,0.2), 0 0 24px rgba(80,140,255,0.35), 0 0 56px rgba(60,120,240,0.4), 0 0 120px rgba(50,100,220,0.25)";
+  "0 0 25px rgba(79,163,255,0.35), 0 0 60px rgba(79,163,255,0.15)";
 const GLOW_IDLE_B =
-  "0 0 0 1px rgba(140,180,255,0.28), 0 0 28px rgba(90,150,255,0.42), 0 0 64px rgba(70,130,245,0.48), 0 0 140px rgba(55,110,230,0.32)";
-/** Hover: energy building, glow intensifies slightly. */
+  "0 0 28px rgba(79,163,255,0.4), 0 0 65px rgba(79,163,255,0.2)";
+/** Hover: glow intensifies slightly. */
 const GLOW_HOVER =
-  "0 0 0 1px rgba(150,190,255,0.35), 0 0 32px rgba(100,160,255,0.5), 0 0 72px rgba(80,140,250,0.55), 0 0 160px rgba(60,120,235,0.38)";
-/** Tap: activation moment, strong but controlled. */
+  "0 0 32px rgba(79,163,255,0.45), 0 0 70px rgba(79,163,255,0.25)";
+/** Tap: activation moment, controlled. */
 const GLOW_TAP =
-  "0 0 0 1px rgba(180,220,255,0.45), 0 0 36px rgba(120,180,255,0.6), 0 0 80px rgba(90,150,255,0.55), 0 0 180px rgba(70,130,240,0.4)";
+  "0 0 36px rgba(79,163,255,0.5), 0 0 75px rgba(79,163,255,0.3)";
 
 interface ExploreButtonProps {
   /** Called with button center (px) on click, or no arg on keyboard — for portal origin */
@@ -67,7 +70,9 @@ export default function ExploreButton({ onExplore, disabled = false, label = "EX
       initial={false}
       animate={{
         scale: pressing ? 1.04 : [1, 1.02, 1],
-        boxShadow: pressing ? GLOW_TAP : [GLOW_IDLE_A, GLOW_IDLE_B, GLOW_IDLE_A],
+        boxShadow: pressing
+          ? `${BASE_SHADOW}, ${GLOW_TAP}`
+          : [`${BASE_SHADOW}, ${GLOW_IDLE_A}`, `${BASE_SHADOW}, ${GLOW_IDLE_B}`, `${BASE_SHADOW}, ${GLOW_IDLE_A}`],
       }}
       transition={
         pressing
@@ -78,23 +83,19 @@ export default function ExploreButton({ onExplore, disabled = false, label = "EX
         disabled
           ? undefined
           : {
-              boxShadow: GLOW_HOVER,
+              boxShadow: `${BASE_SHADOW}, ${GLOW_HOVER}`,
               transition: { duration: 0.25, ease: [0.22, 1, 0.36, 1] },
             }
       }
       style={{
-        border: "1px solid rgba(200,220,255,0.25)",
-        background: "rgba(255,255,255,0.98)",
-        color: "rgba(18,18,24,0.95)",
         fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
-        fontWeight: 700,
-        letterSpacing: "0.03em",
-        borderRadius: "9999px",
+        fontWeight: 800,
+        color: "#111111",
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.7 : 1,
         outline: "none",
         outlineOffset: "2px",
-        boxShadow: GLOW_IDLE_A,
+        boxShadow: `${BASE_SHADOW}, ${GLOW_IDLE_A}`,
       }}
       onFocus={(e) => {
         if (disabled) return;
