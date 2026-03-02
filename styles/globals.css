@@ -1908,9 +1908,10 @@ body.hero-ready .hero-scroll {
     overflow: hidden;
   }
 
-  /* Header: fixed height (no shrink); title + subtext */
+  /* Header: fixed height (no shrink); title + subtext; stays above cards */
   html.cloud-selection-view .cloud-selection-header {
     flex: 0 0 auto;
+    flex-shrink: 0;
     margin-bottom: 0.75rem;
   }
 
@@ -1923,19 +1924,22 @@ body.hero-ready .hero-scroll {
     display: none !important;
   }
 
-  /* Content area: exactly (100dvh - header - footer); cards centered in this band */
-  html.cloud-selection-view .cloud-selection-screen > .cloud-selector-container:not(.cloud-selection-container) {
+  /* Desktop cards area: middle band only — between header and footer; shrinks so no overlap */
+  html.cloud-selection-view .cloud-selector-desktop-grid {
     flex: 1 1 0;
     min-height: 0;
-    display: flex;
+    display: flex !important;
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    visibility: visible;
+    opacity: 1;
   }
 
-  /* Footer: fixed height (no shrink), stays at bottom */
+  /* Footer: fixed height (no shrink), always below the cards band */
   html.cloud-selection-view .cloud-selector-desktop-footer {
     flex: 0 0 auto;
+    flex-shrink: 0;
   }
 
   /* Scale background (holds) down to ~70% on desktop for card selector */

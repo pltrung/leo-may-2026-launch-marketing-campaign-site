@@ -486,9 +486,9 @@ export default function CinematicHeroScroll({
           </ClientErrorBoundary>
         )}
 
-        {/* Full-viewport dim overlay (covers header zone too so stars have even opacity); below header z-index */}
+        {/* Full-viewport dim overlay (covers header + stars); z-[15] so it sits above climbing-hold GLB (z-10) and dims it, below content (z-20) so text stays clear */}
         <div
-          className="fixed inset-0 pointer-events-none z-[5]"
+          className="fixed inset-0 pointer-events-none z-[15]"
           style={{
             opacity: loadComplete ? 1 : overlayFadeIn,
           }}
