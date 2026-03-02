@@ -13,20 +13,23 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
+  padding-bottom: max(32px, env(safe-area-inset-bottom));
 }
 
 .page-content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
+  padding-top: clamp(40px, 12vh, 100px);
 }
 
-/* Cloud selector: allow full height, no clipping */
+/* Cloud selector: allow full height, no clipping; spacing below card area */
 .cloud-selector {
   height: auto;
   max-height: none;
   overflow: visible;
+  margin-bottom: 32px;
 }
 
 /* MiSans brand fonts */
@@ -1396,18 +1399,18 @@ body.hero-ready .hero-scroll {
   width: 100%;
   display: flex;
   justify-content: center;
-  margin-top: 40px;
+  margin-top: auto;
   margin-bottom: 24px;
   padding: 0 16px;
-  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: 32px;
   position: relative;
   z-index: 10;
   animation: footerFade 1.4s ease;
 }
 .cloud-footer-compact {
-  margin-top: 12px;
+  margin-top: auto;
   margin-bottom: 8px;
-  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: max(32px, env(safe-area-inset-bottom, 0px));
 }
 .footer-inner {
   display: flex;
