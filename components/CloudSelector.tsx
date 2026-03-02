@@ -128,9 +128,9 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
         </div>
       </div>
 
-      {/* Desktop only (1024px+): one viewport, 6 cards in a row; fixed-height flip, no expand */}
-      <div className="cloud-selector-desktop-grid hidden lg:flex flex-1 w-full min-h-0 items-center justify-center cloud-selector-container">
-        <div className="cloud-selector-desktop-grid-inner grid grid-cols-6 gap-6 w-[90%] max-w-[1400px] mx-auto justify-items-center items-center overflow-visible">
+      {/* Desktop only (1024px+): 6 cards in a row; natural height, page scrolls */}
+      <div className="cloud-selector-desktop-grid hidden lg:flex w-full items-center justify-center cloud-selector-container">
+        <div className="cloud-selector-desktop-grid-inner grid grid-cols-6 gap-6 w-[90%] max-w-[1400px] mx-auto justify-items-center items-start overflow-visible">
           {clouds.map((cloud, index) => (
             <motion.div
               key={cloud.id}

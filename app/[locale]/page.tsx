@@ -325,7 +325,7 @@ function HomeContent() {
             {showClouds && (
               <motion.div
                 key="clouds"
-                className="relative z-0 flex-1 min-h-0 flex flex-col"
+                className="relative z-0 flex flex-col min-h-0"
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{
                   opacity: cloudsEntranceStep === "content" ? 1 : 0,
