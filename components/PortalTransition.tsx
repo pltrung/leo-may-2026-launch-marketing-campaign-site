@@ -57,13 +57,15 @@ export default function PortalTransition({
   const [portalR, setPortalR] = useState(PORTAL_START_VMAX);
   const [rimOpacity, setRimOpacity] = useState(1);
   const [overlayFadeOut, setOverlayFadeOut] = useState(false);
-  const [hintDismissed, setHintDismissed] = useState(true);
+  const [hintDismissed, setHintDismissed] = useState(false);
   const rafRef = useRef<number>(0);
   const startRef = useRef<number>(0);
   const doneTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const params = useParams();
   const locale = (params?.locale as Locale) ?? "en";
+
+  const [hintTarget, setHintTarget] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -201,6 +203,7 @@ export default function PortalTransition({
             freeze={state === "transitioning"}
             reduceMotion={!!reduceMotion}
             onFirstDrag={handleFirstDrag}
+            onHintTarget={setHintTarget}
           />
         </ClientErrorBoundary>
       )}
@@ -210,6 +213,7 @@ export default function PortalTransition({
         <ExploreDragHint
           text={getMessages(locale).explorePage.dragHint}
           visible={!hintDismissed}
+          target={hintTarget}
         />
       )}
 

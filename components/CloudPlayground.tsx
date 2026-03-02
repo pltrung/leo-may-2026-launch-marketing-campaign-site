@@ -45,9 +45,11 @@ interface CloudPlaygroundProps {
   reduceMotion?: boolean;
   /** Called once when the user starts dragging a cloud (mouse drag or touch long-press + drag). */
   onFirstDrag?: () => void;
+  /** Called with a random cloud position so the drag hint arrow can point at it. */
+  onHintTarget?: (x: number, y: number) => void;
 }
 
-export default function CloudPlayground({ freeze, reduceMotion = false, onFirstDrag }: CloudPlaygroundProps) {
+export default function CloudPlayground({ freeze, reduceMotion = false, onFirstDrag, onHintTarget }: CloudPlaygroundProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cloudsRef = useRef<CloudState[]>([]);
   const viewportRef = useRef<Viewport>({ width: 800, height: 600 });
@@ -63,6 +65,7 @@ export default function CloudPlayground({ freeze, reduceMotion = false, onFirstD
   const [fadeOut, setFadeOut] = useState(false);
   const [dragState, setDragState] = useState<{ id: number; startX: number; startY: number } | null>(null);
   const hasFiredFirstDragRef = useRef(false);
+  const hasReportedHintTargetRef = useRef(false);
   const [leftSvgText, setLeftSvgText] = useState<string | null>(null);
   const [rightSvgText, setRightSvgText] = useState<string | null>(null);
 
@@ -78,7 +81,9 @@ export default function CloudPlayground({ freeze, reduceMotion = false, onFirstD
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     viewportRef.current = { width: vw, height: vh };
-    noSpawnRef.current = { cx: vw / 2, cy: vh / 2, halfW: 165, halfH: 72 };
+    const halfW = isMobile ? Math.min(90, Math.floor(vw * 0.22)) : 165;
+    const halfH = isMobile ? Math.min(44, Math.floor(vh * 0.06)) : 72;
+    noSpawnRef.current = { cx: vw / 2, cy: vh / 2, halfW, halfH };
     cloudsRef.current = createClouds(
       cloudCount,
       viewportRef.current,
@@ -89,6 +94,13 @@ export default function CloudPlayground({ freeze, reduceMotion = false, onFirstD
     );
     setClouds([...cloudsRef.current]);
   }, [cloudCount, sizeMin, sizeMax, isMobile]);
+
+  useEffect(() => {
+    if (!onHintTarget || clouds.length === 0 || hasReportedHintTargetRef.current) return;
+    hasReportedHintTargetRef.current = true;
+    const c = clouds[Math.floor(Math.random() * clouds.length)];
+    onHintTarget(c.x, c.y);
+  }, [clouds, onHintTarget]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -106,12 +118,15 @@ export default function CloudPlayground({ freeze, reduceMotion = false, onFirstD
     if (typeof window === "undefined") return;
     initClouds();
     const ro = new ResizeObserver(() => {
-      viewportRef.current = { width: window.innerWidth, height: window.innerHeight };
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      viewportRef.current = { width: vw, height: vh };
+      const mobile = vw < MOBILE_BREAKPOINT;
       noSpawnRef.current = {
-        cx: window.innerWidth / 2,
-        cy: window.innerHeight / 2,
-        halfW: 165,
-        halfH: 72,
+        cx: vw / 2,
+        cy: vh / 2,
+        halfW: mobile ? Math.min(90, Math.floor(vw * 0.22)) : 165,
+        halfH: mobile ? Math.min(44, Math.floor(vh * 0.06)) : 72,
       };
     });
     ro.observe(document.documentElement);

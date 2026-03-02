@@ -43,6 +43,8 @@ const RESTITUTION = 0.75;
 const COLLISION_ITERATIONS = 3;
 /** Minimum gap between cloud centers (so clouds don’t overlap or sit too close) */
 const MIN_CLOUD_GAP = 28;
+/** Slightly tighter on mobile so 5–6 clouds fit in the smaller viewport; desktop unchanged. */
+const MIN_CLOUD_GAP_MOBILE = 18;
 /** Frames to wait before the same cloud can get its eye color changed by collision again */
 const COLLISION_EYE_COLOR_COOLDOWN_FRAMES = 40;
 
@@ -65,9 +67,11 @@ function isTooCloseToOthers(
   x: number,
   y: number,
   radius: number,
-  existing: CloudState[]
+  existing: CloudState[],
+  isMobile: boolean
 ): boolean {
-  const minDist = radius + MIN_CLOUD_GAP;
+  const gap = isMobile ? MIN_CLOUD_GAP_MOBILE : MIN_CLOUD_GAP;
+  const minDist = radius + gap;
   for (const c of existing) {
     const dx = x - c.x;
     const dy = y - c.y;
@@ -86,9 +90,11 @@ export function createClouds(
   isMobile: boolean
 ): CloudState[] {
   const clouds: CloudState[] = [];
-  const padding = sizeMax + 30;
+  const padding = isMobile
+    ? Math.min(sizeMax + 15, Math.floor(viewport.width * 0.12), Math.floor(viewport.height * 0.12))
+    : sizeMax + 30;
   let attempts = 0;
-  const maxAttempts = count * 60;
+  const maxAttempts = count * 80;
 
   for (let i = 0; i < count && attempts < maxAttempts; attempts++) {
     const sizePx = Math.round(rand(sizeMin, sizeMax));
@@ -96,7 +102,7 @@ export function createClouds(
     const x = rand(padding, viewport.width - padding);
     const y = rand(padding, viewport.height - padding);
     if (isInNoSpawn(x, y, radius, noSpawn)) continue;
-    if (isTooCloseToOthers(x, y, radius, clouds)) continue;
+    if (isTooCloseToOthers(x, y, radius, clouds, isMobile)) continue;
     const eyeColor = HERO_ACCENT_COLORS[Math.floor(Math.random() * HERO_ACCENT_COLORS.length)];
     clouds.push({
       id: i,
