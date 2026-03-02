@@ -1974,29 +1974,32 @@ body.hero-ready .hero-scroll {
   }
 }
 
-/* Desktop (1024px+): natural document flow — page grows with content, scrolls normally (no 100vh lock) */
+/* Desktop (1024px+): natural document flow — page height = content height, no blank scroll */
 @media (min-width: 1024px) {
-  /* Page can grow and scroll; no overflow hidden or fixed height */
+  /* Page height matches content; no min-height 100vh so no excess blank space below footer */
   html.cloud-selection-view .page-wrapper {
-    min-height: 100dvh;
+    min-height: 0;
     height: auto;
     max-height: none;
     overflow: visible;
+    padding-bottom: env(safe-area-inset-bottom, 0);
   }
 
   html.cloud-selection-view .page-content {
     min-height: 0;
     overflow: visible;
     flex: 1 0 auto;
+    padding-top: 0;
   }
 
-  /* Section grows with content; natural flow so expanded cards push content down */
+  /* Section: content height only; no min-height 100vh */
   html.cloud-selection-view .cloud-selection-screen {
     height: auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
     overflow: visible;
+    padding-bottom: 1.5rem;
   }
 
   html.cloud-selection-view .cloud-selection-header {
