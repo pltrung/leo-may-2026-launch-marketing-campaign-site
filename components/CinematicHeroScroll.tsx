@@ -210,7 +210,7 @@ export default function CinematicHeroScroll({
       if (start == null) return;
       const elapsed = (performance.now() - start) / 1000;
       setLoadElapsed(elapsed);
-      if (elapsed >= 1.45) {
+      if (elapsed >= 2.25) {
         setLoadComplete(true);
         return;
       }
@@ -424,16 +424,16 @@ export default function CinematicHeroScroll({
   const particleIntensity = p >= 0.92 ? 0.72 : 1;
 
   /** Mobile: when we removed the sculpture box, the overlay became a single centered block. After first scroll the island GLB appears in the center and the text/CTA/meta (also centered) sit on top of it. Shift the block up once the island is visible so they don’t overlay. */
-  const loadT = Math.min(loadElapsed, 1.5);
-  /** Initial GLB (climbing hold) fades in over load sequence, like the 2nd GLB (island) fades in on scroll. */
-  const loadMascotOpacity = smoothstep(0.15, 0.7, loadT);
-  const loadMascotY = 32 * (1 - smoothstep(0.35, 0.65, loadT));
-  const loadHeadlineOpacity = smoothstep(0.5, 0.8, loadT);
-  const loadHeadlineY = 18 * (1 - smoothstep(0.5, 0.8, loadT));
-  const loadCTAOpacity = smoothstep(0.65, 0.95, loadT);
-  const loadCTAY = 16 * (1 - smoothstep(0.65, 0.95, loadT));
-  const loadArrowOpacity = smoothstep(0.85, 1.15, loadT);
-  const loadFooterOpacity = smoothstep(1.0, 1.35, loadT);
+  const loadT = Math.min(loadElapsed / 2.25, 1.2);
+  /** Staged entrance: world settles then mascot → narrative → CTA → scroll arrow last (calm, intentional). */
+  const loadMascotOpacity = smoothstep(0.12, 0.5, loadT);
+  const loadMascotY = 28 * (1 - smoothstep(0.3, 0.55, loadT));
+  const loadHeadlineOpacity = smoothstep(0.4, 0.7, loadT);
+  const loadHeadlineY = 16 * (1 - smoothstep(0.4, 0.7, loadT));
+  const loadCTAOpacity = smoothstep(0.55, 0.82, loadT);
+  const loadCTAY = 14 * (1 - smoothstep(0.55, 0.82, loadT));
+  const loadArrowOpacity = smoothstep(0.88, 1.12, loadT);
+  const loadFooterOpacity = smoothstep(0.95, 1.2, loadT);
 
   const mascotOpacityFinal = loadComplete ? mascotOpacity : loadMascotOpacity;
   const mascotTranslateYFinal = loadComplete ? mascotTranslateY : loadMascotY;

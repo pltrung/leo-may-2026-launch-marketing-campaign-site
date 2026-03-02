@@ -29,6 +29,9 @@ const PORTAL_DURATION_MS = 580;
 const REDUCED_MOTION_FADE_MS = 200;
 /** Fade overlay to 0 before unmount to avoid iOS mask/compositor white flash */
 const OVERLAY_FADEOUT_MS = 220;
+/** After portal expands: hold full-screen starfield so audio breathes before hero enters. */
+const HERO_HOLD_MS = 1000;
+const HERO_HOLD_MS_REDUCED = 400;
 /** Small circle so hero is visible inside the window immediately (18–30px equivalent in vmax) */
 const PORTAL_START_VMAX = 2.5;
 const PORTAL_END_VMAX = 160;
@@ -57,6 +60,8 @@ export default function PortalTransition({
   const [portalR, setPortalR] = useState(PORTAL_START_VMAX);
   const [rimOpacity, setRimOpacity] = useState(1);
   const [overlayFadeOut, setOverlayFadeOut] = useState(false);
+  const [holdStarfield, setHoldStarfield] = useState(false);
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [hintDismissed, setHintDismissed] = useState(false);
   const rafRef = useRef<number>(0);
   const startRef = useRef<number>(0);
@@ -90,12 +95,12 @@ export default function PortalTransition({
   const portalCy =
     exploreOrigin?.y ?? (typeof window !== "undefined" ? window.innerHeight / 2 : 0);
 
-  // Animate portal radius and rim (or reduced-motion fade)
+  // Animate portal radius and rim; then hold full starfield before completing (or reduced-motion: short delay)
   useEffect(() => {
     if (state !== "transitioning") return;
 
     if (reduceMotion) {
-      const t = setTimeout(onTransitionComplete, REDUCED_MOTION_FADE_MS);
+      const t = setTimeout(onTransitionComplete, REDUCED_MOTION_FADE_MS + HERO_HOLD_MS_REDUCED);
       return () => clearTimeout(t);
     }
 
@@ -112,19 +117,34 @@ export default function PortalTransition({
       if (t < 1) {
         rafRef.current = requestAnimationFrame(tick);
       } else {
-        setOverlayFadeOut(true);
-        doneTimerRef.current = setTimeout(onTransitionComplete, OVERLAY_FADEOUT_MS);
+        setHoldStarfield(true);
       }
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [state, reduceMotion]);
+
+  // After hold: complete transition (hero enters)
+  useEffect(() => {
+    if (!holdStarfield || reduceMotion) return;
+    holdTimerRef.current = setTimeout(() => {
+      holdTimerRef.current = null;
+      setOverlayFadeOut(true);
+      doneTimerRef.current = setTimeout(onTransitionComplete, OVERLAY_FADEOUT_MS);
+    }, HERO_HOLD_MS);
+    return () => {
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
       if (doneTimerRef.current) {
         clearTimeout(doneTimerRef.current);
         doneTimerRef.current = null;
       }
     };
-  }, [state, reduceMotion, onTransitionComplete]);
+  }, [holdStarfield, reduceMotion, onTransitionComplete]);
 
   const [fadeOut, setFadeOut] = useState(false);
   useEffect(() => {
@@ -140,7 +160,7 @@ export default function PortalTransition({
   const rVmax = state === "transitioning" ? portalR : PORTAL_START_VMAX;
 
   const overlayMask =
-    state === "transitioning"
+    state === "transitioning" && !holdStarfield
       ? `radial-gradient(circle at ${portalCx}px ${portalCy}px, transparent 0, transparent ${rVmax}vmax, black ${rVmax}vmax)`
       : undefined;
 
@@ -196,14 +216,14 @@ export default function PortalTransition({
         {showSky && <HeroStarfield heroTransitioning={isTransitioning} />}
       </div>
 
-      {/* Cloud playground: exploreIdle only; freezes and fades when Explore is clicked. Isolated so a throw does not white-screen the portal. */}
-      {(state === "exploreIdle" || state === "transitioning") && (
+      {/* Cloud playground: exploreIdle only; freezes when transitioning. During starfield hold we hide clouds so only stars show. */}
+      {(state === "exploreIdle" || (state === "transitioning" && !holdStarfield)) && (
         <ClientErrorBoundary fallback={null}>
           <CloudPlayground
             freeze={state === "transitioning"}
             reduceMotion={!!reduceMotion}
             onFirstDrag={handleFirstDrag}
-            onHintTarget={setHintTarget}
+            onHintTarget={(x, y) => setHintTarget({ x, y })}
           />
         </ClientErrorBoundary>
       )}

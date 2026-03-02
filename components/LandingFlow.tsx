@@ -48,7 +48,6 @@ export default function LandingFlow({ children }: { children: React.ReactNode })
     if (state !== "exploreIdle") return;
     startHeroMusicFromUserGesture();
     document.body.classList.add("loaded");
-    document.body.classList.add("hero-ready");
     setExploreOrigin(origin ?? null);
     setState("transitioning");
   }, [state]);
@@ -57,6 +56,7 @@ export default function LandingFlow({ children }: { children: React.ReactNode })
     if (completedRef.current) return;
     completedRef.current = true;
     if (typeof document !== "undefined") {
+      document.body.classList.add("hero-ready");
       document.body.classList.add("hero-page-visible");
     }
     setState("hero");
