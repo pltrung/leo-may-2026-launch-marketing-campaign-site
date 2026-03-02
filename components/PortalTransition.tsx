@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import ExploreButton from "@/components/ExploreButton";
 import type { ExploreOrigin } from "@/components/ExploreButton";
@@ -12,20 +11,15 @@ import ClientErrorBoundary from "@/components/ClientErrorBoundary";
 import SafeImg, { isValidImgSrc } from "@/components/SafeImg";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
-import { HERO_BG } from "@/lib/heroConstants";
 
 const EXPLORE_HINT_DISMISSED_KEY = "leo-explore-drag-hint-dismissed";
 
 const EXPLORE_LOGO_SRC = "/logo-white.svg";
 
-const HeroStarfield = dynamic(
-  () => import("@/components/HeroStarfield").then((m) => m.default),
-  { ssr: false }
-);
-
 export type PortalState = "loadingSky" | "exploreIdle" | "transitioning" | "hero";
 
-const PORTAL_DURATION_MS = 580;
+/** Portal circle expansion: longer duration so it feels cinematic, not rushed. */
+const PORTAL_DURATION_MS = 1280;
 const REDUCED_MOTION_FADE_MS = 200;
 /** Fade overlay to 0 before unmount to avoid iOS mask/compositor white flash */
 const OVERLAY_FADEOUT_MS = 220;
@@ -36,8 +30,9 @@ const HERO_HOLD_MS_REDUCED = 400;
 const PORTAL_START_VMAX = 2.5;
 const PORTAL_END_VMAX = 160;
 
-function easeOutExpo(t: number): number {
-  return t >= 1 ? 1 : 1 - Math.pow(2, -10 * t);
+/** Smooth ease-out so the circle expands deliberately; not the snappy expo that made it feel fast. */
+function easeOutCubic(t: number): number {
+  return t >= 1 ? 1 : 1 - Math.pow(1 - t, 3);
 }
 
 interface PortalTransitionProps {
@@ -110,10 +105,10 @@ export default function PortalTransition({
     const tick = (now: number) => {
       const elapsed = (now / 1000 - startRef.current) / duration;
       const t = Math.min(1, elapsed);
-      const eased = easeOutExpo(t);
+      const eased = easeOutCubic(t);
       const rVmax = PORTAL_START_VMAX + (PORTAL_END_VMAX - PORTAL_START_VMAX) * eased;
       setPortalR(rVmax);
-      setRimOpacity(t < 0.6 ? 1 : Math.max(0, 1 - (t - 0.6) / 0.4));
+      setRimOpacity(t < 0.65 ? 1 : Math.max(0, 1 - (t - 0.65) / 0.35));
       if (t < 1) {
         rafRef.current = requestAnimationFrame(tick);
       } else {
@@ -198,7 +193,7 @@ export default function PortalTransition({
         maskPosition: "0 0",
       }}
     >
-      {/* Sky (stars + shooting lights) — runs continuously; mask reveals hero through circle. Full viewport so mobile doesn't show 1/4 screen. */}
+      {/* Sky area: transparent so we see the single persistent starfield from LandingFlow (no second world). */}
       <div
         style={{
           position: "absolute",
@@ -210,11 +205,9 @@ export default function PortalTransition({
           height: "100%",
           minWidth: "100%",
           minHeight: "100%",
-          background: HERO_BG,
+          background: "transparent",
         }}
-      >
-        {showSky && <HeroStarfield heroTransitioning={isTransitioning} />}
-      </div>
+      />
 
       {/* Cloud playground: exploreIdle only; freezes when transitioning. During starfield hold we hide clouds so only stars show. */}
       {(state === "exploreIdle" || (state === "transitioning" && !holdStarfield)) && (

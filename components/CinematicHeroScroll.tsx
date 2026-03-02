@@ -23,10 +23,6 @@ const HeroClimbingHoldCanvas = dynamic(
   () => import("@/components/HeroClimbingHoldCanvas").catch(() => ({ default: () => null })),
   { ssr: false }
 );
-const HeroStarfield = dynamic(
-  () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
-  { ssr: false }
-);
 
 /** Arrow asset — single source so img never renders with empty/undefined src. */
 const HERO_SCROLL_ARROW_SRC = "/brand/arrow-up.svg";
@@ -459,16 +455,9 @@ export default function CinematicHeroScroll({
           top: 0,
           height: "100dvh",
           minHeight: "100dvh",
-          background: HERO_BG,
+          background: "transparent",
         }}
       >
-        {/* Subtle starfield behind GLB; inner boundary so a throw here doesn't take down the whole hero (e.g. after clouds→back on mobile). */}
-        {tabVisible && (
-          <ClientErrorBoundary fallback={null}>
-            <HeroStarfield heroTransitioning={(p >= 0.12 && p <= 0.26) || (p >= 0.74 && p <= 0.92)} />
-          </ClientErrorBoundary>
-        )}
-
         {/* Full-viewport climbing-hold GLB layer; on mobile defer so hero paints first after return. key forces remount when returning from background so WebGL is recreated. */}
         {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (glbDeferredReady || !isMobile) && (
           <ClientErrorBoundary fallback={null}>

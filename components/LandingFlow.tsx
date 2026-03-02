@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { getMessages } from "@/lib/messages";
 import SafeImg, { isValidImgSrc } from "@/components/SafeImg";
@@ -8,6 +9,12 @@ import PortalTransition, { type PortalState } from "@/components/PortalTransitio
 import type { ExploreOrigin } from "@/components/ExploreButton";
 import ClientErrorBoundary from "@/components/ClientErrorBoundary";
 import { startHeroMusicFromUserGesture } from "@/components/HeroMusic";
+import { HERO_BG } from "@/lib/heroConstants";
+
+const HeroStarfield = dynamic(
+  () => import("@/components/HeroStarfield").then((m) => m.default),
+  { ssr: false }
+);
 
 const LOGO_SRC = "/logo-white.svg";
 const CLOUD_SRC = "/brand/cloud-copyright.svg";
@@ -68,7 +75,22 @@ export default function LandingFlow({ children }: { children: React.ReactNode })
 
   return (
     <>
-      {/* Portal overlay: Sky + mask + Explore pill. Hidden when state === "hero". */}
+      {/* One continuous star world: fixed layer for entire flow so no second background mounts after Explore. */}
+      {isHome && (
+        <div
+          aria-hidden
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 0,
+            background: HERO_BG,
+            pointerEvents: "none",
+          }}
+        >
+          <HeroStarfield heroTransitioning={state === "transitioning"} />
+        </div>
+      )}
+      {/* Portal overlay: mask + clouds + Explore pill. Sky area is transparent so we see the starfield above. */}
       <ClientErrorBoundary
         fallback={() => {
           if (typeof document !== "undefined") {
