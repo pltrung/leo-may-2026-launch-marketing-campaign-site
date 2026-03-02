@@ -214,10 +214,10 @@ function HomeContent() {
   return (
     <div
       id="hero-page"
-      className="page-container relative flex flex-col"
-      style={showClouds ? { height: "100dvh", overflow: "hidden" } : { minHeight: "100dvh" }}
+      className="page-container page-wrapper relative flex flex-col"
+      style={{ minHeight: "100dvh" }}
     >
-      <main className={`relative z-10 flex-1 min-h-0 ${showClouds ? "overflow-hidden" : ""}`}>
+      <main className={`page-content relative z-10 flex-1 min-h-0 flex flex-col justify-center`}>
       <BrandBackground
         cloudsView={showClouds}
         cloudsEntranceStep={showClouds ? cloudsEntranceStep : undefined}

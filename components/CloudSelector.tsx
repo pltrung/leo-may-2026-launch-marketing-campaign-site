@@ -43,7 +43,7 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
   return (
     <section
       id="clouds"
-      className={`cloud-selection-screen relative w-full h-[100dvh] md:min-h-[100dvh] md:h-[100dvh] lg:h-screen flex flex-col items-center overflow-x-hidden overflow-y-hidden px-4 pb-4 pt-[88px] md:pt-24 lg:pt-20 lg:pb-8 sm:px-6 ${detailsOpen ? "card-selected" : ""}`}
+      className={`cloud-selection-screen cloud-selector relative w-full min-h-[100dvh] flex flex-col items-center overflow-x-hidden overflow-visible px-4 pb-4 pt-[88px] md:pt-24 lg:pt-20 lg:pb-8 sm:px-6 ${detailsOpen ? "card-selected" : ""}`}
     >
       {/* Logo: top-to-bottom stagger [0], same style as countdown */}
       <motion.div

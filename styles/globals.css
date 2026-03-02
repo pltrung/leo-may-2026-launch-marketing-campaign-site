@@ -8,6 +8,27 @@ body {
   background: #0B0B0F;
 }
 
+/* Page layout: flex column so footer sits at bottom; min-height 100dvh (avoids Android Chrome toolbar jump) */
+.page-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.page-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Cloud selector: allow full height, no clipping */
+.cloud-selector {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
 /* MiSans brand fonts */
 @font-face {
   font-family: "MiSans-Bold";
@@ -1449,9 +1470,7 @@ body.hero-ready .hero-scroll {
     0 0 60px rgba(2, 66, 255, 0.2);
 }
 
-/* Mobile/tablet (max-width: 1023px): fixed viewport, no scroll, immersive cloud stack — matches lg:hidden so stack shows below 1024px */
-/* iOS WebKit fix: -webkit-fill-available helps Chrome/Safari on some iOS devices with viewport height */
-/* iOS z-index fix: main must stack above footer so cloud selector isn't overlapped by footer */
+/* Mobile/tablet (max-width: 1023px): in-flow layout, natural scroll; no fixed viewport so footer stays at bottom via flex */
 @media (max-width: 1023px) {
   html.cloud-selection-view .page-container > main {
     z-index: 20;
@@ -1459,34 +1478,13 @@ body.hero-ready .hero-scroll {
   html.cloud-selection-view .page-container > .flex-shrink-0:last-child {
     z-index: 5;
   }
-  html.cloud-selection-view {
-    height: 100%;
-    height: -webkit-fill-available;
-    overflow: hidden;
-  }
-  html.cloud-selection-view body {
-    height: 100%;
-    height: -webkit-fill-available;
-    min-height: -webkit-fill-available;
-    overflow: hidden;
-    overscroll-behavior: none;
-    touch-action: pan-x;
-  }
-  /* Reserve bottom space for footer; z-index above footer; iOS Safari safe-area */
-  /* top/bottom/left/right anchors to viewport edges; iOS WebKit fills correctly */
+  /* Section in document flow: min-height 100dvh, no position fixed, no overflow hidden (avoids clipping + toolbar jump) */
   .cloud-selection-screen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
     width: 100%;
-    overflow: hidden;
-    z-index: 15;
-    padding: 96px 24px calc(140px + env(safe-area-inset-bottom, 0px));
+    min-height: 100dvh;
+    padding: 96px 24px calc(24px + env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;
-    flex-shrink: 0;
     box-sizing: border-box;
   }
 
@@ -1500,7 +1498,6 @@ body.hero-ready .hero-scroll {
     min-height: 0;
     -webkit-min-height: 0;
     width: 100%;
-    overflow: hidden;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1868,14 +1865,12 @@ body.hero-ready .hero-scroll {
   }
 }
 
-/* Desktop (1024px+): card selector one viewport, no scroll; separate from mobile layout */
+/* Desktop (1024px+): min-height 100dvh (no fixed height to avoid toolbar jump) */
 @media (min-width: 1024px) {
   html.cloud-selection-view .cloud-selection-screen {
-    min-height: 100vh;
-    height: 100vh;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
   }
 
   /* Hide mobile stack + Randomize on desktop; only 6-card grid shows */
@@ -1910,6 +1905,7 @@ body.hero-ready .hero-scroll {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 
