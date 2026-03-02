@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { clouds, CloudPersonality } from "@/lib/cloudData";
 import CloudCard from "./CloudCard";
 import CloudStackMobile, { type CloudStackMobileHandle } from "./CloudStackMobile";
+import CloudFooter from "./CloudFooter";
 import Logo from "./Logo";
 import { useLocale } from "./LocaleProvider";
 import { getMessages } from "@/lib/messages";
@@ -42,7 +43,7 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
   return (
     <section
       id="clouds"
-      className={`cloud-selection-screen relative w-full h-[100dvh] md:min-h-[100dvh] md:h-auto flex flex-col items-center overflow-x-hidden overflow-y-hidden md:overflow-y-auto lg:h-screen lg:overflow-hidden px-4 pb-4 pt-[88px] md:pb-16 md:pt-24 lg:pt-20 lg:pb-8 sm:px-6 ${detailsOpen ? "card-selected" : ""}`}
+      className={`cloud-selection-screen relative w-full h-[100dvh] md:min-h-[100dvh] md:h-[100dvh] lg:h-screen flex flex-col items-center overflow-x-hidden overflow-y-hidden px-4 pb-4 pt-[88px] md:pt-24 lg:pt-20 lg:pb-8 sm:px-6 ${detailsOpen ? "card-selected" : ""}`}
     >
       {/* Logo: top-to-bottom stagger [0], same style as countdown */}
       <motion.div
@@ -72,13 +73,13 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
         </p>
       </motion.div>
 
-      {/* Mobile/tablet: cloud stack + Randomize (stack shows until lg; desktop grid only at 1024px+) */}
+      {/* Mobile/tablet: cloud stack + Randomize + footer (stack shows until lg; desktop grid only at 1024px+) */}
       <div className="lg:hidden cloud-selection-container cloud-selector-container flex-1 w-full min-h-0 flex flex-col items-center">
         <div className="flex-1 w-full min-h-0 flex flex-col items-center justify-center">
           <CloudStackMobile ref={stackRef} onSelect={onSelect} onDetailsOpenChange={setDetailsOpen} contentStaggerBaseMs={CLOUD_STAGGER_MS[2]} />
         </div>
         <motion.div
-          className="randomize-button-spacer"
+          className="randomize-button-spacer flex-shrink-0"
           initial={{ opacity: 0, y: 6 }}
           animate={
             randomizePhase === "hidden"
@@ -122,6 +123,9 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
             {randomizeButton}
           </motion.button>
         </motion.div>
+        <div className="flex-shrink-0 w-full mt-2 md:mt-4">
+          <CloudFooter compact />
+        </div>
       </div>
 
       {/* Desktop only (1024px+): one viewport, 6 cards in a row; fixed-height flip, no expand */}
@@ -143,6 +147,11 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
             </motion.div>
           ))}
         </div>
+      </div>
+
+      {/* Desktop: footer at bottom of viewport (same one-viewport layout) */}
+      <div className="hidden lg:flex flex-shrink-0 w-full justify-center pb-2">
+        <CloudFooter compact />
       </div>
     </section>
   );

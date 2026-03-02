@@ -215,9 +215,9 @@ function HomeContent() {
     <div
       id="hero-page"
       className="page-container relative flex flex-col"
-      style={{ minHeight: "100dvh" }}
+      style={showClouds ? { height: "100dvh", overflow: "hidden" } : { minHeight: "100dvh" }}
     >
-      <main className="relative z-10 flex-1 min-h-0">
+      <main className={`relative z-10 flex-1 min-h-0 ${showClouds ? "overflow-hidden" : ""}`}>
       <BrandBackground
         cloudsView={showClouds}
         cloudsEntranceStep={showClouds ? cloudsEntranceStep : undefined}
@@ -392,7 +392,7 @@ function HomeContent() {
 
       </main>
 
-      {!showCinematicLayers && (
+      {!showCinematicLayers && !showClouds && (
         <motion.div
           id="know-your-cloud"
           className="flex-shrink-0 relative z-10 pt-1"

@@ -1383,6 +1383,11 @@ body.hero-ready .hero-scroll {
   z-index: 10;
   animation: footerFade 1.4s ease;
 }
+.cloud-footer-compact {
+  margin-top: 12px;
+  margin-bottom: 8px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+}
 .footer-inner {
   display: flex;
   flex-direction: column;

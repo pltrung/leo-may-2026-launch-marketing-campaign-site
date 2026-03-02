@@ -3,11 +3,16 @@
 import { useLocale } from "./LocaleProvider";
 import { getMessages } from "@/lib/messages";
 
-export default function CloudFooter() {
+interface CloudFooterProps {
+  /** When true, reduced margins for use inside cloud selector (one viewport). */
+  compact?: boolean;
+}
+
+export default function CloudFooter({ compact }: CloudFooterProps) {
   const locale = useLocale();
   const { ethos, location, copyright } = getMessages(locale).footer;
   return (
-    <footer className="cloud-footer" role="contentinfo">
+    <footer className={`cloud-footer ${compact ? "cloud-footer-compact" : ""}`} role="contentinfo">
       <div className="footer-inner">
         <div className="footer-ethos">{ethos}</div>
         <div className="footer-location">{location}</div>
