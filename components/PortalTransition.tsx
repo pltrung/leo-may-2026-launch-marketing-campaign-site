@@ -245,7 +245,7 @@ export default function PortalTransition({
         />
       )}
 
-      {/* Single thin rim at portal edge: gradient ring + blur, fades out by 60% of expansion */}
+      {/* Thick rim at portal edge: gradient ring + blur so the opening is clearly visible on mobile and desktop */}
       {state === "transitioning" && !reduceMotion && rimOpacity > 0 && (
         <>
           <div
@@ -254,8 +254,8 @@ export default function PortalTransition({
               position: "fixed",
               inset: 0,
               pointerEvents: "none",
-              background: `radial-gradient(circle at ${portalCx}px ${portalCy}px, transparent calc(${rVmax}vmax - 2px), rgba(180,220,255,0.95) ${rVmax}vmax, transparent calc(${rVmax}vmax + 2px))`,
-              filter: "blur(10px)",
+              background: `radial-gradient(circle at ${portalCx}px ${portalCy}px, transparent calc(${rVmax}vmax - max(0.8vmin, 8px)), rgba(180,220,255,0.92) ${rVmax}vmax, transparent calc(${rVmax}vmax + max(0.8vmin, 8px)))`,
+              filter: "blur(12px)",
               opacity: rimOpacity,
             }}
           />
@@ -265,7 +265,7 @@ export default function PortalTransition({
               position: "fixed",
               inset: 0,
               pointerEvents: "none",
-              background: `radial-gradient(circle at ${portalCx}px ${portalCy}px, transparent calc(${rVmax}vmax - 1px), rgba(255,255,255,0.4) ${rVmax}vmax, transparent calc(${rVmax}vmax + 1px))`,
+              background: `radial-gradient(circle at ${portalCx}px ${portalCy}px, transparent calc(${rVmax}vmax - max(0.35vmin, 4px)), rgba(255,255,255,0.5) ${rVmax}vmax, transparent calc(${rVmax}vmax + max(0.35vmin, 4px)))`,
               opacity: rimOpacity,
             }}
           />

@@ -228,7 +228,7 @@ const en = {
   loading: {
     preparingTheSky: "Preparing the sky",
   },
-  explore: "EXPLORE",
+  explore: "EXPLORE!",
   explorePage: {
     dragHint: "Move the clouds.",
   },
@@ -545,7 +545,7 @@ const vi: Messages = {
   loading: {
     preparingTheSky: "Đang chuẩn bị bầu trời",
   },
-  explore: "KHÁM PHÁ",
+  explore: "KHÁM PHÁ!",
   explorePage: {
     dragHint: "Di chuyển những đám mây.",
   },

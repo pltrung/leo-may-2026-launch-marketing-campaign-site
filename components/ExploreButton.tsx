@@ -5,24 +5,27 @@ import { motion } from "framer-motion";
 
 export type ExploreOrigin = { x: number; y: number };
 
-/** Layered glow: inner highlight, medium, large ambient — for idle breathing pulse */
+/** Premium activation-switch: white pill, layered blue halo. Idle = gentle breathing glow. */
 const GLOW_IDLE_A =
-  "0 0 0 1px rgba(180,210,255,0.12), 0 0 20px rgba(140,190,255,0.22), 0 0 48px rgba(100,160,240,0.28), 0 0 100px rgba(60,120,200,0.12)";
+  "0 0 0 1px rgba(120,160,255,0.2), 0 0 24px rgba(80,140,255,0.35), 0 0 56px rgba(60,120,240,0.4), 0 0 120px rgba(50,100,220,0.25)";
 const GLOW_IDLE_B =
-  "0 0 0 1px rgba(180,210,255,0.14), 0 0 20px rgba(140,190,255,0.28), 0 0 48px rgba(100,160,240,0.35), 0 0 100px rgba(60,120,200,0.18)";
-/** Tap: quick glow spike + slight scale bounce (portal activation) */
+  "0 0 0 1px rgba(140,180,255,0.28), 0 0 28px rgba(90,150,255,0.42), 0 0 64px rgba(70,130,245,0.48), 0 0 140px rgba(55,110,230,0.32)";
+/** Hover: energy building, glow intensifies slightly. */
+const GLOW_HOVER =
+  "0 0 0 1px rgba(150,190,255,0.35), 0 0 32px rgba(100,160,255,0.5), 0 0 72px rgba(80,140,250,0.55), 0 0 160px rgba(60,120,235,0.38)";
+/** Tap: activation moment, strong but controlled. */
 const GLOW_TAP =
-  "0 0 0 1px rgba(200,230,255,0.25), 0 0 28px rgba(160,210,255,0.5), 0 0 64px rgba(120,180,255,0.4), 0 0 140px rgba(80,140,220,0.25)";
+  "0 0 0 1px rgba(180,220,255,0.45), 0 0 36px rgba(120,180,255,0.6), 0 0 80px rgba(90,150,255,0.55), 0 0 180px rgba(70,130,240,0.4)";
 
 interface ExploreButtonProps {
   /** Called with button center (px) on click, or no arg on keyboard — for portal origin */
   onExplore: (origin?: ExploreOrigin) => void;
   disabled?: boolean;
-  /** Button label, e.g. "EXPLORE" / "KHÁM PHÁ" */
+  /** Button label, e.g. "EXPLORE!" / "KHÁM PHÁ!" */
   label?: string;
 }
 
-export default function ExploreButton({ onExplore, disabled = false, label = "EXPLORE" }: ExploreButtonProps) {
+export default function ExploreButton({ onExplore, disabled = false, label = "EXPLORE!" }: ExploreButtonProps) {
   const [pressing, setPressing] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -63,30 +66,26 @@ export default function ExploreButton({ onExplore, disabled = false, label = "EX
       aria-label={label}
       initial={false}
       animate={{
-        scale: pressing ? 1.05 : [1, 1.03, 1],
+        scale: pressing ? 1.04 : [1, 1.02, 1],
         boxShadow: pressing ? GLOW_TAP : [GLOW_IDLE_A, GLOW_IDLE_B, GLOW_IDLE_A],
       }}
       transition={
         pressing
           ? { duration: 0.12, ease: [0.22, 1, 0.36, 1] }
-          : { scale: { duration: 3, repeat: Infinity, ease: "easeInOut" }, boxShadow: { duration: 3, repeat: Infinity, ease: "easeInOut" } }
+          : { scale: { duration: 3.5, repeat: Infinity, ease: "easeInOut" }, boxShadow: { duration: 3.5, repeat: Infinity, ease: "easeInOut" } }
       }
       whileHover={
         disabled
           ? undefined
           : {
-              borderColor: "rgba(200,220,255,0.4)",
-              boxShadow: GLOW_IDLE_B,
-              transition: { duration: 0.2 },
+              boxShadow: GLOW_HOVER,
+              transition: { duration: 0.25, ease: [0.22, 1, 0.36, 1] },
             }
       }
       style={{
-        border: "1px solid rgba(200,220,255,0.2)",
-        background:
-          "linear-gradient(165deg, rgba(30,55,95,0.92) 0%, rgba(15,35,65,0.95) 50%, rgba(8,22,45,0.98) 100%)",
-        backdropFilter: "blur(14px)",
-        WebkitBackdropFilter: "blur(14px)",
-        color: "rgba(255,255,255,0.98)",
+        border: "1px solid rgba(200,220,255,0.25)",
+        background: "rgba(255,255,255,0.98)",
+        color: "rgba(18,18,24,0.95)",
         fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
         fontWeight: 700,
         letterSpacing: "0.03em",
@@ -95,11 +94,11 @@ export default function ExploreButton({ onExplore, disabled = false, label = "EX
         opacity: disabled ? 0.7 : 1,
         outline: "none",
         outlineOffset: "2px",
-        textShadow: "0 0 24px rgba(120,160,220,0.25)",
+        boxShadow: GLOW_IDLE_A,
       }}
       onFocus={(e) => {
         if (disabled) return;
-        e.currentTarget.style.outline = "2px solid rgba(120, 180, 255, 0.5)";
+        e.currentTarget.style.outline = "2px solid rgba(100, 160, 255, 0.5)";
         e.currentTarget.style.outlineOffset = "2px";
       }}
       onBlur={(e) => {
