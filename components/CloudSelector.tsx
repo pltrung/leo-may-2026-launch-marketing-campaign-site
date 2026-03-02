@@ -60,7 +60,7 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
 
       {/* Header: top-to-bottom stagger [1], same style as countdown */}
       <motion.div
-        className="cloud-selection-header relative flex flex-col items-center w-full max-w-2xl mx-auto mt-2 md:mt-0 md:mb-8 lg:mb-2 lg:flex-shrink-0 z-10 transition-opacity duration-400"
+        className="cloud-selection-header relative flex flex-col items-center w-full max-w-2xl mx-auto mt-2 mb-4 md:mt-0 md:mb-8 lg:mb-2 lg:flex-shrink-0 z-10 transition-opacity duration-400"
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: CLOUD_STAGGER_MS[1] / 1000, duration: CONTENT_DURATION, ease: EASE_APPLE_IN_OUT }}
@@ -73,13 +73,12 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
         </p>
       </motion.div>
 
-      {/* Mobile/tablet: cloud stack + Randomize + footer (stack shows until lg; desktop grid only at 1024px+) */}
+      {/* Mobile/tablet: content centered in available space, footer anchored at bottom (mt-auto) */}
       <div className="lg:hidden cloud-selection-container cloud-selector-container flex-1 w-full min-h-0 flex flex-col items-center">
-        <div className="flex-1 w-full min-h-0 flex flex-col items-center justify-center">
+        <div className="flex-1 w-full min-h-0 flex flex-col items-center justify-center gap-6">
           <CloudStackMobile ref={stackRef} onSelect={onSelect} onDetailsOpenChange={setDetailsOpen} contentStaggerBaseMs={CLOUD_STAGGER_MS[2]} />
-        </div>
-        <motion.div
-          className="randomize-button-spacer flex-shrink-0"
+          <motion.div
+            className="randomize-button-spacer flex-shrink-0"
           initial={{ opacity: 0, y: 6 }}
           animate={
             randomizePhase === "hidden"
@@ -122,8 +121,9 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
           >
             {randomizeButton}
           </motion.button>
-        </motion.div>
-        <div className="flex-shrink-0 w-full mt-2 md:mt-4">
+          </motion.div>
+        </div>
+        <div className="flex-shrink-0 w-full mt-auto pt-4 md:pt-6">
           <CloudFooter compact />
         </div>
       </div>
@@ -149,8 +149,8 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
         </div>
       </div>
 
-      {/* Desktop: footer at bottom of viewport (same one-viewport layout) */}
-      <div className="hidden lg:flex flex-shrink-0 w-full justify-center pb-2">
+      {/* Desktop: footer anchored at bottom of viewport */}
+      <div className="hidden lg:flex flex-shrink-0 w-full mt-auto justify-center pt-4 pb-2">
         <CloudFooter compact />
       </div>
     </section>
