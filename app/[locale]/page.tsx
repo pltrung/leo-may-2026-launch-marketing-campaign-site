@@ -335,7 +335,7 @@ function HomeContent() {
                 <CloudSelector onSelect={setSelectedCloud} onReturnToHero={handleReturnToHero} />
               </motion.div>
             )}
-          </AnimatePresence>
+          </div>
         </>
       ) : (
         <AnimatePresence mode="wait">

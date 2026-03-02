@@ -48,6 +48,7 @@ function ClimbingHoldModel({
   const groupRef = useRef<Group>(null);
   const { scene } = useGLTF(GLB_URL);
   const materialsRef = useRef<Material[]>([]);
+  const lastOpacityRef = useRef<number>(-1);
   const initialized = useRef(false);
   const centered = useRef(false);
   const scaleStartTime = useRef<number | null>(null);
@@ -101,10 +102,13 @@ function ClimbingHoldModel({
     const scale = Math.min(SCALE_MAX, scaleEased);
     groupRef.current.scale.setScalar(scale);
 
-    const op = Math.max(0, Math.min(1, opacity));
-    materialsRef.current.forEach((mat) => {
-      mat.opacity = op;
-    });
+    const op = Math.max(0, Math.min(1, Number.isFinite(opacity) ? opacity : 1));
+    if (lastOpacityRef.current !== op) {
+      lastOpacityRef.current = op;
+      materialsRef.current.forEach((mat) => {
+        mat.opacity = op;
+      });
+    }
   });
 
   return (
