@@ -1409,8 +1409,12 @@ body.hero-ready .hero-scroll {
 }
 .cloud-footer-compact {
   margin-top: auto;
-  margin-bottom: 8px;
-  padding-bottom: max(32px, env(safe-area-inset-bottom, 0px));
+  margin-bottom: 0;
+  padding-top: 8px;
+  padding-bottom: max(40px, env(safe-area-inset-bottom, 0px));
+}
+.cloud-footer-compact .footer-inner {
+  gap: 10px;
 }
 .footer-inner {
   display: flex;
@@ -1473,7 +1477,7 @@ body.hero-ready .hero-scroll {
     0 0 60px rgba(2, 66, 255, 0.2);
 }
 
-/* Mobile/tablet (max-width: 1023px): in-flow layout, natural scroll; no fixed viewport so footer stays at bottom via flex */
+/* Mobile/tablet (max-width: 1023px): one viewport, no scroll; clear header / content / footer zones */
 @media (max-width: 1023px) {
   html.cloud-selection-view .page-container > main {
     z-index: 20;
@@ -1481,14 +1485,34 @@ body.hero-ready .hero-scroll {
   html.cloud-selection-view .page-container > .flex-shrink-0:last-child {
     z-index: 5;
   }
-  /* Section in document flow: min-height 100dvh, no position fixed, no overflow hidden (avoids clipping + toolbar jump) */
+
+  /* Lock to one viewport so layout feels full and footer sits at bottom with breathing room */
+  html.cloud-selection-view .page-wrapper {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
+  html.cloud-selection-view .cloud-selection-screen {
+    height: 100%;
+    min-height: 0;
+  }
+
+  /* Section: fill viewport, clear header/footer zones */
   .cloud-selection-screen {
     width: 100%;
     min-height: 100dvh;
-    padding: 96px 24px calc(24px + env(safe-area-inset-bottom, 0px));
+    padding: 96px 24px 0;
+    padding-bottom: max(32px, env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
+  }
+
+  /* Minimum gap between Randomize button and footer so they never touch */
+  .cloud-selector-footer-wrap {
+    padding-top: 48px;
+    padding-bottom: 0;
   }
 
   .cloud-selection-header {
@@ -1868,12 +1892,24 @@ body.hero-ready .hero-scroll {
   }
 }
 
-/* Desktop (1024px+): min-height 100dvh (no fixed height to avoid toolbar jump) */
+/* Desktop (1024px+): one viewport, no scroll — lock height and overflow */
 @media (min-width: 1024px) {
+  html.cloud-selection-view .page-wrapper {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
   html.cloud-selection-view .cloud-selection-screen {
-    min-height: 100dvh;
+    height: 100%;
+    min-height: 0;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+  }
+
+  html.cloud-selection-view .cloud-selector {
+    margin-bottom: 0;
   }
 
   /* Hide mobile stack + Randomize on desktop; only 6-card grid shows */
