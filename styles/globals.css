@@ -1976,20 +1976,20 @@ body.hero-ready .hero-scroll {
 
 /* Desktop (1024px+): one viewport, exact partition — height = header + content + footer, no overlap */
 @media (min-width: 1024px) {
-  /* Viewport boundary: exactly 100dvh, no scroll */
+  /* Viewport boundary: exactly 100dvh; overflow hidden only on wrapper so main/section can use overflow-visible and grid scrolls internally */
   html.cloud-selection-view .page-wrapper {
     height: 100dvh;
     max-height: 100dvh;
     overflow: hidden;
   }
 
-  /* Main fills wrapper so section can use 100% height */
+  /* Main fills wrapper; overflow visible so cloud selector grid is not clipped */
   html.cloud-selection-view .page-content {
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
   }
 
-  /* Section = full height of main; flex column partitions into header | grid | footer. overflow: visible so the grid's scroll area isn't clipped. */
+  /* Section = full height of main; flex column partitions into header | grid | footer */
   html.cloud-selection-view .cloud-selection-screen {
     height: 100%;
     min-height: 0;
@@ -2014,23 +2014,26 @@ body.hero-ready .hero-scroll {
     display: none !important;
   }
 
-  /* Desktop cards area: middle band between header and footer; scroll when cards don't fit so they're never cropped */
+  /* Desktop cards area: middle band between header and footer; scroll when cards don't fit so full cards are visible (no clipping) */
   html.cloud-selection-view .cloud-selector-desktop-grid {
     flex: 1 1 0;
     min-height: 0;
     display: flex !important;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     overflow-x: hidden;
     overflow-y: auto;
-    visibility: visible;
-    opacity: 1;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.5rem 0;
   }
 
-  /* Inner grid: do not shrink below content so scroll appears instead of clipping cards */
+  /* Inner grid: natural height so grid scrolls instead of clipping cards */
   html.cloud-selection-view .cloud-selector-desktop-grid-inner {
     min-height: min-content;
     flex-shrink: 0;
+    width: 90%;
+    max-width: 1400px;
+    margin: 0 auto;
   }
 
   /* Footer: fixed height (no shrink), always below the cards band */

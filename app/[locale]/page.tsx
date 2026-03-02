@@ -293,10 +293,11 @@ function HomeContent() {
             className={`relative z-0 flex flex-col ${showClouds ? "flex-1 min-h-0" : ""}`}
             style={{ opacity: heroContentOpacity }}
           >
-            {/* Hide only the hero when on clouds; keep wrapper visible so CloudSelector is shown. */}
+            {/* Hide hero (and GLB) completely when on clouds; keep wrapper visible so CloudSelector is shown. */}
             <div
               style={{
                 visibility: showClouds ? "hidden" : "visible",
+                opacity: showClouds ? 0 : 1,
                 position: showClouds ? "absolute" : "relative",
                 inset: showClouds ? 0 : undefined,
                 pointerEvents: showClouds ? "none" : "auto",
