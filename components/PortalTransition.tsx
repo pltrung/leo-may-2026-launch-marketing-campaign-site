@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { useParams } from "next/navigation";
 import ExploreButton from "@/components/ExploreButton";
@@ -169,7 +170,7 @@ export default function PortalTransition({
   const overlayFadeDuration =
     reduceMotion ? REDUCED_MOTION_FADE_MS / 1000 : overlayFadeOut ? OVERLAY_FADEOUT_MS / 1000 : 0;
 
-  return (
+  const overlayContent = (
     <motion.div
       className="portal-overlay"
       aria-hidden={false}
@@ -328,4 +329,11 @@ export default function PortalTransition({
       )}
     </motion.div>
   );
+
+  // Render overlay into document.body so it covers the full viewport (including header);
+  // avoids clipping by any ancestor with transform/overflow/containment.
+  if (typeof document !== "undefined" && document.body) {
+    return createPortal(overlayContent, document.body);
+  }
+  return overlayContent;
 }
