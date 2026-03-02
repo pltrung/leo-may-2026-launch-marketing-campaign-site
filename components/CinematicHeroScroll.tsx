@@ -421,15 +421,17 @@ export default function CinematicHeroScroll({
 
   /** Mobile: when we removed the sculpture box, the overlay became a single centered block. After first scroll the island GLB appears in the center and the text/CTA/meta (also centered) sit on top of it. Shift the block up once the island is visible so they don’t overlay. */
   const loadT = Math.min(loadElapsed / 2.25, 1.2);
-  /** Staged entrance: world settles then mascot → narrative → CTA → scroll arrow last (calm, intentional). */
-  const loadMascotOpacity = smoothstep(0.12, 0.5, loadT);
-  const loadMascotY = 28 * (1 - smoothstep(0.3, 0.55, loadT));
-  const loadHeadlineOpacity = smoothstep(0.4, 0.7, loadT);
-  const loadHeadlineY = 16 * (1 - smoothstep(0.4, 0.7, loadT));
-  const loadCTAOpacity = smoothstep(0.55, 0.82, loadT);
-  const loadCTAY = 14 * (1 - smoothstep(0.55, 0.82, loadT));
-  const loadArrowOpacity = smoothstep(0.88, 1.12, loadT);
-  const loadFooterOpacity = smoothstep(0.95, 1.2, loadT);
+  /** Dim overlay fades in over the stars first (~1.1s), then content enters. Overlay not too strong. */
+  const overlayFadeIn = smoothstep(0, 0.5, loadT);
+  /** Staged entrance: overlay in first, then mascot → narrative → CTA → scroll arrow last. */
+  const loadMascotOpacity = smoothstep(0.4, 0.65, loadT);
+  const loadMascotY = 28 * (1 - smoothstep(0.5, 0.7, loadT));
+  const loadHeadlineOpacity = smoothstep(0.55, 0.82, loadT);
+  const loadHeadlineY = 16 * (1 - smoothstep(0.55, 0.82, loadT));
+  const loadCTAOpacity = smoothstep(0.7, 0.92, loadT);
+  const loadCTAY = 14 * (1 - smoothstep(0.7, 0.92, loadT));
+  const loadArrowOpacity = smoothstep(1.0, 1.2, loadT);
+  const loadFooterOpacity = smoothstep(1.05, 1.2, loadT);
 
   const mascotOpacityFinal = loadComplete ? mascotOpacity : loadMascotOpacity;
   const mascotTranslateYFinal = loadComplete ? mascotTranslateY : loadMascotY;
@@ -492,18 +494,26 @@ export default function CinematicHeroScroll({
             paddingBottom: isMobile ? "2rem" : undefined,
           }}
         >
+          {/* Dim overlay fades in over the stars first, then content enters; strength kept moderate */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
-              background: `radial-gradient(ellipse 80% 70% at 50% 50%, rgba(18,18,24,0.5) 0%, ${HERO_BG} 70%)`,
+              opacity: loadComplete ? 1 : overlayFadeIn,
             }}
-          />
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              boxShadow: isMobile ? "inset 0 0 15vh 8vh rgba(0,0,0,0.3)" : "inset 0 0 20vh 10vh rgba(0,0,0,0.25)",
-            }}
-          />
+          >
+            <div
+              className="absolute inset-0"
+              style={{
+                background: `radial-gradient(ellipse 80% 70% at 50% 50%, rgba(18,18,24,0.35) 0%, ${HERO_BG} 70%)`,
+              }}
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                boxShadow: isMobile ? "inset 0 0 15vh 8vh rgba(0,0,0,0.15)" : "inset 0 0 20vh 10vh rgba(0,0,0,0.18)",
+              }}
+            />
+          </div>
           <div
             className="absolute inset-0 pointer-events-none"
             style={{

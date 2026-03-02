@@ -92,9 +92,11 @@ export default function ExploreDragHint({ text, visible, target }: ExploreDragHi
     };
     const id = requestAnimationFrame(updateRotation);
     const t = setTimeout(updateRotation, 100);
+    window.addEventListener("resize", updateRotation);
     return () => {
       cancelAnimationFrame(id);
       clearTimeout(t);
+      window.removeEventListener("resize", updateRotation);
     };
   }, [target, hasFadedIn]);
 
