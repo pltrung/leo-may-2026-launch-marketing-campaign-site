@@ -8,6 +8,7 @@ import {
   useMemo,
 } from "react";
 import { motion } from "framer-motion";
+import SafeImg from "@/components/SafeImg";
 import type { CloudState, CloudLayer } from "@/lib/cloudPhysics";
 import {
   createClouds,
@@ -135,8 +136,7 @@ export default function CloudPlayground({ freeze, reduceMotion = false, onFirstD
       }
       frameRef.current += 1;
       stepClouds(cloudsRef.current, viewportRef.current, dt, {
-        drift: true,
-        windScale: reduceMotion ? 0.3 : 1,
+        drift: false,
         frame: frameRef.current,
       });
       setClouds((prev) => {
@@ -397,15 +397,15 @@ function CloudNode({
         }}
         onPointerDown={onPointerDown}
       >
-        <img
+        <SafeImg
           src={cloudSrc}
           alt=""
           aria-hidden
           draggable={false}
-        style={{
-          display: "block",
-          width: "100%",
-          height: "auto",
+          style={{
+            display: "block",
+            width: "100%",
+            height: "auto",
             pointerEvents: "none",
             transform: `translate(${eyeOffsetX}px, ${eyeOffsetY}px)`,
           }}

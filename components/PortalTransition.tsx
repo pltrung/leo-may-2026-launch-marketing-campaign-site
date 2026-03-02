@@ -8,6 +8,7 @@ import ExploreButton from "@/components/ExploreButton";
 import type { ExploreOrigin } from "@/components/ExploreButton";
 import CloudPlayground from "@/components/CloudPlayground";
 import ExploreDragHint from "@/components/ExploreDragHint";
+import ClientErrorBoundary from "@/components/ClientErrorBoundary";
 import SafeImg, { isValidImgSrc } from "@/components/SafeImg";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
@@ -154,7 +155,14 @@ export default function PortalTransition({
       transition={{ duration: overlayFadeDuration }}
       style={{
         position: "fixed",
-        inset: 0,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: "100vw",
+        height: "100dvh",
+        minHeight: "100dvh",
+        maxWidth: "100%",
         zIndex: 999998,
         pointerEvents: "auto",
         overflow: "hidden",
@@ -168,24 +176,33 @@ export default function PortalTransition({
         maskPosition: "0 0",
       }}
     >
-      {/* Sky (stars + shooting lights) — runs continuously; mask reveals hero through circle */}
+      {/* Sky (stars + shooting lights) — runs continuously; mask reveals hero through circle. Full viewport so mobile doesn't show 1/4 screen. */}
       <div
         style={{
           position: "absolute",
-          inset: 0,
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: "100%",
+          height: "100%",
+          minWidth: "100%",
+          minHeight: "100%",
           background: HERO_BG,
         }}
       >
         {showSky && <HeroStarfield heroTransitioning={isTransitioning} />}
       </div>
 
-      {/* Cloud playground: exploreIdle only; freezes and fades when Explore is clicked */}
+      {/* Cloud playground: exploreIdle only; freezes and fades when Explore is clicked. Isolated so a throw does not white-screen the portal. */}
       {(state === "exploreIdle" || state === "transitioning") && (
-        <CloudPlayground
-          freeze={state === "transitioning"}
-          reduceMotion={!!reduceMotion}
-          onFirstDrag={handleFirstDrag}
-        />
+        <ClientErrorBoundary fallback={null}>
+          <CloudPlayground
+            freeze={state === "transitioning"}
+            reduceMotion={!!reduceMotion}
+            onFirstDrag={handleFirstDrag}
+          />
+        </ClientErrorBoundary>
       )}
 
       {/* Subtle drag hint: curved arrow + text, fades out after first cloud drag */}
@@ -289,7 +306,7 @@ export default function PortalTransition({
               <SafeImg
                 src={EXPLORE_LOGO_SRC}
                 alt="Leo Mây"
-                className="h-auto w-[clamp(120px,28vw,160px)] max-w-[160px] object-contain"
+                className="h-auto w-[clamp(240px,56vw,320px)] max-w-[320px] object-contain"
                 style={{ display: "block" }}
               />
             </motion.div>

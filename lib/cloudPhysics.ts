@@ -196,14 +196,14 @@ export function stepClouds(
             a.vy += k * dvn * ny;
             b.vx -= k * dvn * nx;
             b.vy -= k * dvn * ny;
-          }
-          if (frame - a.lastEyeColorChangeFrame >= COLLISION_EYE_COLOR_COOLDOWN_FRAMES) {
-            a.eyeColor = pickRandomAccentColor();
-            a.lastEyeColorChangeFrame = frame;
-          }
-          if (frame - b.lastEyeColorChangeFrame >= COLLISION_EYE_COLOR_COOLDOWN_FRAMES) {
-            b.eyeColor = pickRandomAccentColor();
-            b.lastEyeColorChangeFrame = frame;
+            if (frame - a.lastEyeColorChangeFrame >= COLLISION_EYE_COLOR_COOLDOWN_FRAMES) {
+              a.eyeColor = pickRandomAccentColor();
+              a.lastEyeColorChangeFrame = frame;
+            }
+            if (frame - b.lastEyeColorChangeFrame >= COLLISION_EYE_COLOR_COOLDOWN_FRAMES) {
+              b.eyeColor = pickRandomAccentColor();
+              b.lastEyeColorChangeFrame = frame;
+            }
           }
         }
       }
