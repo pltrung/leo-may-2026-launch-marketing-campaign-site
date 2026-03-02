@@ -2014,26 +2014,49 @@ body.hero-ready .hero-scroll {
     display: none !important;
   }
 
-  /* Desktop cards area: middle band between header and footer; scroll when cards don't fit so full cards are visible (no clipping) */
+  /* Desktop cards area: middle band fills remaining height; one row, no scroll — cards scale to fit */
   html.cloud-selection-view .cloud-selector-desktop-grid {
     flex: 1 1 0;
     min-height: 0;
     display: flex !important;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
-    overflow-x: hidden;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow: visible;
     padding: 0.5rem 0;
   }
 
-  /* Inner grid: natural height so grid scrolls instead of clipping cards */
+  /* Inner grid: fill grid height so cards fit in one viewport (no scroll) */
   html.cloud-selection-view .cloud-selector-desktop-grid-inner {
-    min-height: min-content;
-    flex-shrink: 0;
+    height: 100%;
+    min-height: 0;
     width: 90%;
     max-width: 1400px;
     margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: 1fr;
+    gap: 1.5rem;
+    align-items: stretch;
+    justify-items: center;
+  }
+
+  /* Card wrapper: fill cell so card can size to available height */
+  html.cloud-selection-view .cloud-selector-desktop-grid-inner > div {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 0;
+    max-height: 100%;
+  }
+
+  /* Cards: scale to fit cell so full card is visible, no scroll */
+  html.cloud-selection-view .cloud-selector-desktop-grid-inner .cloud-card {
+    max-height: 100%;
+    max-width: 100%;
+    width: auto;
+    height: auto;
+    aspect-ratio: 3 / 4;
   }
 
   /* Footer: fixed height (no shrink), always below the cards band */
