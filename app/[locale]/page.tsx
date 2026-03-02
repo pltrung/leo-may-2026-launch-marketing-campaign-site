@@ -28,6 +28,7 @@ import HeroMusic from "@/components/HeroMusic";
 import MistAscent from "@/components/MistAscent";
 import HeroStarfield from "@/components/HeroStarfield";
 import { useTransitionOverlay } from "@/context/TransitionOverlayContext";
+import { useInAppBrowser } from "@/context/InAppBrowserContext";
 import { HERO_BG } from "@/lib/heroConstants";
 import { CloudPersonality, getCloudById } from "@/lib/cloudData";
 import { getUser } from "@/lib/userStorage";
@@ -51,6 +52,7 @@ function HomeContent() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const { phase: overlayPhase, startTransition } = useTransitionOverlay();
+  const { skipWebGL } = useInAppBrowser();
   const transitionActive = overlayPhase !== "idle";
 
   /** Clouds view entrance after TV turn-on: 1) dark, 2) holds, 3) content. Only when landing from transition. */
@@ -215,7 +217,7 @@ function HomeContent() {
     <div
       id="hero-page"
       className="page-container page-wrapper relative flex flex-col"
-      style={{ minHeight: "100dvh" }}
+      style={{ minHeight: "var(--viewport-height, 100dvh)" }}
     >
       <main className={`page-content relative z-10 flex-1 min-h-0 flex flex-col justify-center`}>
       <BrandBackground
@@ -312,10 +314,9 @@ function HomeContent() {
                 onCenterLogoGone={handleCenterLogoGone}
                 aboutUsLabel={aboutUsLabel}
                 onAboutUsClick={() => setAboutOpen(true)}
+                skipWebGL={skipWebGL}
               />
             </ClientErrorBoundary>
-          </div>
-          <AnimatePresence mode="wait">
             {showClouds && (
               <motion.div
                 key="clouds"
@@ -354,6 +355,7 @@ function HomeContent() {
                     onCenterLogoGone={handleCenterLogoGone}
                     aboutUsLabel={aboutUsLabel}
                     onAboutUsClick={() => setAboutOpen(true)}
+                    skipWebGL={skipWebGL}
                   />
                 </ClientErrorBoundary>
               </div>

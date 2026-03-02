@@ -68,6 +68,8 @@ export interface CinematicHeroScrollProps {
   aboutUsLabel?: string;
   /** Mobile only: called when About Us CTA is clicked. */
   onAboutUsClick?: () => void;
+  /** When true (e.g. WeChat/Facebook in-app browser), do not mount WebGL/GLB canvases to avoid failures. */
+  skipWebGL?: boolean;
 }
 
 function useIsMobile(): boolean {
@@ -119,6 +121,7 @@ export default function CinematicHeroScroll({
   onCenterLogoGone,
   aboutUsLabel,
   onAboutUsClick,
+  skipWebGL = false,
 }: CinematicHeroScrollProps) {
   const isMobile = useIsMobile();
   const isDesktop = useIsDesktop();
@@ -130,6 +133,8 @@ export default function CinematicHeroScroll({
   const scrollYRef = useRef<number>(0);
   const centerLogoGoneFiredRef = useRef(false);
   const mountedRef = useRef(true);
+  /** Last valid progress [0,1]; prevents NaN or out-of-range from rapid scroll causing grey screen. */
+  const lastValidProgressRef = useRef<number>(0);
   const [glbMounted, setGlbMounted] = useState(false);
   const [loadElapsed, setLoadElapsed] = useState(0);
   const [loadComplete, setLoadComplete] = useState(false);
@@ -140,8 +145,11 @@ export default function CinematicHeroScroll({
   const [tabVisible, setTabVisible] = useState(true);
   /** On mobile, after tab has been hidden once we skip GLB until visible again; then we remount (glbRemountKey) so WebGL is recreated and GLBs render. */
   const mobileSkipGlbAfterHiddenRef = useRef(false);
-  /** Increment when returning from background on mobile so climbing-hold and island canvases remount and get a fresh WebGL context. */
+  /** Increment when returning from background so climbing-hold and island canvases remount and get a fresh WebGL context. Delayed slightly when tab becomes visible so context is ready. */
   const [glbRemountKey, setGlbRemountKey] = useState(0);
+  /** GLB blocks stay mounted; we hide with visibility when tab hidden. Remount Canvas (key) only when tab transitions from hidden to visible. */
+  const glbRemountTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tabWasHiddenRef = useRef(false);
   /** On mobile, defer GLB mount so hero shell (starfield, content) paints first after return from clouds — avoids slow/frozen feel. */
   const [glbDeferredReady, setGlbDeferredReady] = useState(false);
 
@@ -174,22 +182,30 @@ export default function CinematicHeroScroll({
         const visible = document.visibilityState !== "hidden";
         const mobile = typeof window !== "undefined" && window.innerWidth <= 768;
         // Only skip GLB when tab actually went hidden (e.g. app switch), not during route transition (TV off to clouds).
-        if (!visible && mobile && overlayPhaseRef.current === "idle") {
-          mobileSkipGlbAfterHiddenRef.current = true;
-        }
-        // When returning from background on mobile, allow GLBs again and remount so WebGL context is recreated (fixes GLB disappearing after app switch).
-        if (visible && mobile && mobileSkipGlbAfterHiddenRef.current) {
-          mobileSkipGlbAfterHiddenRef.current = false;
-          setGlbRemountKey((k) => k + 1);
+        if (!visible) {
+          tabWasHiddenRef.current = true;
+          if (mobile && overlayPhaseRef.current === "idle") mobileSkipGlbAfterHiddenRef.current = true;
         }
         setTabVisible(visible);
+        // When tab becomes visible after being hidden, remount GLB after a short delay so WebGL context is ready (fixes GLB not showing after leaving site and coming back).
+        if (visible && tabWasHiddenRef.current) {
+          tabWasHiddenRef.current = false;
+          if (mobile) mobileSkipGlbAfterHiddenRef.current = false;
+          if (glbRemountTimeoutRef.current) clearTimeout(glbRemountTimeoutRef.current);
+          glbRemountTimeoutRef.current = setTimeout(() => {
+            glbRemountTimeoutRef.current = null;
+            setGlbRemountKey((k) => k + 1);
+          }, 120);
+        }
       } catch {
         setTabVisible(true);
       }
     };
-    // Only react to visibilitychange; do not sync on mount so we don't hide GLBs when tab reports "hidden" on load (e.g. desktop with unfocused window).
     document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      if (glbRemountTimeoutRef.current) clearTimeout(glbRemountTimeoutRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -233,16 +249,19 @@ export default function CinematicHeroScroll({
       rafRef.current = 0;
       if (!mountedRef.current) return;
       try {
-        const y = scrollYRef.current;
         const vv = window.visualViewport;
-        const vh = vv?.height ?? window.innerHeight;
-        const wrapperHeight = (vh * wrapperVh) / 100;
-        const denom = wrapperHeight - vh;
-        const progressEndScroll = denom <= 0 ? 1 : Math.max(denom * 0.95, 1);
-        let raw = denom <= 0 ? 0 : y / progressEndScroll;
-        if (!Number.isFinite(raw)) raw = 0;
+        const vh = Math.max(1, vv?.height ?? window.innerHeight);
+        const wrapperHeight = Math.max(vh, (vh * wrapperVh) / 100);
+        const maxScroll = Math.max(0, wrapperHeight - vh);
+        const y = Math.max(0, Math.min(scrollYRef.current, maxScroll));
+        const progressEndScroll = maxScroll <= 0 ? 1 : Math.max(maxScroll * 0.95, 1);
+        let raw = progressEndScroll <= 0 ? 0 : y / progressEndScroll;
+        if (!Number.isFinite(raw)) raw = lastValidProgressRef.current;
         const v = Math.max(0, Math.min(1, raw));
-        setHeroProgress(v);
+        if (Number.isFinite(v)) {
+          lastValidProgressRef.current = v;
+          setHeroProgress(v);
+        }
         if (v >= 0.28 && !centerLogoGoneFiredRef.current && onCenterLogoGone) {
           centerLogoGoneFiredRef.current = true;
           onCenterLogoGone();
@@ -310,7 +329,7 @@ export default function CinematicHeroScroll({
     if (isMobile && glbDeferredReady) setGlbMounted(true);
   }, [isMobile, glbDeferredReady]);
 
-  const p = Number.isFinite(heroProgress) ? Math.max(0, Math.min(1, heroProgress)) : 0;
+  const p = Number.isFinite(heroProgress) ? Math.max(0, Math.min(1, heroProgress)) : lastValidProgressRef.current;
   const headlineStages = locale === "vi" ? HEADLINE_STAGES_VI : HEADLINE_STAGES_EN;
   const ctaLabel = getMessages(locale as "en" | "vi").hero.ctaFoundingAscent;
 
@@ -455,25 +474,30 @@ export default function CinematicHeroScroll({
         className="sticky w-full flex flex-col overflow-hidden"
         style={{
           top: 0,
-          height: "100dvh",
-          minHeight: "100dvh",
+          height: "var(--viewport-height, 100dvh)",
+          minHeight: "var(--viewport-height, 100dvh)",
           background: "transparent",
+          willChange: "transform",
+          transform: "translateZ(0)",
+          WebkitTransform: "translateZ(0)",
         }}
       >
-        {/* Full-viewport climbing-hold GLB layer; on mobile defer so hero paints first after return. key forces remount when returning from background so WebGL is recreated. */}
-        {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (glbDeferredReady || !isMobile) && (
+        {/* Full-viewport climbing-hold GLB layer; always mounted when !skipWebGL so scroll never unmounts. Visibility hidden when tab hidden; key remounts Canvas when returning from background. */}
+        {!skipWebGL && (glbDeferredReady || !isMobile) && (
           <ClientErrorBoundary fallback={null}>
             <div
               key={glbRemountKey}
               className="absolute inset-0 z-10 flex items-center justify-center"
               style={{
                 width: "100vw",
-                height: "100dvh",
-                opacity: mascotOpacityFinal,
+                height: "var(--viewport-height, 100dvh)",
+                opacity: tabVisible ? mascotOpacityFinal : 0,
+                visibility: tabVisible ? "visible" : "hidden",
                 transform: `translateY(${mascotTranslateYFinal}px)`,
                 transition: "opacity 500ms ease-out",
+                pointerEvents: tabVisible ? "auto" : "none",
               }}
-              aria-hidden
+              aria-hidden={!tabVisible}
             >
               <HeroClimbingHoldCanvas
                 opacity={1}
@@ -524,15 +548,19 @@ export default function CinematicHeroScroll({
             }}
           />
 
-          {tabVisible && !(isMobile && mobileSkipGlbAfterHiddenRef.current) && (glbDeferredReady || !isMobile) && (
+          {!skipWebGL && (glbDeferredReady || !isMobile) && (
             <ClientErrorBoundary fallback={null}>
               <div
                 key={glbRemountKey}
                 className="absolute inset-0 pointer-events-none"
-                style={{ zIndex: zoomT > 0.05 ? 25 : 5 }}
+                style={{
+                  zIndex: zoomT > 0.05 ? 25 : 5,
+                  visibility: tabVisible ? "visible" : "hidden",
+                  opacity: tabVisible ? 1 : 0,
+                }}
               >
                 <HeroIslandCanvas
-                  opacity={glbOpacity}
+                  opacity={tabVisible ? glbOpacity : 0}
                   scale={glbScale}
                   cameraDistance={cameraDistance}
                   fov={cameraFov}

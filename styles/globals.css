@@ -8,6 +8,37 @@ body {
   background: #0B0B0F;
 }
 
+/* Viewport height: 100dvh where supported; in-app browsers (WeChat, Facebook) get 100vh fallback via .in-app-browser */
+html {
+  --viewport-height: 100dvh;
+}
+html.in-app-browser {
+  --viewport-height: 100vh;
+}
+
+/* In-app browser (WeChat, Facebook): use 100vh so layout and full-height sections work when dvh is unsupported or buggy */
+html.in-app-browser body {
+  min-height: 100vh !important;
+}
+html.in-app-browser .page-wrapper {
+  min-height: 100vh;
+}
+html.in-app-browser .cloud-selection-screen {
+  min-height: 100vh;
+}
+html.in-app-browser .page-content {
+  padding-bottom: max(32px, env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 1024px) {
+  html.in-app-browser.cloud-selection-view .page-wrapper {
+    height: 100vh;
+    max-height: 100vh;
+  }
+}
+html.in-app-browser .cloud-selector-footer-wrap {
+  padding-bottom: max(32px, env(safe-area-inset-bottom, 0px));
+}
+
 /* Page layout: flex column so footer sits at bottom; min-height 100dvh (avoids Android Chrome toolbar jump) */
 .page-wrapper {
   display: flex;
@@ -1958,13 +1989,13 @@ body.hero-ready .hero-scroll {
     overflow: hidden;
   }
 
-  /* Section = full height of main; flex column partitions into header | grid | footer */
+  /* Section = full height of main; flex column partitions into header | grid | footer. overflow: visible so the grid's scroll area isn't clipped. */
   html.cloud-selection-view .cloud-selection-screen {
     height: 100%;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
   }
 
   /* Header: fixed height (no shrink); title + subtext; stays above cards */
@@ -1990,10 +2021,16 @@ body.hero-ready .hero-scroll {
     display: flex !important;
     align-items: center;
     justify-content: center;
-    overflow: auto;
     overflow-x: hidden;
+    overflow-y: auto;
     visibility: visible;
     opacity: 1;
+  }
+
+  /* Inner grid: do not shrink below content so scroll appears instead of clipping cards */
+  html.cloud-selection-view .cloud-selector-desktop-grid-inner {
+    min-height: min-content;
+    flex-shrink: 0;
   }
 
   /* Footer: fixed height (no shrink), always below the cards band */

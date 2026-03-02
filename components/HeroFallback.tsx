@@ -21,8 +21,8 @@ export default function HeroFallback({ onRetry }: { onRetry: () => void }) {
 
   return (
     <div
-      className="relative flex flex-col items-center justify-center min-h-[100dvh] w-full"
-      style={{ background: HERO_BG }}
+      className="relative flex flex-col items-center justify-center w-full"
+      style={{ background: HERO_BG, minHeight: "var(--viewport-height, 100dvh)" }}
       role="alert"
     >
       <p className="text-white/70 text-sm mb-4">Something went wrong loading this view.</p>

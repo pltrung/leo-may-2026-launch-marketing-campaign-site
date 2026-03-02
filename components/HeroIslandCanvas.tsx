@@ -64,6 +64,7 @@ export default function HeroIslandCanvas({
   className?: string;
   modelOffsetY?: number;
 }) {
+  /** Once mounted, stay mounted — never unmount based on scroll/opacity so rapid scroll cannot cause blank or grey screen. */
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     if (shouldMount ?? opacity > 0.01) setMounted(true);
