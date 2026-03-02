@@ -17,6 +17,8 @@ export type PortalState = "loadingSky" | "exploreIdle" | "transitioning" | "hero
 
 const PORTAL_DURATION_MS = 580;
 const REDUCED_MOTION_FADE_MS = 200;
+/** Fade overlay to 0 before unmount to avoid iOS mask/compositor white flash */
+const OVERLAY_FADEOUT_MS = 220;
 /** Small circle so hero is visible inside the window immediately (18–30px equivalent in vmax) */
 const PORTAL_START_VMAX = 2.5;
 const PORTAL_END_VMAX = 160;
@@ -44,8 +46,10 @@ export default function PortalTransition({
 }: PortalTransitionProps) {
   const [portalR, setPortalR] = useState(PORTAL_START_VMAX);
   const [rimOpacity, setRimOpacity] = useState(1);
+  const [overlayFadeOut, setOverlayFadeOut] = useState(false);
   const rafRef = useRef<number>(0);
   const startRef = useRef<number>(0);
+  const doneTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const portalCx =
     exploreOrigin?.x ?? (typeof window !== "undefined" ? window.innerWidth / 2 : 0);
@@ -74,12 +78,17 @@ export default function PortalTransition({
       if (t < 1) {
         rafRef.current = requestAnimationFrame(tick);
       } else {
-        onTransitionComplete();
+        setOverlayFadeOut(true);
+        doneTimerRef.current = setTimeout(onTransitionComplete, OVERLAY_FADEOUT_MS);
       }
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (doneTimerRef.current) {
+        clearTimeout(doneTimerRef.current);
+        doneTimerRef.current = null;
+      }
     };
   }, [state, reduceMotion, onTransitionComplete]);
 
@@ -101,13 +110,17 @@ export default function PortalTransition({
       ? `radial-gradient(circle at ${portalCx}px ${portalCy}px, transparent 0, transparent ${rVmax}vmax, black ${rVmax}vmax)`
       : undefined;
 
+  const overlayOpacity = fadeOut || overlayFadeOut ? 0 : 1;
+  const overlayFadeDuration =
+    reduceMotion ? REDUCED_MOTION_FADE_MS / 1000 : overlayFadeOut ? OVERLAY_FADEOUT_MS / 1000 : 0;
+
   return (
     <motion.div
       className="portal-overlay"
       aria-hidden={false}
       initial={false}
-      animate={{ opacity: fadeOut ? 0 : 1 }}
-      transition={{ duration: reduceMotion ? REDUCED_MOTION_FADE_MS / 1000 : 0 }}
+      animate={{ opacity: overlayOpacity }}
+      transition={{ duration: overlayFadeDuration }}
       style={{
         position: "fixed",
         inset: 0,

@@ -56,6 +56,9 @@ export default function LandingFlow({ children }: { children: React.ReactNode })
   const handleTransitionComplete = useCallback(() => {
     if (completedRef.current) return;
     completedRef.current = true;
+    if (typeof document !== "undefined") {
+      document.body.classList.add("hero-page-visible");
+    }
     setState("hero");
   }, []);
 
