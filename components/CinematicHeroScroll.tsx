@@ -486,7 +486,29 @@ export default function CinematicHeroScroll({
           </ClientErrorBoundary>
         )}
 
-        {/* Content area: overlays above GLB (z-20); padding for header/safe-area and breathing room */}
+        {/* Full-viewport dim overlay (covers header zone too so stars have even opacity); below header z-index */}
+        <div
+          className="fixed inset-0 pointer-events-none z-[5]"
+          style={{
+            opacity: loadComplete ? 1 : overlayFadeIn,
+          }}
+          aria-hidden
+        >
+          <div
+            className="absolute inset-0"
+            style={{
+              background: `radial-gradient(ellipse 80% 70% at 50% 50%, rgba(18,18,24,0.35) 0%, ${HERO_BG} 70%)`,
+            }}
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              boxShadow: isMobile ? "inset 0 0 15vh 8vh rgba(0,0,0,0.15)" : "inset 0 0 20vh 10vh rgba(0,0,0,0.18)",
+            }}
+          />
+        </div>
+
+        {/* Content area: padding for header/safe-area and breathing room */}
         <div
           className="flex-1 min-h-0 relative flex flex-col items-center justify-center z-20"
           style={{
@@ -494,26 +516,6 @@ export default function CinematicHeroScroll({
             paddingBottom: isMobile ? "2rem" : undefined,
           }}
         >
-          {/* Dim overlay fades in over the stars first, then content enters; strength kept moderate */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              opacity: loadComplete ? 1 : overlayFadeIn,
-            }}
-          >
-            <div
-              className="absolute inset-0"
-              style={{
-                background: `radial-gradient(ellipse 80% 70% at 50% 50%, rgba(18,18,24,0.35) 0%, ${HERO_BG} 70%)`,
-              }}
-            />
-            <div
-              className="absolute inset-0"
-              style={{
-                boxShadow: isMobile ? "inset 0 0 15vh 8vh rgba(0,0,0,0.15)" : "inset 0 0 20vh 10vh rgba(0,0,0,0.18)",
-              }}
-            />
-          </div>
           <div
             className="absolute inset-0 pointer-events-none"
             style={{

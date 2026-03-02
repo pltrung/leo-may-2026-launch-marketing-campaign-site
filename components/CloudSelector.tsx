@@ -149,8 +149,8 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
         </div>
       </div>
 
-      {/* Desktop: footer anchored at bottom of viewport */}
-      <div className="hidden lg:flex flex-shrink-0 w-full mt-auto justify-center pt-4 pb-2">
+      {/* Desktop: footer anchored at bottom of viewport (boundary for flex partition) */}
+      <div className="cloud-selector-desktop-footer hidden lg:flex flex-shrink-0 w-full mt-auto justify-center pt-4 pb-2">
         <CloudFooter compact />
       </div>
     </section>
