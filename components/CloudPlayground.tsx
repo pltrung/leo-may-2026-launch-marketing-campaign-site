@@ -8,7 +8,7 @@ import {
   useMemo,
 } from "react";
 import { motion } from "framer-motion";
-import type { CloudState } from "@/lib/cloudPhysics";
+import type { CloudState, CloudLayer } from "@/lib/cloudPhysics";
 import {
   createClouds,
   stepClouds,
@@ -35,9 +35,11 @@ interface CloudPlaygroundProps {
   /** When true, freeze physics and fade out (e.g. Explore clicked) */
   freeze: boolean;
   reduceMotion?: boolean;
+  /** Called once when the user starts dragging a cloud (mouse drag or touch long-press + drag). */
+  onFirstDrag?: () => void;
 }
 
-export default function CloudPlayground({ freeze, reduceMotion = false }: CloudPlaygroundProps) {
+export default function CloudPlayground({ freeze, reduceMotion = false, onFirstDrag }: CloudPlaygroundProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cloudsRef = useRef<CloudState[]>([]);
   const viewportRef = useRef<Viewport>({ width: 800, height: 600 });
@@ -51,6 +53,7 @@ export default function CloudPlayground({ freeze, reduceMotion = false }: CloudP
   const [clouds, setClouds] = useState<CloudState[]>([]);
   const [fadeOut, setFadeOut] = useState(false);
   const [dragState, setDragState] = useState<{ id: number; startX: number; startY: number } | null>(null);
+  const hasFiredFirstDragRef = useRef(false);
 
   const isMobile = typeof window !== "undefined" ? window.innerWidth < MOBILE_BREAKPOINT : true;
   const cloudCount = useMemo(
@@ -64,7 +67,7 @@ export default function CloudPlayground({ freeze, reduceMotion = false }: CloudP
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     viewportRef.current = { width: vw, height: vh };
-    noSpawnRef.current = { cx: vw / 2, cy: vh / 2, halfW: 90, halfH: 40 };
+    noSpawnRef.current = { cx: vw / 2, cy: vh / 2, halfW: 165, halfH: 72 };
     cloudsRef.current = createClouds(
       cloudCount,
       viewportRef.current,
@@ -84,8 +87,8 @@ export default function CloudPlayground({ freeze, reduceMotion = false }: CloudP
       noSpawnRef.current = {
         cx: window.innerWidth / 2,
         cy: window.innerHeight / 2,
-        halfW: 90,
-        halfH: 40,
+        halfW: 165,
+        halfH: 72,
       };
     });
     ro.observe(document.documentElement);
@@ -148,21 +151,29 @@ export default function CloudPlayground({ freeze, reduceMotion = false }: CloudP
       const cloud = cloudsRef.current.find((c) => c.id === cloudId);
       if (!cloud) return;
       const isTouch = e.pointerType === "touch";
+      const startDrag = () => {
+        if (!hasFiredFirstDragRef.current && onFirstDrag) {
+          hasFiredFirstDragRef.current = true;
+          onFirstDrag();
+        }
+      };
       if (isTouch) {
         longPressTimerRef.current = setTimeout(() => {
           longPressTimerRef.current = null;
           pointerIdRef.current = e.pointerId;
           dragCloudIdRef.current = cloudId;
           setDragState({ id: cloudId, startX: cloud.x, startY: cloud.y });
+          startDrag();
         }, LONG_PRESS_MS);
       } else {
         pointerIdRef.current = e.pointerId;
         dragCloudIdRef.current = cloudId;
         setDragState({ id: cloudId, startX: cloud.x, startY: cloud.y });
+        startDrag();
       }
       lastPointerRef.current = { x: e.clientX, y: e.clientY, t: performance.now() };
     },
-    []
+    [onFirstDrag]
   );
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
@@ -224,6 +235,10 @@ export default function CloudPlayground({ freeze, reduceMotion = false }: CloudP
 
   if (clouds.length === 0) return null;
 
+  const cx = viewportRef.current.width / 2;
+  const cy = viewportRef.current.height / 2;
+  const sortedByLayer = [...clouds].sort((a, b) => a.layer - b.layer);
+
   return (
     <div
       ref={containerRef}
@@ -241,7 +256,7 @@ export default function CloudPlayground({ freeze, reduceMotion = false }: CloudP
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
     >
-      {clouds.map((c, index) => {
+      {sortedByLayer.map((c, index) => {
         const isDragging = dragState?.id === c.id;
         const bob = getBobOffset(c.floatPhase, bobTime);
         const eyeOffset =
@@ -259,7 +274,9 @@ export default function CloudPlayground({ freeze, reduceMotion = false }: CloudP
           <CloudNode
             key={c.id}
             cloud={c}
-            cloudIndex={index}
+            cloudIndex={clouds.indexOf(c)}
+            centerX={cx}
+            centerY={cy}
             bobY={isDragging ? 0 : bob}
             isDragging={isDragging}
             eyeOffsetX={eyeOffset.x}
@@ -272,9 +289,20 @@ export default function CloudPlayground({ freeze, reduceMotion = false }: CloudP
   );
 }
 
+const CENTER_DIM_RADIUS_PX = 200;
+const LAYER_OPACITY: Record<CloudLayer, number> = { 0: 0.78, 1: 0.88, 2: 0.92 };
+const LAYER_Z: Record<CloudLayer, number> = { 0: 1, 1: 2, 2: 3 };
+const LAYER_FILTER: Record<CloudLayer, string> = {
+  0: "blur(3px) drop-shadow(0 2px 8px rgba(0,0,0,0.08))",
+  1: "drop-shadow(0 4px 12px rgba(0,0,0,0.1)) drop-shadow(0 0 0 1px rgba(255,255,255,0.15))",
+  2: "drop-shadow(0 6px 20px rgba(0,0,0,0.18)) drop-shadow(0 0 0 1px rgba(255,255,255,0.18))",
+};
+
 function CloudNode({
   cloud,
   cloudIndex,
+  centerX,
+  centerY,
   bobY,
   isDragging,
   eyeOffsetX,
@@ -283,6 +311,8 @@ function CloudNode({
 }: {
   cloud: CloudState;
   cloudIndex: number;
+  centerX: number;
+  centerY: number;
   bobY: number;
   isDragging: boolean;
   eyeOffsetX: number;
@@ -293,45 +323,57 @@ function CloudNode({
   const cloudSrc = cloud.id % 2 === 0 ? CLOUD_LEFT_SRC : CLOUD_RIGHT_SRC;
   const entranceDelay = CLOUD_ENTRANCE_BASE_DELAY_S + cloudIndex * CLOUD_ENTRANCE_STAGGER_S;
 
+  const dist = Math.sqrt((cloud.x - centerX) ** 2 + (cloud.y - centerY) ** 2);
+  const centerDim = dist < CENTER_DIM_RADIUS_PX ? 0.4 + 0.6 * (dist / CENTER_DIM_RADIUS_PX) : 1;
+  const opacity = LAYER_OPACITY[cloud.layer] * centerDim;
+
   return (
-    <motion.div
-      role="presentation"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{
-        duration: CLOUD_ENTRANCE_DURATION_S,
-        delay: entranceDelay,
-        ease: [0.22, 1, 0.36, 1],
-      }}
+    <div
       style={{
         position: "fixed",
         left: cloud.x,
         top: cloud.y,
         width: w,
-        transform: `translate(-50%, -50%) translateY(${bobY}px) rotate(${cloud.rotation}rad) scale(${isDragging ? 1.03 : 1})`,
+        opacity,
+        transform: "translate(-50%, -50%)",
         transformOrigin: "50% 50%",
-        cursor: isDragging ? "grabbing" : "grab",
-        touchAction: "none",
+        zIndex: isDragging ? 100 : LAYER_Z[cloud.layer],
         pointerEvents: "auto",
-        zIndex: isDragging ? 100 : 1,
-        willChange: isDragging ? "transform" : "auto",
-        filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.12)) drop-shadow(0 0 0 1px rgba(255,255,255,0.2))",
       }}
-      onPointerDown={onPointerDown}
     >
-      <img
-        src={cloudSrc}
-        alt=""
-        aria-hidden
-        draggable={false}
+      <motion.div
+        role="presentation"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{
+          duration: CLOUD_ENTRANCE_DURATION_S,
+          delay: entranceDelay,
+          ease: [0.22, 1, 0.36, 1],
+        }}
+        style={{
+          transform: `translateY(${bobY}px) rotate(${cloud.rotation}rad) scale(${isDragging ? 1.03 : 1})`,
+          transformOrigin: "50% 50%",
+          cursor: isDragging ? "grabbing" : "grab",
+          touchAction: "none",
+          willChange: isDragging ? "transform" : "auto",
+          filter: LAYER_FILTER[cloud.layer],
+        }}
+        onPointerDown={onPointerDown}
+      >
+        <img
+          src={cloudSrc}
+          alt=""
+          aria-hidden
+          draggable={false}
         style={{
           display: "block",
           width: "100%",
           height: "auto",
-          pointerEvents: "none",
-          transform: `translate(${eyeOffsetX}px, ${eyeOffsetY}px)`,
-        }}
-      />
-    </motion.div>
+            pointerEvents: "none",
+            transform: `translate(${eyeOffsetX}px, ${eyeOffsetY}px)`,
+          }}
+        />
+      </motion.div>
+    </div>
   );
 }

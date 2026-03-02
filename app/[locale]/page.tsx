@@ -182,22 +182,25 @@ function HomeContent() {
 
   useEffect(() => {
     if (!USE_CINEMATIC_HERO || showClouds) return;
-    const vh = typeof window !== "undefined" ? window.innerHeight : 700;
-    const wrapperHeight = (vh * HERO_WRAPPER_VH) / 100;
-    const heroEnd = Math.max(1, wrapperHeight - vh);
-    const scrollBufferPx = Math.max(100, vh * 0.12);
+    if (typeof window === "undefined") return;
     let raf = 0;
     const onScroll = () => {
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
+        const vh = window.visualViewport?.height ?? window.innerHeight;
+        const wrapperHeight = (vh * HERO_WRAPPER_VH) / 100;
+        const heroEnd = Math.max(1, wrapperHeight - vh);
+        const scrollBufferPx = Math.max(100, vh * 0.12);
         setHeroScrollComplete(window.scrollY > heroEnd + scrollBufferPx);
       });
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.visualViewport?.addEventListener("resize", onScroll);
     return () => {
       window.removeEventListener("scroll", onScroll);
+      window.visualViewport?.removeEventListener("resize", onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
   }, [showClouds]);

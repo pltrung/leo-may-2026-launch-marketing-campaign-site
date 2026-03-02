@@ -131,7 +131,7 @@ export default function CinematicHeroScroll({
   overlayPhaseRef.current = overlayPhase;
   const [heroProgress, setHeroProgress] = useState(0);
   const rafRef = useRef<number>(0);
-  const pendingRef = useRef<number | null>(null);
+  const scrollYRef = useRef<number>(0);
   const centerLogoGoneFiredRef = useRef(false);
   const mountedRef = useRef(true);
   const [glbMounted, setGlbMounted] = useState(false);
@@ -229,53 +229,78 @@ export default function CinematicHeroScroll({
     };
   }, []);
 
+  /** Single source of truth: progress derived only in rAF from scrollY + current viewport. No closure over dimensions — avoids iOS freeze on rapid direction change and toolbar resize. */
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const vh = window.innerHeight;
-    const wrapperHeight = (vh * wrapperVh) / 100;
-    const denom = wrapperHeight - vh;
-    const progressEndScroll = denom <= 0 ? 1 : Math.max(denom * 0.95, 1);
-    const onScroll = () => {
+
+    const tick = () => {
+      rafRef.current = 0;
+      if (!mountedRef.current) return;
       try {
-        const y = window.scrollY;
+        const y = scrollYRef.current;
+        const vv = window.visualViewport;
+        const vh = vv?.height ?? window.innerHeight;
+        const wrapperHeight = (vh * wrapperVh) / 100;
+        const denom = wrapperHeight - vh;
+        const progressEndScroll = denom <= 0 ? 1 : Math.max(denom * 0.95, 1);
         let raw = denom <= 0 ? 0 : y / progressEndScroll;
         if (!Number.isFinite(raw)) raw = 0;
-        pendingRef.current = Math.max(0, Math.min(1, raw));
+        const v = Math.max(0, Math.min(1, raw));
+        setHeroProgress(v);
+        if (v >= 0.28 && !centerLogoGoneFiredRef.current && onCenterLogoGone) {
+          centerLogoGoneFiredRef.current = true;
+          onCenterLogoGone();
+        }
+      } catch {
+        // guard so rAF never throws (e.g. during iOS overscroll / layout flux)
+      }
+    };
+
+    const onScroll = () => {
+      try {
+        scrollYRef.current = window.scrollY;
         if (rafRef.current) return;
-        rafRef.current = requestAnimationFrame(() => {
-          try {
-            rafRef.current = 0;
-            if (!mountedRef.current) return;
-            let v = pendingRef.current;
-            if (v == null || Number.isNaN(v)) v = 0;
-            v = Math.max(0, Math.min(1, v));
-            setHeroProgress(v);
-            if (v >= 0.28 && !centerLogoGoneFiredRef.current && onCenterLogoGone) {
-              centerLogoGoneFiredRef.current = true;
-              onCenterLogoGone();
-            }
-          } catch {
-            // guard so scroll-up / rAF never throws client-side
-          }
-        });
+        rafRef.current = requestAnimationFrame(tick);
       } catch {
         // guard so scroll handler never throws
       }
     };
-    // Defer first scroll read to next frame so we don't run during fragile init (avoids client error on refresh with restored scroll).
+
+    const onResize = () => {
+      try {
+        scrollYRef.current = window.scrollY;
+        if (rafRef.current) return;
+        rafRef.current = requestAnimationFrame(tick);
+      } catch {
+        // no-op
+      }
+    };
+
     const rafId = requestAnimationFrame(() => {
       try {
-        onScroll();
+        scrollYRef.current = window.scrollY;
+        if (rafRef.current) return;
+        rafRef.current = requestAnimationFrame(tick);
       } catch {
         // no-op
       }
     });
+
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
+    window.addEventListener("resize", onResize);
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("resize", onResize);
+      vv.addEventListener("scroll", onScroll);
+    }
     return () => {
       cancelAnimationFrame(rafId);
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("resize", onResize);
+      if (vv) {
+        vv.removeEventListener("resize", onResize);
+        vv.removeEventListener("scroll", onScroll);
+      }
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [wrapperVh, onCenterLogoGone]);

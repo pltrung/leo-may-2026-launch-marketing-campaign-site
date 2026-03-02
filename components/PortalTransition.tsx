@@ -1,12 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
+import { useParams } from "next/navigation";
 import ExploreButton from "@/components/ExploreButton";
 import type { ExploreOrigin } from "@/components/ExploreButton";
 import CloudPlayground from "@/components/CloudPlayground";
+import ExploreDragHint from "@/components/ExploreDragHint";
+import SafeImg, { isValidImgSrc } from "@/components/SafeImg";
+import { getMessages } from "@/lib/messages";
+import type { Locale } from "@/lib/i18n";
 import { HERO_BG } from "@/lib/heroConstants";
+
+const EXPLORE_HINT_DISMISSED_KEY = "leo-explore-drag-hint-dismissed";
+
+const EXPLORE_LOGO_SRC = "/logo-white.svg";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").then((m) => m.default),
@@ -47,9 +56,31 @@ export default function PortalTransition({
   const [portalR, setPortalR] = useState(PORTAL_START_VMAX);
   const [rimOpacity, setRimOpacity] = useState(1);
   const [overlayFadeOut, setOverlayFadeOut] = useState(false);
+  const [hintDismissed, setHintDismissed] = useState(true);
   const rafRef = useRef<number>(0);
   const startRef = useRef<number>(0);
   const doneTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const params = useParams();
+  const locale = (params?.locale as Locale) ?? "en";
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      setHintDismissed(window.sessionStorage.getItem(EXPLORE_HINT_DISMISSED_KEY) === "1");
+    } catch {
+      setHintDismissed(false);
+    }
+  }, []);
+
+  const handleFirstDrag = useCallback(() => {
+    setHintDismissed(true);
+    try {
+      window.sessionStorage.setItem(EXPLORE_HINT_DISMISSED_KEY, "1");
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const portalCx =
     exploreOrigin?.x ?? (typeof window !== "undefined" ? window.innerWidth / 2 : 0);
@@ -153,6 +184,30 @@ export default function PortalTransition({
         <CloudPlayground
           freeze={state === "transitioning"}
           reduceMotion={!!reduceMotion}
+          onFirstDrag={handleFirstDrag}
+        />
+      )}
+
+      {/* Subtle drag hint: curved arrow + text, fades out after first cloud drag */}
+      {showExplore && (
+        <ExploreDragHint
+          text={getMessages(locale).explorePage.dragHint}
+          visible={!hintDismissed}
+        />
+      )}
+
+      {/* Faint radial vignette when Explore is visible: center stays clear so the pill is the focal point */}
+      {showExplore && (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            zIndex: 5,
+            background:
+              "radial-gradient(ellipse 80% 70% at 50% 50%, transparent 28%, rgba(0,0,0,0.08) 55%, rgba(0,0,0,0.2) 100%)",
+          }}
         />
       )}
 
@@ -194,12 +249,53 @@ export default function PortalTransition({
             top: "50%",
             transform: "translate(-50%, -50%)",
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
+            gap: "clamp(20px, 4vw, 28px)",
             zIndex: 10,
           }}
         >
+          <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: "inherit" }}>
+          {/* Very subtle radial ambient behind logo — low opacity, does not overpower stars */}
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: "28px",
+              transform: "translate(-50%, -50%)",
+              width: "min(280px, 70vw)",
+              height: "140px",
+              background:
+                "radial-gradient(ellipse 80% 50% at 50% 50%, rgba(180,200,255,0.06) 0%, rgba(120,160,220,0.03) 50%, transparent 70%)",
+              pointerEvents: "none",
+            }}
+          />
+          {/* Centered white logo above button: fade in 600ms, slight upward motion, subtle glow */}
+          {isValidImgSrc(EXPLORE_LOGO_SRC) && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              style={{
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                filter: "drop-shadow(0 0 24px rgba(140,180,255,0.2)) drop-shadow(0 0 48px rgba(100,140,220,0.12))",
+              }}
+            >
+              <SafeImg
+                src={EXPLORE_LOGO_SRC}
+                alt="Leo Mây"
+                className="h-auto w-[clamp(120px,28vw,160px)] max-w-[160px] object-contain"
+                style={{ display: "block" }}
+              />
+            </motion.div>
+          )}
           <ExploreButton onExplore={onExplore} disabled={isTransitioning} label={exploreLabel} />
+          </div>
         </motion.div>
       )}
     </motion.div>

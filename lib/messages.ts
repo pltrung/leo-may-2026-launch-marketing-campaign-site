@@ -229,6 +229,9 @@ const en = {
     preparingTheSky: "Preparing the sky",
   },
   explore: "EXPLORE",
+  explorePage: {
+    dragHint: "Move the clouds.",
+  },
   knowYourCloud: {
     button: "Login",
     loginTitle: "Login your credentials",
@@ -543,6 +546,9 @@ const vi: Messages = {
     preparingTheSky: "Đang chuẩn bị bầu trời",
   },
   explore: "KHÁM PHÁ",
+  explorePage: {
+    dragHint: "Di chuyển những đám mây.",
+  },
   knowYourCloud: {
     button: "Đăng nhập",
     loginTitle: "Đăng nhập tài khoản của bạn",

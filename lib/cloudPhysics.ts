@@ -3,6 +3,9 @@
  * No wind/drift — clouds just float (bob in place) until dragged.
  */
 
+/** 0 = background (smaller, slower, blur), 1 = mid, 2 = foreground (larger, shadow, faster) */
+export type CloudLayer = 0 | 1 | 2;
+
 export interface CloudState {
   id: number;
   x: number;
@@ -13,6 +16,7 @@ export interface CloudState {
   sizePx: number;
   rotation: number;
   floatPhase: number;
+  layer: CloudLayer;
 }
 
 export interface Viewport {
@@ -91,19 +95,36 @@ export function createClouds(
       sizePx,
       rotation: rand(-6, 6) * (Math.PI / 180),
       floatPhase: rand(0, Math.PI * 2),
+      layer: 1,
     });
     i++;
   }
+  // Assign layers by size: smallest third = back (0), middle = mid (1), largest third = fore (2)
+  const sorted = [...clouds].sort((a, b) => a.sizePx - b.sizePx);
+  const third = Math.floor(sorted.length / 3);
+  sorted.forEach((c, idx) => {
+    c.layer = idx < third ? 0 : idx < third * 2 ? 1 : 2;
+  });
   return clouds;
 }
+
+/** Drift scale per layer: back slower, mid normal, fore slightly faster */
+const LAYER_DRIFT = [0.15, 0.4, 0.7] as const;
 
 export function stepClouds(
   clouds: CloudState[],
   viewport: Viewport,
   dt: number,
-  _options?: { drift?: boolean; windScale?: number }
+  options?: { drift?: boolean; windScale?: number }
 ): void {
+  const windScale = options?.windScale ?? 1;
+  const drift = options?.drift ?? false;
   for (const c of clouds) {
+    if (drift) {
+      const d = LAYER_DRIFT[c.layer] * windScale * 0.08;
+      c.vx += (Math.sin(c.floatPhase + dt * 0.0008) * d - c.vx * 0.02) * (dt / 16);
+      c.vy += (Math.cos(c.floatPhase * 0.7 + dt * 0.0006) * d * 0.5 - c.vy * 0.02) * (dt / 16);
+    }
     c.vx *= FRICTION;
     c.vy *= FRICTION;
     c.x += c.vx * dt;
