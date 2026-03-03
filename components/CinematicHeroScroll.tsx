@@ -158,14 +158,18 @@ export default function CinematicHeroScroll({
     mobileSkipGlbAfterHiddenRef.current = false;
   }, [locale]);
 
-  /** On mobile: short defer when tab is visible (e.g. after language switch) so GLBs show faster; longer defer when tab was hidden to avoid slow first paint after app switch. */
+  /** Desktop: GLBs mount immediately. Mobile: mount immediately when tab visible so GLBs render as fast as desktop; only defer when tab hidden at mount. */
   useEffect(() => {
     if (!isMobile) {
       setGlbDeferredReady(true);
       return;
     }
     const visible = typeof document !== "undefined" && document.visibilityState === "visible";
-    const delayMs = visible ? 120 : 380;
+    const delayMs = visible ? 0 : 380;
+    if (delayMs === 0) {
+      setGlbDeferredReady(true);
+      return;
+    }
     const t = setTimeout(() => setGlbDeferredReady(true), delayMs);
     return () => clearTimeout(t);
   }, [isMobile]);

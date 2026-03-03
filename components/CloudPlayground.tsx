@@ -34,10 +34,10 @@ function svgToDataUrl(svgText: string, eyeColor: string): string {
   return "data:image/svg+xml," + encodeURIComponent(filled);
 }
 
-/** Chicken-pox entrance: clouds appear one by one, fast (after Explore button fade-in). */
-const CLOUD_ENTRANCE_BASE_DELAY_S = 0.5;
-const CLOUD_ENTRANCE_STAGGER_S = 0.048;
-const CLOUD_ENTRANCE_DURATION_S = 0.22;
+/** Immersive one-by-one entrance: clouds appear in sequence so each is noticeable (aligned with logo/Explore). */
+const CLOUD_ENTRANCE_BASE_DELAY_S = 0.32;
+const CLOUD_ENTRANCE_STAGGER_S = 0.14;
+const CLOUD_ENTRANCE_DURATION_S = 0.36;
 
 interface CloudPlaygroundProps {
   /** When true, freeze physics and fade out (e.g. Explore clicked) */
