@@ -72,8 +72,7 @@ function ClimbingHoldModel({
           }
           const std = mat as THREE.MeshStandardMaterial;
           if (std.normalMap && "normalScale" in std) {
-            if (!isMobile) std.normalScale.set(0.6, 0.6);
-            else std.normalMap = null; // skip normal map on mobile for faster fill
+            std.normalScale.set(0.6, 0.6);
           }
         });
       }

@@ -572,7 +572,6 @@ export default function CinematicHeroScroll({
                   onFramingReady={setDesktopFinalCameraZ}
                   shouldMount={glbMounted}
                   modelOffsetY={modelOffsetYFinal}
-                  isMobile={isMobile}
                 />
               </div>
             </ClientErrorBoundary>
