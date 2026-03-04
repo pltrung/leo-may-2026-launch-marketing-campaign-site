@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import GymCanvas, { type QualityLevel } from "@/components/gym/three/GymCanvas";
 import GymChaptersOverlay from "@/components/gym/GymChaptersOverlay";
+import GymCanvasErrorBoundary from "@/components/gym/GymCanvasErrorBoundary";
 import { useScrollProgress } from "@/components/gym/scroll/useScrollProgress";
-import { getSkyTheme, getLocalTimeHours } from "@/components/gym/theme/skyTheme";
 import type { SkyTheme } from "@/components/gym/theme/skyTheme";
 
 const GYM_STORY_VH = 420;
@@ -96,6 +96,20 @@ function useQualityLevel(reducedMotion: boolean): QualityLevel {
   return quality;
 }
 
+function useWebGLSupported(): boolean {
+  const [supported, setSupported] = useState<boolean | null>(null);
+  useEffect(() => {
+    try {
+      const canvas = typeof document !== "undefined" ? document.createElement("canvas") : null;
+      const gl = canvas?.getContext("webgl") ?? canvas?.getContext("experimental-webgl");
+      setSupported(Boolean(gl));
+    } catch {
+      setSupported(false);
+    }
+  }, []);
+  return supported !== false;
+}
+
 interface GymScrollSceneProps {
   theme: SkyTheme;
 }
@@ -105,6 +119,7 @@ export default function GymScrollScene({ theme }: GymScrollSceneProps) {
   const { x: pointerX, y: pointerY } = usePointerNormalized();
   const reducedMotion = useReducedMotion();
   const effectiveQuality = useQualityLevel(reducedMotion);
+  const webglOk = useWebGLSupported();
 
   return (
     <section
@@ -124,15 +139,19 @@ export default function GymScrollScene({ theme }: GymScrollSceneProps) {
           style={{ background: theme.bgGradient }}
           aria-hidden
         />
-        <GymCanvas
-          progress={scroll.progress}
-          pointerX={pointerX}
-          pointerY={pointerY}
-          reducedMotion={reducedMotion}
-          theme={theme}
-          quality={effectiveQuality}
-          className="absolute inset-0 w-full h-full"
-        />
+        {webglOk && (
+          <GymCanvasErrorBoundary theme={theme} fallbackClassName="absolute inset-0 w-full h-full">
+            <GymCanvas
+              progress={scroll.progress}
+              pointerX={pointerX}
+              pointerY={pointerY}
+              reducedMotion={reducedMotion}
+              theme={theme}
+              quality={effectiveQuality}
+              className="absolute inset-0 w-full h-full"
+            />
+          </GymCanvasErrorBoundary>
+        )}
         <GymChaptersOverlay scroll={scroll} reducedMotion={reducedMotion} />
       </div>
     </section>
