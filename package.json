@@ -17,6 +17,7 @@
     "framer-motion": "^11.11.17",
     "next": "14.2.18",
     "qrcode": "^1.5.4",
+    "qrcode.react": "^4.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "stripe": "^20.3.1",

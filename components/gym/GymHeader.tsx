@@ -2,10 +2,13 @@
 
 import React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
 import SafeLanguageSwitch from "@/components/SafeLanguageSwitch";
 import { useGymNav } from "@/components/gym/context/GymNavContext";
 import { useLocale } from "@/components/LocaleProvider";
+import { useMemberAuth } from "@/lib/useMemberAuth";
+import { getMessages } from "@/lib/messages";
 import type { GymChapter } from "@/components/gym/scroll/chapters";
 import { CHAPTERS } from "@/components/gym/scroll/chapters";
 
@@ -13,7 +16,16 @@ const CHAPTER_ORDER: GymChapter[] = ["gym", "member", "community", "visit"];
 
 export default function GymHeader() {
   const locale = useLocale();
+  const router = useRouter();
   const { activeChapter, goToChapter } = useGymNav();
+  const { user, member, signOut } = useMemberAuth();
+  const auth = getMessages(locale as "en" | "vi").auth;
+  const loggedIn = Boolean(user && member);
+
+  const handleLogout = async () => {
+    await signOut();
+    router.push(`/${locale}/gym`);
+  };
 
   return (
     <header
@@ -41,6 +53,38 @@ export default function GymHeader() {
             </button>
           );
         })}
+        {loggedIn ? (
+          <>
+            <Link
+              href={`/${locale}/dashboard`}
+              className="text-sm font-medium text-white/90 hover:text-white transition-colors"
+            >
+              {auth.dashboard}
+            </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="text-sm font-medium text-white/90 hover:text-white transition-colors"
+            >
+              {auth.logout}
+            </button>
+          </>
+        ) : (
+          <>
+            <Link
+              href={`/${locale}/gym/membership`}
+              className="text-sm font-medium text-white/90 hover:text-white transition-colors"
+            >
+              {auth.membership}
+            </Link>
+            <Link
+              href={`/${locale}/login`}
+              className="text-sm font-medium text-white/90 hover:text-white transition-colors"
+            >
+              {auth.login}
+            </Link>
+          </>
+        )}
         <SafeLanguageSwitch />
       </nav>
     </header>
