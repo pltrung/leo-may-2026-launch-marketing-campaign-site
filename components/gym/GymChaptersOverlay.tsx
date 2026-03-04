@@ -24,6 +24,8 @@ function opacityForChapter(p: number, inStart: number, inEnd: number, outStart: 
 export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChaptersOverlayProps) {
   const locale = useLocale();
   const { openVisitModal, openMembershipModal } = useGymNav();
+  const { user, member } = useMemberAuth();
+  const loggedIn = Boolean(user && member);
   const m = getMessages(locale).gym;
   const { progress, p1, p2, p3, p4 } = scroll;
 
