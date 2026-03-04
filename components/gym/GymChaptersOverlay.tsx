@@ -43,11 +43,11 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
       <div className="relative w-full max-w-2xl mx-auto text-center h-full min-h-0">
         {chapters.map(({ id, opacity }) => {
           const o = easeOutCubic(opacity);
-          const style = {
+          const style: React.CSSProperties = {
             opacity: o,
             transform: `translateY(${(1 - easeInOutQuint(o)) * translateY}px)`,
             filter: blur ? `blur(${(1 - easeInOutQuint(o)) * blur}px)` : "none",
-            pointerEvents: o > 0.5 ? "auto" : ("none" as const),
+            pointerEvents: o > 0.5 ? "auto" : "none",
           };
           return (
             <div
