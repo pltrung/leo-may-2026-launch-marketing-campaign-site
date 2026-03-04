@@ -1,5 +1,11 @@
 -- Dummy gym member: run in Supabase SQL Editor to create a user you can log in with.
 -- Login: dummy@gym.local / password123 (via /gym → Trở thành thành viên → Login).
+--
+-- If login says "wrong password" (hosted Supabase often rejects SQL-inserted bcrypt):
+-- 1) Run: npx tsx scripts/seed-dummy-gym-member.ts  (resets password via Auth API), or
+-- 2) POST /api/auth/dev-reset-password with body { "email": "dummy@gym.local", "password": "password123" }
+--    (dev only; requires NEXT_PUBLIC_DEV_BYPASS_OTP=true), or
+-- 3) In Dashboard → Authentication → Users → find user → Reset password to password123.
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
@@ -59,7 +65,7 @@ BEGIN
 END
 $$;
 
--- If login still fails (auth schema may differ): create user in Supabase Dashboard
+-- If the auth user was never created (SQL failed): create in Dashboard
 -- (Authentication → Add user: dummy@gym.local / password123), then run:
 -- INSERT INTO public.member_profiles (auth_id, email, full_name, tier)
 -- VALUES ('<paste-new-user-uuid>', 'dummy@gym.local', 'Dummy Member', 'Explorer');
