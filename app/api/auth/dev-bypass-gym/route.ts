@@ -6,6 +6,8 @@ import { EVOLUTION_LEVELS } from "@/lib/evolutionLevels";
 const TEST_EMAIL_REGEX = /^ev\d+-.+@l$/;
 const TEST_EMAIL_REGEX_2 = /^dummy2\d+@test\.local$/;
 
+type MagicLinkResult = { properties?: { action_link?: string } } | null;
+
 function isTestEmail(email: string): boolean {
   const e = email.trim().toLowerCase();
   return TEST_EMAIL_REGEX.test(e) || TEST_EMAIL_REGEX_2.test(e);
@@ -108,7 +110,7 @@ export async function POST(request: NextRequest) {
       (typeof request.url === "string" ? new URL(request.url).origin : "");
     const redirectTo = `${origin}/${locale}/dashboard`;
 
-    let linkData: { properties?: { action_link?: string } } | null = null;
+    let linkData: MagicLinkResult = null;
     let linkErr: { message?: string } | null = null;
 
     const { data: genData, error: genError } = await supabase.auth.admin.generateLink({
@@ -116,7 +118,7 @@ export async function POST(request: NextRequest) {
       email,
       options: { redirectTo },
     });
-    linkData = genData as unknown as typeof linkData;
+    linkData = genData as unknown as MagicLinkResult;
     linkErr = genError;
 
     if (linkErr) {
@@ -155,14 +157,14 @@ export async function POST(request: NextRequest) {
           console.error("Dev bypass gym generateLink retry error:", retryErr);
           return NextResponse.json({ error: "Failed to generate link" }, { status: 500 });
         }
-        linkData = retryData as unknown as typeof linkData;
+        linkData = retryData as unknown as MagicLinkResult;
       } else {
         console.error("Dev bypass gym generateLink error:", linkErr);
         return NextResponse.json({ error: "Failed to generate link" }, { status: 500 });
       }
     }
 
-    const url = linkData?.properties?.action_link ?? null;
+    const url = (linkData as MagicLinkResult)?.properties?.action_link ?? null;
     if (!url) {
       return NextResponse.json({ error: "No link in response" }, { status: 500 });
     }
