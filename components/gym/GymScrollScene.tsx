@@ -187,7 +187,7 @@ export default function GymScrollScene({ theme, activeChapter, storyVh }: GymScr
               quality={effectiveQuality}
               activeChapter={activeChapter}
               userRotationY={userRotationY}
-              positionYOffsetMobile={isMobile ? 0.2 : 0}
+              positionYOffsetMobile={isMobile ? 0.24 : 0}
               className="absolute inset-0 w-full h-full"
             />
           </GymCanvasErrorBoundary>

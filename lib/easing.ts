@@ -41,3 +41,10 @@ export function easeOutExpo(t: number): number {
   const x = clamp01(t);
   return x >= 1 ? 1 : 1 - 2 ** (-10 * x);
 }
+
+/** Smoothstep (a,b,x): 0 for x<=a, 1 for x>=b, S-curve in between. Matches pre-launch hero scroll feel. */
+export function smoothstep(a: number, b: number, x: number): number {
+  if (b === a || !Number.isFinite(a) || !Number.isFinite(b)) return Number.isFinite(x) && x >= b ? 1 : 0;
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
