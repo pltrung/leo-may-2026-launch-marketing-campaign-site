@@ -79,8 +79,8 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
   }, [chapterStates]);
 
   const isIntroGlbOnly = activeId === "intro" && progress < INTRO_TEXT_REVEAL_PROGRESS;
-  /** Hide overlay when scrolled near footer so footer CTAs aren't duplicated. */
-  const hideOverlayNearFooter = progress >= 0.92;
+  /** Hide overlay only at scroll max (1) so "Trở thành thành viên" stays visible until end of gym section. */
+  const hideOverlayNearFooter = progress >= 1;
   /** CTA block fades in with smoothstep when leaving intro (pre-launch feel). */
   const ctaBlockOpacity = reducedMotion ? 1 : smoothstep(INTRO_TEXT_REVEAL_PROGRESS, 0.22, progress);
 
