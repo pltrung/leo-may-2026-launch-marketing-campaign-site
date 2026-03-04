@@ -31,9 +31,13 @@ export default function AboutChapter() {
         </p>
         <button
           type="button"
-          onClick={openAboutModal}
+          onClick={(e) => {
+            e.stopPropagation();
+            openAboutModal();
+          }}
           className="mt-8 px-6 py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-transparent hover:bg-white/10 transition-colors pointer-events-auto"
           style={{ letterSpacing: "0.08em", fontFamily: "MiSans-Regular, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
+          aria-label={aboutTitle}
         >
           {aboutTitle}
         </button>

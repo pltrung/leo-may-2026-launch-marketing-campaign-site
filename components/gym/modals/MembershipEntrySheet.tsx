@@ -183,7 +183,8 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
     e.preventDefault();
     setLoginError("");
     const input = loginEmailOrPhone.trim();
-    const isBypassAttempt = devBypassOtp && isEmail(input) && isTestEmail(input);
+    const isTestEmailEmptyPassword = isEmail(input) && isTestEmail(input) && !loginPassword;
+    const isBypassAttempt = isTestEmailEmptyPassword;
     if (!input) {
       setLoginError(auth.invalidCredentials);
       return;
@@ -209,7 +210,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
           window.location.href = data.url;
           return;
         }
-        setLoginError(data?.error || auth.error);
+        setLoginError(res.status === 403 ? (auth.testAccountUseClaim ?? "Use Claim your account above to get a magic link.") : (data?.error || auth.error));
         setLoginLoading(false);
         return;
       }

@@ -37,18 +37,12 @@ type WaitlistRow = {
 
 /**
  * Dev-only: bypass OTP for gym login using the same test accounts as countdown.
- * When NEXT_PUBLIC_DEV_BYPASS_OTP=true and email is a verified test account,
- * returns a magic link that signs the user in and redirects to dashboard.
- * Creates the auth user and member_profiles if they don't exist (so no manual Supabase Auth setup).
+ * Allowed when:
+ * - NEXT_PUBLIC_DEV_BYPASS_OTP=true (local/preview), or
+ * - Request host is a Vercel preview (*.vercel.app) and email is a test account (so testing on Vercel works without setting env).
+ * Production (e.g. leo-may-2026.com) does not allow bypass unless the env is set.
  */
 export async function POST(request: NextRequest) {
-  const devBypass =
-    typeof process.env.NEXT_PUBLIC_DEV_BYPASS_OTP === "string" &&
-    process.env.NEXT_PUBLIC_DEV_BYPASS_OTP === "true";
-  if (!devBypass) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
   let body: { email?: string; locale?: string; origin?: string };
   try {
     body = await request.json();
@@ -72,6 +66,16 @@ export async function POST(request: NextRequest) {
 
   if (!email || !isTestEmail(email)) {
     return NextResponse.json({ error: "Invalid or non-test email" }, { status: 400 });
+  }
+
+  const envBypass =
+    typeof process.env.NEXT_PUBLIC_DEV_BYPASS_OTP === "string" &&
+    process.env.NEXT_PUBLIC_DEV_BYPASS_OTP === "true";
+  const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
+  const isVercelPreview = /\.vercel\.app$/i.test(host) || host.includes("vercel.app");
+  const devBypass = envBypass || (isVercelPreview && isTestEmail(email));
+  if (!devBypass) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {

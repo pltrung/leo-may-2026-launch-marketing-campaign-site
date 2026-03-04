@@ -64,9 +64,9 @@ function Scene({
     chapterTargetPose,
   });
 
-  /* First scroll: GLB at 100% opacity; zoom in like last scroll; larger scale so GLB reads well on mobile & desktop */
+  /* Initial view (progress < 0.15): GLB only at full size; scroll down to reveal "WELCOME TO LEO MÂY". GLB stays full size. */
   const islandOpacity = 1;
-  const islandScale = 1.0 + 0.4 * easeOutCubic(progress);
+  const islandScale = progress < 0.15 ? 1.35 : 1.35 + 0.05 * easeOutCubic(Math.min(1, (progress - 0.15) / 0.85));
   /* Same cloud strength on all devices for consistent coloring/style; quality only affects DPR/antialias */
   const cloudQuality = 1;
 
