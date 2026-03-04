@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Script from "next/script";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -7,6 +8,7 @@ import LandingFlow from "@/components/LandingFlow";
 
 /**
  * On home (/, /en, /vi): wrap in LandingFlow (Sky → Explore pill → portal → hero).
+ * On /gym: show gym immediately (no loading screen) so direct links go straight to the page.
  * On other routes: show LoadingScreen, then remove after 2s and add "loaded".
  */
 export default function LandingGate({ children }: { children: React.ReactNode }) {
@@ -14,9 +16,18 @@ export default function LandingGate({ children }: { children: React.ReactNode })
   const isHome = Boolean(
     pathname && (pathname === "/" || pathname === "/en" || pathname === "/vi")
   );
+  const isGym = Boolean(pathname && pathname.includes("/gym"));
+
+  useEffect(() => {
+    if (isGym && typeof document !== "undefined") document.body.classList.add("loaded");
+  }, [isGym]);
 
   if (isHome) {
     return <LandingFlow>{children}</LandingFlow>;
+  }
+
+  if (isGym) {
+    return <>{children}</>;
   }
 
   return (

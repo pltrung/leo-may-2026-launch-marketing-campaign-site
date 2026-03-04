@@ -35,6 +35,10 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
     { id: "membership", opacity: opacityForChapterCenter(progress, CHAPTER_PROGRESS.membership) },
   ];
 
+  const eased = chapters.map((ch) => ({ id: ch.id, o: easeOutCubic(ch.opacity) }));
+  const maxOpacity = Math.max(...eased.map((x) => x.o));
+  const activeId = eased.find((x) => x.o === maxOpacity)?.id ?? "intro";
+
   return (
     <div
       className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center px-4 md:px-8 z-10"
@@ -47,7 +51,7 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
             opacity: o,
             transform: `translateY(${(1 - easeInOutQuint(o)) * translateY}px)`,
             filter: blur ? `blur(${(1 - easeInOutQuint(o)) * blur}px)` : "none",
-            pointerEvents: o > 0.5 ? "auto" : "none",
+            pointerEvents: id === activeId ? "auto" : "none",
           };
           return (
             <div

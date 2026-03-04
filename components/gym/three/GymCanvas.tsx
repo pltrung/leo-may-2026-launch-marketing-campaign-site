@@ -64,9 +64,9 @@ function Scene({
     chapterTargetPose,
   });
 
-  /* First scroll: GLB at 100% opacity; zoom in like last scroll (scale 0.72 -> 1) */
+  /* First scroll: GLB at 100% opacity; zoom in like last scroll; larger scale so GLB reads well on mobile & desktop */
   const islandOpacity = 1;
-  const islandScale = 0.72 + 0.28 * easeOutCubic(progress);
+  const islandScale = 1.0 + 0.4 * easeOutCubic(progress);
   /* Same cloud strength on all devices for consistent coloring/style; quality only affects DPR/antialias */
   const cloudQuality = 1;
 

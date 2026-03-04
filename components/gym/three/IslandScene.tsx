@@ -9,6 +9,8 @@ import type { Group, Mesh, Material } from "three";
 const GLB_URL = "/main-page-bouldering-glb.glb";
 const FLOAT_AMP = 0.008;
 const FLOAT_FREQ = 0.6;
+/** Raise the GLB so it sits higher and closer to the chapter text. */
+const POSITION_Y_OFFSET = 0.28;
 
 export function preloadGymIslandGLB(): void {
   if (typeof window === "undefined") return;
@@ -65,7 +67,7 @@ function IslandModel({
     groupRef.current.rotation.y = autoRotationY.current + userRotationY;
     floatRef.current += delta * FLOAT_FREQ;
     const floatY = Math.sin(floatRef.current) * FLOAT_AMP;
-    groupRef.current.position.y = floatY;
+    groupRef.current.position.y = POSITION_Y_OFFSET + floatY;
     materialsRef.current.forEach((mat) => {
       mat.opacity = Math.max(0, Math.min(1, opacity));
     });

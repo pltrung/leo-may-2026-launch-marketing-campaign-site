@@ -15,7 +15,6 @@ export default function BottomSheet({ open, onClose, children, title }: BottomSh
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previousActiveRef = useRef<HTMLElement | null>(null);
-
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -29,7 +28,6 @@ export default function BottomSheet({ open, onClose, children, title }: BottomSh
     document.addEventListener("keydown", handleKeyDown);
     document.body.style.overflow = "hidden";
     document.body.style.touchAction = "none";
-    requestAnimationFrame(() => closeButtonRef.current?.focus());
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
