@@ -1,9 +1,18 @@
 /**
  * Single source of truth for /gym in-page chapters.
  * Hash-aware navigation and scroll/camera/atmosphere targets.
+ *
+ * Chapter progress map: intro 0.05, gym 0.35, community 0.65, membership 0.9
  */
 
-export type GymChapter = "gym" | "member" | "community" | "visit";
+export type GymChapter = "intro" | "gym" | "community" | "membership";
+
+export const CHAPTER_PROGRESS: Record<GymChapter, number> = {
+  intro: 0.05,
+  gym: 0.35,
+  community: 0.65,
+  membership: 0.9,
+};
 
 export interface ChapterDef {
   hash: string;
@@ -25,11 +34,11 @@ export interface ChapterDef {
 export const GYM_STORY_VH = 420;
 
 export const CHAPTERS: Record<GymChapter, ChapterDef> = {
-  gym: {
-    hash: "#gym",
-    progress: 0.1,
-    labelVi: "Phòng Leo",
-    labelEn: "Gym",
+  intro: {
+    hash: "#intro",
+    progress: CHAPTER_PROGRESS.intro,
+    labelVi: "Giới thiệu",
+    labelEn: "About",
     camera: {
       pos: [0.15, 0.05, 7.2],
       target: [0, 0.34, 0],
@@ -41,11 +50,11 @@ export const CHAPTERS: Record<GymChapter, ChapterDef> = {
       cloudDensity: 0.55,
     },
   },
-  member: {
-    hash: "#member",
-    progress: 0.6,
-    labelVi: "Thành viên",
-    labelEn: "Membership",
+  gym: {
+    hash: "#gym",
+    progress: CHAPTER_PROGRESS.gym,
+    labelVi: "Phòng Leo",
+    labelEn: "Gym",
     camera: {
       pos: [0.4, 0.12, 5.8],
       target: [0, 0.34, 0],
@@ -59,7 +68,7 @@ export const CHAPTERS: Record<GymChapter, ChapterDef> = {
   },
   community: {
     hash: "#community",
-    progress: 0.74,
+    progress: CHAPTER_PROGRESS.community,
     labelVi: "Cộng đồng",
     labelEn: "Community",
     camera: {
@@ -73,11 +82,11 @@ export const CHAPTERS: Record<GymChapter, ChapterDef> = {
       cloudDensity: 0.6,
     },
   },
-  visit: {
-    hash: "#visit",
-    progress: 0.9,
-    labelVi: "Đến thăm",
-    labelEn: "Visit",
+  membership: {
+    hash: "#membership",
+    progress: CHAPTER_PROGRESS.membership,
+    labelVi: "Thành viên",
+    labelEn: "Membership",
     camera: {
       pos: [0, 0.06, 5.2],
       target: [0, 0.34, 0],
@@ -92,10 +101,10 @@ export const CHAPTERS: Record<GymChapter, ChapterDef> = {
 };
 
 const HASH_TO_CHAPTER: Record<string, GymChapter> = {
+  "#intro": "intro",
   "#gym": "gym",
-  "#member": "member",
   "#community": "community",
-  "#visit": "visit",
+  "#membership": "membership",
 };
 
 export function getChapterFromHash(hash: string): GymChapter | null {

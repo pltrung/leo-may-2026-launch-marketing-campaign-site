@@ -16,6 +16,15 @@ function randomPassword(): string {
   return s;
 }
 
+type WaitlistRow = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  auth_id: string | null;
+  tier_level: number | null;
+};
+
 /**
  * POST /api/auth/claim-waitlist
  * Body: { email?: string, phone?: string, locale?: string }
@@ -44,7 +53,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createServerClient();
 
-    let waitlistRow: { id: string; name: string | null; email: string | null; phone: string | null; auth_id: string | null; tier_level: number | null } | null = null;
+    let waitlistRow: WaitlistRow | null = null;
 
     if (email) {
       const { data } = await supabase
@@ -52,7 +61,7 @@ export async function POST(request: NextRequest) {
         .select("id, name, email, phone, auth_id, tier_level")
         .eq("email", email)
         .maybeSingle();
-      waitlistRow = data as typeof waitlistRow;
+      waitlistRow = (data as unknown) as WaitlistRow | null;
     }
     if (!waitlistRow && phone) {
       const { data } = await supabase
@@ -66,9 +75,9 @@ export async function POST(request: NextRequest) {
           .select("id, name, email, phone, auth_id, tier_level")
           .eq("phone", rawPhone)
           .maybeSingle();
-        waitlistRow = byE164 as typeof waitlistRow;
+        waitlistRow = (byE164 as unknown) as WaitlistRow | null;
       } else {
-        waitlistRow = data as typeof waitlistRow;
+        waitlistRow = (data as unknown) as WaitlistRow | null;
       }
     }
 
@@ -76,7 +85,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Not found in waitlist" }, { status: 404 });
     }
 
-    const authId = (waitlistRow as { auth_id?: string | null }).auth_id ?? null;
+    const authId = waitlistRow.auth_id ?? null;
     const waitlistEmail = waitlistRow.email?.trim() || null;
 
     if (authId) {

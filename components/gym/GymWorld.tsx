@@ -17,6 +17,7 @@ import {
   GYM_STORY_VH,
   getChapterFromHash,
   getChapterHash,
+  CHAPTER_PROGRESS,
 } from "@/components/gym/scroll/chapters";
 import { seekToProgress } from "@/components/gym/scroll/useScrollProgress";
 import GymVisitModal from "@/components/gym/modals/GymVisitModal";
@@ -26,7 +27,7 @@ export default function GymWorld() {
   const [theme, setTheme] = useState<SkyTheme>(() =>
     getSkyTheme(typeof window !== "undefined" ? getLocalTimeHours() : 12)
   );
-  const [activeChapter, setActiveChapter] = useState<GymChapter>("gym");
+  const [activeChapter, setActiveChapter] = useState<GymChapter>("intro");
   const [visitModalOpen, setVisitModalOpen] = useState(false);
   const [membershipModalOpen, setMembershipModalOpen] = useState(false);
   const overlayRef = useRef<GymTransitionOverlayRef | null>(null);
@@ -78,10 +79,10 @@ export default function GymWorld() {
       window.history.replaceState(
         null,
         "",
-        window.location.pathname + window.location.search + "#gym"
+        window.location.pathname + window.location.search + "#intro"
       );
-      setActiveChapter("gym");
-      seekToProgress(CHAPTERS.gym.progress, GYM_STORY_VH);
+      setActiveChapter("intro");
+      seekToProgress(CHAPTERS.intro.progress, GYM_STORY_VH);
     }
   }, [goToChapter]);
 
@@ -99,20 +100,17 @@ export default function GymWorld() {
       const vh = window.innerHeight * (GYM_STORY_VH / 100);
       const maxScroll = Math.max(0, vh - window.innerHeight);
       const p = maxScroll > 0 ? window.scrollY / maxScroll : 0;
-      const entries = (["gym", "member", "community", "visit"] as GymChapter[]).map((ch) => ({
-        chapter: ch,
-        progress: CHAPTERS[ch].progress,
-      }));
-      let best: GymChapter = "gym";
+      const chapterOrder: GymChapter[] = ["intro", "gym", "community", "membership"];
+      let best: GymChapter = "intro";
       let bestDist = 1;
-      for (const { chapter, progress } of entries) {
-        const d = Math.abs(p - progress);
+      for (const ch of chapterOrder) {
+        const d = Math.abs(p - CHAPTER_PROGRESS[ch]);
         if (d < bestDist) {
           bestDist = d;
-          best = chapter;
+          best = ch;
         }
       }
-      setActiveChapter((prev) => (bestDist < 0.15 ? best : prev));
+      setActiveChapter((prev) => (bestDist < 0.2 ? best : prev));
     };
     window.addEventListener("scroll", syncChapterFromScroll, { passive: true });
     return () => window.removeEventListener("scroll", syncChapterFromScroll);

@@ -13,7 +13,7 @@ import type { GymChapter } from "@/components/gym/scroll/chapters";
 import { CHAPTERS } from "@/components/gym/scroll/chapters";
 
 const HEADER_NAV: { type: "chapter"; chapter: GymChapter } | { type: "link"; href: string; labelKey: "membership" }[] = [
-  { type: "chapter", chapter: "gym" },
+  { type: "chapter", chapter: "intro" },
   { type: "chapter", chapter: "community" },
   { type: "link", href: "/gym/membership", labelKey: "membership" },
 ];
@@ -43,7 +43,7 @@ export default function GymHeader() {
         {HEADER_NAV.map((item) => {
           if (item.type === "chapter") {
             const def = CHAPTERS[item.chapter];
-            const label = locale === "vi" ? def.labelVi : def.labelEn;
+            const label = item.chapter === "intro" ? (locale === "vi" ? "Phòng Leo" : "Gym") : (locale === "vi" ? def.labelVi : def.labelEn);
             const isActive = activeChapter === item.chapter;
             return (
               <button

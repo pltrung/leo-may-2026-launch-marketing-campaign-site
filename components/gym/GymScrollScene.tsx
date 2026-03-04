@@ -129,11 +129,11 @@ export default function GymScrollScene({ theme, activeChapter }: GymScrollSceneP
       style={{ height: `${GYM_STORY_VH}vh` }}
       aria-label="Gym story"
     >
-      {/* Anchors for smooth scroll: progress 0, 0.25, 0.5, 0.8 -> 0, 80vh, 160vh, 256vh */}
-      <div id="gym-chapter-gym" className="absolute left-0 w-px h-px" style={{ top: "0vh" }} aria-hidden />
-      <div id="gym-chapter-membership" className="absolute left-0 w-px h-px" style={{ top: "80vh" }} aria-hidden />
-      <div id="gym-chapter-community" className="absolute left-0 w-px h-px" style={{ top: "160vh" }} aria-hidden />
-      <div id="gym-cta" className="absolute left-0 w-px h-px" style={{ top: "256vh" }} aria-hidden />
+      {/* Anchors for scroll (positions match CHAPTER_PROGRESS * maxScroll) */}
+      <div id="gym-chapter-intro" className="absolute left-0 w-px h-px" style={{ top: "0" }} aria-hidden />
+      <div id="gym-chapter-gym" className="absolute left-0 w-px h-px" style={{ top: "0" }} aria-hidden />
+      <div id="gym-chapter-community" className="absolute left-0 w-px h-px" style={{ top: "0" }} aria-hidden />
+      <div id="gym-chapter-membership" className="absolute left-0 w-px h-px" style={{ top: "0" }} aria-hidden />
 
       <div className="sticky top-0 z-0 w-full h-screen overflow-hidden">
         <div
