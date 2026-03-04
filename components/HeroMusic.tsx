@@ -20,6 +20,7 @@ export function startHeroMusicFromUserGesture(): void {
   const audio = document.createElement("audio");
   audio.src = HERO_MUSIC_SRC;
   audio.preload = "auto";
+  audio.load(); // start loading immediately so play() doesn't lag (layout also preloads)
   audio.setAttribute("aria-hidden", "true");
   audio.style.position = "absolute";
   audio.style.width = "0";

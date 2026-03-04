@@ -27,12 +27,8 @@ export default function HeroClimbingHoldCanvas({
   const [fadeInProgress, setFadeInProgress] = useState(0);
 
   useEffect(() => {
-    if (isMobile) {
-      const t = setTimeout(() => setMounted(true), 100);
-      return () => clearTimeout(t);
-    }
     setMounted(true);
-  }, [isMobile]);
+  }, []);
 
   useEffect(() => {
     if (!mounted) return;

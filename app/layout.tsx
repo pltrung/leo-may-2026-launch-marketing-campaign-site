@@ -40,6 +40,8 @@ export default function RootLayout({
         {/* Hero 3D models: start fetching early so they’re cached by the time user clicks Explore (files are large; internet speed affects load). */}
         <link rel="preload" href="/glb-rotating-bouldering-island.glb" as="fetch" crossOrigin="anonymous" />
         <link rel="preload" href="/glb-leo-climbing-hold.glb" as="fetch" crossOrigin="anonymous" />
+        {/* Hero music: preload so it starts with hero elements when user taps Explore. */}
+        <link rel="preload" href="/As%20We%20Are.mp3" as="fetch" crossOrigin="anonymous" />
       </head>
       <body className="min-h-[100dvh] antialiased overflow-x-hidden">
         <GlobalImgSafeguard />
