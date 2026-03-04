@@ -111,6 +111,18 @@ function useWebGLSupported(): boolean {
   return supported !== false;
 }
 
+function useIsMobile(): boolean {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    setIsMobile(mq.matches);
+    const onChange = () => setIsMobile(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return isMobile;
+}
+
 interface GymScrollSceneProps {
   theme: SkyTheme;
   activeChapter: GymChapter | null;
@@ -127,6 +139,7 @@ export default function GymScrollScene({ theme, activeChapter }: GymScrollSceneP
   const reducedMotion = useReducedMotion();
   const effectiveQuality = useQualityLevel(reducedMotion);
   const webglOk = useWebGLSupported();
+  const isMobile = useIsMobile();
 
   const onDragPointerDown = (e: React.PointerEvent) => {
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
@@ -173,6 +186,7 @@ export default function GymScrollScene({ theme, activeChapter }: GymScrollSceneP
               quality={effectiveQuality}
               activeChapter={activeChapter}
               userRotationY={userRotationY}
+              positionYOffsetMobile={isMobile ? 0.2 : 0}
               className="absolute inset-0 w-full h-full"
             />
           </GymCanvasErrorBoundary>

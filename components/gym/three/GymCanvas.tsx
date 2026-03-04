@@ -33,6 +33,8 @@ interface SceneProps {
   uTime: number;
   activeChapter: GymChapter | null;
   userRotationY: number;
+  /** Move GLB upward on mobile (e.g. 0.2). */
+  positionYOffsetMobile?: number;
 }
 
 /** Single fixed camera pose so GLB never zooms; only overlay (text/CTA) changes on scroll. */
@@ -57,6 +59,7 @@ function Scene({
   uTime,
   activeChapter,
   userRotationY,
+  positionYOffsetMobile = 0,
 }: SceneProps) {
   useParallaxCamera({
     progress,
@@ -94,6 +97,7 @@ function Scene({
         scale={islandScale}
         rotationSpeedMultiplier={1}
         userRotationY={userRotationY}
+        positionYOffset={positionYOffsetMobile}
       />
     </>
   );
@@ -109,6 +113,8 @@ export interface GymCanvasProps {
   quality: QualityLevel;
   activeChapter: GymChapter | null;
   userRotationY?: number;
+  /** Move GLB upward on mobile (e.g. 0.2). */
+  positionYOffsetMobile?: number;
   className?: string;
 }
 
@@ -121,6 +127,7 @@ export default function GymCanvas({
   quality,
   activeChapter,
   userRotationY = 0,
+  positionYOffsetMobile = 0,
   className,
 }: GymCanvasProps) {
   const [uTime, setUTime] = useState(0);
@@ -185,6 +192,7 @@ export default function GymCanvas({
           uTime={uTime}
           activeChapter={activeChapter}
           userRotationY={userRotationY}
+          positionYOffsetMobile={positionYOffsetMobile}
         />
       </Canvas>
     </>

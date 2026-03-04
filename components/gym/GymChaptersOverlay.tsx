@@ -4,7 +4,7 @@ import React from "react";
 import { useLocale } from "@/components/LocaleProvider";
 import { getMessages } from "@/lib/messages";
 import { useGymNav } from "@/components/gym/context/GymNavContext";
-import { easeOutCubic, easeInOutQuint } from "@/lib/easing";
+import { easeOutCubic } from "@/lib/easing";
 import type { ScrollProgressState } from "@/components/gym/scroll/useScrollProgress";
 import { CHAPTER_PROGRESS } from "@/components/gym/scroll/chapters";
 import type { GymChapter } from "@/components/gym/scroll/chapters";
@@ -15,10 +15,10 @@ interface GymChaptersOverlayProps {
   reducedMotion: boolean;
 }
 
-/** Tighter radius so one chapter is dominant; less blended text. */
-const CHAPTER_RADIUS = 0.14;
+/** Wider radius so each chapter feels intentional; text stays clear longer, less swipey. */
+const CHAPTER_RADIUS = 0.28;
 const INTRO_TEXT_REVEAL_PROGRESS = 0.14;
-const TRANSITION_MS = 400;
+const TRANSITION_MS = 650;
 
 function opacityForChapterCenter(progress: number, center: number): number {
   const dist = Math.abs(progress - center);
@@ -31,8 +31,7 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
   const locale = useLocale();
   const { openAboutModal, openLocationModal, openPricingModal, openMembershipModal } = useGymNav();
   const messages = getMessages(locale as "en" | "vi");
-  const blur = 0;
-  const translateY = reducedMotion ? 0 : 4;
+  const translateY = 0;
 
   const chapters: { id: GymChapter; opacity: number }[] = [
     { id: "intro", opacity: opacityForChapterCenter(progress, CHAPTER_PROGRESS.intro) },
@@ -45,6 +44,8 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
   const maxOpacity = Math.max(...eased.map((x) => x.o));
   const activeId = eased.find((x) => x.o === maxOpacity)?.id ?? "intro";
   const isIntroGlbOnly = activeId === "intro" && progress < INTRO_TEXT_REVEAL_PROGRESS;
+  /** Hide overlay when scrolled near footer so footer CTAs aren't duplicated. */
+  const hideOverlayNearFooter = progress >= 0.92;
 
   const c1 = messages.gym.chapter1;
   const c2 = messages.gym.chapter2;
@@ -52,6 +53,8 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
   const c4 = messages.gym.chapter4;
   const locationTitle = messages.gym.locationModal.title;
   const pricingTitle = messages.gym.pricingModal.title;
+
+  if (hideOverlayNearFooter) return null;
 
   return (
     <div
@@ -71,13 +74,10 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
           <div className="relative w-full min-h-[4.5rem] md:min-h-[5rem]">
             {chapters.map(({ id, opacity }) => {
               const o = easeOutCubic(opacity);
-              const isActive = id === activeId;
               const hide = id === "intro" && progress < INTRO_TEXT_REVEAL_PROGRESS;
               const style: React.CSSProperties = {
                 opacity: hide ? 0 : o,
-                transform: `translateY(${(1 - easeInOutQuint(o)) * translateY}px)`,
-                filter: blur && !isActive ? `blur(${(1 - easeInOutQuint(o)) * blur}px)` : "none",
-                transition: reducedMotion ? "none" : `opacity ${TRANSITION_MS}ms ease-in-out, transform ${TRANSITION_MS}ms ease-in-out`,
+                transition: reducedMotion ? "none" : `opacity ${TRANSITION_MS}ms ease-in-out`,
               };
               const headline =
                 id === "intro" ? c1.headline : id === "gym" ? c2.headline : id === "community" ? c3.headline : c4.headline;
@@ -121,36 +121,25 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
         {/* Middle: on desktop reserved for GLB; on mobile collapsed (title/CTA already below 42vh) */}
         <div className="flex-1 min-h-0 hidden md:block" />
 
-        {/* CTA: below GLB; on mobile matches pre-launch (marginTop 24px, marginBottom 48px) */}
-        <div className="flex-shrink-0 pt-6 pb-2 md:pb-2 flex flex-col items-center justify-end">
+        {/* CTA: below GLB; extra top spacing so CTA doesn't touch text (especially last scroll) */}
+        <div className="flex-shrink-0 pt-8 pb-2 md:pt-10 md:pb-2 flex flex-col items-center justify-end">
           {!isIntroGlbOnly && (
-            <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-3 mt-6 mb-12 md:mt-8 md:mb-0">
+            <div
+              className={`pointer-events-auto flex flex-wrap items-center justify-center gap-3 mb-12 md:mb-0 ${activeId === "membership" ? "mt-8 md:mt-10" : "mt-6 md:mt-8"}`}
+            >
               {activeId === "intro" && (
-                <>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openMembershipModal();
-                    }}
-                    className="px-6 py-3 rounded-full bg-white font-medium text-sm md:text-base transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                    style={{ color: "#0B0B0F", fontFamily: "MiSans-Bold, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
-                  >
-                    {c4.becomeMember}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openAboutModal();
-                    }}
-                    className="px-6 py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-transparent hover:bg-white/10 transition-colors"
-                    style={{ letterSpacing: "0.08em", fontFamily: "MiSans-Regular, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
-                    aria-label={messages.about.title}
-                  >
-                    {c4.aboutLeoMay}
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openAboutModal();
+                  }}
+                  className="px-6 py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-transparent hover:bg-white/10 transition-colors"
+                  style={{ letterSpacing: "0.08em", fontFamily: "MiSans-Regular, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
+                  aria-label={messages.about.title}
+                >
+                  {c4.aboutLeoMay}
+                </button>
               )}
               {activeId === "gym" && (
                 <button

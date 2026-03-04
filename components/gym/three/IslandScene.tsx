@@ -24,6 +24,8 @@ interface IslandSceneProps {
   rotationSpeedMultiplier?: number;
   /** User drag rotation (radians) added to auto-rotation so swipe/drag rotates the GLB. */
   userRotationY?: number;
+  /** Extra Y offset (e.g. on mobile) to move GLB upward. */
+  positionYOffset?: number;
 }
 
 function IslandModel({
@@ -31,6 +33,7 @@ function IslandModel({
   scale,
   rotationSpeedMultiplier = 1,
   userRotationY = 0,
+  positionYOffset = 0,
 }: IslandSceneProps) {
   const groupRef = useRef<Group>(null);
   const floatRef = useRef(0);
@@ -67,7 +70,7 @@ function IslandModel({
     groupRef.current.rotation.y = autoRotationY.current + userRotationY;
     floatRef.current += delta * FLOAT_FREQ;
     const floatY = Math.sin(floatRef.current) * FLOAT_AMP;
-    groupRef.current.position.y = POSITION_Y_OFFSET + floatY;
+    groupRef.current.position.y = POSITION_Y_OFFSET + positionYOffset + floatY;
     materialsRef.current.forEach((mat) => {
       mat.opacity = Math.max(0, Math.min(1, opacity));
     });
