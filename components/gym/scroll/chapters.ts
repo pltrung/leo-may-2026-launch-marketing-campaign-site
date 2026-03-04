@@ -38,7 +38,8 @@ export interface ChapterDef {
   };
 }
 
-export const GYM_STORY_VH = 420;
+/** Pre-launch style: longer scroll so progress moves slower and text stays clear on both mobile and desktop. */
+export const GYM_STORY_VH = 560;
 
 export const CHAPTERS: Record<GymChapter, ChapterDef> = {
   intro: {

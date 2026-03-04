@@ -15,14 +15,17 @@ interface GymChaptersOverlayProps {
   reducedMotion: boolean;
 }
 
-/** Wider radius so each chapter feels intentional; text stays clear longer, less swipey. */
-const CHAPTER_RADIUS = 0.28;
+/** Pre-launch style: hold band where text is fully visible, then smooth falloff. */
+const CHAPTER_RADIUS = 0.4;
+const CHAPTER_HOLD = 0.16;
 const INTRO_TEXT_REVEAL_PROGRESS = 0.14;
-const TRANSITION_MS = 650;
+const TRANSITION_MS = 900;
 
 function opacityForChapterCenter(progress: number, center: number): number {
   const dist = Math.abs(progress - center);
-  const t = Math.min(1, dist / CHAPTER_RADIUS);
+  if (dist <= CHAPTER_HOLD) return 1;
+  if (dist >= CHAPTER_RADIUS) return 0;
+  const t = (dist - CHAPTER_HOLD) / (CHAPTER_RADIUS - CHAPTER_HOLD);
   return 1 - easeOutCubic(t);
 }
 

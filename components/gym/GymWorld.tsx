@@ -144,7 +144,7 @@ export default function GymWorld() {
       <div className="min-h-screen" style={{ background: theme.bgGradient }}>
         <GymHeader />
         <main className="relative">
-          <GymScrollScene theme={theme} activeChapter={activeChapter} />
+          <GymScrollScene theme={theme} activeChapter={activeChapter} storyVh={GYM_STORY_VH} />
           <GymFooter />
         </main>
         <GymTransitionOverlay overlayRef={overlayRef} />

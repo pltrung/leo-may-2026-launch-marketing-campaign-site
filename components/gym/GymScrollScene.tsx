@@ -7,7 +7,6 @@ import GymCanvasErrorBoundary from "@/components/gym/GymCanvasErrorBoundary";
 import { useScrollProgress } from "@/components/gym/scroll/useScrollProgress";
 import type { SkyTheme } from "@/components/gym/theme/skyTheme";
 import type { GymChapter } from "@/components/gym/scroll/chapters";
-import { GYM_STORY_VH } from "@/components/gym/scroll/chapters";
 
 const FPS_SAMPLE_MS = 2000;
 const FPS_THRESHOLD = 45;
@@ -126,12 +125,14 @@ function useIsMobile(): boolean {
 interface GymScrollSceneProps {
   theme: SkyTheme;
   activeChapter: GymChapter | null;
+  /** Total story height in vh (e.g. 420 mobile, 560 desktop for slower scroll). */
+  storyVh: number;
 }
 
 const ROTATE_SENSITIVITY = 0.004;
 
-export default function GymScrollScene({ theme, activeChapter }: GymScrollSceneProps) {
-  const scroll = useScrollProgress(GYM_STORY_VH);
+export default function GymScrollScene({ theme, activeChapter, storyVh }: GymScrollSceneProps) {
+  const scroll = useScrollProgress(storyVh);
   const { x: pointerX, y: pointerY } = usePointerNormalized();
   const [userRotationY, setUserRotationY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -160,7 +161,7 @@ export default function GymScrollScene({ theme, activeChapter }: GymScrollSceneP
   return (
     <section
       className="relative"
-      style={{ height: `${GYM_STORY_VH}vh`, background: theme.bgGradient }}
+      style={{ height: `${storyVh}vh`, background: theme.bgGradient }}
       aria-label="Gym story"
     >
       {/* Anchors for scroll (positions match CHAPTER_PROGRESS * maxScroll) */}
