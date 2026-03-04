@@ -6,7 +6,7 @@ import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import type { Group, Mesh, Material } from "three";
 
-const GLB_URL = "/glb-rotating-bouldering-island.glb";
+const GLB_URL = "/main-page-bouldering-glb.glb";
 const FLOAT_AMP = 0.008;
 const FLOAT_FREQ = 0.6;
 
@@ -20,15 +20,19 @@ interface IslandSceneProps {
   opacity: number;
   scale: number;
   rotationSpeedMultiplier?: number;
+  /** User drag rotation (radians) added to auto-rotation so swipe/drag rotates the GLB. */
+  userRotationY?: number;
 }
 
 function IslandModel({
   opacity,
   scale,
   rotationSpeedMultiplier = 1,
+  userRotationY = 0,
 }: IslandSceneProps) {
   const groupRef = useRef<Group>(null);
   const floatRef = useRef(0);
+  const autoRotationY = useRef(0);
   const { scene: sourceScene } = useGLTF(GLB_URL);
   const materialsRef = useRef<Material[]>([]);
   const sceneRef = useRef<THREE.Object3D | null>(null);
@@ -57,7 +61,8 @@ function IslandModel({
   useFrame((_, delta) => {
     if (!groupRef.current || !scene) return;
     const speed = Math.max(0, Math.min(2, rotationSpeedMultiplier));
-    groupRef.current.rotation.y += delta * (Math.PI * 2 / 25) * speed;
+    autoRotationY.current += delta * (Math.PI * 2 / 25) * speed;
+    groupRef.current.rotation.y = autoRotationY.current + userRotationY;
     floatRef.current += delta * FLOAT_FREQ;
     const floatY = Math.sin(floatRef.current) * FLOAT_AMP;
     groupRef.current.position.y = floatY;

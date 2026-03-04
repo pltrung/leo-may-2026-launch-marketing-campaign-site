@@ -33,6 +33,7 @@ interface SceneProps {
   quality: QualityLevel;
   uTime: number;
   activeChapter: GymChapter | null;
+  userRotationY: number;
 }
 
 function Scene({
@@ -44,6 +45,7 @@ function Scene({
   quality,
   uTime,
   activeChapter,
+  userRotationY,
 }: SceneProps) {
   const chapterPose = activeChapter ? CHAPTERS[activeChapter].camera : null;
   const chapterTargetPose = chapterPose
@@ -62,7 +64,8 @@ function Scene({
     chapterTargetPose,
   });
 
-  const islandOpacity = 0.3 + 0.7 * easeOutCubic(Math.min(progress * 1.8, 1));
+  /* First scroll: GLB at 100% opacity; zoom in like last scroll (scale 0.72 -> 1) */
+  const islandOpacity = 1;
   const islandScale = 0.72 + 0.28 * easeOutCubic(progress);
   /* Same cloud strength on all devices for consistent coloring/style; quality only affects DPR/antialias */
   const cloudQuality = 1;
@@ -89,6 +92,7 @@ function Scene({
         opacity={islandOpacity}
         scale={islandScale}
         rotationSpeedMultiplier={0.8 + progress * 0.2}
+        userRotationY={userRotationY}
       />
     </>
   );
@@ -103,6 +107,7 @@ export interface GymCanvasProps {
   theme: SkyTheme;
   quality: QualityLevel;
   activeChapter: GymChapter | null;
+  userRotationY?: number;
   className?: string;
 }
 
@@ -114,6 +119,7 @@ export default function GymCanvas({
   theme,
   quality,
   activeChapter,
+  userRotationY = 0,
   className,
 }: GymCanvasProps) {
   const [uTime, setUTime] = useState(0);
@@ -177,6 +183,7 @@ export default function GymCanvas({
           quality={quality}
           uTime={uTime}
           activeChapter={activeChapter}
+          userRotationY={userRotationY}
         />
       </Canvas>
     </>

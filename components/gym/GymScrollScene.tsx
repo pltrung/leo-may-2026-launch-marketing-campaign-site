@@ -116,12 +116,33 @@ interface GymScrollSceneProps {
   activeChapter: GymChapter | null;
 }
 
+const ROTATE_SENSITIVITY = 0.004;
+
 export default function GymScrollScene({ theme, activeChapter }: GymScrollSceneProps) {
   const scroll = useScrollProgress(GYM_STORY_VH);
   const { x: pointerX, y: pointerY } = usePointerNormalized();
+  const [userRotationY, setUserRotationY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragLastX = useRef(0);
   const reducedMotion = useReducedMotion();
   const effectiveQuality = useQualityLevel(reducedMotion);
   const webglOk = useWebGLSupported();
+
+  const onDragPointerDown = (e: React.PointerEvent) => {
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragLastX.current = e.clientX;
+    setIsDragging(true);
+  };
+  const onDragPointerMove = (e: React.PointerEvent) => {
+    if (!isDragging) return;
+    const delta = (e.clientX - dragLastX.current) * ROTATE_SENSITIVITY;
+    dragLastX.current = e.clientX;
+    setUserRotationY((prev) => prev + delta);
+  };
+  const onDragPointerUp = (e: React.PointerEvent) => {
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    setIsDragging(false);
+  };
 
   return (
     <section
@@ -151,10 +172,21 @@ export default function GymScrollScene({ theme, activeChapter }: GymScrollSceneP
               theme={theme}
               quality={effectiveQuality}
               activeChapter={activeChapter}
+              userRotationY={userRotationY}
               className="absolute inset-0 w-full h-full"
             />
           </GymCanvasErrorBoundary>
         )}
+        {/* Drag layer: swipe/drag to rotate GLB; under overlay so CTAs still get clicks */}
+        <div
+          className="absolute inset-0 z-[5] touch-none"
+          style={{ pointerEvents: "auto", cursor: isDragging ? "grabbing" : "grab" }}
+          onPointerDown={onDragPointerDown}
+          onPointerMove={onDragPointerMove}
+          onPointerUp={onDragPointerUp}
+          onPointerCancel={onDragPointerUp}
+          aria-hidden
+        />
         <GymChaptersOverlay scroll={scroll} reducedMotion={reducedMotion} />
       </div>
     </section>
