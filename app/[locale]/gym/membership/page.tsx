@@ -41,8 +41,11 @@ export default function GymMembershipPage() {
       >
         {m.headline}
       </h1>
-      <p className="text-white/80 text-center max-w-md mb-10" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
-        {m.description}
+      <p className="text-white/80 text-center max-w-md mb-4" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
+        {m.prelaunch}
+      </p>
+      <p className="text-white/70 text-center max-w-md mb-10" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
+        {m.newHere}
       </p>
       <div className="flex flex-col sm:flex-row gap-4">
         <Link

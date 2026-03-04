@@ -12,7 +12,11 @@ import { getMessages } from "@/lib/messages";
 import type { GymChapter } from "@/components/gym/scroll/chapters";
 import { CHAPTERS } from "@/components/gym/scroll/chapters";
 
-const CHAPTER_ORDER: GymChapter[] = ["gym", "member", "community", "visit"];
+const HEADER_NAV: { type: "chapter"; chapter: GymChapter } | { type: "link"; href: string; labelKey: "membership" }[] = [
+  { type: "chapter", chapter: "gym" },
+  { type: "chapter", chapter: "community" },
+  { type: "link", href: "/gym/membership", labelKey: "membership" },
+];
 
 export default function GymHeader() {
   const locale = useLocale();
@@ -36,21 +40,32 @@ export default function GymHeader() {
         <Logo className="h-8 w-auto object-contain brightness-0 invert" />
       </Link>
       <nav className="flex items-center gap-4 md:gap-6" aria-label="Main">
-        {CHAPTER_ORDER.map((chapter) => {
-          const def = CHAPTERS[chapter];
-          const label = locale === "vi" ? def.labelVi : def.labelEn;
-          const isActive = activeChapter === chapter;
+        {HEADER_NAV.map((item) => {
+          if (item.type === "chapter") {
+            const def = CHAPTERS[item.chapter];
+            const label = locale === "vi" ? def.labelVi : def.labelEn;
+            const isActive = activeChapter === item.chapter;
+            return (
+              <button
+                key={item.chapter}
+                type="button"
+                onClick={() => goToChapter(item.chapter)}
+                className={`text-sm font-medium transition-colors ${
+                  isActive ? "text-white" : "text-white/90 hover:text-white"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          }
           return (
-            <button
-              key={chapter}
-              type="button"
-              onClick={() => goToChapter(chapter)}
-              className={`text-sm font-medium transition-colors ${
-                isActive ? "text-white" : "text-white/90 hover:text-white"
-              }`}
+            <Link
+              key={item.href}
+              href={`/${locale}${item.href}`}
+              className="text-sm font-medium text-white/90 hover:text-white transition-colors"
             >
-              {label}
-            </button>
+              {auth.membership}
+            </Link>
           );
         })}
         {loggedIn ? (
@@ -69,22 +84,7 @@ export default function GymHeader() {
               {auth.logout}
             </button>
           </>
-        ) : (
-          <>
-            <Link
-              href={`/${locale}/gym/membership`}
-              className="text-sm font-medium text-white/90 hover:text-white transition-colors"
-            >
-              {auth.membership}
-            </Link>
-            <Link
-              href={`/${locale}/login`}
-              className="text-sm font-medium text-white/90 hover:text-white transition-colors"
-            >
-              {auth.login}
-            </Link>
-          </>
-        )}
+        ) : null}
         <SafeLanguageSwitch />
       </nav>
     </header>

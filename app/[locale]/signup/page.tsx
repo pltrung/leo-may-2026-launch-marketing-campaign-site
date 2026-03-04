@@ -114,9 +114,14 @@ export default function SignupPage() {
           {loading ? "…" : m.signup}
         </button>
       </form>
-      <Link href={`/${locale}/login`} className="mt-6 text-white/70 text-sm">
-        {m.login}
-      </Link>
+      <div className="mt-6 flex flex-col items-center gap-2">
+        <Link href={`/${locale}/login`} className="text-white/80 text-sm hover:text-white">
+          {m.login}
+        </Link>
+        <Link href={`/${locale}/gym/membership`} className="text-white/60 text-xs hover:text-white/80">
+          ← {m.membership}
+        </Link>
+      </div>
     </div>
   );
 }

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { getMessages } from "@/lib/messages";
 import { useLocale } from "@/components/LocaleProvider";
 import { useGymNav } from "@/components/gym/context/GymNavContext";
-import { useMemberAuth } from "@/lib/useMemberAuth";
 import { easeOutCubic, easeInOutQuint } from "@/lib/easing";
 import type { ScrollProgressState } from "@/components/gym/scroll/useScrollProgress";
 import { HERO_BG, HERO_ACCENT_COLORS } from "@/lib/heroConstants";
@@ -23,9 +22,7 @@ function opacityForChapter(p: number, inStart: number, inEnd: number, outStart: 
 
 export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChaptersOverlayProps) {
   const locale = useLocale();
-  const { openVisitModal, openMembershipModal } = useGymNav();
-  const { user, member } = useMemberAuth();
-  const loggedIn = Boolean(user && member);
+  const { goToChapter } = useGymNav();
   const m = getMessages(locale).gym;
   const { progress, p1, p2, p3, p4 } = scroll;
 
@@ -130,43 +127,21 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
             {m.chapter4.subline}
           </p>
           <div id="gym-cta" className="mt-6 flex flex-wrap gap-4 justify-center pointer-events-auto">
-            {loggedIn ? (
-              <>
-                <Link
-                  href={`/${locale}/dashboard`}
-                  className="px-6 py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-transparent hover:bg-white/10 transition-colors"
-                  style={{ letterSpacing: "0.08em", fontFamily: "MiSans-Regular, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
-                >
-                  {m.ctaLoggedIn.showQR}
-                </Link>
-                <Link
-                  href={`/${locale}/dashboard`}
-                  className="px-6 py-3 rounded-full bg-white font-medium text-sm md:text-base transition-colors hover:bg-white/90"
-                  style={{ color: HERO_BG, fontFamily: "MiSans-Bold, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
-                >
-                  {m.ctaLoggedIn.openDashboard}
-                </Link>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={openVisitModal}
-                  className="px-6 py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-transparent hover:bg-white/10 transition-colors"
-                  style={{ letterSpacing: "0.08em", fontFamily: "MiSans-Regular, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
-                >
-                  {m.chapter4.bookVisit}
-                </button>
-                <button
-                  type="button"
-                  onClick={openMembershipModal}
-                  className="px-6 py-3 rounded-full bg-white font-medium text-sm md:text-base transition-colors hover:bg-white/90"
-                  style={{ color: HERO_BG, fontFamily: "MiSans-Bold, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
-                >
-                  {m.chapter4.becomeMember}
-                </button>
-              </>
-            )}
+            <Link
+              href={`/${locale}/gym/membership`}
+              className="px-6 py-3 rounded-full bg-white font-medium text-sm md:text-base transition-colors hover:bg-white/90"
+              style={{ color: HERO_BG, fontFamily: "MiSans-Bold, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
+            >
+              {m.chapter4.becomeMember}
+            </Link>
+            <button
+              type="button"
+              onClick={() => goToChapter("gym")}
+              className="px-6 py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-transparent hover:bg-white/10 transition-colors"
+              style={{ letterSpacing: "0.08em", fontFamily: "MiSans-Regular, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
+            >
+              {m.chapter4.aboutLeoMay}
+            </button>
           </div>
         </div>
       </div>
