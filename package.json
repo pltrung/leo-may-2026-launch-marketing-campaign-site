@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "deploy": "git push origin main",
-    "optimize:hero-hold": "bash scripts/optimize-hero-hold-glb.sh"
+    "optimize:hero-hold": "bash scripts/optimize-hero-hold-glb.sh",
+    "seed:test-members": "npx tsx scripts/seed-test-member-profiles.ts"
   },
   "dependencies": {
     "@react-three/drei": "^9.92.7",
@@ -34,6 +35,7 @@
     "eslint-config-next": "14.2.18",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "tsx": "^4.7.0"
   }
 }

@@ -180,7 +180,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
               </button>
             </div>
           )}
-          {claimStatus === "has_account" && (
+          {(claimStatus === "has_account" || (claimStatus === "loading" && hasAccountEmail)) && (
             <form onSubmit={handleHasAccountLogin} className="space-y-3">
               <p className="text-[var(--sky-text-secondary)] text-sm">{auth.claimAlreadyHaveAccount}</p>
               <input
@@ -199,8 +199,8 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
           )}
         </section>
 
-        {/* New here + Login / Create — hide only when showing has_account password form or not_found/rate_limit (they have their own CTAs) */}
-        {claimStatus !== "has_account" && claimStatus !== "not_found" && claimStatus !== "rate_limit" && (
+        {/* New here + Login / Create — hide when showing has_account password form (or its loading state) or not_found/rate_limit */}
+        {claimStatus !== "has_account" && claimStatus !== "not_found" && claimStatus !== "rate_limit" && !(claimStatus === "loading" && hasAccountEmail) && (
           <section>
             <p className="text-[var(--sky-text-secondary)] text-sm mb-3" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
               {m.newHere}

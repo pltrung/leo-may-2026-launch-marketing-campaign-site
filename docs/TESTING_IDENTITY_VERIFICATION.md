@@ -66,8 +66,7 @@ To log in to `/gym` (or `/login`) **without a password** using test emails like 
 2. **Supabase:** Ensure test accounts exist and are verified. In the Supabase SQL Editor, run (in order):
    - `supabase/seed_evolution_stages.sql` — creates waitlist rows for `ev1-mn@l`, `ev1-hm@l`, etc.
    - `supabase/seed_verify_test_accounts.sql` **or** `supabase/migrations/008_test_accounts_verified.sql` — sets `is_verified = true` for those rows.
-
-Then open `/login`, enter e.g. `ev1-hm@l`, leave the password field **blank**, and click Login. You should be redirected via magic link to the dashboard. The API creates the Supabase Auth user and `member_profiles` row on first use if they don’t exist.
+3. **Optional — pre-create Auth + member_profiles:** So test accounts can log in to the dashboard without relying on first-use creation, run once: `npm run seed:test-members`. This creates a Supabase Auth user and a `member_profiles` row for each test waitlist row that doesn’t have `auth_id` yet. After that, open `/login`, enter e.g. `ev1-hm@l`, leave the password field **blank**, and click Login; you should be redirected via magic link to the dashboard.
 
 ## Quick local run
 
