@@ -46,13 +46,14 @@ export async function GET(request: NextRequest) {
 
     let memberRow = existing;
     if (!memberRow) {
-      let waitlistRow = await supabase
+      const byAuthId = await supabase
         .from("waitlist")
         .select("id, name, email, phone, tier_level, referral_count, auth_id")
         .eq("auth_id", user.id)
         .maybeSingle();
 
-      if (!waitlistRow.data && user.email) {
+      let waitlistData = byAuthId.data;
+      if (!waitlistData && user.email) {
         const byEmail = await supabase
           .from("waitlist")
           .select("id, name, email, phone, tier_level, referral_count, auth_id")
@@ -63,12 +64,12 @@ export async function GET(request: NextRequest) {
             .from("waitlist")
             .update({ auth_id: user.id, updated_at: new Date().toISOString() })
             .eq("id", byEmail.data.id);
-          waitlistRow = { data: byEmail.data, error: null };
+          waitlistData = byEmail.data;
         }
       }
 
-      if (waitlistRow.data) {
-        const w = waitlistRow.data;
+      if (waitlistData) {
+        const w = waitlistData;
         const tier = tierFromTierLevel(typeof w.tier_level === "number" ? w.tier_level : 1);
         const { data: inserted, error: insertErr } = await supabase
           .from("member_profiles")
