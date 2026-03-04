@@ -69,4 +69,18 @@ export function useScrollProgress(totalStoryHeightVh: number): ScrollProgressSta
   return state;
 }
 
+/**
+ * Smooth scroll to a target progress (0..1) along the gym scroll story.
+ * Uses window scroll; call with same totalStoryHeightVh as useScrollProgress.
+ */
+export function seekToProgress(targetProgress: number, totalStoryHeightVh: number): void {
+  if (typeof window === "undefined") return;
+  const p = Math.max(0, Math.min(1, targetProgress));
+  const viewportHeight = window.innerHeight;
+  const totalH = (viewportHeight * totalStoryHeightVh) / 100;
+  const maxScroll = Math.max(0, totalH - viewportHeight);
+  const top = Math.round(maxScroll * p);
+  window.scrollTo({ top, behavior: "smooth" });
+}
+
 export { CHAPTER_BREAKPOINTS };

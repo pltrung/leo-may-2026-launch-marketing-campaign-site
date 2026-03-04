@@ -6,8 +6,9 @@ import GymChaptersOverlay from "@/components/gym/GymChaptersOverlay";
 import GymCanvasErrorBoundary from "@/components/gym/GymCanvasErrorBoundary";
 import { useScrollProgress } from "@/components/gym/scroll/useScrollProgress";
 import type { SkyTheme } from "@/components/gym/theme/skyTheme";
+import type { GymChapter } from "@/components/gym/scroll/chapters";
+import { GYM_STORY_VH } from "@/components/gym/scroll/chapters";
 
-const GYM_STORY_VH = 420;
 const FPS_SAMPLE_MS = 2000;
 const FPS_THRESHOLD = 45;
 
@@ -112,9 +113,10 @@ function useWebGLSupported(): boolean {
 
 interface GymScrollSceneProps {
   theme: SkyTheme;
+  activeChapter: GymChapter | null;
 }
 
-export default function GymScrollScene({ theme }: GymScrollSceneProps) {
+export default function GymScrollScene({ theme, activeChapter }: GymScrollSceneProps) {
   const scroll = useScrollProgress(GYM_STORY_VH);
   const { x: pointerX, y: pointerY } = usePointerNormalized();
   const reducedMotion = useReducedMotion();
@@ -133,7 +135,7 @@ export default function GymScrollScene({ theme }: GymScrollSceneProps) {
       <div id="gym-chapter-community" className="absolute left-0 w-px h-px" style={{ top: "160vh" }} aria-hidden />
       <div id="gym-cta" className="absolute left-0 w-px h-px" style={{ top: "256vh" }} aria-hidden />
 
-      <div className="sticky top-0 w-full h-screen overflow-hidden">
+      <div className="sticky top-0 z-0 w-full h-screen overflow-hidden">
         <div
           className="absolute inset-0 w-full h-full"
           style={{ background: theme.bgGradient }}
@@ -148,6 +150,7 @@ export default function GymScrollScene({ theme }: GymScrollSceneProps) {
               reducedMotion={reducedMotion}
               theme={theme}
               quality={effectiveQuality}
+              activeChapter={activeChapter}
               className="absolute inset-0 w-full h-full"
             />
           </GymCanvasErrorBoundary>
@@ -158,4 +161,3 @@ export default function GymScrollScene({ theme }: GymScrollSceneProps) {
   );
 }
 
-export { GYM_STORY_VH };

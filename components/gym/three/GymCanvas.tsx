@@ -4,10 +4,17 @@ import React, { useState, useEffect, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import type { SkyTheme } from "@/components/gym/theme/skyTheme";
+import type { GymChapter } from "@/components/gym/scroll/chapters";
+import { CHAPTERS } from "@/components/gym/scroll/chapters";
 import IslandScene from "./IslandScene";
 import CloudAtmosphere from "./CloudAtmosphere";
 import { useParallaxCamera } from "./useParallaxCamera";
 import { easeOutCubic } from "@/lib/easing";
+
+function hexToRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) / 255, ((n >> 8) & 0xff) / 255, (n & 0xff) / 255];
+}
 
 export type QualityLevel = "high" | "med" | "low";
 
@@ -25,6 +32,7 @@ interface SceneProps {
   theme: SkyTheme;
   quality: QualityLevel;
   uTime: number;
+  activeChapter: GymChapter | null;
 }
 
 function Scene({
@@ -35,17 +43,32 @@ function Scene({
   theme,
   quality,
   uTime,
+  activeChapter,
 }: SceneProps) {
+  const chapterPose = activeChapter ? CHAPTERS[activeChapter].camera : null;
+  const chapterTargetPose = chapterPose
+    ? {
+        pos: chapterPose.pos,
+        target: chapterPose.target,
+        fov: chapterPose.fov,
+      }
+    : null;
+
   useParallaxCamera({
     progress,
     pointerX,
     pointerY,
     reducedMotion,
+    chapterTargetPose,
   });
 
   const islandOpacity = 0.3 + 0.7 * easeOutCubic(Math.min(progress * 1.8, 1));
   const islandScale = 0.72 + 0.28 * easeOutCubic(progress);
-  const cloudQuality = quality === "low" ? 0.25 : quality === "med" ? 0.7 : 1;
+  /* Same cloud strength on all devices for consistent coloring/style; quality only affects DPR/antialias */
+  const cloudQuality = 1;
+
+  const targetTint = activeChapter ? hexToRgb(CHAPTERS[activeChapter].atmosphere.tint) : null;
+  const targetStrength = activeChapter ? CHAPTERS[activeChapter].atmosphere.cloudDensity : null;
 
   return (
     <>
@@ -59,6 +82,8 @@ function Scene({
         fogTint={theme.fogTint}
         cloudStrength={theme.cloudStrength}
         quality={cloudQuality}
+        targetCloudTint={targetTint}
+        targetCloudStrength={targetStrength}
       />
       <IslandScene
         opacity={islandOpacity}
@@ -77,6 +102,7 @@ export interface GymCanvasProps {
   reducedMotion: boolean;
   theme: SkyTheme;
   quality: QualityLevel;
+  activeChapter: GymChapter | null;
   className?: string;
 }
 
@@ -87,6 +113,7 @@ export default function GymCanvas({
   reducedMotion,
   theme,
   quality,
+  activeChapter,
   className,
 }: GymCanvasProps) {
   const [uTime, setUTime] = useState(0);
@@ -132,7 +159,7 @@ export default function GymCanvas({
         dpr={dpr}
         gl={{
           alpha: true,
-          antialias: quality !== "low",
+          antialias: true,
           powerPreference: "high-performance",
         }}
         frameloop="always"
@@ -149,6 +176,7 @@ export default function GymCanvas({
           theme={theme}
           quality={quality}
           uTime={uTime}
+          activeChapter={activeChapter}
         />
       </Canvas>
     </>

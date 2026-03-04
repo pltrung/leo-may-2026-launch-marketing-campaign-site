@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo, useEffect, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 const vertexShader = `
@@ -63,6 +64,8 @@ void main() {
 }
 `;
 
+const LERP_ATMOSPHERE = 0.04;
+
 interface CloudAtmosphereProps {
   uTime: number;
   uScroll: number;
@@ -70,6 +73,9 @@ interface CloudAtmosphereProps {
   fogTint: [number, number, number];
   cloudStrength: number;
   quality: number;
+  /** When set, uniforms lerp toward these over ~900ms */
+  targetCloudTint?: [number, number, number] | null;
+  targetCloudStrength?: number | null;
 }
 
 export default function CloudAtmosphere({
@@ -79,6 +85,8 @@ export default function CloudAtmosphere({
   fogTint,
   cloudStrength,
   quality,
+  targetCloudTint,
+  targetCloudStrength,
 }: CloudAtmosphereProps) {
   const uniforms = useMemo(
     () => ({
@@ -92,14 +100,31 @@ export default function CloudAtmosphere({
     []
   );
 
+  const targetTintRef = useRef(new THREE.Vector3(cloudTint[0], cloudTint[1], cloudTint[2]));
+  const currentStrengthRef = useRef(cloudStrength);
+
   useEffect(() => {
     uniforms.uTime.value = uTime;
     uniforms.uScroll.value = uScroll;
-    uniforms.uCloudTint.value.set(cloudTint[0], cloudTint[1], cloudTint[2]);
+    if (targetCloudTint) {
+      targetTintRef.current.set(targetCloudTint[0], targetCloudTint[1], targetCloudTint[2]);
+    } else {
+      targetTintRef.current.set(cloudTint[0], cloudTint[1], cloudTint[2]);
+    }
     uniforms.uFogTint.value.set(fogTint[0], fogTint[1], fogTint[2]);
-    uniforms.uCloudStrength.value = cloudStrength;
     uniforms.uQuality.value = quality;
-  }, [uTime, uScroll, cloudTint, fogTint, cloudStrength, quality, uniforms]);
+  }, [uTime, uScroll, cloudTint, fogTint, cloudStrength, quality, targetCloudTint, uniforms]);
+
+  useFrame(() => {
+    uniforms.uCloudTint.value.lerp(targetTintRef.current, LERP_ATMOSPHERE);
+    const targetStr = targetCloudStrength ?? cloudStrength;
+    currentStrengthRef.current = THREE.MathUtils.lerp(
+      currentStrengthRef.current,
+      targetStr,
+      LERP_ATMOSPHERE
+    );
+    uniforms.uCloudStrength.value = currentStrengthRef.current;
+  });
 
   return (
     <mesh position={[0, 0, -4]} scale={[20, 20, 1]} frustumCulled={false}>
