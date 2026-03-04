@@ -6,6 +6,7 @@ import GymScrollScene from "@/components/gym/GymScrollScene";
 import GymFooter from "@/components/gym/GymFooter";
 import { getSkyTheme, getLocalTimeHours } from "@/components/gym/theme/skyTheme";
 import { preloadGymIslandGLB } from "@/components/gym/three/IslandScene";
+import { HERO_BG } from "@/lib/heroConstants";
 import type { SkyTheme } from "@/components/gym/theme/skyTheme";
 
 export default function GymWorld() {
@@ -24,7 +25,7 @@ export default function GymWorld() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0B0B0F]">
+    <div className="min-h-screen" style={{ background: HERO_BG }}>
       <GymHeader />
       <main>
         <GymScrollScene theme={theme} />

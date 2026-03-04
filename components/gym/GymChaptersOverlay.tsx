@@ -1,11 +1,11 @@
 "use client";
 
 import React from "react";
-import { motion } from "framer-motion";
 import { getMessages } from "@/lib/messages";
 import { useLocale } from "@/components/LocaleProvider";
 import { easeOutCubic, easeInOutQuint } from "@/lib/easing";
 import type { ScrollProgressState } from "@/components/gym/scroll/useScrollProgress";
+import { HERO_BG, HERO_ACCENT_COLORS } from "@/lib/heroConstants";
 
 interface GymChaptersOverlayProps {
   scroll: ScrollProgressState;
@@ -64,10 +64,13 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
           className="absolute inset-0 flex flex-col items-center justify-center"
           style={style1}
         >
-          <h1 className="text-3xl md:text-5xl font-bold text-white tracking-tight">
+          <h1
+            className="text-3xl md:text-5xl font-headline font-bold text-white tracking-tight"
+            style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
+          >
             {m.chapter1.headline}
           </h1>
-          <p className="mt-3 text-white/80 text-lg md:text-xl font-normal">
+          <p className="mt-3 text-white/80 text-lg md:text-xl font-body" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
             {m.chapter1.subline}
           </p>
         </div>
@@ -77,10 +80,13 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
           className="absolute inset-0 flex flex-col items-center justify-center"
           style={style2}
         >
-          <h2 className="text-3xl md:text-5xl font-bold text-white tracking-tight">
+          <h2
+            className="text-3xl md:text-5xl font-headline font-bold tracking-tight"
+            style={{ color: HERO_ACCENT_COLORS[1], fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
+          >
             {m.chapter2.headline}
           </h2>
-          <p className="mt-3 text-white/80 text-lg md:text-xl font-normal">
+          <p className="mt-3 text-white/80 text-lg md:text-xl font-body" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
             {m.chapter2.subline}
           </p>
         </div>
@@ -91,10 +97,13 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
           className="absolute inset-0 flex flex-col items-center justify-center"
           style={style3}
         >
-          <h2 className="text-3xl md:text-5xl font-bold text-white tracking-tight">
+          <h2
+            className="text-3xl md:text-5xl font-headline font-bold tracking-tight"
+            style={{ color: HERO_ACCENT_COLORS[2], fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
+          >
             {m.chapter3.headline}
           </h2>
-          <p className="mt-3 text-white/80 text-lg md:text-xl font-normal">
+          <p className="mt-3 text-white/80 text-lg md:text-xl font-body" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
             {m.chapter3.subline}
           </p>
         </div>
@@ -105,22 +114,27 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
           className="absolute inset-0 flex flex-col items-center justify-center"
           style={style4}
         >
-          <h2 className="text-3xl md:text-5xl font-bold text-white tracking-tight">
+          <h2
+            className="text-3xl md:text-5xl font-headline font-bold text-white tracking-tight"
+            style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
+          >
             {m.chapter4.headline}
           </h2>
-          <p className="mt-3 text-white/80 text-lg md:text-xl font-normal">
+          <p className="mt-3 text-white/80 text-lg md:text-xl font-body" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
             {m.chapter4.subline}
           </p>
           <div id="gym-cta" className="mt-6 flex flex-wrap gap-4 justify-center pointer-events-auto">
             <a
               href="#visit"
-              className="px-6 py-3 rounded-full bg-white/20 backdrop-blur border border-white/40 text-white font-medium hover:bg-white/30 transition-colors text-sm md:text-base"
+              className="px-6 py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-transparent hover:bg-white/10 transition-colors"
+              style={{ letterSpacing: "0.08em", fontFamily: "MiSans-Regular, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
             >
               {m.chapter4.bookVisit}
             </a>
             <a
               href="#member"
-              className="px-6 py-3 rounded-full bg-white text-[#0B0B0F] font-medium hover:bg-white/90 transition-colors text-sm md:text-base"
+              className="px-6 py-3 rounded-full bg-white font-medium text-sm md:text-base transition-colors hover:bg-white/90"
+              style={{ color: HERO_BG, fontFamily: "MiSans-Bold, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
             >
               {m.chapter4.becomeMember}
             </a>

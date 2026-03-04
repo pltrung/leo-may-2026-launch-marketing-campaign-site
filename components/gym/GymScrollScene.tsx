@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import GymCanvas from "@/components/gym/three/GymCanvas";
+import GymCanvas, { type QualityLevel } from "@/components/gym/three/GymCanvas";
 import GymChaptersOverlay from "@/components/gym/GymChaptersOverlay";
 import { useScrollProgress } from "@/components/gym/scroll/useScrollProgress";
 import { getSkyTheme, getLocalTimeHours } from "@/components/gym/theme/skyTheme";
