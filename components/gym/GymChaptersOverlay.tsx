@@ -93,17 +93,22 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
                   style={style}
                 >
                   <h1
-                    className="text-3xl md:text-5xl font-bold text-white tracking-tight max-w-2xl"
+                    className="font-bold text-white tracking-tight leading-[1.2] max-w-2xl w-full"
                     style={{
                       fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
                       color: titleColor ?? undefined,
+                      fontSize: "clamp(28px, 5vw, 48px)",
                     }}
                   >
-                    {headline}
+                    <span className="block">{headline}</span>
                   </h1>
                   <p
-                    className="mt-4 text-white/85 text-lg md:text-xl max-w-xl"
-                    style={{ fontFamily: "MiSans-Regular, sans-serif" }}
+                    className="mt-2 md:mt-3 text-white/85 max-w-xl w-full"
+                    style={{
+                      fontFamily: "MiSans-Regular, sans-serif",
+                      fontSize: "clamp(14px, 2.5vw, 20px)",
+                      lineHeight: 1.25,
+                    }}
                   >
                     {subline}
                   </p>

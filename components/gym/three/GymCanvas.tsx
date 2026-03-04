@@ -9,7 +9,6 @@ import { CHAPTERS } from "@/components/gym/scroll/chapters";
 import IslandScene from "./IslandScene";
 import CloudAtmosphere from "./CloudAtmosphere";
 import { useParallaxCamera } from "./useParallaxCamera";
-import { easeOutCubic } from "@/lib/easing";
 
 function hexToRgb(hex: string): [number, number, number] {
   const n = parseInt(hex.slice(1), 16);
@@ -36,6 +35,18 @@ interface SceneProps {
   userRotationY: number;
 }
 
+/** Single fixed camera pose so GLB never zooms; only overlay (text/CTA) changes on scroll. */
+const FIXED_CAMERA_POSE = (() => {
+  const intro = CHAPTERS.intro;
+  const cam = intro.camera;
+  const comp = intro.composition;
+  return {
+    pos: [cam.pos[0], cam.pos[1] + comp.camY, cam.pos[2]] as [number, number, number],
+    target: [cam.target[0], cam.target[1] + comp.targetY, cam.target[2]] as [number, number, number],
+    fov: cam.fov ?? 46,
+  };
+})();
+
 function Scene({
   progress,
   pointerX,
@@ -47,37 +58,17 @@ function Scene({
   activeChapter,
   userRotationY,
 }: SceneProps) {
-  const chapterDef = activeChapter ? CHAPTERS[activeChapter] : null;
-  const chapterPose = chapterDef?.camera ?? null;
-  const composition = chapterDef?.composition;
-  const chapterTargetPose = chapterPose
-    ? {
-        pos: [
-          chapterPose.pos[0],
-          chapterPose.pos[1] + (composition?.camY ?? 0),
-          chapterPose.pos[2],
-        ] as [number, number, number],
-        target: [
-          chapterPose.target[0],
-          chapterPose.target[1] + (composition?.targetY ?? 0),
-          chapterPose.target[2],
-        ] as [number, number, number],
-        fov: chapterPose.fov,
-      }
-    : null;
-
   useParallaxCamera({
     progress,
     pointerX,
     pointerY,
     reducedMotion,
-    chapterTargetPose,
+    chapterTargetPose: FIXED_CAMERA_POSE,
   });
 
-  /* Initial view (progress < 0.15): GLB only at same size as last scroll (1.4); scroll down to reveal "WELCOME TO LEO MÂY". */
+  /* GLB always at biggest size; no zoom or scale change on scroll. Only text/CTA change. */
   const islandOpacity = 1;
-  const islandScale = progress < 0.15 ? 1.4 : 1.35 + 0.05 * easeOutCubic(Math.min(1, (progress - 0.15) / 0.85));
-  /* Same cloud strength on all devices for consistent coloring/style; quality only affects DPR/antialias */
+  const islandScale = 1.4;
   const cloudQuality = 1;
 
   const targetTint = activeChapter ? hexToRgb(CHAPTERS[activeChapter].atmosphere.tint) : null;
@@ -101,7 +92,7 @@ function Scene({
       <IslandScene
         opacity={islandOpacity}
         scale={islandScale}
-        rotationSpeedMultiplier={0.8 + progress * 0.2}
+        rotationSpeedMultiplier={1}
         userRotationY={userRotationY}
       />
     </>
