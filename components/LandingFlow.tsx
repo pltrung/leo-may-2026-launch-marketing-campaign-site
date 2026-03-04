@@ -51,6 +51,14 @@ export default function LandingFlow({ children }: { children: React.ReactNode })
     return () => clearTimeout(t);
   }, [isHome, state]);
 
+  // As soon as Explore page is shown, preload climbing-hold GLB (chunk + drei cache) so it’s ready when user taps Explore — reduces perceived load on hero.
+  useEffect(() => {
+    if (!isHome || state !== "exploreIdle") return;
+    import("@/components/HeroClimbingHoldCanvas").then((m) => {
+      if (m.preloadHeroClimbingHoldGLB) m.preloadHeroClimbingHoldGLB();
+    });
+  }, [isHome, state]);
+
   const handleExplore = useCallback((origin?: ExploreOrigin) => {
     if (state !== "exploreIdle") return;
     startHeroMusicFromUserGesture();
