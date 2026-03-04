@@ -539,12 +539,12 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
           <p className="text-[var(--sky-text-secondary)] text-sm mb-3" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
             {m.prelaunch}
           </p>
-          {!showClaimForm && claimStatus !== "has_account" && claimStatus !== "not_found" && claimStatus !== "rate_limit" && (
+          {!showClaimForm && claimStatus !== "not_found" && claimStatus !== "rate_limit" && (
             <button type="button" onClick={() => setShowClaimForm(true)} className="sky-cta-primary w-full py-3 rounded-full font-medium">
               {m.claimAccount}
             </button>
           )}
-          {showClaimForm && claimStatus !== "has_account" && claimStatus !== "not_found" && claimStatus !== "rate_limit" && (
+          {showClaimForm && claimStatus !== "not_found" && claimStatus !== "rate_limit" && (
             <form onSubmit={handleClaimSubmit} className="space-y-3">
               <input
                 type="text"
@@ -568,7 +568,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
           )}
         </section>
 
-        {claimStatus !== "has_account" && claimStatus !== "not_found" && claimStatus !== "rate_limit" && !(claimStatus === "loading" && hasAccountEmail) && (
+        {claimStatus !== "not_found" && claimStatus !== "rate_limit" && !(claimStatus === "loading" && hasAccountEmail) && (
           <section>
             <p className="text-[var(--sky-text-secondary)] text-sm mb-3" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
               {m.newHere}
