@@ -34,17 +34,18 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerClient();
 
-    let row = await supabase
+    const { data: existing, error: rowError } = await supabase
       .from("member_profiles")
       .select("id, auth_id, email, phone, full_name, tier, waiver_signed, waiver_signed_at, created_at")
       .eq("auth_id", user.id)
       .maybeSingle();
 
-    if (row.error) {
+    if (rowError) {
       return NextResponse.json({ member: null }, { status: 500 });
     }
 
-    if (!row.data) {
+    let memberRow = existing;
+    if (!memberRow) {
       const waitlistRow = await supabase
         .from("waitlist")
         .select("id, name, email, phone, tier_level, referral_count")
@@ -66,30 +67,30 @@ export async function GET(request: NextRequest) {
           .select("id, auth_id, email, phone, full_name, tier, waiver_signed, waiver_signed_at, created_at")
           .single();
 
-        if (!insertErr && inserted) row = { data: inserted, error: null };
+        if (!insertErr && inserted) memberRow = inserted;
       }
     }
 
-    if (!row.data) {
+    if (!memberRow) {
       return NextResponse.json({ member: null }, { status: 404 });
     }
 
     const { count } = await supabase
       .from("gym_checkins")
       .select("id", { count: "exact", head: true })
-      .eq("member_id", row.data.id);
+      .eq("member_id", memberRow.id);
 
     const lastCheckin = await supabase
       .from("gym_checkins")
       .select("timestamp")
-      .eq("member_id", row.data.id)
+      .eq("member_id", memberRow.id)
       .order("timestamp", { ascending: false })
       .limit(1)
       .maybeSingle();
 
     return NextResponse.json({
       member: {
-        ...row.data,
+        ...memberRow,
         total_visits: count ?? 0,
         last_checkin: lastCheckin.data?.timestamp ?? null,
       },
