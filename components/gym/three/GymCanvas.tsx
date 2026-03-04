@@ -47,11 +47,21 @@ function Scene({
   activeChapter,
   userRotationY,
 }: SceneProps) {
-  const chapterPose = activeChapter ? CHAPTERS[activeChapter].camera : null;
+  const chapterDef = activeChapter ? CHAPTERS[activeChapter] : null;
+  const chapterPose = chapterDef?.camera ?? null;
+  const composition = chapterDef?.composition;
   const chapterTargetPose = chapterPose
     ? {
-        pos: chapterPose.pos,
-        target: chapterPose.target,
+        pos: [
+          chapterPose.pos[0],
+          chapterPose.pos[1] + (composition?.camY ?? 0),
+          chapterPose.pos[2],
+        ] as [number, number, number],
+        target: [
+          chapterPose.target[0],
+          chapterPose.target[1] + (composition?.targetY ?? 0),
+          chapterPose.target[2],
+        ] as [number, number, number],
         fov: chapterPose.fov,
       }
     : null;
@@ -64,9 +74,9 @@ function Scene({
     chapterTargetPose,
   });
 
-  /* Initial view (progress < 0.15): GLB only at full size; scroll down to reveal "WELCOME TO LEO MÂY". GLB stays full size. */
+  /* Initial view (progress < 0.15): GLB only at same size as last scroll (1.4); scroll down to reveal "WELCOME TO LEO MÂY". */
   const islandOpacity = 1;
-  const islandScale = progress < 0.15 ? 1.35 : 1.35 + 0.05 * easeOutCubic(Math.min(1, (progress - 0.15) / 0.85));
+  const islandScale = progress < 0.15 ? 1.4 : 1.35 + 0.05 * easeOutCubic(Math.min(1, (progress - 0.15) / 0.85));
   /* Same cloud strength on all devices for consistent coloring/style; quality only affects DPR/antialias */
   const cloudQuality = 1;
 

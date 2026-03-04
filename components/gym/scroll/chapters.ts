@@ -1,18 +1,23 @@
 /**
  * Single source of truth for /gym in-page chapters.
  * Hash-aware navigation and scroll/camera/atmosphere targets.
- *
- * Chapter progress map: intro 0.05, gym 0.35, community 0.65, membership 0.9
+ * Even spacing so each chapter has similar scroll "length" (intro was too short at 0.05).
  */
 
 export type GymChapter = "intro" | "gym" | "community" | "membership";
 
 export const CHAPTER_PROGRESS: Record<GymChapter, number> = {
-  intro: 0.05,
-  gym: 0.35,
-  community: 0.65,
-  membership: 0.9,
+  intro: 0.2,
+  gym: 0.4,
+  community: 0.6,
+  membership: 0.85,
 };
+
+/** Composition offset so the island sits in the middle zone (not under title or CTA). */
+export interface CompositionOffset {
+  targetY: number;
+  camY: number;
+}
 
 export interface ChapterDef {
   hash: string;
@@ -24,6 +29,8 @@ export interface ChapterDef {
     target: [number, number, number];
     fov?: number;
   };
+  /** Offsets applied to camera target.y and pos.y so island stays in middle zone. */
+  composition: CompositionOffset;
   atmosphere: {
     tint: string;
     warmth: number;
@@ -44,6 +51,7 @@ export const CHAPTERS: Record<GymChapter, ChapterDef> = {
       target: [0, 0.34, 0],
       fov: 46,
     },
+    composition: { targetY: 0.1, camY: 0.15 },
     atmosphere: {
       tint: "#87CEEB",
       warmth: 0.4,
@@ -60,6 +68,7 @@ export const CHAPTERS: Record<GymChapter, ChapterDef> = {
       target: [0, 0.34, 0],
       fov: 48,
     },
+    composition: { targetY: 0.05, camY: 0.1 },
     atmosphere: {
       tint: "#B8D4E8",
       warmth: 0.55,
@@ -76,6 +85,7 @@ export const CHAPTERS: Record<GymChapter, ChapterDef> = {
       target: [0, 0.34, 0],
       fov: 50,
     },
+    composition: { targetY: 0, camY: 0.08 },
     atmosphere: {
       tint: "#E8C4A0",
       warmth: 0.78,
@@ -92,6 +102,7 @@ export const CHAPTERS: Record<GymChapter, ChapterDef> = {
       target: [0, 0.34, 0],
       fov: 45,
     },
+    composition: { targetY: 0.02, camY: 0.1 },
     atmosphere: {
       tint: "#F5E6D3",
       warmth: 0.7,
