@@ -12,7 +12,7 @@ import { getMessages } from "@/lib/messages";
 import type { GymChapter } from "@/components/gym/scroll/chapters";
 import { CHAPTERS } from "@/components/gym/scroll/chapters";
 
-const HEADER_NAV: { type: "chapter"; chapter: GymChapter } | { type: "link"; href: string; labelKey: "membership" }[] = [
+const HEADER_NAV: ({ type: "chapter"; chapter: GymChapter } | { type: "link"; href: string; labelKey: "membership" })[] = [
   { type: "chapter", chapter: "intro" },
   { type: "chapter", chapter: "community" },
   { type: "link", href: "/gym/membership", labelKey: "membership" },
