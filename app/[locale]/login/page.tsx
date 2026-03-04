@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { useLocale } from "@/components/LocaleProvider";
 import { getMessages } from "@/lib/messages";
-import { HERO_BG } from "@/lib/heroConstants";
 import { toE164 } from "@/lib/phoneE164";
 
 function LoginPageInner() {
@@ -45,7 +44,11 @@ function LoginPageInner() {
         const res = await fetch("/api/auth/dev-bypass-gym", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: input.toLowerCase(), locale }),
+          body: JSON.stringify({
+            email: input.toLowerCase(),
+            locale,
+            origin: typeof window !== "undefined" ? window.location.origin : undefined,
+          }),
         });
         const data = await res.json();
         if (res.ok && typeof data?.url === "string") {
@@ -71,8 +74,9 @@ function LoginPageInner() {
           body: JSON.stringify({ email, locale }),
         });
         const claimData = await claimRes.json();
-        if (claimRes.ok && typeof claimData?.url === "string") {
-          window.location.href = claimData.url;
+        const magicUrl = (claimData?.url ?? claimData?.magicLinkUrl) as string | undefined;
+        if (claimRes.ok && typeof magicUrl === "string") {
+          window.location.href = magicUrl;
           return;
         }
         if (claimRes.ok && claimData?.hasAccount) {
@@ -98,8 +102,9 @@ function LoginPageInner() {
       });
       const claimData = await claimRes.json();
 
-      if (claimRes.ok && typeof claimData?.url === "string") {
-        window.location.href = claimData.url;
+      const magicUrl2 = (claimData?.url ?? claimData?.magicLinkUrl) as string | undefined;
+      if (claimRes.ok && typeof magicUrl2 === "string") {
+        window.location.href = magicUrl2;
         return;
       }
       if (claimRes.ok && claimData?.hasAccount && claimData?.email) {
@@ -130,45 +135,43 @@ function LoginPageInner() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-20" style={{ background: HERO_BG }}>
-      <h1 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: "MiSans-Bold, sans-serif" }}>
-        {m.loginTitle}
-      </h1>
-      <p className="text-white/70 text-sm mb-6">{m.loginSubtitle}</p>
-      <form onSubmit={handleLogin} className="w-full max-w-sm space-y-3">
-        <input
-          type="text"
-          inputMode="email"
-          autoComplete="username"
-          placeholder={m.emailOrPhone}
-          value={emailOrPhone}
-          onChange={(e) => setEmailOrPhone(e.target.value)}
-          className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/50"
-        />
-        <input
-          type="password"
-          autoComplete="current-password"
-          placeholder={m.password}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/50"
-        />
-        {error && <p className="text-red-400 text-sm">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-3 rounded-full bg-white text-[#0B0B0F] font-medium disabled:opacity-60"
-        >
-          {loading ? "…" : m.login}
-        </button>
-      </form>
-      <div className="mt-6 flex flex-col items-center gap-2">
-        <Link href={`/${locale}/signup`} className="text-white/80 text-sm hover:text-white">
-          {m.createAccount}
-        </Link>
-        <Link href={`/${locale}/gym/membership`} className="text-white/60 text-xs hover:text-white/80">
-          ← {m.membership}
-        </Link>
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-20 sky-auth-page">
+      <div className="sky-glass-panel w-full max-w-sm rounded-2xl p-6 space-y-4">
+        <h1 className="text-xl font-bold text-[var(--sky-text-primary)]" style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}>
+          {m.loginTitle}
+        </h1>
+        <p className="text-[var(--sky-text-secondary)] text-sm">{m.loginSubtitle}</p>
+        <form onSubmit={handleLogin} className="space-y-3">
+          <input
+            type="text"
+            inputMode="email"
+            autoComplete="username"
+            placeholder={m.emailOrPhone}
+            value={emailOrPhone}
+            onChange={(e) => setEmailOrPhone(e.target.value)}
+            className="sky-input w-full px-4 py-3 rounded-xl border border-[var(--sky-glass-border)] bg-white/5 text-[var(--sky-text-primary)] placeholder-[var(--sky-text-secondary)]"
+          />
+          <input
+            type="password"
+            autoComplete="current-password"
+            placeholder={m.password}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="sky-input w-full px-4 py-3 rounded-xl border border-[var(--sky-glass-border)] bg-white/5 text-[var(--sky-text-primary)] placeholder-[var(--sky-text-secondary)]"
+          />
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+          <button type="submit" disabled={loading} className="sky-cta-primary w-full py-3 rounded-full font-medium disabled:opacity-60">
+            {loading ? "…" : m.login}
+          </button>
+        </form>
+        <div className="flex flex-col items-center gap-2 pt-2">
+          <Link href={`/${locale}/signup`} className="text-[var(--sky-text-secondary)] text-sm hover:text-[var(--sky-text-primary)]">
+            {m.createAccount}
+          </Link>
+          <Link href={`/${locale}/gym/membership`} className="text-[var(--sky-text-secondary)] text-xs hover:text-[var(--sky-text-primary)]">
+            ← {m.membership}
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -178,8 +181,8 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center" style={{ background: HERO_BG }}>
-          <p className="text-white/60 text-sm">Loading…</p>
+        <div className="min-h-screen flex items-center justify-center sky-auth-page">
+          <p className="text-[var(--sky-text-secondary)] text-sm">Loading…</p>
         </div>
       }
     >

@@ -46,11 +46,26 @@ export async function GET(request: NextRequest) {
 
     let memberRow = existing;
     if (!memberRow) {
-      const waitlistRow = await supabase
+      let waitlistRow = await supabase
         .from("waitlist")
-        .select("id, name, email, phone, tier_level, referral_count")
+        .select("id, name, email, phone, tier_level, referral_count, auth_id")
         .eq("auth_id", user.id)
         .maybeSingle();
+
+      if (!waitlistRow.data && user.email) {
+        const byEmail = await supabase
+          .from("waitlist")
+          .select("id, name, email, phone, tier_level, referral_count, auth_id")
+          .ilike("email", user.email.trim().toLowerCase())
+          .maybeSingle();
+        if (byEmail.data) {
+          await supabase
+            .from("waitlist")
+            .update({ auth_id: user.id, updated_at: new Date().toISOString() })
+            .eq("id", byEmail.data.id);
+          waitlistRow = { data: byEmail.data, error: null };
+        }
+      }
 
       if (waitlistRow.data) {
         const w = waitlistRow.data;
@@ -59,9 +74,9 @@ export async function GET(request: NextRequest) {
           .from("member_profiles")
           .insert({
             auth_id: user.id,
-            email: w.email ?? null,
+            email: w.email ?? user.email ?? null,
             phone: w.phone ?? null,
-            full_name: w.name ?? "Member",
+            full_name: w.name ?? user.user_metadata?.full_name ?? "Member",
             tier,
           })
           .select("id, auth_id, email, phone, full_name, tier, waiver_signed, waiver_signed_at, created_at")

@@ -58,6 +58,17 @@
 - “You are …” pill on countdown: readable, opacity ~0.85–0.9.
 - Spacing and typography consistent (Apple-level).
 
+## 8. Gym login dev bypass (test accounts)
+
+To log in to `/gym` (or `/login`) **without a password** using test emails like `ev1-hm@l`:
+
+1. **Env:** Set `NEXT_PUBLIC_DEV_BYPASS_OTP=true` in `.env.local`. Restart the dev server so the env is picked up (e.g. stop and run `npm run dev` again).
+2. **Supabase:** Ensure test accounts exist and are verified. In the Supabase SQL Editor, run (in order):
+   - `supabase/seed_evolution_stages.sql` — creates waitlist rows for `ev1-mn@l`, `ev1-hm@l`, etc.
+   - `supabase/seed_verify_test_accounts.sql` **or** `supabase/migrations/008_test_accounts_verified.sql` — sets `is_verified = true` for those rows.
+
+Then open `/login`, enter e.g. `ev1-hm@l`, leave the password field **blank**, and click Login. You should be redirected via magic link to the dashboard. The API creates the Supabase Auth user and `member_profiles` row on first use if they don’t exist.
+
 ## Quick local run
 
 ```bash

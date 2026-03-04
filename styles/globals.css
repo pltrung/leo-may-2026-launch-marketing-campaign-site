@@ -354,6 +354,69 @@ body.hero-ready .hero-scroll {
 /* Mist Transition: pure mist, no cloud SVG — world dissolves, next page emerges */
 :root {
   --font-bold: "MiSans-Bold", sans-serif;
+  /* Sky / gym + auth unified theme (warm sky world) */
+  --sky-bg-1: #0B0B0F;
+  --sky-bg-2: #14182a;
+  --sky-bg-gradient: linear-gradient(180deg, #0B0B0F 0%, #0f1220 40%, #14182a 100%);
+  --sky-glass: rgba(255, 255, 255, 0.06);
+  --sky-glass-border: rgba(255, 255, 255, 0.14);
+  --sky-text-primary: rgba(255, 255, 255, 0.92);
+  --sky-text-secondary: rgba(255, 255, 255, 0.7);
+  --sky-accent: #4FA3FF;
+}
+.sky-glass-panel {
+  background: var(--sky-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--sky-glass-border);
+  color: var(--sky-text-primary);
+}
+.animate-bottom-sheet-backdrop {
+  animation: bottom-sheet-backdrop-in 350ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.animate-bottom-sheet-panel {
+  animation: bottom-sheet-panel-in 350ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes bottom-sheet-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes bottom-sheet-panel-in {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (min-width: 768px) {
+  @keyframes bottom-sheet-panel-in {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+}
+.sky-cta-primary {
+  background: #fff;
+  color: #0B0B0F;
+  border: none;
+  transition: transform 0.12s ease, opacity 0.2s ease;
+  font-family: "MiSans-Bold", sans-serif;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+.sky-cta-primary:hover { opacity: 0.95; }
+.sky-cta-primary:active { transform: scale(0.98); }
+.sky-cta-secondary {
+  background: transparent;
+  color: var(--sky-text-primary);
+  border: 1px solid var(--sky-glass-border);
+  transition: background 0.2s ease, transform 0.12s ease;
+}
+.sky-cta-secondary:hover { background: rgba(255,255,255,0.08); }
+.sky-cta-secondary:active { transform: scale(0.98); }
+.sky-input:focus {
+  outline: none;
+  border-color: var(--sky-accent);
+  box-shadow: 0 0 0 2px rgba(79, 163, 255, 0.25);
+}
+.sky-auth-page {
+  background: var(--sky-bg-gradient);
+  min-height: 100dvh;
 }
 
 #mist-transition {

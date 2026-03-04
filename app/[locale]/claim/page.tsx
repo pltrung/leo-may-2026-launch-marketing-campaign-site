@@ -33,7 +33,10 @@ export default function ClaimPage() {
 
     setLoading(true);
     try {
-      const body: { email?: string; phone?: string; locale?: string } = { locale };
+      const body: { email?: string; phone?: string; locale?: string; origin?: string } = {
+        locale,
+        origin: typeof window !== "undefined" ? window.location.origin : undefined,
+      };
       if (isEmail(input)) {
         body.email = input.toLowerCase();
       } else {

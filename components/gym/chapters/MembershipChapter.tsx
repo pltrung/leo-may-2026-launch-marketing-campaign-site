@@ -1,15 +1,13 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
 import { getMessages } from "@/lib/messages";
 import { useLocale } from "@/components/LocaleProvider";
 import { useGymNav } from "@/components/gym/context/GymNavContext";
-import { HERO_BG } from "@/lib/heroConstants";
 
 export default function MembershipChapter() {
   const locale = useLocale();
-  const { goToChapter } = useGymNav();
+  const { goToChapter, openMembershipModal } = useGymNav();
   const m = getMessages(locale as "en" | "vi").gym.chapter4;
 
   return (
@@ -27,17 +25,18 @@ export default function MembershipChapter() {
         {m.subline}
       </p>
       <div id="gym-cta" className="mt-8 flex flex-wrap gap-4 justify-center pointer-events-auto">
-        <Link
-          href={`/${locale}/gym/membership`}
-          className="px-6 py-3 rounded-full bg-white font-medium text-sm md:text-base transition-colors hover:bg-white/90"
-          style={{ color: HERO_BG, fontFamily: "MiSans-Bold, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
+        <button
+          type="button"
+          onClick={openMembershipModal}
+          className="px-6 py-3 rounded-full bg-white font-medium text-sm md:text-base transition-transform hover:scale-[1.02] active:scale-[0.98]"
+          style={{ color: "#0B0B0F", fontFamily: "MiSans-Bold, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
         >
           {m.becomeMember}
-        </Link>
+        </button>
         <button
           type="button"
           onClick={() => goToChapter("intro")}
-          className="px-6 py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-transparent hover:bg-white/10 transition-colors"
+          className="px-6 py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-transparent hover:bg-white/10 transition-transform active:scale-[0.98]"
           style={{ letterSpacing: "0.08em", fontFamily: "MiSans-Regular, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
         >
           {m.aboutLeoMay}

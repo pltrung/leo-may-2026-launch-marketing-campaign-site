@@ -25,15 +25,26 @@ type WaitlistRow = {
   tier_level: number | null;
 };
 
+/** Allow only http(s) origins so redirect goes to the app the user is on (not localhost when on prod). */
+function parseClientOrigin(value: unknown): string | null {
+  if (typeof value !== "string" || !value) return null;
+  const trimmed = value.trim().toLowerCase();
+  if (!/^https?:\/\/[a-z0-9.-]+(:\d+)?$/i.test(trimmed)) return null;
+  try {
+    const u = new URL(trimmed);
+    return u.origin;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * POST /api/auth/claim-waitlist
- * Body: { email?: string, phone?: string, locale?: string }
- * For pre-launch users: find waitlist by email or phone. If found and no auth_id,
- * create Supabase auth user, link waitlist.auth_id, create member_profiles, return magic link.
- * If found and has auth_id, return { hasAccount: true, email } so client can prompt for password.
+ * Body: { email?: string, phone?: string, locale?: string, origin?: string }
+ * origin: optional client origin (e.g. window.location.origin) so magic link redirects to the same site.
  */
 export async function POST(request: NextRequest) {
-  let body: { email?: string; phone?: string; locale?: string };
+  let body: { email?: string; phone?: string; locale?: string; origin?: string };
   try {
     body = await request.json();
   } catch {
@@ -45,6 +56,7 @@ export async function POST(request: NextRequest) {
   const rawPhone = typeof body.phone === "string" ? body.phone.trim().replace(/\s/g, "") : "";
   const phone = rawPhone ? toE164(rawPhone) : "";
   const locale = typeof body.locale === "string" && /^[a-z]{2}$/.test(body.locale) ? body.locale : "en";
+  const clientOrigin = parseClientOrigin(body.origin);
 
   if (!email && !phone) {
     return NextResponse.json({ error: "Email or phone required" }, { status: 400 });
@@ -82,7 +94,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!waitlistRow) {
-      return NextResponse.json({ error: "Not found in waitlist" }, { status: 404 });
+      return NextResponse.json({ status: "not_found", error: "Not found in waitlist" }, { status: 404 });
     }
 
     const authId = waitlistRow.auth_id ?? null;
@@ -90,6 +102,7 @@ export async function POST(request: NextRequest) {
 
     if (authId) {
       return NextResponse.json({
+        status: "has_account",
         hasAccount: true,
         email: waitlistEmail || undefined,
       });
@@ -137,9 +150,12 @@ export async function POST(request: NextRequest) {
     }
 
     const origin =
-      request.headers.get("x-forwarded-host") && request.headers.get("x-forwarded-proto")
+      clientOrigin ??
+      (request.headers.get("x-forwarded-host") && request.headers.get("x-forwarded-proto")
         ? `${request.headers.get("x-forwarded-proto")}://${request.headers.get("x-forwarded-host")}`
-        : request.headers.get("origin") ?? new URL(request.url).origin;
+        : null) ??
+      request.headers.get("origin") ??
+      (typeof request.url === "string" ? new URL(request.url).origin : "");
     const redirectTo = `${origin}/${locale}/dashboard`;
 
     const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
@@ -158,7 +174,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No link in response" }, { status: 500 });
     }
 
-    return NextResponse.json({ url });
+    return NextResponse.json({ status: "created_account", url, magicLinkUrl: url });
   } catch (e) {
     console.error("Claim waitlist error:", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

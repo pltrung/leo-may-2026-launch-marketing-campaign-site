@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { normalizeEmail } from "@/lib/emailNormalize";
+import { EVOLUTION_LEVELS } from "@/lib/evolutionLevels";
 
 const TEST_EMAIL_REGEX = /^ev\d+-.+@l$/;
 const TEST_EMAIL_REGEX_2 = /^dummy2\d+@test\.local$/;
@@ -10,10 +11,33 @@ function isTestEmail(email: string): boolean {
   return TEST_EMAIL_REGEX.test(e) || TEST_EMAIL_REGEX_2.test(e);
 }
 
+function randomPassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let s = "";
+  for (let i = 0; i < 20; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+
+function tierFromTierLevel(level: number): string {
+  const idx = Math.max(0, Math.min(5, level - 1));
+  return EVOLUTION_LEVELS[idx]?.nameEn ?? "Explorer";
+}
+
+type WaitlistRow = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  auth_id: string | null;
+  is_verified?: boolean;
+  tier_level: number | null;
+};
+
 /**
  * Dev-only: bypass OTP for gym login using the same test accounts as countdown.
  * When NEXT_PUBLIC_DEV_BYPASS_OTP=true and email is a verified test account,
  * returns a magic link that signs the user in and redirects to dashboard.
+ * Creates the auth user and member_profiles if they don't exist (so no manual Supabase Auth setup).
  */
 export async function POST(request: NextRequest) {
   const devBypass =
@@ -23,7 +47,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: { email?: string; locale?: string };
+  let body: { email?: string; locale?: string; origin?: string };
   try {
     body = await request.json();
   } catch {
@@ -33,6 +57,16 @@ export async function POST(request: NextRequest) {
   const rawEmail = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const email = rawEmail ? normalizeEmail(rawEmail) : "";
   const locale = typeof body.locale === "string" && /^[a-z]{2}$/.test(body.locale) ? body.locale : "en";
+  const clientOrigin =
+    typeof body.origin === "string" && body.origin.trim() && /^https?:\/\/[a-z0-9.-]+(:\d+)?$/i.test(body.origin.trim())
+      ? (() => {
+          try {
+            return new URL(body.origin.trim()).origin;
+          } catch {
+            return null;
+          }
+        })()
+      : null;
 
   if (!email || !isTestEmail(email)) {
     return NextResponse.json({ error: "Invalid or non-test email" }, { status: 400 });
@@ -41,38 +75,94 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createServerClient();
 
-    const { data: waitlistRow, error: wErr } = await supabase
+    const { data: waitlistData, error: wErr } = await supabase
       .from("waitlist")
-      .select("id, is_verified")
+      .select("id, name, email, phone, auth_id, is_verified, tier_level")
       .eq("email", email)
       .maybeSingle();
 
-    if (wErr || !waitlistRow) {
+    if (wErr) {
+      console.error("Dev bypass gym waitlist lookup error:", wErr);
       return NextResponse.json({ error: "Waitlist lookup failed" }, { status: 500 });
     }
-    if (!waitlistRow || (waitlistRow as { is_verified?: boolean }).is_verified !== true) {
-      return NextResponse.json({ error: "Account not verified" }, { status: 403 });
+    const waitlistRow = (waitlistData as unknown) as WaitlistRow | null;
+    if (!waitlistRow) {
+      return NextResponse.json(
+        { error: "Test account not in waitlist. Run supabase seeds: seed_evolution_stages.sql then seed_verify_test_accounts.sql" },
+        { status: 404 }
+      );
+    }
+    if (waitlistRow.is_verified !== true) {
+      return NextResponse.json(
+        { error: "Account not verified. Run seed_verify_test_accounts.sql or migration 008_test_accounts_verified.sql" },
+        { status: 403 }
+      );
     }
 
     const origin =
-      request.headers.get("x-forwarded-host") && request.headers.get("x-forwarded-proto")
+      clientOrigin ??
+      (request.headers.get("x-forwarded-host") && request.headers.get("x-forwarded-proto")
         ? `${request.headers.get("x-forwarded-proto")}://${request.headers.get("x-forwarded-host")}`
-        : request.headers.get("origin") ?? new URL(request.url).origin;
+        : null) ??
+      request.headers.get("origin") ??
+      (typeof request.url === "string" ? new URL(request.url).origin : "");
     const redirectTo = `${origin}/${locale}/dashboard`;
 
-    const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
+    let linkData: { properties?: { action_link?: string } } | null = null;
+    let linkErr: { message?: string } | null = null;
+
+    const { data: genData, error: genError } = await supabase.auth.admin.generateLink({
       type: "magiclink",
       email,
       options: { redirectTo },
     });
+    linkData = genData as typeof linkData;
+    linkErr = genError;
 
     if (linkErr) {
-      console.error("Dev bypass gym generateLink error:", linkErr);
-      return NextResponse.json({ error: "Failed to generate link" }, { status: 500 });
+      const msg = (linkErr as { message?: string }).message ?? "";
+      const userNotFound =
+        /user not found|requested user does not exist|not found/i.test(msg);
+      if (userNotFound) {
+        const tempPassword = randomPassword();
+        const { data: authUser, error: createErr } = await supabase.auth.admin.createUser({
+          email,
+          password: tempPassword,
+          email_confirm: true,
+        });
+        if (createErr || !authUser?.user) {
+          console.error("Dev bypass gym createUser error:", createErr);
+          return NextResponse.json({ error: "Failed to create test user" }, { status: 500 });
+        }
+        await supabase
+          .from("waitlist")
+          .update({ auth_id: authUser.user.id, updated_at: new Date().toISOString() })
+          .eq("id", waitlistRow.id);
+        const tier = tierFromTierLevel(typeof waitlistRow.tier_level === "number" ? waitlistRow.tier_level : 1);
+        await supabase.from("member_profiles").insert({
+          auth_id: authUser.user.id,
+          email: waitlistRow.email ?? null,
+          phone: waitlistRow.phone ?? null,
+          full_name: waitlistRow.name ?? "Member",
+          tier,
+        });
+        const { data: retryData, error: retryErr } = await supabase.auth.admin.generateLink({
+          type: "magiclink",
+          email,
+          options: { redirectTo },
+        });
+        if (retryErr) {
+          console.error("Dev bypass gym generateLink retry error:", retryErr);
+          return NextResponse.json({ error: "Failed to generate link" }, { status: 500 });
+        }
+        linkData = retryData as typeof linkData;
+      } else {
+        console.error("Dev bypass gym generateLink error:", linkErr);
+        return NextResponse.json({ error: "Failed to generate link" }, { status: 500 });
+      }
     }
 
-    const url =
-      (linkData as { properties?: { action_link?: string } })?.properties?.action_link ?? null;
+    const url = linkData?.properties?.action_link ?? null;
     if (!url) {
       return NextResponse.json({ error: "No link in response" }, { status: 500 });
     }

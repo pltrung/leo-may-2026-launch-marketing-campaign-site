@@ -21,7 +21,7 @@ import {
 } from "@/components/gym/scroll/chapters";
 import { seekToProgress } from "@/components/gym/scroll/useScrollProgress";
 import GymVisitModal from "@/components/gym/modals/GymVisitModal";
-import GymMembershipModal from "@/components/gym/modals/GymMembershipModal";
+import MembershipEntrySheet from "@/components/gym/modals/MembershipEntrySheet";
 import AboutUsModal from "@/components/AboutUsModal";
 import { useLocale } from "@/components/LocaleProvider";
 
@@ -32,7 +32,7 @@ export default function GymWorld() {
   );
   const [activeChapter, setActiveChapter] = useState<GymChapter>("intro");
   const [visitModalOpen, setVisitModalOpen] = useState(false);
-  const [membershipModalOpen, setMembershipModalOpen] = useState(false);
+  const [membershipEntryOpen, setMembershipEntryOpen] = useState(false);
   const [aboutModalOpen, setAboutModalOpen] = useState(false);
   const overlayRef = useRef<GymTransitionOverlayRef | null>(null);
   const initialHashHandled = useRef(false);
@@ -121,7 +121,7 @@ export default function GymWorld() {
   }, []);
 
   const openVisitModal = useCallback(() => setVisitModalOpen(true), []);
-  const openMembershipModal = useCallback(() => setMembershipModalOpen(true), []);
+  const openMembershipModal = useCallback(() => setMembershipEntryOpen(true), []);
   const openAboutModal = useCallback(() => setAboutModalOpen(true), []);
 
   const navValue = {
@@ -142,7 +142,7 @@ export default function GymWorld() {
         </main>
         <GymTransitionOverlay overlayRef={overlayRef} />
         <GymVisitModal open={visitModalOpen} onClose={() => setVisitModalOpen(false)} />
-        <GymMembershipModal open={membershipModalOpen} onClose={() => setMembershipModalOpen(false)} />
+        <MembershipEntrySheet open={membershipEntryOpen} onClose={() => setMembershipEntryOpen(false)} />
         {aboutModalOpen && <AboutUsModal onClose={() => setAboutModalOpen(false)} locale={locale as "en" | "vi"} />}
       </div>
     </GymNavProvider>

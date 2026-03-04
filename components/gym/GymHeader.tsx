@@ -12,16 +12,16 @@ import { getMessages } from "@/lib/messages";
 import type { GymChapter } from "@/components/gym/scroll/chapters";
 import { CHAPTERS } from "@/components/gym/scroll/chapters";
 
-const HEADER_NAV: ({ type: "chapter"; chapter: GymChapter } | { type: "link"; href: string; labelKey: "membership" })[] = [
+const HEADER_NAV: ({ type: "chapter"; chapter: GymChapter } | { type: "link"; href: string; labelKey: "membership"; openSheetOnMobile?: boolean })[] = [
   { type: "chapter", chapter: "intro" },
   { type: "chapter", chapter: "community" },
-  { type: "link", href: "/gym/membership", labelKey: "membership" },
+  { type: "link", href: "/gym/membership", labelKey: "membership", openSheetOnMobile: true },
 ];
 
 export default function GymHeader() {
   const locale = useLocale();
   const router = useRouter();
-  const { activeChapter, goToChapter } = useGymNav();
+  const { activeChapter, goToChapter, openMembershipModal } = useGymNav();
   const { user, member, signOut } = useMemberAuth();
   const auth = getMessages(locale as "en" | "vi").auth;
   const loggedIn = Boolean(user && member);
@@ -33,7 +33,7 @@ export default function GymHeader() {
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-[50] flex items-center justify-between px-4 md:px-8 py-4 bg-white/5 backdrop-blur-md border-b border-white/10"
+      className="fixed top-0 left-0 right-0 z-[50] flex items-center justify-between px-4 md:px-8 py-4 bg-white/5 backdrop-blur-md border-b border-white/10 pointer-events-auto"
       role="banner"
     >
       <Link href={`/${locale}`} className="flex items-center" aria-label="Leo Mây Home">
@@ -59,13 +59,21 @@ export default function GymHeader() {
             );
           }
           return (
-            <Link
-              key={item.href}
-              href={`/${locale}${item.href}`}
-              className="text-sm font-medium text-white/90 hover:text-white transition-colors"
-            >
-              {auth.membership}
-            </Link>
+            <span key={item.href}>
+              <button
+                type="button"
+                onClick={openMembershipModal}
+                className="md:hidden text-sm font-medium text-white/90 hover:text-white transition-colors"
+              >
+                {auth.membership}
+              </button>
+              <Link
+                href={`/${locale}${item.href}`}
+                className="hidden md:inline text-sm font-medium text-white/90 hover:text-white transition-colors"
+              >
+                {auth.membership}
+              </Link>
+            </span>
           );
         })}
         {loggedIn ? (
