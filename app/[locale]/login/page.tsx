@@ -29,14 +29,19 @@ function LoginPageInner() {
     e.preventDefault();
     setError("");
     const input = emailOrPhone.trim();
-    if (!input || !password) {
+    const isBypassAttempt = devBypassOtp && isEmail(input) && isTestEmail(input);
+    if (!input) {
+      setError(m.invalidCredentials);
+      return;
+    }
+    if (!isBypassAttempt && !password) {
       setError(m.invalidCredentials);
       return;
     }
 
     setLoading(true);
     try {
-      if (devBypassOtp && isEmail(input) && isTestEmail(input)) {
+      if (isBypassAttempt) {
         const res = await fetch("/api/auth/dev-bypass-gym", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

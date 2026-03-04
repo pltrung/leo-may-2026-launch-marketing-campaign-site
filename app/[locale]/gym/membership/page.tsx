@@ -41,26 +41,32 @@ export default function GymMembershipPage() {
       >
         {m.headline}
       </h1>
-      <p className="text-white/80 text-center max-w-md mb-4" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
+      <p className="text-white/80 text-center max-w-md mb-3" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
         {m.prelaunch}
       </p>
-      <p className="text-white/70 text-center max-w-md mb-10" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
-        {m.newHere}
-      </p>
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-4 mb-10">
+        <Link
+          href={`/${locale}/claim`}
+          className="px-8 py-3 rounded-full bg-white text-[#0B0B0F] font-medium hover:bg-white/90 transition-colors text-center"
+        >
+          {m.claimAccount}
+        </Link>
         <Link
           href={`/${locale}/login`}
           className="px-8 py-3 rounded-full border border-white/70 text-white font-medium hover:bg-white/10 transition-colors text-center"
         >
           {m.login}
         </Link>
-        <Link
-          href={`/${locale}/signup`}
-          className="px-8 py-3 rounded-full bg-white text-[#0B0B0F] font-medium hover:bg-white/90 transition-colors text-center"
-        >
-          {m.createAccount}
-        </Link>
       </div>
+      <p className="text-white/70 text-center max-w-md mb-4" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
+        {m.newHere}
+      </p>
+      <Link
+        href={`/${locale}/signup`}
+        className="px-8 py-3 rounded-full border border-white/50 text-white/90 font-medium hover:bg-white/10 transition-colors text-center inline-block"
+      >
+        {m.createAccount}
+      </Link>
     </div>
   );
 }

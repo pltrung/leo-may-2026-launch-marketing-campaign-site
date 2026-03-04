@@ -17,20 +17,39 @@ export default function SignupPage() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [showPrelaunchHint, setShowPrelaunchHint] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setShowPrelaunchHint(false);
     if (!name.trim() || !email.trim() || !password) {
       setError("Name, email and password required");
       return;
     }
     setLoading(true);
     try {
+      const trimmedEmail = email.trim().toLowerCase();
+      const claimRes = await fetch("/api/auth/claim-waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmedEmail, locale }),
+      });
+      const claimData = await claimRes.json();
+      if (claimRes.ok && typeof claimData?.url === "string") {
+        window.location.href = claimData.url;
+        return;
+      }
+      if (claimRes.ok && claimData?.hasAccount) {
+        setError(m.claimAlreadyHaveAccount);
+        setLoading(false);
+        return;
+      }
+
       const supabase = getSupabaseBrowserClient();
       const { data, error: signUpError } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
+        email: trimmedEmail,
         password,
         options: { data: { full_name: name.trim(), phone: phone.trim() || undefined } },
       });
@@ -40,7 +59,8 @@ export default function SignupPage() {
         return;
       }
       if (!data?.session?.access_token) {
-        setError("Check your email to confirm, or try logging in.");
+        setError(m.signupConfirmEmail);
+        setShowPrelaunchHint(true);
         setLoading(false);
         return;
       }
@@ -115,6 +135,11 @@ export default function SignupPage() {
         </button>
       </form>
       <div className="mt-6 flex flex-col items-center gap-2">
+        {showPrelaunchHint && (
+          <Link href={`/${locale}/claim`} className="text-white/90 text-sm hover:text-white underline">
+            {m.signupPrelaunchHint}
+          </Link>
+        )}
         <Link href={`/${locale}/login`} className="text-white/80 text-sm hover:text-white">
           {m.login}
         </Link>

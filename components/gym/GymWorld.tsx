@@ -22,14 +22,18 @@ import {
 import { seekToProgress } from "@/components/gym/scroll/useScrollProgress";
 import GymVisitModal from "@/components/gym/modals/GymVisitModal";
 import GymMembershipModal from "@/components/gym/modals/GymMembershipModal";
+import AboutUsModal from "@/components/AboutUsModal";
+import { useLocale } from "@/components/LocaleProvider";
 
 export default function GymWorld() {
+  const locale = useLocale();
   const [theme, setTheme] = useState<SkyTheme>(() =>
     getSkyTheme(typeof window !== "undefined" ? getLocalTimeHours() : 12)
   );
   const [activeChapter, setActiveChapter] = useState<GymChapter>("intro");
   const [visitModalOpen, setVisitModalOpen] = useState(false);
   const [membershipModalOpen, setMembershipModalOpen] = useState(false);
+  const [aboutModalOpen, setAboutModalOpen] = useState(false);
   const overlayRef = useRef<GymTransitionOverlayRef | null>(null);
   const initialHashHandled = useRef(false);
 
@@ -118,12 +122,14 @@ export default function GymWorld() {
 
   const openVisitModal = useCallback(() => setVisitModalOpen(true), []);
   const openMembershipModal = useCallback(() => setMembershipModalOpen(true), []);
+  const openAboutModal = useCallback(() => setAboutModalOpen(true), []);
 
   const navValue = {
     activeChapter,
     goToChapter,
     openVisitModal,
     openMembershipModal,
+    openAboutModal,
   };
 
   return (
@@ -137,6 +143,7 @@ export default function GymWorld() {
         <GymTransitionOverlay overlayRef={overlayRef} />
         <GymVisitModal open={visitModalOpen} onClose={() => setVisitModalOpen(false)} />
         <GymMembershipModal open={membershipModalOpen} onClose={() => setMembershipModalOpen(false)} />
+        {aboutModalOpen && <AboutUsModal onClose={() => setAboutModalOpen(false)} locale={locale as "en" | "vi"} />}
       </div>
     </GymNavProvider>
   );

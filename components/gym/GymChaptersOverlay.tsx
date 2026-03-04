@@ -53,7 +53,7 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
             <div
               key={id}
               id={id === "intro" ? "gym-chapter-intro" : `gym-chapter-${id}`}
-              className="absolute inset-0 flex flex-col items-center justify-center"
+              className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden"
               style={style}
             >
               {id === "intro" && <AboutChapter />}

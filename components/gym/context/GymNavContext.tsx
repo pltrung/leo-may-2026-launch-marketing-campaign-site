@@ -8,6 +8,7 @@ type GymNavContextValue = {
   goToChapter: (chapter: GymChapter, opts?: { immediate?: boolean }) => Promise<void>;
   openVisitModal: () => void;
   openMembershipModal: () => void;
+  openAboutModal: () => void;
 };
 
 const GymNavContext = createContext<GymNavContextValue | null>(null);
