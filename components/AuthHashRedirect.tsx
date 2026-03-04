@@ -42,7 +42,7 @@ export default function AuthHashRedirect() {
     };
 
     // Listen for session recovery from URL (Supabase fires SIGNED_IN when it parses the hash)
-    const { data: sub } = supabase.auth.onAuthStateChange((event, { session }) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session?.access_token) {
         doRedirect();
       }

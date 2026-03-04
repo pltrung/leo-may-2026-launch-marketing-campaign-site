@@ -328,6 +328,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
       }
       if (!data?.session?.access_token) {
         setSignupCheckEmail(true);
+        setView("signup_check_email");
         setSignupLoading(false);
         return;
       }

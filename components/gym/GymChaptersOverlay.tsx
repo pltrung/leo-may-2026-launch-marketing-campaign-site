@@ -64,9 +64,10 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
       }}
       aria-hidden
     >
-      <div className="flex-1 flex flex-col min-h-0 w-full max-w-2xl mx-auto px-4 md:px-8">
-        {/* Title: above the island, centered; spacing matches pre-launch hero (title + bottom text with GLB middle) */}
-        <div className="flex-shrink-0 pt-2 pb-6 md:pb-8 flex flex-col items-center text-center">
+      {/* On mobile: match pre-launch hero — 42vh top padding so GLB is above, then title + CTA below */}
+      <div className="flex-1 flex flex-col min-h-0 w-full max-w-2xl mx-auto px-4 md:px-8 pt-[42vh] md:pt-0">
+        {/* Title: on desktop above island; on mobile below GLB zone (due to pt-[42vh]) */}
+        <div className="flex-shrink-0 pt-2 pb-4 md:pb-6 md:pb-8 flex flex-col items-center text-center">
           <div className="relative w-full min-h-[4.5rem] md:min-h-[5rem]">
             {chapters.map(({ id, opacity }) => {
               const o = easeOutCubic(opacity);
@@ -112,13 +113,13 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
           </div>
         </div>
 
-        {/* Middle: reserved for GLB (same idea as pre-launch hero — breathing room between title and CTA) */}
-        <div className="flex-1 min-h-0" />
+        {/* Middle: on desktop reserved for GLB; on mobile collapsed (title/CTA already below 42vh) */}
+        <div className="flex-1 min-h-0 hidden md:block" />
 
-        {/* CTA: below the island; spacing matches pre-launch (marginTop 24px, bottom padding) */}
-        <div className="flex-shrink-0 pt-6 pb-2 flex flex-col items-center justify-end">
+        {/* CTA: below GLB; on mobile matches pre-launch (marginTop 24px, marginBottom 48px) */}
+        <div className="flex-shrink-0 pt-6 pb-2 md:pb-2 flex flex-col items-center justify-end">
           {!isIntroGlbOnly && (
-            <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-3 mt-6 md:mt-8">
+            <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-3 mt-6 mb-12 md:mt-8 md:mb-0">
               {activeId === "intro" && (
                 <>
                   <button
