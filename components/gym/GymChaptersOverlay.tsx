@@ -6,7 +6,7 @@ import type { ScrollProgressState } from "@/components/gym/scroll/useScrollProgr
 import { CHAPTER_PROGRESS } from "@/components/gym/scroll/chapters";
 import type { GymChapter } from "@/components/gym/scroll/chapters";
 import AboutChapter from "@/components/gym/chapters/AboutChapter";
-import GymChapter from "@/components/gym/chapters/GymChapter";
+import GymChapterContent from "@/components/gym/chapters/GymChapter";
 import CommunityChapter from "@/components/gym/chapters/CommunityChapter";
 import MembershipChapter from "@/components/gym/chapters/MembershipChapter";
 
@@ -57,7 +57,7 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
               style={style}
             >
               {id === "intro" && <AboutChapter />}
-              {id === "gym" && <GymChapter />}
+              {id === "gym" && <GymChapterContent />}
               {id === "community" && <CommunityChapter />}
               {id === "membership" && <MembershipChapter />}
             </div>
