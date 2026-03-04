@@ -314,6 +314,36 @@ const en = {
       "We look forward to climbing with you — through every mist, every storm, and every clear sky ahead.",
     ],
   },
+  gym: {
+    nav: {
+      gym: "Gym",
+      membership: "Membership",
+      community: "Community",
+      visit: "Visit",
+    },
+    chapter1: {
+      headline: "WELCOME TO LEO MÂY",
+      subline: "Climb the Clouds. Build a Culture.",
+    },
+    chapter2: {
+      headline: "THE GYM",
+      subline: "A pioneering premium climbing space in Ho Chi Minh City.",
+    },
+    chapter3: {
+      headline: "ASCEND WITH US",
+      subline: "Membership tiers and a community that rises together.",
+    },
+    chapter4: {
+      headline: "YOUR SKY STARTS HERE",
+      subline: "Book a visit or become a member.",
+      bookVisit: "Book a Visit",
+      becomeMember: "Become a Member",
+    },
+    footer: {
+      location: "Ho Chi Minh City — 2026",
+      copyright: "© Leo Mây Climbing Gym. All rights reserved.",
+    },
+  },
 };
 
 const vi: Messages = {
@@ -633,6 +663,36 @@ const vi: Messages = {
       "Chỉ cần leo — theo cách của bạn.",
       "Và Leo Mây sẽ luôn ở đó, cùng bạn.",
     ],
+  },
+  gym: {
+    nav: {
+      gym: "Phòng Leo",
+      membership: "Thành viên",
+      community: "Cộng đồng",
+      visit: "Đến thăm",
+    },
+    chapter1: {
+      headline: "CHÀO MỪNG ĐẾN LEO MÂY",
+      subline: "Leo lên những đám mây. Xây một văn hóa.",
+    },
+    chapter2: {
+      headline: "PHÒNG LEO",
+      subline: "Không gian leo núi cao cấp tiên phong tại TP. Hồ Chí Minh.",
+    },
+    chapter3: {
+      headline: "CÙNG BAY CAO",
+      subline: "Hạng thành viên và cộng đồng cùng vươn lên.",
+    },
+    chapter4: {
+      headline: "BẦU TRỜI CỦA BẠN BẮT ĐẦU TẠI ĐÂY",
+      subline: "Đặt lịch thăm quan hoặc trở thành thành viên.",
+      bookVisit: "Đặt lịch thăm quan",
+      becomeMember: "Trở thành thành viên",
+    },
+    footer: {
+      location: "TP. Hồ Chí Minh — 2026",
+      copyright: "© Leo Mây Climbing Gym. Bảo lưu mọi quyền.",
+    },
   },
 };
 
