@@ -104,10 +104,10 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
       }}
       aria-hidden
     >
-      {/* On mobile: match pre-launch hero — 42vh top padding so GLB is above, then title + CTA below */}
-      <div className="flex-1 flex flex-col min-h-0 w-full max-w-2xl mx-auto px-4 md:px-8 pt-[42vh] md:pt-0">
-        {/* Title: on desktop above island; on mobile below GLB zone (due to pt-[42vh]) */}
-        <div className="flex-shrink-0 pt-2 pb-4 md:pb-6 md:pb-8 flex flex-col items-center text-center">
+      {/* On mobile: extra top padding so title/subtitle sit lower (not touching GLB); title closer to CTA */}
+      <div className="flex-1 flex flex-col min-h-0 w-full max-w-2xl mx-auto px-4 md:px-8 pt-[48vh] md:pt-0">
+        {/* Title: on desktop above island; on mobile below GLB zone */}
+        <div className="flex-shrink-0 pt-2 pb-2 md:pb-6 md:pb-8 flex flex-col items-center text-center">
           <div className="relative w-full min-h-[4.5rem] md:min-h-[5rem]">
             {chapterStates.map(({ id, opacity, translateY }) => {
               const style: React.CSSProperties = {
@@ -158,14 +158,14 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
         {/* Middle: on desktop reserved for GLB; on mobile collapsed (title/CTA already below 42vh) */}
         <div className="flex-1 min-h-0 hidden md:block" />
 
-        {/* CTA: below GLB; fades in with smoothstep when intro text reveals (pre-launch feel) */}
+        {/* CTA: below GLB; on mobile closer to title (pt-4); fades in with smoothstep when intro text reveals */}
         <div
-          className="flex-shrink-0 pt-8 pb-2 md:pt-10 md:pb-2 flex flex-col items-center justify-end"
+          className="flex-shrink-0 pt-4 pb-2 md:pt-10 md:pb-2 flex flex-col items-center justify-end"
           style={{ opacity: ctaBlockOpacity }}
         >
           {!isIntroGlbOnly && (
             <div
-              className={`pointer-events-auto flex flex-wrap items-center justify-center gap-3 mb-12 md:mb-0 ${activeId === "membership" ? "mt-8 md:mt-10" : "mt-6 md:mt-8"}`}
+              className={`pointer-events-auto flex flex-wrap items-center justify-center gap-3 mb-12 md:mb-0 ${activeId === "membership" ? "mt-8 md:mt-10" : "mt-4 md:mt-8"}`}
             >
               {activeId === "intro" && (
                 <button
