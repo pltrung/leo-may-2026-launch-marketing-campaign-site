@@ -177,10 +177,14 @@ export default function GymScrollScene({ theme, activeChapter }: GymScrollSceneP
             />
           </GymCanvasErrorBoundary>
         )}
-        {/* Drag layer: swipe/drag to rotate GLB; under overlay so CTAs still get clicks */}
+        {/* Drag to rotate; touch-action: pan-y so vertical scroll works on mobile */}
         <div
-          className="absolute inset-0 z-[5] touch-none"
-          style={{ pointerEvents: "auto", cursor: isDragging ? "grabbing" : "grab" }}
+          className="absolute inset-0 z-[5]"
+          style={{
+            pointerEvents: "auto",
+            cursor: isDragging ? "grabbing" : "grab",
+            touchAction: "pan-y",
+          }}
           onPointerDown={onDragPointerDown}
           onPointerMove={onDragPointerMove}
           onPointerUp={onDragPointerUp}

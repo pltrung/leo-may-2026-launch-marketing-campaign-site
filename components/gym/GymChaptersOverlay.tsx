@@ -17,7 +17,7 @@ interface GymChaptersOverlayProps {
 
 const CHAPTER_RADIUS = 0.22;
 const INTRO_TEXT_REVEAL_PROGRESS = 0.14;
-const TRANSITION_MS = 550;
+const TRANSITION_MS = 500;
 
 function opacityForChapterCenter(progress: number, center: number): number {
   const dist = Math.abs(progress - center);
@@ -30,8 +30,8 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
   const locale = useLocale();
   const { openAboutModal, openLocationModal, openPricingModal, openMembershipModal } = useGymNav();
   const messages = getMessages(locale as "en" | "vi");
-  const blur = reducedMotion ? 0 : 6;
-  const translateY = reducedMotion ? 0 : 12;
+  const blur = reducedMotion ? 0 : 5;
+  const translateY = reducedMotion ? 0 : 8;
 
   const chapters: { id: GymChapter; opacity: number }[] = [
     { id: "intro", opacity: opacityForChapterCenter(progress, CHAPTER_PROGRESS.intro) },
@@ -55,13 +55,18 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
   return (
     <div
       className="fixed inset-0 z-40 pointer-events-none flex flex-col"
-      style={{ paddingTop: "calc(env(safe-area-inset-top) + 88px)", paddingBottom: "calc(env(safe-area-inset-bottom) + 24px)", paddingLeft: "env(safe-area-inset-left)", paddingRight: "env(safe-area-inset-right)" }}
+      style={{
+        paddingTop: "max(env(safe-area-inset-top), 72px)",
+        paddingBottom: "max(env(safe-area-inset-bottom), 20px)",
+        paddingLeft: "max(env(safe-area-inset-left), 1rem)",
+        paddingRight: "max(env(safe-area-inset-right), 1rem)",
+      }}
       aria-hidden
     >
-      <div className="h-[100svh] w-full grid grid-rows-[auto,1fr,auto] px-6 md:px-10 min-h-0">
-        {/* Row 1: TopZone — title + subtitle (always above the model) */}
-        <div className="pointer-events-none flex flex-col items-center md:items-start justify-end min-h-[140px] md:min-h-[180px] shrink-0">
-          <div className="relative w-full max-w-2xl mx-auto md:mx-0 h-full min-h-[120px] text-center md:text-left">
+      <div className="flex-1 flex flex-col min-h-0 w-full max-w-4xl mx-auto px-2 md:px-6">
+        {/* Title: above the island, centered on mobile, left on desktop */}
+        <div className="flex-shrink-0 pt-2 pb-4 md:pb-6 text-center md:text-left">
+          <div className="relative w-full min-h-[4.5rem] md:min-h-[5rem]">
             {chapters.map(({ id, opacity }) => {
               const o = easeOutCubic(opacity);
               const isActive = id === activeId;
@@ -82,22 +87,21 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
                 <div
                   key={id}
                   id={id === "intro" ? "gym-chapter-intro" : `gym-chapter-${id}`}
-                  className="absolute inset-0 flex flex-col items-center md:items-start justify-end text-center md:text-left"
+                  className="absolute inset-x-0 top-0 flex flex-col items-center md:items-start justify-start text-center md:text-left"
                   style={style}
                 >
                   <h1
-                    className="text-[32px] leading-tight md:text-[56px] lg:text-[64px] xl:text-[72px] font-bold tracking-tight max-w-xl md:max-w-2xl"
+                    className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight text-white max-w-xl md:max-w-2xl leading-tight"
                     style={{
                       fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
-                      lineHeight: 1.15,
-                      color: titleColor ?? "white",
+                      color: titleColor ?? undefined,
                     }}
                   >
                     {headline}
                   </h1>
                   <p
-                    className="mt-3 md:mt-4 text-white/85 text-base md:text-lg lg:text-xl max-w-lg md:max-w-xl"
-                    style={{ fontFamily: "MiSans-Regular, sans-serif", lineHeight: 1.5 }}
+                    className="mt-2 md:mt-3 text-white/90 text-sm sm:text-base md:text-lg max-w-md md:max-w-xl leading-relaxed"
+                    style={{ fontFamily: "MiSans-Regular, sans-serif" }}
                   >
                     {subline}
                   </p>
@@ -107,28 +111,13 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
           </div>
         </div>
 
-        {/* Row 2: MiddleZone — reserved for GLB only (optional halo) */}
-        <div className="relative min-h-0 flex items-center justify-center pointer-events-none">
-          <div
-            className="absolute inset-0 opacity-30"
-            style={{
-              background: "radial-gradient(ellipse 70% 50% at 50% 50%, rgba(255,255,255,0.08) 0%, transparent 70%)",
-            }}
-            aria-hidden
-          />
-        </div>
+        {/* Middle: empty so the island is clearly in the center */}
+        <div className="flex-1 min-h-0" />
 
-        {/* Row 3: BottomZone — CTA dock (pointer-events only on buttons) */}
-        <div className="pointer-events-none flex flex-col items-center justify-end pt-4 shrink-0">
+        {/* CTA: below the island, no background */}
+        <div className="flex-shrink-0 pt-4 pb-2 flex flex-col items-center justify-end">
           {!isIntroGlbOnly && (
-            <div
-              className="pointer-events-auto flex flex-wrap items-center justify-center gap-3 py-3 px-4 rounded-2xl min-w-0"
-              style={{
-                background: "rgba(0,0,0,0.25)",
-                backdropFilter: "blur(12px)",
-                WebkitBackdropFilter: "blur(12px)",
-              }}
-            >
+            <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-3">
               {activeId === "intro" && (
                 <>
                   <button
@@ -137,8 +126,8 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
                       e.stopPropagation();
                       openMembershipModal();
                     }}
-                    className="px-6 py-3 rounded-full bg-white font-medium text-sm md:text-base transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                    style={{ color: "#0B0B0F", fontFamily: "MiSans-Bold, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
+                    className="px-5 py-2.5 sm:px-6 sm:py-3 rounded-full bg-white font-medium text-sm md:text-base transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                    style={{ color: "#0B0B0F", fontFamily: "MiSans-Bold, sans-serif", boxShadow: "0 2px 12px rgba(0,0,0,0.15)" }}
                   >
                     {c4.becomeMember}
                   </button>
@@ -148,8 +137,8 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
                       e.stopPropagation();
                       openAboutModal();
                     }}
-                    className="px-6 py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-transparent hover:bg-white/10 transition-colors"
-                    style={{ letterSpacing: "0.08em", fontFamily: "MiSans-Regular, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
+                    className="px-5 py-2.5 sm:px-6 sm:py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-transparent hover:bg-white/10 transition-colors"
+                    style={{ letterSpacing: "0.08em", fontFamily: "MiSans-Regular, sans-serif" }}
                     aria-label={messages.about.title}
                   >
                     {c4.aboutLeoMay}
@@ -163,8 +152,8 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
                     e.stopPropagation();
                     openLocationModal();
                   }}
-                  className="px-6 py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-transparent hover:bg-white/10 transition-colors"
-                  style={{ letterSpacing: "0.08em", fontFamily: "MiSans-Regular, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
+                  className="px-5 py-2.5 sm:px-6 sm:py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-transparent hover:bg-white/10 transition-colors"
+                  style={{ letterSpacing: "0.08em", fontFamily: "MiSans-Regular, sans-serif" }}
                 >
                   {locationTitle}
                 </button>
@@ -176,8 +165,8 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
                     e.stopPropagation();
                     openPricingModal();
                   }}
-                  className="px-6 py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-transparent hover:bg-white/10 transition-colors"
-                  style={{ letterSpacing: "0.08em", fontFamily: "MiSans-Regular, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
+                  className="px-5 py-2.5 sm:px-6 sm:py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-transparent hover:bg-white/10 transition-colors"
+                  style={{ letterSpacing: "0.08em", fontFamily: "MiSans-Regular, sans-serif" }}
                 >
                   {pricingTitle}
                 </button>
@@ -189,8 +178,8 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
                     e.stopPropagation();
                     openMembershipModal();
                   }}
-                  className="px-6 py-3 rounded-full bg-white font-medium text-sm md:text-base transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                  style={{ color: "#0B0B0F", fontFamily: "MiSans-Bold, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
+                  className="px-5 py-2.5 sm:px-6 sm:py-3 rounded-full bg-white font-medium text-sm md:text-base transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                  style={{ color: "#0B0B0F", fontFamily: "MiSans-Bold, sans-serif", boxShadow: "0 2px 12px rgba(0,0,0,0.15)" }}
                 >
                   {c4.becomeMember}
                 </button>

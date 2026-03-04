@@ -51,8 +51,6 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
   const isEmail = (v: string) => /@/.test(v.trim());
   const isTestEmail = (e: string) =>
     /^ev\d+-.+@l$/.test(e.trim().toLowerCase()) || /^dummy2\d+@test\.local$/.test(e.trim().toLowerCase());
-  const devBypassOtp =
-    typeof process.env.NEXT_PUBLIC_DEV_BYPASS_OTP === "string" && process.env.NEXT_PUBLIC_DEV_BYPASS_OTP === "true";
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -123,7 +121,8 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
       if (res.ok && (data as { hasAccount?: boolean }).hasAccount) {
         const emailForAccount = (data as { email?: string }).email ?? (isEmail(input) ? input.toLowerCase() : "");
         setHasAccountEmail(emailForAccount);
-        if (emailForAccount && devBypassOtp && isTestEmail(emailForAccount)) {
+        // Test accounts: always try dev-bypass (magic link → dashboard). Server allows when env is set or Vercel preview.
+        if (emailForAccount && isTestEmail(emailForAccount)) {
           const bypassRes = await fetch("/api/auth/dev-bypass-gym", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
