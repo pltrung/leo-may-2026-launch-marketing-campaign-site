@@ -94,6 +94,21 @@ export async function POST(request: NextRequest) {
     }
 
     if (!waitlistRow) {
+      // User not in waitlist; may still have a gym account (member_profiles only, e.g. SQL-seeded).
+      if (email) {
+        const { data: memberRow } = await supabase
+          .from("member_profiles")
+          .select("email, auth_id")
+          .eq("email", email)
+          .maybeSingle();
+        if (memberRow?.auth_id) {
+          return NextResponse.json({
+            status: "has_account",
+            hasAccount: true,
+            email: (memberRow.email ?? email).trim() || undefined,
+          });
+        }
+      }
       return NextResponse.json({ status: "not_found", error: "Not found in waitlist" }, { status: 404 });
     }
 
