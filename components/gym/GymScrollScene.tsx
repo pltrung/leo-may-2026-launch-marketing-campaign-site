@@ -61,9 +61,8 @@ function useQualityLevel(reducedMotion: boolean): QualityLevel {
     }
     const isMobile = /iPhone|iPad|Android|webOS/i.test(navigator.userAgent);
     const cores = typeof navigator.hardwareConcurrency === "number" ? navigator.hardwareConcurrency : 4;
-    const memory = typeof (navigator as { deviceMemory?: number }).deviceMemory === "number"
-      ? (navigator as { deviceMemory: number }).deviceMemory
-      : 8;
+    const navWithMemory = navigator as unknown as { deviceMemory?: number };
+    const memory = typeof navWithMemory.deviceMemory === "number" ? navWithMemory.deviceMemory : 8;
     let level: QualityLevel = "med";
     if (!isMobile && cores >= 6 && memory >= 6) level = "high";
     if (isMobile || cores <= 2) level = "low";
