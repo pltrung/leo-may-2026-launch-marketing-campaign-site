@@ -177,11 +177,10 @@ export default function GymScrollScene({ theme, activeChapter }: GymScrollSceneP
             />
           </GymCanvasErrorBoundary>
         )}
-        {/* Drag to rotate; touch-action: pan-y so vertical scroll works on mobile */}
+        {/* Drag to rotate on desktop only; on mobile no drag layer so scroll always works */}
         <div
-          className="absolute inset-0 z-[5]"
+          className="absolute inset-0 z-[5] md:pointer-events-auto pointer-events-none"
           style={{
-            pointerEvents: "auto",
             cursor: isDragging ? "grabbing" : "grab",
             touchAction: "pan-y",
           }}

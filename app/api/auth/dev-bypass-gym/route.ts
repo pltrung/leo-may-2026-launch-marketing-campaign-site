@@ -112,6 +112,7 @@ export async function POST(request: NextRequest) {
         : null) ??
       request.headers.get("origin") ??
       (typeof request.url === "string" ? new URL(request.url).origin : "");
+    // Use a path (e.g. /en/dashboard) so the hash is preserved; add this URL to Supabase Auth → URL Configuration → Redirect URLs
     const redirectTo = `${origin}/${locale}/dashboard`;
 
     let linkData: MagicLinkResult = null;
