@@ -126,7 +126,7 @@ export default function GymScrollScene({ theme, activeChapter }: GymScrollSceneP
   return (
     <section
       className="relative"
-      style={{ height: `${GYM_STORY_VH}vh` }}
+      style={{ height: `${GYM_STORY_VH}vh`, background: theme.bgGradient }}
       aria-label="Gym story"
     >
       {/* Anchors for scroll (positions match CHAPTER_PROGRESS * maxScroll) */}

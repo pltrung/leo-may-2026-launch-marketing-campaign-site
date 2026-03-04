@@ -9,6 +9,8 @@ type GymNavContextValue = {
   openVisitModal: () => void;
   openMembershipModal: () => void;
   openAboutModal: () => void;
+  openLocationModal: () => void;
+  openPricingModal: () => void;
 };
 
 const GymNavContext = createContext<GymNavContextValue | null>(null);

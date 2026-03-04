@@ -7,7 +7,7 @@ import { useGymNav } from "@/components/gym/context/GymNavContext";
 
 export default function MembershipChapter() {
   const locale = useLocale();
-  const { goToChapter, openMembershipModal } = useGymNav();
+  const { openMembershipModal } = useGymNav();
   const m = getMessages(locale as "en" | "vi").gym.chapter4;
 
   return (
@@ -24,7 +24,7 @@ export default function MembershipChapter() {
       >
         {m.subline}
       </p>
-      <div id="gym-cta" className="mt-8 flex flex-wrap gap-4 justify-center pointer-events-auto">
+      <div id="gym-cta" className="mt-8 flex justify-center pointer-events-auto">
         <button
           type="button"
           onClick={openMembershipModal}
@@ -32,14 +32,6 @@ export default function MembershipChapter() {
           style={{ color: "#0B0B0F", fontFamily: "MiSans-Bold, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
         >
           {m.becomeMember}
-        </button>
-        <button
-          type="button"
-          onClick={() => goToChapter("intro")}
-          className="px-6 py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-transparent hover:bg-white/10 transition-transform active:scale-[0.98]"
-          style={{ letterSpacing: "0.08em", fontFamily: "MiSans-Regular, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
-        >
-          {m.aboutLeoMay}
         </button>
       </div>
     </div>

@@ -9,21 +9,17 @@ import { useGymNav } from "@/components/gym/context/GymNavContext";
 import { useLocale } from "@/components/LocaleProvider";
 import { useMemberAuth } from "@/lib/useMemberAuth";
 import { getMessages } from "@/lib/messages";
-import type { GymChapter } from "@/components/gym/scroll/chapters";
-import { CHAPTERS } from "@/components/gym/scroll/chapters";
-
-const HEADER_NAV: ({ type: "chapter"; chapter: GymChapter } | { type: "link"; href: string; labelKey: "membership"; openSheetOnMobile?: boolean })[] = [
-  { type: "chapter", chapter: "intro" },
-  { type: "chapter", chapter: "community" },
-  { type: "link", href: "/gym/membership", labelKey: "membership", openSheetOnMobile: true },
-];
 
 export default function GymHeader() {
   const locale = useLocale();
   const router = useRouter();
-  const { activeChapter, goToChapter, openMembershipModal } = useGymNav();
+  const { openAboutModal, openLocationModal, openPricingModal, openMembershipModal } = useGymNav();
   const { user, member, signOut } = useMemberAuth();
-  const auth = getMessages(locale as "en" | "vi").auth;
+  const messages = getMessages(locale as "en" | "vi");
+  const auth = messages.auth;
+  const aboutTitle = messages.about.title;
+  const gymNav = messages.gym.nav;
+  const pricingTitle = messages.gym.pricingModal.title;
   const loggedIn = Boolean(user && member);
 
   const handleLogout = async () => {
@@ -40,42 +36,34 @@ export default function GymHeader() {
         <Logo className="h-8 w-auto object-contain brightness-0 invert" />
       </Link>
       <nav className="flex items-center gap-4 md:gap-6" aria-label="Main">
-        {HEADER_NAV.map((item) => {
-          if (item.type === "chapter") {
-            const def = CHAPTERS[item.chapter];
-            const label = item.chapter === "intro" ? (locale === "vi" ? "Phòng Leo" : "Gym") : (locale === "vi" ? def.labelVi : def.labelEn);
-            const isActive = activeChapter === item.chapter;
-            return (
-              <button
-                key={item.chapter}
-                type="button"
-                onClick={() => goToChapter(item.chapter)}
-                className={`text-sm font-medium transition-colors ${
-                  isActive ? "text-white" : "text-white/90 hover:text-white"
-                }`}
-              >
-                {label}
-              </button>
-            );
-          }
-          return (
-            <span key={item.href}>
-              <button
-                type="button"
-                onClick={openMembershipModal}
-                className="md:hidden text-sm font-medium text-white/90 hover:text-white transition-colors"
-              >
-                {auth.membership}
-              </button>
-              <Link
-                href={`/${locale}${item.href}`}
-                className="hidden md:inline text-sm font-medium text-white/90 hover:text-white transition-colors"
-              >
-                {auth.membership}
-              </Link>
-            </span>
-          );
-        })}
+        <button
+          type="button"
+          onClick={openAboutModal}
+          className="text-sm font-medium text-white/90 hover:text-white transition-colors"
+        >
+          {aboutTitle}
+        </button>
+        <button
+          type="button"
+          onClick={openLocationModal}
+          className="text-sm font-medium text-white/90 hover:text-white transition-colors"
+        >
+          {gymNav.gym}
+        </button>
+        <button
+          type="button"
+          onClick={openPricingModal}
+          className="text-sm font-medium text-white/90 hover:text-white transition-colors"
+        >
+          {pricingTitle}
+        </button>
+        <button
+          type="button"
+          onClick={openMembershipModal}
+          className="text-sm font-medium text-white/90 hover:text-white transition-colors"
+        >
+          {auth.membership}
+        </button>
         {loggedIn ? (
           <>
             <Link

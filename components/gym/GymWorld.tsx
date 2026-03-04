@@ -9,7 +9,6 @@ import type { GymTransitionOverlayRef } from "@/components/gym/transitions/GymTr
 import { GymNavProvider } from "@/components/gym/context/GymNavContext";
 import { getSkyTheme, getLocalTimeHours } from "@/components/gym/theme/skyTheme";
 import { preloadGymIslandGLB } from "@/components/gym/three/IslandScene";
-import { HERO_BG } from "@/lib/heroConstants";
 import type { SkyTheme } from "@/components/gym/theme/skyTheme";
 import type { GymChapter } from "@/components/gym/scroll/chapters";
 import {
@@ -22,6 +21,8 @@ import {
 import { seekToProgress } from "@/components/gym/scroll/useScrollProgress";
 import GymVisitModal from "@/components/gym/modals/GymVisitModal";
 import MembershipEntrySheet from "@/components/gym/modals/MembershipEntrySheet";
+import LocationSheet from "@/components/gym/modals/LocationSheet";
+import PricingSheet from "@/components/gym/modals/PricingSheet";
 import AboutUsModal from "@/components/AboutUsModal";
 import { useLocale } from "@/components/LocaleProvider";
 
@@ -34,6 +35,8 @@ export default function GymWorld() {
   const [visitModalOpen, setVisitModalOpen] = useState(false);
   const [membershipEntryOpen, setMembershipEntryOpen] = useState(false);
   const [aboutModalOpen, setAboutModalOpen] = useState(false);
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
+  const [pricingModalOpen, setPricingModalOpen] = useState(false);
   const overlayRef = useRef<GymTransitionOverlayRef | null>(null);
   const initialHashHandled = useRef(false);
 
@@ -123,6 +126,8 @@ export default function GymWorld() {
   const openVisitModal = useCallback(() => setVisitModalOpen(true), []);
   const openMembershipModal = useCallback(() => setMembershipEntryOpen(true), []);
   const openAboutModal = useCallback(() => setAboutModalOpen(true), []);
+  const openLocationModal = useCallback(() => setLocationModalOpen(true), []);
+  const openPricingModal = useCallback(() => setPricingModalOpen(true), []);
 
   const navValue = {
     activeChapter,
@@ -130,11 +135,13 @@ export default function GymWorld() {
     openVisitModal,
     openMembershipModal,
     openAboutModal,
+    openLocationModal,
+    openPricingModal,
   };
 
   return (
     <GymNavProvider value={navValue}>
-      <div className="min-h-screen" style={{ background: HERO_BG }}>
+      <div className="min-h-screen" style={{ background: theme.bgGradient }}>
         <GymHeader />
         <main className="relative">
           <GymScrollScene theme={theme} activeChapter={activeChapter} />
@@ -143,6 +150,8 @@ export default function GymWorld() {
         <GymTransitionOverlay overlayRef={overlayRef} />
         <GymVisitModal open={visitModalOpen} onClose={() => setVisitModalOpen(false)} />
         <MembershipEntrySheet open={membershipEntryOpen} onClose={() => setMembershipEntryOpen(false)} />
+        <LocationSheet open={locationModalOpen} onClose={() => setLocationModalOpen(false)} />
+        <PricingSheet open={pricingModalOpen} onClose={() => setPricingModalOpen(false)} />
         {aboutModalOpen && <AboutUsModal onClose={() => setAboutModalOpen(false)} locale={locale as "en" | "vi"} />}
       </div>
     </GymNavProvider>

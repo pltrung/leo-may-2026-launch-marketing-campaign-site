@@ -30,6 +30,10 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
   const [hasAccountEmail, setHasAccountEmail] = useState("");
 
   const isEmail = (v: string) => /@/.test(v.trim());
+  const isTestEmail = (e: string) =>
+    /^ev\d+-.+@l$/.test(e.trim().toLowerCase()) || /^dummy2\d+@test\.local$/.test(e.trim().toLowerCase());
+  const devBypassOtp =
+    typeof process.env.NEXT_PUBLIC_DEV_BYPASS_OTP === "string" && process.env.NEXT_PUBLIC_DEV_BYPASS_OTP === "true";
 
   const handleClaimSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,7 +69,21 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
         return;
       }
       if (res.ok && (data as { hasAccount?: boolean }).hasAccount) {
-        setHasAccountEmail((data as { email?: string }).email ?? input);
+        const emailForAccount = (data as { email?: string }).email ?? (isEmail(input) ? input.toLowerCase() : "");
+        setHasAccountEmail(emailForAccount);
+        if (emailForAccount && devBypassOtp && isTestEmail(emailForAccount)) {
+          const bypassRes = await fetch("/api/auth/dev-bypass-gym", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: emailForAccount, locale, origin: typeof window !== "undefined" ? window.location.origin : undefined }),
+          });
+          const bypassData = await bypassRes.json();
+          const magicUrl = (bypassData?.url ?? bypassData?.magicLinkUrl) as string | undefined;
+          if (bypassRes.ok && typeof magicUrl === "string") {
+            window.location.href = magicUrl;
+            return;
+          }
+        }
         setClaimStatus("has_account");
         return;
       }
