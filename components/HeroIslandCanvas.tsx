@@ -53,6 +53,7 @@ export default function HeroIslandCanvas({
   shouldMount,
   className,
   modelOffsetY = 0,
+  isMobile = false,
 }: {
   opacity: number;
   scale: number;
@@ -63,6 +64,7 @@ export default function HeroIslandCanvas({
   shouldMount?: boolean;
   className?: string;
   modelOffsetY?: number;
+  isMobile?: boolean;
 }) {
   /** Once mounted, stay mounted — never unmount based on scroll/opacity so rapid scroll cannot cause blank or grey screen. */
   const [mounted, setMounted] = useState(false);
@@ -84,8 +86,12 @@ export default function HeroIslandCanvas({
       {mounted && (
         <Canvas
           camera={{ position: [0, 0, DEFAULT_CAMERA_Z], fov: 45 }}
-          dpr={[1, 2]}
-          gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+          dpr={isMobile ? [1, 1] : [1, 2]}
+          gl={{
+            alpha: true,
+            antialias: !isMobile,
+            powerPreference: isMobile ? "default" : "high-performance",
+          }}
           frameloop="always"
         >
           <CameraPushIn cameraDistance={cameraDistance} fov={fov} />

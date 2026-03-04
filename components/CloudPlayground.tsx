@@ -37,6 +37,7 @@ function svgToDataUrl(svgText: string, eyeColor: string): string {
 /** Clouds start with logo + Explore (PortalTransition block has delay 0.25s); then one-by-one stagger. */
 const CLOUD_ENTRANCE_BASE_DELAY_S = 0.25;
 const CLOUD_ENTRANCE_STAGGER_S = 0.14;
+const CLOUD_ENTRANCE_STAGGER_S_MOBILE = 0.07;
 const CLOUD_ENTRANCE_DURATION_S = 0.36;
 
 interface CloudPlaygroundProps {
@@ -333,6 +334,7 @@ export default function CloudPlayground({ freeze, reduceMotion = false, onFirstD
             key={c.id}
             cloud={c}
             cloudIndex={clouds.indexOf(c)}
+            isMobile={isMobile}
             centerX={cx}
             centerY={cy}
             bobY={isDragging ? 0 : bob}
@@ -361,6 +363,7 @@ const LAYER_FILTER: Record<CloudLayer, string> = {
 function CloudNode({
   cloud,
   cloudIndex,
+  isMobile,
   centerX,
   centerY,
   bobY,
@@ -373,6 +376,7 @@ function CloudNode({
 }: {
   cloud: CloudState;
   cloudIndex: number;
+  isMobile: boolean;
   centerX: number;
   centerY: number;
   bobY: number;
@@ -392,7 +396,8 @@ function CloudNode({
       : isLeft
         ? CLOUD_LEFT_SRC
         : CLOUD_RIGHT_SRC;
-  const entranceDelay = CLOUD_ENTRANCE_BASE_DELAY_S + cloudIndex * CLOUD_ENTRANCE_STAGGER_S;
+  const stagger = isMobile ? CLOUD_ENTRANCE_STAGGER_S_MOBILE : CLOUD_ENTRANCE_STAGGER_S;
+  const entranceDelay = CLOUD_ENTRANCE_BASE_DELAY_S + cloudIndex * stagger;
 
   const dist = Math.sqrt((cloud.x - centerX) ** 2 + (cloud.y - centerY) ** 2);
   const centerDim = dist < CENTER_DIM_RADIUS_PX ? 0.4 + 0.6 * (dist / CENTER_DIM_RADIUS_PX) : 1;
