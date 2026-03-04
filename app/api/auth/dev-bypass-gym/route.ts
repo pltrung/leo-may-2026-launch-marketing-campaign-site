@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
       email,
       options: { redirectTo },
     });
-    linkData = genData as typeof linkData;
+    linkData = genData as unknown as typeof linkData;
     linkErr = genError;
 
     if (linkErr) {
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
           console.error("Dev bypass gym generateLink retry error:", retryErr);
           return NextResponse.json({ error: "Failed to generate link" }, { status: 500 });
         }
-        linkData = retryData as typeof linkData;
+        linkData = retryData as unknown as typeof linkData;
       } else {
         console.error("Dev bypass gym generateLink error:", linkErr);
         return NextResponse.json({ error: "Failed to generate link" }, { status: 500 });
