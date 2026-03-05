@@ -44,6 +44,8 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
   const [signupError, setSignupError] = useState("");
   const [signupLoading, setSignupLoading] = useState(false);
   const [signupCheckEmail, setSignupCheckEmail] = useState(false);
+  const [signupOtpCode, setSignupOtpCode] = useState("");
+  const [signupVerifyLoading, setSignupVerifyLoading] = useState(false);
   const [signupAlreadyRegistered, setSignupAlreadyRegistered] = useState(false);
   const [signupRateLimitHit, setSignupRateLimitHit] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -74,6 +76,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
     setLoginPassword("");
     setSignupError("");
     setSignupCheckEmail(false);
+    setSignupOtpCode("");
     setSignupAlreadyRegistered(false);
     setSignupRateLimitHit(false);
   }, [resetClaim]);
@@ -371,6 +374,55 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
     setSignupError("");
   }, [signupEmail, resendCooldown]);
 
+  const handleVerifyOtp = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      const code = signupOtpCode.trim();
+      if (!code) return;
+      setSignupError("");
+      setSignupVerifyLoading(true);
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const emailTrim = signupEmail.trim().toLowerCase();
+        const { data, error: verifyErr } = await supabase.auth.verifyOtp({
+          email: emailTrim,
+          token: code,
+          type: "signup",
+        });
+        if (verifyErr || !data?.session?.access_token) {
+          setSignupError(auth.invalidCredentials);
+          setSignupVerifyLoading(false);
+          return;
+        }
+        const res = await fetch("/api/member/onboard", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${data.session.access_token}`,
+          },
+          body: JSON.stringify({
+            full_name: signupName.trim(),
+            email: emailTrim,
+            phone: signupPhone.trim() || undefined,
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          setSignupError(err?.error || auth.error);
+          setSignupVerifyLoading(false);
+          return;
+        }
+        handleClose();
+        router.replace(`/${locale}/waiver`);
+      } catch {
+        setSignupError(auth.error);
+      } finally {
+        setSignupVerifyLoading(false);
+      }
+    },
+    [signupOtpCode, signupEmail, signupName, signupPhone, auth.error, auth.invalidCredentials, locale, handleClose, router]
+  );
+
   const backButton = (
     <button type="button" onClick={goMain} className="sky-cta-secondary w-full py-3 rounded-full font-medium">
       Back
@@ -421,7 +473,29 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
               {auth.signupCheckEmailTitle}
             </h2>
             <p className="text-[var(--sky-text-secondary)] text-sm">{auth.signupConfirmEmail}</p>
-            {signupError && <p className="text-red-400 text-sm">{signupError}</p>}
+            <form onSubmit={handleVerifyOtp} className="space-y-3">
+              <p className="text-[var(--sky-text-secondary)] text-sm">
+                {auth.otpSubtitle.replace("{email}", signupEmail.trim() || "")}
+              </p>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder={auth.codePlaceholder}
+                value={signupOtpCode}
+                onChange={(e) => setSignupOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                className="sky-input w-full px-4 py-3 rounded-xl border border-[var(--sky-glass-border)] bg-white/5 text-[var(--sky-text-primary)] placeholder-[var(--sky-text-secondary)] text-center tracking-[0.4em] font-mono text-lg"
+                maxLength={6}
+              />
+              {signupError && <p className="text-red-400 text-sm">{signupError}</p>}
+              <button
+                type="submit"
+                disabled={signupVerifyLoading || signupOtpCode.trim().length < 4}
+                className="sky-cta-primary w-full py-3 rounded-full font-medium disabled:opacity-60"
+              >
+                {signupVerifyLoading ? "…" : auth.otpVerify}
+              </button>
+            </form>
             <button
               type="button"
               onClick={handleResend}
@@ -430,7 +504,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
             >
               {resendCooldown > 0 ? auth.signupResendCooldown.replace("{seconds}", String(resendCooldown)) : auth.signupResendCode}
             </button>
-            <button type="button" onClick={() => setView("login")} className="sky-cta-primary w-full py-3 rounded-full font-medium">
+            <button type="button" onClick={() => setView("login")} className="sky-cta-secondary w-full py-3 rounded-full font-medium">
               {auth.login}
             </button>
             {backButton}
