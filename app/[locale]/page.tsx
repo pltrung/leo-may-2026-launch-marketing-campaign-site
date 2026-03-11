@@ -337,7 +337,9 @@ function HomeContent() {
                   ease: [0.16, 1, 0.3, 1],
                 }}
               >
-                <CloudSelector onSelect={setSelectedCloud} onReturnToHero={handleReturnToHero} />
+                <div className="cloud-section w-full">
+                  <CloudSelector onSelect={setSelectedCloud} onReturnToHero={handleReturnToHero} />
+                </div>
               </motion.div>
             )}
           </div>
@@ -391,7 +393,9 @@ function HomeContent() {
                 ease: [0.16, 1, 0.3, 1],
               }}
             >
-              <CloudSelector onSelect={setSelectedCloud} onReturnToHero={handleReturnToHero} />
+              <div className="cloud-section w-full">
+                <CloudSelector onSelect={setSelectedCloud} onReturnToHero={handleReturnToHero} />
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

@@ -2060,6 +2060,18 @@ body.hero-ready .hero-scroll {
     padding-top: 0;
   }
 
+  /* Cloud selector on large desktop: softly center block without forcing viewport height.
+     Uses top/bottom margins so layout stays flexible and background layers remain independent. */
+  html.cloud-selection-view .cloud-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    margin-top: clamp(60px, 12vh, 140px);
+    margin-bottom: clamp(40px, 10vh, 120px);
+    width: 100%;
+  }
+
   /* Section: content height only; no min-height 100vh */
   html.cloud-selection-view .cloud-selection-screen {
     height: auto;
