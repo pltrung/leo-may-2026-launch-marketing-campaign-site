@@ -29,6 +29,11 @@ html.in-app-browser .cloud-selection-screen {
 html.in-app-browser .page-content {
   padding-bottom: max(32px, env(safe-area-inset-bottom, 0px));
 }
+/* In-app browsers (Facebook, Instagram, WeChat): avoid cropping the cloud card stack.
+   Let cards overflow their container slightly instead of being clipped by 100vh bugs. */
+html.in-app-browser .card-stack {
+  overflow: visible;
+}
 @media (min-width: 1024px) {
   html.in-app-browser.cloud-selection-view .page-wrapper {
     height: 100vh;

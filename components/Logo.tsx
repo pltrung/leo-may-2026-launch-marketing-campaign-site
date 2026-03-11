@@ -21,7 +21,7 @@ export default function Logo({ className = "h-8 w-auto object-contain", onNaviga
   const isOnHome = pathname === homePath || pathname === `${homePath}/`;
 
   const handleClick = (e: React.MouseEvent) => {
-    if (document.body.classList.contains("cloud-selection-view")) {
+    if (document.documentElement.classList.contains("cloud-selection-view")) {
       e.preventDefault();
       if (onNavigateToHome) onNavigateToHome();
       else router.replace(homePath, { scroll: true });
