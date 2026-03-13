@@ -36,6 +36,7 @@ export default function DashboardPage() {
 
   const [mounted, setMounted] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [isVietQrModalOpen, setIsVietQrModalOpen] = useState(false);
   const wakeLockRef = useRef<any | null>(null);
   const [gymOccupancy, setGymOccupancy] = useState<number | null>(null);
   const [leaderboard, setLeaderboard] = useState<{
@@ -147,6 +148,22 @@ export default function DashboardPage() {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ action: "freeze" }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      if (typeof window !== "undefined") window.location.reload();
+    } catch {
+      setFreezeLoading(false);
+    }
+  }, [accessToken]);
+
+  const handleUnfreeze = useCallback(async () => {
+    if (!accessToken) return;
+    setFreezeLoading(true);
+    try {
+      const res = await fetch("/api/member/membership", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ action: "unfreeze" }),
       });
       if (!res.ok) throw new Error("Failed");
       if (typeof window !== "undefined") window.location.reload();
@@ -503,6 +520,18 @@ export default function DashboardPage() {
                     </button>
                   </div>
                 )}
+                {rawStatus === "frozen" && (
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={handleUnfreeze}
+                      disabled={freezeLoading}
+                      className="text-emerald-300/90 hover:text-emerald-300 text-[11px] underline disabled:opacity-60"
+                    >
+                      {freezeLoading ? (isVi ? "Đang xử lý…" : "Processing…") : isVi ? "Mở thẻ trở lại" : "Unfreeze membership"}
+                    </button>
+                  </div>
+                )}
                 <p className="text-[11px] text-white/65 font-mono break-all pt-1">
                   {isVi ? "ID nội bộ:" : "Internal ID:"} {member.id}
                 </p>
@@ -566,11 +595,15 @@ export default function DashboardPage() {
                 {renewQrUrl && (
                   <div className="space-y-3 pt-2">
                     <p className="text-xs text-white/70">{renewPlanName} — {renewPrice.toLocaleString("vi-VN")} VND</p>
-                    <div className="flex justify-center">
-                      <img src={renewQrUrl} alt="VietQR" className="w-40 h-40 object-contain bg-white rounded-xl p-2" />
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsVietQrModalOpen(true)}
+                      className="flex justify-center w-full rounded-xl bg-white/5 border border-white/15 p-2 hover:bg-white/10 transition-colors"
+                    >
+                      <img src={renewQrUrl} alt="VietQR" className="w-40 h-40 object-contain bg-white rounded-lg p-2" />
+                    </button>
                     <p className="text-[11px] text-white/60">
-                      {isVi ? "Quét mã bằng ứng dụng ngân hàng, MoMo hoặc ZaloPay. Thanh toán xong, mang biên lai cho quầy lễ tân." : "Scan with banking app, MoMo, or ZaloPay. Show receipt to front desk after payment."}
+                      {isVi ? "Chạm mã để phóng to. Quét bằng ứng dụng ngân hàng, MoMo hoặc ZaloPay." : "Tap to enlarge. Scan with banking app, MoMo, or ZaloPay."}
                     </p>
                   </div>
                 )}
@@ -764,6 +797,37 @@ export default function DashboardPage() {
           </div>
         </div>
       </footer>
+
+      {/* VIETQR PAYMENT FULLSCREEN MODAL */}
+      {isVietQrModalOpen && renewQrUrl && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/90 backdrop-blur-sm">
+          <div className="absolute top-4 right-4">
+            <button
+              type="button"
+              onClick={() => setIsVietQrModalOpen(false)}
+              className="w-9 h-9 rounded-full bg-white/10 border border-white/30 flex items-center justify-center text-white hover:bg-white/20"
+              aria-label={isVi ? "Đóng" : "Close"}
+            >
+              <span className="text-lg">&times;</span>
+            </button>
+          </div>
+          <div className="w-full max-w-sm mx-auto flex flex-col items-center px-6">
+            <div className="w-[180px] mb-4">
+              <Logo className="w-full h-auto object-contain" />
+            </div>
+            <h2 className="text-sm font-semibold text-white/80 tracking-[0.18em] uppercase mb-2">
+              {isVi ? "THANH TOÁN" : "PAYMENT"}
+            </h2>
+            <p className="text-xs text-white/70 mb-4">{renewPlanName} — {renewPrice.toLocaleString("vi-VN")} VND</p>
+            <div className="rounded-2xl bg-white p-4">
+              <img src={renewQrUrl} alt="VietQR" className="w-64 h-64 object-contain" />
+            </div>
+            <p className="mt-4 text-xs text-white/80 text-center">
+              {isVi ? "Quét bằng ứng dụng ngân hàng, MoMo hoặc ZaloPay." : "Scan with banking app, MoMo, or ZaloPay."}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* QR FULLSCREEN MODAL */}
       {isQrModalOpen && (

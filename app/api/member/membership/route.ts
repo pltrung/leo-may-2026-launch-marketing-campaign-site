@@ -5,11 +5,11 @@ import { createServerClient } from "@/lib/supabaseServer";
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-type Action = "freeze";
+type Action = "freeze" | "unfreeze";
 
 /**
- * POST - Member self-service: freeze membership
- * Body: { action: "freeze" }
+ * POST - Member self-service: freeze or unfreeze membership
+ * Body: { action: "freeze" | "unfreeze" }
  */
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("Authorization");
@@ -27,8 +27,8 @@ export async function POST(req: NextRequest) {
     }
     const body = await req.json();
     const action = body?.action as Action | undefined;
-    if (action !== "freeze") {
-      return NextResponse.json({ error: "action must be 'freeze'" }, { status: 400 });
+    if (action !== "freeze" && action !== "unfreeze") {
+      return NextResponse.json({ error: "action must be 'freeze' or 'unfreeze'" }, { status: 400 });
     }
     const supabase = createServerClient();
     const { data: member } = await supabase
@@ -39,16 +39,20 @@ export async function POST(req: NextRequest) {
     if (!member) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
+    const nextStatus = action === "freeze" ? "frozen" : "active";
+    if (action === "unfreeze" && (member.membership_status as string) !== "frozen") {
+      return NextResponse.json({ error: "Membership is not frozen" }, { status: 400 });
+    }
     const { error } = await supabase
       .from("member_profiles")
       .update({
-        membership_status: "frozen",
+        membership_status: nextStatus,
         updated_at: new Date().toISOString(),
       })
       .eq("id", member.id);
     if (error) {
-      console.error("member freeze error", error);
-      return NextResponse.json({ error: "Failed to freeze" }, { status: 500 });
+      console.error("member membership error", error);
+      return NextResponse.json({ error: "Failed" }, { status: 500 });
     }
     return NextResponse.json({ success: true });
   } catch (e) {

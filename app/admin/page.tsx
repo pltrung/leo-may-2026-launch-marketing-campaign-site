@@ -35,6 +35,7 @@ export default function AdminPage() {
   const [actionLoading, setActionLoading] = useState<null | "checkin" | "manual" | "undo" | "extend" | "freeze" | "cancel" | "upgrade" | "payment" | "confirm">(null);
   const [plans, setPlans] = useState<{ id: string; name: string; duration_days: number; price_vnd: number }[]>([]);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentQrFullscreen, setPaymentQrFullscreen] = useState(false);
   const [paymentPlanId, setPaymentPlanId] = useState<string>("explorer_month");
   const [paymentQrUrl, setPaymentQrUrl] = useState<string | null>(null);
   const [paymentPlanName, setPaymentPlanName] = useState("");
@@ -955,8 +956,15 @@ export default function AdminPage() {
                   <span className="font-medium">{foundMember.displayId ?? foundMember.id}</span>
                 </div>
                 {paymentQrUrl && (
-                  <div className="flex justify-center py-2">
-                    <img src={paymentQrUrl} alt="VietQR" className="w-48 h-48 object-contain bg-white rounded-lg border" />
+                  <div className="flex flex-col items-center py-2 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentQrFullscreen(true)}
+                      className="rounded-lg border border-slate-200 p-1 hover:bg-slate-50 transition-colors"
+                    >
+                      <img src={paymentQrUrl} alt="VietQR" className="w-48 h-48 object-contain bg-white rounded" />
+                    </button>
+                    <p className="text-[11px] text-slate-500">Tap to enlarge</p>
                   </div>
                 )}
                 <p className="text-xs text-slate-500">Customer scans with banking app, MoMo, or ZaloPay. Confirm after payment received.</p>
@@ -979,6 +987,29 @@ export default function AdminPage() {
                 {actionLoading === "confirm" ? "Confirming..." : "Confirm Payment"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* VietQR fullscreen */}
+      {paymentQrFullscreen && paymentQrUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
+          <div className="absolute top-4 right-4">
+            <button
+              type="button"
+              onClick={() => setPaymentQrFullscreen(false)}
+              className="w-10 h-10 rounded-full bg-white/10 border border-white/30 flex items-center justify-center text-white hover:bg-white/20 text-xl"
+              aria-label="Close"
+            >
+              &times;
+            </button>
+          </div>
+          <div className="flex flex-col items-center px-6">
+            <p className="text-white font-medium mb-2">{paymentPlanName} — {paymentPrice.toLocaleString("vi-VN")} VND</p>
+            <div className="rounded-2xl bg-white p-4">
+              <img src={paymentQrUrl} alt="VietQR" className="w-72 h-72 object-contain" />
+            </div>
+            <p className="mt-4 text-sm text-white/80">Scan with banking app, MoMo, or ZaloPay</p>
           </div>
         </div>
       )}
