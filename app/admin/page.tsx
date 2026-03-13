@@ -1,40 +1,22 @@
 "use client";
 
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 type MembershipType = "Founder Member" | "Standard" | "Day Pass";
 
 interface AdminMember {
   id: string; // internal UUID from member_profiles
-  displayId: string; // e.g. LM-0234
+  displayId: string | null; // e.g. LM-0234
   name: string;
   email?: string | null;
   phone?: string | null;
-  membershipType: MembershipType;
+  membershipType: MembershipType | string;
   status: "Active" | "Frozen" | "Cancelled";
   validUntil: string;
   checkinsThisMonth: number;
   totalVisits: number;
   recentCheckins: { label: string }[];
 }
-
-const MOCK_MEMBER: AdminMember = {
-  id: "00000000-0000-0000-0000-000000000234",
-  displayId: "LM-0234",
-  name: "Trung Pham",
-  email: "trung@example.com",
-  phone: "+84 90 000 0000",
-  membershipType: "Founder Member",
-  status: "Active",
-  validUntil: "March 2026",
-  checkinsThisMonth: 8,
-  totalVisits: 42,
-  recentCheckins: [
-    { label: "Jun 14 — 7:14 PM" },
-    { label: "Jun 12 — 8:03 PM" },
-    { label: "Jun 10 — 6:44 PM" },
-  ],
-};
 
 export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -48,28 +30,75 @@ export default function AdminPage() {
   const [newMemberEmail, setNewMemberEmail] = useState("");
   const [newMemberPhone, setNewMemberPhone] = useState("");
   const [newMemberType, setNewMemberType] = useState<MembershipType>("Founder Member");
-  const [gymOccupancy, setGymOccupancy] = useState(28);
+  const [gymOccupancy, setGymOccupancy] = useState(0);
 
-  const handleSearch = useCallback(() => {
+  // Poll real-time-ish occupancy from backend.
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchOccupancy = async () => {
+      try {
+        const res = await fetch("/api/admin/occupancy");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && typeof data.count === "number") {
+          setGymOccupancy(data.count);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    fetchOccupancy();
+    const id = setInterval(fetchOccupancy, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
+
+  const handleSearch = useCallback(async () => {
     setSearchError(null);
     setActionMessage(null);
     setActionError(null);
-    if (!searchQuery.trim()) {
-      setSearchError("Enter a Member ID, name, or paste QR payload.");
-      setFoundMember(null);
+    setFoundMember(null);
+
+    const raw = searchQuery.trim();
+    if (!raw) {
+      setSearchError("Enter a Member ID, name, or scan QR.");
       return;
     }
 
-    const q = searchQuery.trim();
+    let params = new URLSearchParams();
 
-    // Basic QR payload support: leo-member:{id}
-    if (q.startsWith("leo-member:")) {
-      setSearchMode("qr");
+    if (searchMode === "qr" || raw.startsWith("leo-member:")) {
+      const payload = raw.startsWith("leo-member:") ? raw : raw;
+      const parts = payload.split(":");
+      const memberId = parts.length === 2 ? parts[1] : "";
+      if (!memberId) {
+        setSearchError("Could not read QR payload.");
+        return;
+      }
+      params.set("id", memberId);
+    } else if (searchMode === "name") {
+      params.set("name", raw);
+    } else {
+      // Member ID mode: assume LM-XXXX code
+      params.set("code", raw);
     }
 
-    // For now, any non-empty query resolves to the mock member.
-    setFoundMember(MOCK_MEMBER);
-  }, [searchQuery]);
+    try {
+      const res = await fetch(`/api/admin/members?${params.toString()}`);
+      const data = await res.json();
+      if (!res.ok || !data.member) {
+        setSearchError(data.error || "Member not found.");
+        return;
+      }
+      setFoundMember(data.member as AdminMember);
+    } catch {
+      setSearchError("Unable to search members right now.");
+    }
+  }, [searchMode, searchQuery]);
 
   const handleScanQr = useCallback(() => {
     setSearchMode("qr");
@@ -106,7 +135,6 @@ export default function AdminPage() {
             }
           : prev
       );
-      setGymOccupancy((n) => n + 1);
       setActionMessage("Check-in recorded.");
     } catch (e) {
       setActionError("Unable to record check-in. Please verify member ID and try again.");
@@ -138,7 +166,6 @@ export default function AdminPage() {
             }
           : prev
       );
-      setGymOccupancy((n) => n + 1);
       setActionMessage("Manual check-in recorded.");
     } catch {
       setActionError("Unable to record manual check-in.");
@@ -178,31 +205,105 @@ export default function AdminPage() {
   const handleExtend = useCallback(() => {
     if (!foundMember) return;
     setActionLoading("extend");
-    setTimeout(() => {
-      setActionLoading(null);
-      setActionMessage("Membership extended (demo only).");
-    }, 400);
+    setActionError(null);
+    setActionMessage(null);
+    fetch("/api/admin/membership", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ member_id: foundMember.id, action: "extend" }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.member) throw new Error(data.error || "Failed");
+        setFoundMember((prev) =>
+          prev
+            ? {
+                ...prev,
+                validUntil: data.member.validUntil ?? prev.validUntil,
+                status: data.member.status ?? prev.status,
+              }
+            : prev
+        );
+        setActionMessage("Membership extended by 1 month.");
+      })
+      .catch(() => {
+        setActionError("Unable to extend membership.");
+      })
+      .finally(() => setActionLoading(null));
   }, [foundMember]);
 
   const handleFreeze = useCallback(() => {
+    if (!foundMember) return;
     setActionLoading("freeze");
-    updateStatus("Frozen", "Membership frozen (demo only).");
-    setActionLoading(null);
-  }, [updateStatus]);
+    setActionError(null);
+    setActionMessage(null);
+    fetch("/api/admin/membership", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ member_id: foundMember.id, action: "freeze" }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.member) throw new Error(data.error || "Failed");
+        updateStatus("Frozen", "Membership frozen.");
+      })
+      .catch(() => {
+        setActionError("Unable to freeze membership.");
+      })
+      .finally(() => setActionLoading(null));
+  }, [foundMember, updateStatus]);
 
   const handleCancel = useCallback(() => {
+    if (!foundMember) return;
     setActionLoading("cancel");
-    updateStatus("Cancelled", "Membership cancelled (demo only).");
-    setActionLoading(null);
-  }, [updateStatus]);
+    setActionError(null);
+    setActionMessage(null);
+    fetch("/api/admin/membership", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ member_id: foundMember.id, action: "cancel" }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.member) throw new Error(data.error || "Failed");
+        updateStatus("Cancelled", "Membership cancelled.");
+      })
+      .catch(() => {
+        setActionError("Unable to cancel membership.");
+      })
+      .finally(() => setActionLoading(null));
+  }, [foundMember, updateStatus]);
 
   const handleUpgrade = useCallback(() => {
+    if (!foundMember) return;
     setActionLoading("upgrade");
-    setTimeout(() => {
-      setActionLoading(null);
-      setActionMessage("Membership upgraded (demo only).");
-    }, 400);
-  }, []);
+    setActionError(null);
+    setActionMessage(null);
+    fetch("/api/admin/membership", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ member_id: foundMember.id, action: "upgrade" }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.member) throw new Error(data.error || "Failed");
+        setFoundMember((prev) =>
+          prev
+            ? {
+                ...prev,
+                membershipType: data.member.membershipType ?? prev.membershipType,
+                status: data.member.status ?? prev.status,
+                validUntil: data.member.validUntil ?? prev.validUntil,
+              }
+            : prev
+        );
+        setActionMessage("Membership upgraded.");
+      })
+      .catch(() => {
+        setActionError("Unable to upgrade membership.");
+      })
+      .finally(() => setActionLoading(null));
+  }, [foundMember]);
 
   const handleCreateMember = useCallback(
     (e: React.FormEvent) => {
