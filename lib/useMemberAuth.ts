@@ -10,6 +10,7 @@ export interface MemberProfile {
   email: string | null;
   phone: string | null;
   full_name: string;
+  member_code: string;
   tier: string;
   waiver_signed: boolean;
   waiver_signed_at: string | null;

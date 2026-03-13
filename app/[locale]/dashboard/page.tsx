@@ -143,7 +143,7 @@ export default function DashboardPage() {
     ? "Chưa có lượt check-in"
     : "No check-ins yet";
 
-  const shortId = `LM-${String(member.id).slice(0, 4).toUpperCase()}`;
+  const shortId = member.member_code ?? `LM-${String(member.id).slice(0, 4).toUpperCase()}`;
 
   // Simple time-based occupancy example.
   const hour = getLocalTimeHours();
@@ -237,6 +237,12 @@ export default function DashboardPage() {
       {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col items-center px-4 pb-10 pt-6 md:pt-10">
         <div className="w-full max-w-3xl space-y-12">
+          {/* TOP LOGO */}
+          <section className="flex justify-center">
+            <div className="w-[min(90vw,200px)] sm:w-[min(85vw,240px)] md:w-[min(80vw,260px)]">
+              <Logo className="w-full h-auto object-contain" />
+            </div>
+          </section>
           {/* GREETING */}
           <section>
             <h1
