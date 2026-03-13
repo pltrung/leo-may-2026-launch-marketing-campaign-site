@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const baseSelect =
-      "id, auth_id, email, phone, full_name, tier, member_code, created_at, membership_status, membership_expires_at";
+      "id, auth_id, email, phone, full_name, tier, member_code, created_at, membership_status, membership_expires_at, profile_photo_url, id_number, date_of_birth";
 
     // Name search: return a list of basic matches to let the UI choose.
     if (!id && !code && name) {
@@ -155,6 +155,9 @@ export async function GET(req: NextRequest) {
       checkinsThisMonth: checkinsThisMonth ?? 0,
       totalVisits: totalVisits ?? 0,
       recentCheckins,
+      profile_photo_url: memberRow.profile_photo_url ?? null,
+      id_number: memberRow.id_number ?? null,
+      date_of_birth: memberRow.date_of_birth ?? null,
     };
 
     return NextResponse.json({ member: responseMember }, { headers: { "Cache-Control": "no-store, max-age=0" } });

@@ -11,6 +11,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { HERO_BG } from "@/lib/heroConstants";
 import { SOCIAL_LINKS } from "@/lib/announcementConfig";
 import { getSkyTheme, getLocalTimeHours } from "@/components/gym/theme/skyTheme";
+import ProfileModal from "@/components/dashboard/ProfileModal";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -57,6 +58,7 @@ export default function DashboardPage() {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [vnpayLoading, setVnpayLoading] = useState(false);
   const [skyBg, setSkyBg] = useState<string>(() => getSkyTheme(getLocalTimeHours()).bgGradient);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   useEffect(() => {
     const update = () => setSkyBg(getSkyTheme(getLocalTimeHours()).bgGradient);
@@ -467,18 +469,47 @@ export default function DashboardPage() {
               <Logo className="w-full h-auto object-contain" />
             </div>
           </section>
-          {/* GREETING */}
+          {/* GREETING + PROFILE */}
           <section>
-            <h1
-              className="text-[22px] font-semibold text-white tracking-tight"
-              style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif", textShadow: "0 1px 4px rgba(0,0,0,0.7)" }}
+            <button
+              type="button"
+              onClick={() => setProfileModalOpen(true)}
+              className="flex items-center gap-3 w-full text-left transition-opacity hover:opacity-90"
             >
-              {greeting}
-            </h1>
+              {member.profile_photo_url ? (
+                <img
+                  src={member.profile_photo_url}
+                  alt=""
+                  className="w-12 h-12 rounded-full object-cover border-2 border-white/20 shrink-0"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white/80 text-lg font-semibold shrink-0">
+                  {displayName.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div>
+                <h1
+                  className="text-[22px] font-semibold text-white tracking-tight"
+                  style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif", textShadow: "0 1px 4px rgba(0,0,0,0.7)" }}
+                >
+                  {greeting}
+                </h1>
+                <p className="text-[13px] text-white/60 mt-0.5">
+                  {isVi ? "Chạm để xem / cập nhật hồ sơ" : "Tap to view / update profile"}
+                </p>
+              </div>
+            </button>
           </section>
 
           {/* CHECK IN */}
           <section>
+            {isActive && !member.profile_photo_url && (
+              <div className="w-full mb-4 rounded-[20px] px-6 py-4 text-[15px] text-amber-200 transition-transform duration-200" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
+                {isVi
+                  ? "Vui lòng thêm ảnh hồ sơ trước khi check-in. Nhấn tên của bạn ở trên để mở hồ sơ."
+                  : "Add a profile photo before check-in. Tap your name above to open profile."}
+              </div>
+            )}
             {!isActive && (
               <div className="w-full mb-4 rounded-[20px] px-6 py-4 text-[15px] text-amber-200 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
                 {isVi
@@ -500,7 +531,7 @@ export default function DashboardPage() {
 
               <button
                 type="button"
-                onClick={() => setIsQrModalOpen(true)}
+                onClick={() => (isActive && !member.profile_photo_url ? setProfileModalOpen(true) : setIsQrModalOpen(true))}
                 className="relative rounded-[20px] p-6 md:p-8 flex flex-col items-center justify-center transition-all duration-200 active:scale-[0.98] hover:-translate-y-1"
                 style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)", boxShadow: "0 40px 80px rgba(0,0,0,0.7)" }}
               >
@@ -898,6 +929,23 @@ export default function DashboardPage() {
           </div>
         </div>
       </footer>
+
+      {/* PROFILE MODAL */}
+      <ProfileModal
+        open={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+        member={{
+          full_name: member.full_name,
+          email: member.email,
+          phone: member.phone,
+          profile_photo_url: member.profile_photo_url,
+          id_number: member.id_number,
+          date_of_birth: member.date_of_birth,
+        }}
+        accessToken={accessToken}
+        onSaved={refresh}
+        isVi={isVi}
+      />
 
       {/* VIETQR PAYMENT FULLSCREEN MODAL */}
       {isVietQrModalOpen && renewQrUrl && (

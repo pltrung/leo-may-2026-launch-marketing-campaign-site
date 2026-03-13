@@ -20,12 +20,19 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient();
     const { data: profile, error: profileErr } = await supabase
       .from("member_profiles")
-      .select("membership_status, membership_expires_at")
+      .select("membership_status, membership_expires_at, profile_photo_url")
       .eq("id", memberId)
       .maybeSingle();
 
     if (profileErr || !profile) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+
+    if (!profile.profile_photo_url || !(profile.profile_photo_url as string).trim()) {
+      return NextResponse.json(
+        { error: "Profile photo required before check-in. Please complete your profile in the dashboard." },
+        { status: 403 }
+      );
     }
 
     const status = (profile.membership_status as string) ?? "inactive";

@@ -19,6 +19,9 @@ export interface MemberProfile {
   created_at: string;
   total_visits?: number;
   last_checkin?: string | null;
+  profile_photo_url?: string | null;
+  id_number?: string | null;
+  date_of_birth?: string | null;
 }
 
 export function useMemberAuth() {

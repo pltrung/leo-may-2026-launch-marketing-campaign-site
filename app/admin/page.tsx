@@ -5,8 +5,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 type MembershipType = "Founder Member" | "Standard" | "Day Pass";
 
 interface AdminMember {
-  id: string; // internal UUID from member_profiles
-  displayId: string | null; // e.g. LM-0234
+  id: string;
+  displayId: string | null;
   name: string;
   email?: string | null;
   phone?: string | null;
@@ -16,6 +16,9 @@ interface AdminMember {
   checkinsThisMonth: number;
   totalVisits: number;
   recentCheckins: { label: string }[];
+  profile_photo_url?: string | null;
+  id_number?: string | null;
+  date_of_birth?: string | null;
 }
 
 interface NameSearchResult {
@@ -667,26 +670,41 @@ export default function AdminPage() {
               {/* Profile + activity */}
               <div className="space-y-4 md:space-y-6">
                 <div className="rounded-2xl bg-white/90 border border-slate-200 shadow-[0_14px_40px_rgba(15,23,42,0.08)] p-4 md:p-6">
-                  <div className="flex items-start justify-between gap-4 mb-4">
-                    <div>
-                      <h2 className="text-lg font-semibold text-slate-900">
-                        {foundMember.name}
-                      </h2>
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-lg font-semibold text-slate-900">
+                          {foundMember.name}
+                        </h2>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 ${
+                            foundMember.status === "Active"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                              : foundMember.status === "Frozen"
+                              ? "bg-amber-50 text-amber-700 border border-amber-100"
+                              : "bg-rose-50 text-rose-700 border border-rose-100"
+                          }`}
+                        >
+                          {foundMember.status}
+                        </span>
+                      </div>
                       <p className="text-xs text-slate-500 mt-0.5">
                         {foundMember.email || foundMember.phone}
                       </p>
                     </div>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        foundMember.status === "Active"
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                          : foundMember.status === "Frozen"
-                          ? "bg-amber-50 text-amber-700 border border-amber-100"
-                          : "bg-rose-50 text-rose-700 border border-rose-100"
-                      }`}
-                    >
-                      {foundMember.status}
-                    </span>
+                    <div className="shrink-0">
+                      {foundMember.profile_photo_url ? (
+                        <img
+                          src={foundMember.profile_photo_url}
+                          alt=""
+                          className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border-2 border-slate-200"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 text-lg font-semibold">
+                          {foundMember.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-xs md:text-sm">
                     <div>
@@ -705,6 +723,24 @@ export default function AdminPage() {
                         {foundMember.validUntil}
                       </p>
                     </div>
+                    {foundMember.id_number && (
+                      <div>
+                        <p className="text-slate-500">Govt ID</p>
+                        <p className="font-medium text-slate-900">{foundMember.id_number}</p>
+                      </div>
+                    )}
+                    {foundMember.date_of_birth && (
+                      <div>
+                        <p className="text-slate-500">Date of birth</p>
+                        <p className="font-medium text-slate-900">
+                          {new Date(foundMember.date_of_birth).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </p>
+                      </div>
+                    )}
                     <div>
                       <p className="text-slate-500">Internal ID</p>
                       <p className="font-mono text-[11px] text-slate-800 break-all">
