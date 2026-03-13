@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import GymCanvas, { type QualityLevel } from "@/components/gym/three/GymCanvas";
 import GymChaptersOverlay from "@/components/gym/GymChaptersOverlay";
 import GymCanvasErrorBoundary from "@/components/gym/GymCanvasErrorBoundary";
@@ -178,6 +178,15 @@ export default function GymScrollScene({ theme, activeChapter, storyVh }: GymScr
         />
         {webglOk && (
           <GymCanvasErrorBoundary theme={theme} fallbackClassName="absolute inset-0 w-full h-full">
+            <Suspense
+              fallback={
+                <div
+                  className="absolute inset-0 w-full h-full"
+                  style={{ background: theme.bgGradient }}
+                  aria-hidden
+                />
+              }
+            >
             <GymCanvas
               progress={scroll.progress}
               pointerX={pointerX}
@@ -190,6 +199,7 @@ export default function GymScrollScene({ theme, activeChapter, storyVh }: GymScr
               positionYOffsetMobile={isMobile ? 0.24 : 0}
               className="absolute inset-0 w-full h-full"
             />
+            </Suspense>
           </GymCanvasErrorBoundary>
         )}
         {/* Drag to rotate on desktop only; on mobile no drag layer so scroll always works */}
