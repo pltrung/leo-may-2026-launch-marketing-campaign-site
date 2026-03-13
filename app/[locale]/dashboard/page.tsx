@@ -10,6 +10,12 @@ import { useMemberAuth } from "@/lib/useMemberAuth";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { HERO_BG } from "@/lib/heroConstants";
 import { SOCIAL_LINKS } from "@/lib/announcementConfig";
+import { getSkyTheme, getLocalTimeHours } from "@/components/gym/theme/skyTheme";
+
+const HeroStarfield = dynamic(
+  () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
+  { ssr: false }
+);
 
 function safeDate(d: string | null | undefined, locale: "vi-VN" | "en-US", opts?: Intl.DateTimeFormatOptions): string {
   if (!d || typeof d !== "string") return "—";
@@ -50,6 +56,14 @@ export default function DashboardPage() {
   const [freezeLoading, setFreezeLoading] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [vnpayLoading, setVnpayLoading] = useState(false);
+  const [skyBg, setSkyBg] = useState<string>(() => getSkyTheme(getLocalTimeHours()).bgGradient);
+
+  useEffect(() => {
+    const update = () => setSkyBg(getSkyTheme(getLocalTimeHours()).bgGradient);
+    update();
+    const id = setInterval(update, 60000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -260,22 +274,29 @@ export default function DashboardPage() {
     router.replace(`/${target}/dashboard`);
   };
 
-  const pageBg = "linear-gradient(180deg, #0B0F14 0%, #121923 50%, #0B0F14 100%)";
-  const glassCard = "rgba(255,255,255,0.05)";
+  const glassCard = "rgba(0,0,0,0.4)";
   const accentColor = "#7DD3FC";
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: pageBg }}>
-        <p className="text-white/60 text-[15px]">Loading…</p>
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+        <div className="fixed inset-0" style={{ background: skyBg, zIndex: 1 }} aria-hidden />
+        <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 2 }} aria-hidden>
+          <HeroStarfield heroTransitioning={false} />
+        </div>
+        <p className="relative z-10 text-white/80 text-[15px] drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">Loading…</p>
       </div>
     );
   }
 
   if (!member) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: pageBg }}>
-        <p className="text-white/80 text-center text-[15px]">Setting up your profile…</p>
+      <div className="min-h-screen flex items-center justify-center px-6 relative overflow-hidden">
+        <div className="fixed inset-0" style={{ background: skyBg, zIndex: 1 }} aria-hidden />
+        <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 2 }} aria-hidden>
+          <HeroStarfield heroTransitioning={false} />
+        </div>
+        <p className="relative z-10 text-white/90 text-center text-[15px] drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">Setting up your profile…</p>
       </div>
     );
   }
@@ -366,9 +387,28 @@ export default function DashboardPage() {
   const isActive = rawStatus === "active" && daysRemaining != null && daysRemaining > 0;
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: pageBg }}>
+    <div className="min-h-screen flex flex-col relative">
+      {/* 1) Sky gradient — bottom layer (time-of-day) */}
+      <div className="fixed inset-0 pointer-events-none" style={{ background: skyBg, zIndex: 1 }} aria-hidden />
+      {/* 2) Starfield (twinkle, drift, shooting stars) */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{ zIndex: 2, width: "100%", height: "100%", minWidth: "100vw", minHeight: "100dvh" }}
+        aria-hidden
+      >
+        <HeroStarfield heroTransitioning={false} />
+      </div>
+      {/* 3) Content scrim — darkens lower area so cards stay readable on bright sky (day/sunset) */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          zIndex: 3,
+          background: "linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.5) 100%)",
+        }}
+        aria-hidden
+      />
       {/* HEADER */}
-      <header className="w-full sticky top-0 z-20 backdrop-blur-xl bg-black/20 border-b border-white/[0.08]">
+      <header className="w-full sticky top-0 z-20 backdrop-blur-xl border-b border-white/[0.12]" style={{ background: "rgba(0,0,0,0.5)" }}>
         <div className="max-w-[720px] mx-auto flex items-center justify-between px-4 py-3 md:px-6 md:py-4">
           <div className="flex items-center gap-3">
             <div className="h-10 md:h-11">
@@ -409,9 +449,9 @@ export default function DashboardPage() {
       </header>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 flex flex-col items-center px-4 pb-10 pt-6 md:pt-10">
+      <main className="flex-1 flex flex-col items-center px-4 pb-10 pt-6 md:pt-10 relative" style={{ zIndex: 10 }}>
         {paymentSuccess && (
-          <div className="w-full max-w-[720px] mb-6 rounded-[20px] px-6 py-4 flex flex-col gap-1 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          <div className="w-full max-w-[720px] mb-6 rounded-[20px] px-6 py-4 flex flex-col gap-1 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
             <p className="text-[18px] font-medium text-emerald-200">
               {isVi ? "Thanh toán thành công" : "Payment Successful"}
             </p>
@@ -423,7 +463,7 @@ export default function DashboardPage() {
         <div className="w-full max-w-[720px] flex flex-col gap-12">
           {/* TOP LOGO */}
           <section className="flex justify-center">
-            <div className="w-[min(90vw,200px)] sm:w-[min(85vw,240px)] md:w-[min(80vw,260px)]">
+            <div className="w-[min(90vw,200px)] sm:w-[min(85vw,240px)] md:w-[min(80vw,260px)] drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
               <Logo className="w-full h-auto object-contain" />
             </div>
           </section>
@@ -431,7 +471,7 @@ export default function DashboardPage() {
           <section>
             <h1
               className="text-[22px] font-semibold text-white tracking-tight"
-              style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
+              style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif", textShadow: "0 1px 4px rgba(0,0,0,0.7)" }}
             >
               {greeting}
             </h1>
@@ -440,13 +480,13 @@ export default function DashboardPage() {
           {/* CHECK IN */}
           <section>
             {!isActive && (
-              <div className="w-full mb-4 rounded-[20px] px-6 py-4 text-[15px] text-amber-200/90 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div className="w-full mb-4 rounded-[20px] px-6 py-4 text-[15px] text-amber-200 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
                 {isVi
                   ? "Mua Day Pass hoặc gói thành viên bên dưới để check-in."
                   : "Purchase a Day Pass or membership below to check in."}
               </div>
             )}
-            <div className="relative rounded-[20px] p-6 flex flex-col items-center transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <div className="relative rounded-[20px] p-6 flex flex-col items-center transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               {/* Radial glow behind QR card */}
               <div className="absolute inset-0 rounded-[20px] pointer-events-none opacity-60" style={{ background: "radial-gradient(ellipse 80% 60% at 50% 40%, rgba(125,211,252,0.08) 0%, transparent 70%)" }} aria-hidden />
               <div className="relative w-full flex items-center justify-between mb-4">
@@ -462,7 +502,7 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() => setIsQrModalOpen(true)}
                 className="relative rounded-[20px] p-6 md:p-8 flex flex-col items-center justify-center transition-all duration-200 active:scale-[0.98] hover:-translate-y-1"
-                style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 40px 80px rgba(0,0,0,0.7)" }}
+                style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)", boxShadow: "0 40px 80px rgba(0,0,0,0.7)" }}
               >
                 <div className="flex items-center justify-center">
                   {mounted && (
@@ -489,7 +529,7 @@ export default function DashboardPage() {
 
           {/* MEMBERSHIP + PAYMENT + FREEZE */}
           <section>
-            <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               <h2 className="text-[22px] font-semibold text-white/90 mb-4">
                 {isVi ? "THẺ THÀNH VIÊN" : "MEMBERSHIP"}
               </h2>
@@ -621,7 +661,7 @@ export default function DashboardPage() {
                 {renewQrUrl && (
                   <div className="space-y-4 pt-2">
                     <p className="text-[15px] text-white/80">{renewPlanName} — {renewPrice.toLocaleString("vi-VN")} VND</p>
-                    <div className="relative rounded-[20px] p-6 flex flex-col items-center transition-transform duration-200 hover:-translate-y-0.5" style={{ boxShadow: "0 40px 80px rgba(0,0,0,0.7)", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <div className="relative rounded-[20px] p-6 flex flex-col items-center transition-transform duration-200 hover:-translate-y-0.5" style={{ boxShadow: "0 40px 80px rgba(0,0,0,0.7)", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
                       <div className="absolute inset-0 rounded-[20px] pointer-events-none opacity-50" style={{ background: "radial-gradient(ellipse 70% 50% at 50% 50%, rgba(125,211,252,0.06) 0%, transparent 70%)" }} aria-hidden />
                       <button
                         type="button"
@@ -637,7 +677,8 @@ export default function DashboardPage() {
                     <button
                       type="button"
                       disabled={vnpayLoading || !renewPlanId}
-                      className="transition-transform duration-150 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full mt-2 py-3 rounded-[16px] text-[15px] font-medium text-white hover:bg-white/20 transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}
                       onClick={async () => {
                         if (!accessToken || !renewPlanId) return;
                         setVnpayLoading(true);
@@ -660,8 +701,6 @@ export default function DashboardPage() {
                           setVnpayLoading(false);
                         }
                       }}
-                      className="w-full mt-2 py-3 rounded-[16px] text-[15px] font-medium text-white hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}
                     >
                       {vnpayLoading ? (isVi ? "Đang chuyển hướng..." : "Redirecting...") : (isVi ? "Thanh toán qua VNPay" : "Pay with VNPay")}
                     </button>
@@ -673,7 +712,7 @@ export default function DashboardPage() {
 
           {/* GYM STATUS + ACTIVITY */}
           <section className="grid md:grid-cols-2 gap-4">
-            <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               <h2 className="text-[22px] font-semibold text-white/90 mb-4">
                 {isVi ? "TÌNH TRẠNG PHÒNG GYM" : "GYM STATUS"}
               </h2>
@@ -716,7 +755,7 @@ export default function DashboardPage() {
 
             {/* CLOUD ASCENSION (placeholder, only if >= 5 check-ins) */}
             {totalVisits >= 5 && (
-              <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
                 <h2 className="text-[22px] font-semibold text-white/90 mb-4">
                   {isVi ? "CLOUD ASCENSION" : "CLOUD ASCENSION"}
                 </h2>
@@ -736,7 +775,7 @@ export default function DashboardPage() {
 
           {/* COMMUNITY LEADERBOARD */}
           <section>
-            <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               <h2 className="text-[22px] font-semibold text-white/90 mb-4">
                 {isVi ? "BẢNG XẾP HẠNG CỘNG ĐỒNG" : "COMMUNITY LEADERBOARD"}
               </h2>
@@ -755,7 +794,7 @@ export default function DashboardPage() {
                       <div
                         key={entry.rank}
                         className="flex items-center justify-between rounded-[16px] px-4 py-3 transition-transform duration-200 hover:-translate-y-0.5"
-                        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}
                       >
                         <div className="flex items-center gap-3">
                           <span className="text-xl">
@@ -793,7 +832,7 @@ export default function DashboardPage() {
           </section>
 
           {/* EVENTS */}
-          <section className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          <section className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-[22px] font-semibold text-white/90">
                 {isVi ? "SỰ KIỆN SẮP TỚI" : "UPCOMING EVENTS"}
@@ -817,7 +856,7 @@ export default function DashboardPage() {
                 <div
                   key={event.title}
                   className="flex items-center justify-between rounded-[16px] px-4 py-3 transition-transform duration-200 hover:-translate-y-0.5"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}
                 >
                   <div>
                     <p className="text-[18px] font-medium text-white">
@@ -836,7 +875,7 @@ export default function DashboardPage() {
       </main>
 
       {/* FOOTER */}
-      <footer className="w-full border-t border-white/[0.08] backdrop-blur-xl" style={{ background: "rgba(0,0,0,0.2)" }}>
+      <footer className="relative z-10 w-full border-t border-white/[0.12] backdrop-blur-xl" style={{ background: "rgba(0,0,0,0.5)" }}>
         <div className="max-w-[720px] mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-3 text-[13px] text-white/70">
           <div className="flex items-center gap-4">
             <a

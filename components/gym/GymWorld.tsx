@@ -1,7 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import dynamic from "next/dynamic";
 import GymHeader from "@/components/gym/GymHeader";
+
+const HeroStarfield = dynamic(
+  () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
+  { ssr: false }
+);
 import GymScrollScene from "@/components/gym/GymScrollScene";
 import GymFooter from "@/components/gym/GymFooter";
 import GymTransitionOverlay from "@/components/gym/transitions/GymTransitionOverlay";
@@ -141,8 +147,19 @@ export default function GymWorld() {
 
   return (
     <GymNavProvider value={navValue}>
-      <div className="min-h-screen" style={{ background: theme.bgGradient }}>
-        <GymHeader />
+      <div className="min-h-screen relative">
+        {/* 1) Sky gradient — bottom layer (time-of-day) */}
+        <div className="fixed inset-0 pointer-events-none" style={{ background: theme.bgGradient, zIndex: 1 }} aria-hidden />
+        {/* 2) Starfield (twinkle, drift, shooting stars) */}
+        <div
+          className="fixed inset-0 pointer-events-none"
+          style={{ zIndex: 2, width: "100%", height: "100%", minWidth: "100vw", minHeight: "100dvh" }}
+          aria-hidden
+        >
+          <HeroStarfield heroTransitioning={false} />
+        </div>
+        <div className="relative" style={{ zIndex: 10 }}>
+          <GymHeader />
         <main className="relative">
           <GymScrollScene theme={theme} activeChapter={activeChapter} storyVh={GYM_STORY_VH} />
           <GymFooter />
@@ -153,6 +170,7 @@ export default function GymWorld() {
         <LocationSheet open={locationModalOpen} onClose={() => setLocationModalOpen(false)} />
         <PricingSheet open={pricingModalOpen} onClose={() => setPricingModalOpen(false)} />
         {aboutModalOpen && <AboutUsModal onClose={() => setAboutModalOpen(false)} locale={locale as "en" | "vi"} />}
+        </div>
       </div>
     </GymNavProvider>
   );
