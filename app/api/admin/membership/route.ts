@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
       nextStatus = "frozen";
     } else if (action === "cancel") {
       nextStatus = "cancelled";
+      nextExpires = null; // Clear expiry so all active membership is gone
     } else if (action === "upgrade") {
       // Simple example: upgrade tier label if not already a founder.
       if (nextTier !== "Founder Member") {

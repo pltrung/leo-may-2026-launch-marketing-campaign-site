@@ -49,6 +49,7 @@ export default function DashboardPage() {
   const [renewPrice, setRenewPrice] = useState(0);
   const [freezeLoading, setFreezeLoading] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [vnpayLoading, setVnpayLoading] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -65,6 +66,21 @@ export default function DashboardPage() {
       router.replace(`/${locale}/waiver`);
     }
   }, [mounted, loading, user, member, locale, router]);
+
+  // Clean VNPay return params from URL when returning from VNPay
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const u = new URL(window.location.href);
+    const vnp = u.searchParams.get("vnp_ResponseCode");
+    if (vnp == null) return;
+    u.searchParams.forEach((_, k) => {
+      if (k.startsWith("vnp_")) u.searchParams.delete(k);
+    });
+    const clean = u.pathname + (u.search || "");
+    if (clean !== window.location.pathname + window.location.search) {
+      router.replace(clean, { scroll: false });
+    }
+  }, [router]);
 
   // Fetch occupancy (no auth required)
   useEffect(() => {
@@ -605,6 +621,35 @@ export default function DashboardPage() {
                     <p className="text-[11px] text-white/60">
                       {isVi ? "Chạm mã để phóng to. Quét bằng ứng dụng ngân hàng, MoMo hoặc ZaloPay." : "Tap to enlarge. Scan with banking app, MoMo, or ZaloPay."}
                     </p>
+                    <button
+                      type="button"
+                      disabled={vnpayLoading || !renewPlanId}
+                      onClick={async () => {
+                        if (!accessToken || !renewPlanId) return;
+                        setVnpayLoading(true);
+                        try {
+                          const returnUrl = typeof window !== "undefined"
+                            ? `${window.location.origin}/${locale}/dashboard`
+                            : undefined;
+                          const qs = new URLSearchParams({ plan_id: renewPlanId });
+                          if (returnUrl) qs.set("return_url", returnUrl);
+                          const r = await fetch(`/api/member/vnpay?${qs}`, {
+                            headers: { Authorization: `Bearer ${accessToken}` },
+                          });
+                          const d = await r.json();
+                          if (r.ok && d?.url) {
+                            window.location.href = d.url;
+                            return;
+                          }
+                          setVnpayLoading(false);
+                        } catch {
+                          setVnpayLoading(false);
+                        }
+                      }}
+                      className="w-full mt-2 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white font-medium text-sm hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {vnpayLoading ? (isVi ? "Đang chuyển hướng..." : "Redirecting...") : (isVi ? "Thanh toán qua VNPay" : "Pay with VNPay")}
+                    </button>
                   </div>
                 )}
               </div>
