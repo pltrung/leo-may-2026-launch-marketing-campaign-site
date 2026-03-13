@@ -1,4 +1,5 @@
 "use client";
+// Dashboard membership hub
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
