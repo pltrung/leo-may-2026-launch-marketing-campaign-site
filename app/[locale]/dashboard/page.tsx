@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import Logo from "@/components/Logo";
 import { useLocale } from "@/components/LocaleProvider";
 import { useMemberAuth } from "@/lib/useMemberAuth";
+import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { HERO_BG } from "@/lib/heroConstants";
 import { SOCIAL_LINKS } from "@/lib/announcementConfig";
 
@@ -31,7 +32,7 @@ const QRCodeSVG = dynamic(
 export default function DashboardPage() {
   const locale = useLocale();
   const router = useRouter();
-  const { user, member, loading, accessToken, signOut } = useMemberAuth();
+  const { user, member, loading, accessToken, signOut, refresh } = useMemberAuth();
 
   const [mounted, setMounted] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
@@ -46,6 +47,7 @@ export default function DashboardPage() {
   const [renewPlanName, setRenewPlanName] = useState("");
   const [renewPrice, setRenewPrice] = useState(0);
   const [freezeLoading, setFreezeLoading] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -105,6 +107,37 @@ export default function DashboardPage() {
     })();
     return () => { cancelled = true; };
   }, [accessToken]);
+
+  // Subscribe to payments realtime for this member
+  useEffect(() => {
+    if (!member?.id) return;
+    let supabase;
+    try {
+      supabase = getSupabaseBrowserClient();
+    } catch {
+      return;
+    }
+    const channel = supabase
+      .channel("payments-for-member")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "payments",
+          filter: `member_id=eq.${member.id}`,
+        },
+        () => {
+          setPaymentSuccess(true);
+          refresh();
+          setTimeout(() => setPaymentSuccess(false), 8000);
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [member?.id, refresh]);
 
   const handleFreeze = useCallback(async () => {
     if (!accessToken) return;
@@ -345,6 +378,16 @@ export default function DashboardPage() {
 
       {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col items-center px-4 pb-10 pt-6 md:pt-10">
+        {paymentSuccess && (
+          <div className="w-full max-w-3xl mb-6 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 px-5 py-4 flex flex-col gap-1">
+            <p className="text-emerald-200 font-semibold">
+              {isVi ? "Thanh toán thành công" : "Payment Successful"}
+            </p>
+            <p className="text-emerald-100/90 text-sm">
+              {isVi ? "Thẻ thành viên đã được gia hạn" : "Membership Extended"}
+            </p>
+          </div>
+        )}
         <div className="w-full max-w-3xl space-y-12">
           {/* TOP LOGO */}
           <section className="flex justify-center">

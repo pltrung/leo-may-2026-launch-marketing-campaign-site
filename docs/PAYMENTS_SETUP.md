@@ -29,7 +29,32 @@ Defaults in code: Techcombank 970407, account 19027030091996. Override via env f
 
 - MEMO = member_code (e.g. LM0234) for payment tracking
 
-## 4. Expiry reminders cron
+## 4. Payment webhook (automatic confirmation)
+
+When a gateway (e.g. bank IPN, MoMo, ZaloPay) confirms payment, it calls:
+
+- **Endpoint:** `POST /api/payment/webhook`
+- **Auth:** `Authorization: Bearer <secret>` or `X-Webhook-Secret: <secret>`
+- **Env:** `PAYMENT_WEBHOOK_SECRET` — must be set for the webhook to accept requests
+
+**Body example (status=success):**
+```json
+{
+  "status": "success",
+  "member_id": "uuid",       // or use member_code
+  "member_code": "LM0234",   // memo from bank transfer
+  "plan_id": "explorer_month",
+  "amount": 900000,
+  "transaction_id": "gateway-txn-123"  // optional, for idempotency
+}
+```
+
+On success, the webhook inserts into `payments` and extends membership using:
+`new_expiry = max(current_expiry, today) + duration_days`.
+
+The member dashboard subscribes to `payments` realtime and shows "Payment Successful / Membership Extended" when a new payment is inserted.
+
+## 5. Expiry reminders cron
 
 - Route: `GET /api/cron/expiry-reminders`
 - Vercel Cron: daily at 8:00 UTC (see `vercel.json`)
