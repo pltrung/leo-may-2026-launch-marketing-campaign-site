@@ -5,8 +5,8 @@ export async function GET(_req: NextRequest) {
   const supabase = createServerClient();
 
   try {
-    // Approximate occupancy as distinct members who checked in in the last 3 hours.
-    const since = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+    // Approximate occupancy as distinct members who checked in in the last 2 hours.
+    const since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
     const { data, error } = await supabase
       .from("gym_checkins")

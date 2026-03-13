@@ -32,7 +32,12 @@ export default function AuthHashRedirect() {
 
     const locale = pathname?.startsWith("/vi") ? "vi" : "en";
     const target = `/${locale}/dashboard`;
-    const supabase = getSupabaseBrowserClient();
+    let supabase;
+    try {
+      supabase = getSupabaseBrowserClient();
+    } catch {
+      return;
+    }
 
     const doRedirect = () => {
       if (handled.current) return;

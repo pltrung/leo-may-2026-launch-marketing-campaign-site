@@ -1,5 +1,4 @@
 "use client";
-// Dashboard membership hub
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -9,8 +8,20 @@ import Logo from "@/components/Logo";
 import { useLocale } from "@/components/LocaleProvider";
 import { useMemberAuth } from "@/lib/useMemberAuth";
 import { HERO_BG } from "@/lib/heroConstants";
-import { getLocalTimeHours } from "@/components/gym/theme/skyTheme";
 import { SOCIAL_LINKS } from "@/lib/announcementConfig";
+
+function safeDate(d: string | null | undefined, locale: "vi-VN" | "en-US", opts?: Intl.DateTimeFormatOptions): string {
+  if (!d || typeof d !== "string") return "—";
+  const p = new Date(d);
+  if (Number.isNaN(p.getTime())) return "—";
+  return p.toLocaleDateString(locale, opts ?? { month: "short", year: "numeric" });
+}
+function safeDateTime(d: string | null | undefined, locale: "vi-VN" | "en-US"): string {
+  if (!d || typeof d !== "string") return "—";
+  const p = new Date(d);
+  if (Number.isNaN(p.getTime())) return "—";
+  return p.toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" });
+}
 
 const QRCodeSVG = dynamic(
   () => import("qrcode.react").then((m) => m.QRCodeSVG),
@@ -20,11 +31,16 @@ const QRCodeSVG = dynamic(
 export default function DashboardPage() {
   const locale = useLocale();
   const router = useRouter();
-  const { user, member, loading, signOut } = useMemberAuth();
+  const { user, member, loading, accessToken, signOut } = useMemberAuth();
 
   const [mounted, setMounted] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const wakeLockRef = useRef<any | null>(null);
+  const [gymOccupancy, setGymOccupancy] = useState<number | null>(null);
+  const [leaderboard, setLeaderboard] = useState<{
+    top: { rank: number; full_name: string; visits: number }[];
+    currentUser: { rank: number | null; visits: number; full_name: string };
+  } | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -41,6 +57,49 @@ export default function DashboardPage() {
       router.replace(`/${locale}/waiver`);
     }
   }, [mounted, loading, user, member, locale, router]);
+
+  // Fetch occupancy (no auth required)
+  useEffect(() => {
+    let cancelled = false;
+    const f = async () => {
+      try {
+        const res = await fetch("/api/admin/occupancy");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && typeof data.count === "number") setGymOccupancy(data.count);
+      } catch {
+        /* ignore */
+      }
+    };
+    f();
+    const id = setInterval(f, 20000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
+
+  // Fetch leaderboard via API (no client Supabase)
+  useEffect(() => {
+    if (!accessToken) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/member/leaderboard", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (cancelled || !data) return;
+        if (data.top && Array.isArray(data.top) && data.currentUser) {
+          setLeaderboard({ top: data.top, currentUser: data.currentUser });
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [accessToken]);
 
   // Fullscreen QR: keep screen awake while open.
   useEffect(() => {
@@ -90,8 +149,16 @@ export default function DashboardPage() {
   }, [isQrModalOpen]);
 
   const handleLogout = async () => {
-    await signOut();
-    router.replace(`/${locale}/gym`);
+    try {
+      await signOut();
+    } catch {
+      /* ignore */
+    }
+    if (typeof window !== "undefined") {
+      window.location.href = `/${locale}/gym`;
+    } else {
+      router.replace(`/${locale}/gym`);
+    }
   };
 
   const handleLanguageChange = (target: "en" | "vi") => {
@@ -128,42 +195,42 @@ export default function DashboardPage() {
 
   const qrPayload = `leo-member:${member.id}`;
 
-  const memberSince = member.created_at
-    ? new Date(member.created_at).toLocaleDateString(isVi ? "vi-VN" : "en-US", {
-        month: "short",
-        year: "numeric",
-      })
-    : "—";
-
-  const lastCheckIn = member.last_check_in
-    ? new Date(member.last_check_in).toLocaleString(isVi ? "vi-VN" : "en-US", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      })
+  const memberSince = safeDate(member.created_at, isVi ? "vi-VN" : "en-US");
+  const lastCheckIn = member.last_checkin
+    ? safeDateTime(member.last_checkin, isVi ? "vi-VN" : "en-US")
     : isVi
     ? "Chưa có lượt check-in"
     : "No check-ins yet";
 
   const shortId = member.member_code ?? `LM-${String(member.id).slice(0, 4).toUpperCase()}`;
 
-  // Simple time-based occupancy example.
-  const hour = getLocalTimeHours();
+  // Real occupancy from API
   let gymStatusEmoji = "🟢";
   let gymStatusLabel = isVi ? "Vắng" : "Light";
-  let gymStatusDetail = isVi ? "Khoảng 12 người đang leo" : "12 climbers inside";
-  if (hour >= 12 && hour < 18) {
-    gymStatusEmoji = "🟡";
-    gymStatusLabel = isVi ? "Vừa phải" : "Moderate";
-    gymStatusDetail = isVi ? "Khoảng 35 người đang leo" : "35 climbers inside";
-  } else if (hour >= 18 && hour <= 22) {
-    gymStatusEmoji = "🔴";
-    gymStatusLabel = isVi ? "Đông" : "Busy";
-    gymStatusDetail = isVi ? "Khoảng 58 người đang leo" : "58 climbers inside";
+  let gymStatusDetail =
+    gymOccupancy != null
+      ? `${gymOccupancy} ${isVi ? "người đang leo" : "climbers inside"}`
+      : isVi
+      ? "Đang tải dữ liệu phòng gym…"
+      : "Loading gym status…";
+  if (gymOccupancy != null) {
+    if (gymOccupancy >= 25 && gymOccupancy < 50) {
+      gymStatusEmoji = "🟡";
+      gymStatusLabel = isVi ? "Vừa phải" : "Moderate";
+    } else if (gymOccupancy >= 50) {
+      gymStatusEmoji = "🔴";
+      gymStatusLabel = isVi ? "Đông" : "Busy";
+    }
   }
 
-  // Fake recent visits based on last_check_in or today.
+  const baseDate =
+    member.last_checkin && typeof member.last_checkin === "string"
+      ? (() => {
+          const p = new Date(member.last_checkin);
+          return Number.isNaN(p.getTime()) ? new Date() : p;
+        })()
+      : new Date();
   const recentVisits: string[] = [];
-  const baseDate = member.last_check_in ? new Date(member.last_check_in) : new Date();
   for (let i = 0; i < 4; i += 1) {
     const d = new Date(baseDate);
     d.setDate(baseDate.getDate() - i * 2);
@@ -176,16 +243,35 @@ export default function DashboardPage() {
   }
 
   const totalVisits = member.total_visits ?? 0;
-  const sessionsThisMonth =
-    totalVisits === 0
-      ? 0
-      : Math.max(1, Math.min(totalVisits, 12));
+  const sessionsThisMonth = totalVisits === 0 ? 0 : Math.max(1, Math.min(totalVisits, 12));
 
-  // Optional: days until a fixed "March 2026" date to keep the design feeling alive.
-  const expiryDate = new Date("2026-03-31T23:59:59+07:00");
-  const today = new Date();
-  const diffMs = expiryDate.getTime() - today.getTime();
-  const daysRemaining = diffMs > 0 ? Math.ceil(diffMs / 86400000) : 0;
+  const rawStatus = (member.membership_status as string | undefined) ?? "active";
+  const statusLabel = isVi
+    ? rawStatus === "frozen"
+      ? "Tạm đóng băng"
+      : rawStatus === "cancelled"
+      ? "Đã hủy"
+      : "Đang hoạt động"
+    : rawStatus === "frozen"
+    ? "Frozen"
+    : rawStatus === "cancelled"
+    ? "Cancelled"
+    : "Active";
+
+  let expiry: Date | null = null;
+  if (member.membership_expires_at && typeof member.membership_expires_at === "string") {
+    const p = new Date(member.membership_expires_at);
+    expiry = Number.isNaN(p.getTime()) ? null : p;
+  }
+  const validUntilLabel = expiry
+    ? expiry.toLocaleDateString(isVi ? "vi-VN" : "en-US", { month: "short", year: "numeric" })
+    : isVi
+    ? "Chưa thiết lập"
+    : "Not set";
+  const daysRemaining =
+    expiry && expiry.getTime() > Date.now()
+      ? Math.ceil((expiry.getTime() - Date.now()) / 86400000)
+      : null;
 
   return (
     <div
@@ -304,14 +390,16 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-white/60">{isVi ? "Hạng thành viên" : "Member Tier"}</span>
                   <span className="text-white font-medium">
-                    {member.tier || (isVi ? "Thành viên sáng lập" : "Founder Member")}
+                    {member.tier?.trim() || (isVi ? "Thành viên sáng lập" : "Founder Member")}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
+                  <span className="text-white/60">{isVi ? "Trạng thái" : "Status"}</span>
+                  <span className="text-white font-medium">{statusLabel}</span>
+                </div>
+                <div className="flex items-center justify-between">
                   <span className="text-white/60">{isVi ? "Có hiệu lực đến" : "Valid Until"}</span>
-                  <span className="text-white font-medium">
-                    {isVi ? "Tháng 3 2026" : "March 2026"}
-                  </span>
+                  <span className="text-white font-medium">{validUntilLabel}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-white/60">{isVi ? "Mã thành viên" : "Member ID"}</span>
@@ -322,13 +410,13 @@ export default function DashboardPage() {
                     {isVi ? "Còn lại" : "Days remaining"}
                   </span>
                   <span className="text-white font-medium">
-                    {daysRemaining > 0
+                    {daysRemaining != null && daysRemaining > 0
                       ? isVi
                         ? `${daysRemaining} ngày`
                         : `${daysRemaining} days`
                       : isVi
-                      ? "Đã hết hạn (demo)"
-                      : "Expired (demo)"}
+                      ? "Không có"
+                      : "None"}
                   </span>
                 </div>
               </div>
@@ -361,8 +449,8 @@ export default function DashboardPage() {
               </div>
               <p className="mt-4 text-[11px] text-white/50">
                 {isVi
-                  ? "Ước lượng dựa trên khung giờ — số liệu trực tiếp sẽ sớm có."
-                  : "Estimate based on time of day — live occupancy coming soon."}
+                  ? "Số người đã check-in trong 2 giờ gần nhất."
+                  : "Members who checked in within the last 2 hours."}
               </p>
               <div className="mt-4 pt-3 border-t border-white/12">
                 <p className="text-xs font-semibold text-white/80 mb-2">
@@ -407,17 +495,60 @@ export default function DashboardPage() {
             )}
           </section>
 
-          {/* COMMUNITY LEADERBOARD (placeholder) */}
+          {/* COMMUNITY LEADERBOARD */}
           <section>
             <div className="rounded-3xl bg-black/26 border border-white/14 p-5 md:p-6 shadow-[0_16px_50px_rgba(0,0,0,0.5)]">
               <h2 className="text-sm font-semibold text-white/80 tracking-[0.18em] uppercase mb-3">
                 {isVi ? "BẢNG XẾP HẠNG CỘNG ĐỒNG" : "COMMUNITY LEADERBOARD"}
               </h2>
-              <p className="text-xs text-white/70">
-                {isVi
-                  ? "Trong giai đoạn thử nghiệm, bảng xếp hạng sẽ hiển thị tổng số buổi leo của từng thành viên và những người dẫn đầu mỗi tháng."
-                  : "During the pilot phase, this area will show total sessions for each member and highlight monthly leaders."}
-              </p>
+              {!leaderboard && (
+                <p className="text-xs text-white/60">{isVi ? "Đang tải…" : "Loading…"}</p>
+              )}
+              {leaderboard && leaderboard.top.length === 0 && (
+                <p className="text-xs text-white/70">
+                  {isVi ? "Chưa có dữ liệu cho tháng này." : "No leaderboard data for this month yet."}
+                </p>
+              )}
+              {leaderboard && leaderboard.top.length > 0 && (
+                <div className="space-y-3 text-xs text-white">
+                  <div className="space-y-1">
+                    {leaderboard.top.slice(0, 3).map((entry) => (
+                      <div
+                        key={entry.rank}
+                        className="flex items-center justify-between rounded-2xl bg-white/6 border border-white/20 px-4 py-2.5"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">
+                            {entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : entry.rank}
+                          </span>
+                          <div>
+                            <p className="text-sm font-medium">{entry.full_name}</p>
+                            <p className="text-[11px] text-white/60">
+                              {entry.visits} {isVi ? "lượt trong tháng này" : entry.visits === 1 ? "visit this month" : "visits this month"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {leaderboard.currentUser && (
+                    <div className="mt-2 pt-2 border-t border-white/15 text-[11px] text-white/70">
+                      <p>
+                        {isVi ? "Vị trí của bạn: " : "Your rank: "}
+                        {leaderboard.currentUser.rank != null
+                          ? `#${leaderboard.currentUser.rank}`
+                          : isVi
+                          ? "ngoài top 5"
+                          : "outside top 5"}
+                      </p>
+                      <p>
+                        {isVi ? "Lượt trong tháng này: " : "Visits this month: "}
+                        {leaderboard.currentUser.visits}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </section>
 

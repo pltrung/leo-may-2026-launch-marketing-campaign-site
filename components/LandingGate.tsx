@@ -17,16 +17,17 @@ export default function LandingGate({ children }: { children: React.ReactNode })
     pathname && (pathname === "/" || pathname === "/en" || pathname === "/vi")
   );
   const isGym = Boolean(pathname && pathname.includes("/gym"));
+  const isDashboard = Boolean(pathname && pathname.includes("/dashboard"));
 
   useEffect(() => {
-    if (isGym && typeof document !== "undefined") document.body.classList.add("loaded");
-  }, [isGym]);
+    if ((isGym || isDashboard) && typeof document !== "undefined") document.body.classList.add("loaded");
+  }, [isGym, isDashboard]);
 
   if (isHome) {
     return <LandingFlow>{children}</LandingFlow>;
   }
 
-  if (isGym) {
+  if (isGym || isDashboard) {
     return <>{children}</>;
   }
 

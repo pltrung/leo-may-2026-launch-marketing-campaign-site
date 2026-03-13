@@ -23,8 +23,16 @@ export default function GymHeader() {
   const loggedIn = Boolean(user && member);
 
   const handleLogout = async () => {
-    await signOut();
-    router.push(`/${locale}/gym`);
+    try {
+      await signOut();
+    } catch {
+      /* ignore */
+    }
+    if (typeof window !== "undefined") {
+      window.location.href = `/${locale}/gym`;
+    } else {
+      router.push(`/${locale}/gym`);
+    }
   };
 
   return (

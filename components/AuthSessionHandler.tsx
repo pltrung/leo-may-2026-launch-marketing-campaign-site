@@ -57,7 +57,13 @@ export default function AuthSessionHandler({ children }: { children: React.React
   const isHero = pathname === `/${locale}` || pathname === `/${locale}/`;
 
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
+    let supabase;
+    try {
+      supabase = getSupabaseBrowserClient();
+    } catch {
+      setSessionCheckComplete(true);
+      return;
+    }
 
     let mounted = true;
 
