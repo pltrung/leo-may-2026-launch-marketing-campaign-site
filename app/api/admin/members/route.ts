@@ -122,13 +122,20 @@ export async function GET(req: NextRequest) {
       label: formatRecent(r.timestamp as string),
     }));
 
-    const statusRaw = (memberRow.membership_status as string | null) || "active";
+    const statusRaw = (memberRow.membership_status as string | null) || "inactive";
+    const expiresAt = memberRow.membership_expires_at
+      ? new Date(memberRow.membership_expires_at as string).getTime()
+      : 0;
+    const hasValidMembership = statusRaw === "active" && expiresAt > Date.now();
+
     const status =
       statusRaw === "frozen"
         ? ("Frozen" as const)
         : statusRaw === "cancelled"
         ? ("Cancelled" as const)
-        : ("Active" as const);
+        : hasValidMembership
+        ? ("Active" as const)
+        : ("Inactive" as const);
 
     let validUntil = "March 2026";
     if (memberRow.membership_expires_at) {

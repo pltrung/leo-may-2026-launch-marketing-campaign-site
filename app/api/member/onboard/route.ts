@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
         phone,
         full_name: fullName,
         tier: "Explorer",
+        membership_status: "inactive",
       })
       .select("id")
       .single();

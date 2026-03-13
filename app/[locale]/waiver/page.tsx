@@ -269,7 +269,7 @@ export default function WaiverPage() {
   const locale = useLocale();
   const router = useRouter();
   const m = getMessages(locale as "en" | "vi").waiver;
-  const { user, member, loading } = useMemberAuth();
+  const { user, member, loading, refresh } = useMemberAuth();
   const [fullName, setFullName] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [signature, setSignature] = useState("");
@@ -350,6 +350,7 @@ export default function WaiverPage() {
         setSubmitting(false);
         return;
       }
+      await refresh();
       router.replace(`/${locale}/dashboard`);
     } catch {
       setError("Something went wrong");

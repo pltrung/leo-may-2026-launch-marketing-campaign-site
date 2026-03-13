@@ -407,6 +407,13 @@ export default function DashboardPage() {
 
           {/* CHECK IN */}
           <section>
+            {!isActive && (
+              <div className="w-full max-w-3xl mb-4 rounded-xl bg-amber-500/15 border border-amber-400/30 px-4 py-3 text-sm text-amber-200/90">
+                {isVi
+                  ? "Mua Day Pass hoặc gói thành viên bên dưới để check-in."
+                  : "Purchase a Day Pass or membership below to check in."}
+              </div>
+            )}
             <div className="rounded-3xl bg-black/35 border border-white/12 shadow-[0_22px_70px_rgba(0,0,0,0.65)] px-6 py-7 md:px-7 md:py-8 flex flex-col items-center">
               <div className="w-full flex items-center justify-between mb-4">
                 <h2 className="text-sm font-semibold text-white/80 tracking-[0.18em] uppercase">
@@ -478,10 +485,12 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div className="mt-4 pt-3 border-t border-white/10 text-xs text-white/70 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span>{isVi ? "Tham gia từ" : "Member since"}</span>
-                  <span className="text-white/90">{memberSince}</span>
-                </div>
+                {isActive && (
+                  <div className="flex items-center justify-between">
+                    <span>{isVi ? "Tham gia từ" : "Member since"}</span>
+                    <span className="text-white/90">{memberSince}</span>
+                  </div>
+                )}
                 {rawStatus === "active" && isActive && (
                   <div className="pt-2">
                     <button

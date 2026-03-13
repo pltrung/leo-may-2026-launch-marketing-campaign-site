@@ -158,6 +158,7 @@ export async function POST(request: NextRequest) {
       phone: waitlistRow.phone ?? null,
       full_name: waitlistRow.name ?? "Member",
       tier,
+      membership_status: "inactive",
     });
 
     if (insertMemberErr) {

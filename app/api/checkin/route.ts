@@ -5,6 +5,7 @@ import { createServerClient } from "@/lib/supabaseServer";
  * POST /api/checkin
  * Body: { member_id: string }
  * Inserts a gym check-in. Verification is server-side when staff scans QR.
+ * Requires active membership with valid expiry.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -17,6 +18,29 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServerClient();
+    const { data: profile, error: profileErr } = await supabase
+      .from("member_profiles")
+      .select("membership_status, membership_expires_at")
+      .eq("id", memberId)
+      .maybeSingle();
+
+    if (profileErr || !profile) {
+      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+
+    const status = (profile.membership_status as string) ?? "inactive";
+    const expiresAt = profile.membership_expires_at
+      ? new Date(profile.membership_expires_at as string)
+      : null;
+    const hasValidMembership =
+      status === "active" && expiresAt && expiresAt.getTime() > Date.now();
+
+    if (!hasValidMembership) {
+      return NextResponse.json(
+        { error: "Membership inactive or expired. Purchase a pass to check in." },
+        { status: 403 }
+      );
+    }
     const { error } = await supabase.from("gym_checkins").insert({
       member_id: memberId,
       location: location ?? null,

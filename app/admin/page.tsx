@@ -11,7 +11,7 @@ interface AdminMember {
   email?: string | null;
   phone?: string | null;
   membershipType: MembershipType | string;
-  status: "Active" | "Frozen" | "Cancelled";
+  status: "Active" | "Inactive" | "Frozen" | "Cancelled";
   validUntil: string;
   checkinsThisMonth: number;
   totalVisits: number;
@@ -156,7 +156,10 @@ export default function AdminPage() {
     setActionMessage("Scanner ready — focus the search field and scan the member QR.");
   }, []);
 
-  const canCheckIn = useMemo(() => !!foundMember, [foundMember]);
+  const canCheckIn = useMemo(
+    () => !!foundMember && foundMember.status === "Active",
+    [foundMember]
+  );
 
   const loadMemberById = useCallback(async (id: string) => {
     setSearchError(null);
@@ -716,6 +719,11 @@ export default function AdminPage() {
                   <h3 className="text-xs font-semibold tracking-[0.18em] uppercase mb-4">
                     Check-in Actions
                   </h3>
+                  {!canCheckIn && foundMember?.status === "Inactive" && (
+                    <p className="text-amber-300/90 text-sm mb-3">
+                      Collect payment first to enable check-in.
+                    </p>
+                  )}
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
