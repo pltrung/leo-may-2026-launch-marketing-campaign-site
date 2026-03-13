@@ -10,6 +10,7 @@ import { getMessages } from "@/lib/messages";
 import { useMemberAuth } from "@/lib/useMemberAuth";
 import { HERO_BG } from "@/lib/heroConstants";
 import SafeLanguageSwitch from "@/components/SafeLanguageSwitch";
+import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 
 const QRCodeSVG = dynamic(
   () => import("qrcode.react").then((m) => m.QRCodeSVG),
@@ -213,6 +214,70 @@ export default function DashboardPage() {
   // Simple weekly streak approximation (can be wired to real check-in history later)
   const weeklyVisits = Math.min(totalVisits, 7);
   const hasWeeklyReward = weeklyVisits >= 5;
+
+  // Community leaderboard state
+  type LeaderboardEntry = {
+    rank: number;
+    member_id: string;
+    full_name: string;
+    visits: number;
+  };
+
+  type LeaderboardResponse = {
+    top: LeaderboardEntry[];
+    currentUser: {
+      rank: number | null;
+      visits: number;
+      full_name: string;
+    };
+  };
+
+  const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
+  const [leaderboardLoading, setLeaderboardLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    if (!mounted || loading || !user || !member) return;
+
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          if (!cancelled) setLeaderboardLoading(false);
+          return;
+        }
+        const res = await fetch("/api/member/leaderboard", {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+        const data = (await res.json()) as LeaderboardResponse & { error?: string };
+        if (!res.ok) {
+          if (!cancelled) {
+            setLeaderboardError(data?.error || "Something went wrong, try again.");
+          }
+        } else if (!cancelled) {
+          setLeaderboard(data);
+          setLeaderboardError(null);
+        }
+      } catch {
+        if (!cancelled) setLeaderboardError("Something went wrong, try again.");
+      } finally {
+        if (!cancelled) setLeaderboardLoading(false);
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, loading, user, member]);
 
   return (
     <div
