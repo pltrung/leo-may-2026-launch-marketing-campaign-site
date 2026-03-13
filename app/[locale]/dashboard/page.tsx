@@ -190,7 +190,7 @@ export default function DashboardPage() {
     <div
       className="min-h-screen flex flex-col"
       style={{
-        background: "linear-gradient(to bottom, #BEE7FF 0%, #EAF6FF 45%, #FFFFFF 100%)",
+        background: "linear-gradient(180deg, #0B0B0F 0%, #12121a 40%, #1a1a2e 100%)",
       }}
     >
       {/* HEADER */}
@@ -456,29 +456,26 @@ export default function DashboardPage() {
         </div>
       </main>
 
-      {/* Cloud divider above footer */}
-      <div className="w-full h-16 md:h-20 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.9)_0,_rgba(255,255,255,0.7)_45%,_rgba(255,255,255,0)_75%)]" />
-
       {/* FOOTER */}
-      <footer className="w-full border-t border-white/20 bg-white/80 backdrop-blur-md">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-[#1b2735]/80">
+      <footer className="w-full border-t border-white/10 bg-black/20 backdrop-blur-md">
+        <div className="max-w-3xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-white/70">
           <div className="flex items-center gap-4">
             <a
               href={SOCIAL_LINKS.instagram}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-[#0b1320]"
+              className="hover:text-white"
             >
               Instagram
             </a>
-            <Link href={`mailto:hello@leomay.vn`} className="hover:text-[#0b1320]">
+            <Link href={`mailto:hello@leomay.vn`} className="hover:text-white">
               {isVi ? "Liên hệ" : "Contact"}
             </Link>
-            <Link href={`/${locale}/rules`} className="hover:text-[#0b1320]">
+            <Link href={`/${locale}/rules`} className="hover:text-white">
               {isVi ? "Nội quy" : "Rules"}
             </Link>
           </div>
-          <div className="text-[10px] text-[#1b2735]/60">
+          <div className="text-[10px] text-white/50">
             © Leo Mây {new Date().getFullYear()}
           </div>
         </div>
