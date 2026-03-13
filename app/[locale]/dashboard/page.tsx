@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import Logo from "@/components/Logo";
 import { useLocale } from "@/components/LocaleProvider";
 import { getMessages } from "@/lib/messages";
 import { useMemberAuth } from "@/lib/useMemberAuth";
@@ -33,7 +34,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!mounted || loading) return;
     if (!user) {
-      router.replace(`/${locale}/login`);
+      router.replace(`/${locale}/gym`);
       return;
     }
     if (member && !member.waiver_signed) {
@@ -108,9 +109,14 @@ export default function DashboardPage() {
       }}
     >
       <header className="sticky top-0 z-10 flex items-center justify-between px-4 md:px-8 py-4 bg-black/20 backdrop-blur-md border-b border-white/10">
-        <Link href={`/${locale}/gym`} className="flex items-center text-white/90 text-sm">
-          ← Gym
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href={`/${locale}/gym`} className="flex items-center text-white/80 text-sm hover:text-white">
+            ← Gym
+          </Link>
+          <div className="hidden md:flex items-center">
+            <Logo className="h-7 w-auto object-contain" />
+          </div>
+        </div>
         <div className="flex items-center gap-4">
           <Link
             href={`/${locale}/dashboard`}
@@ -120,7 +126,11 @@ export default function DashboardPage() {
           </Link>
           <button
             type="button"
-            onClick={() => signOut().then(() => router.replace(`/${locale}/login`))}
+            onClick={() =>
+              signOut().then(() => {
+                router.replace(`/${locale}/gym`);
+              })
+            }
             className="text-white/70 text-sm hover:text-white"
           >
             Logout
@@ -129,6 +139,9 @@ export default function DashboardPage() {
       </header>
 
       <main className="px-4 md:px-8 py-8 max-w-lg mx-auto">
+        <div className="flex justify-center mb-6 md:hidden">
+          <Logo className="h-8 w-auto object-contain" />
+        </div>
         <h1
           className="text-2xl font-bold text-white mb-8"
           style={{ fontFamily: "MiSans-Bold, sans-serif" }}

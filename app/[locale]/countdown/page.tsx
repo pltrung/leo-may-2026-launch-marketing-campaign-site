@@ -41,6 +41,7 @@ import { getAscensionEnergyVars } from "@/lib/ascensionEnergy";
 import VerificationModal from "@/components/VerificationModal";
 import { createBrowserClient } from "@/lib/supabaseBrowser";
 import { HERO_BG } from "@/lib/heroConstants";
+import { getSkyTheme, getLocalTimeHours } from "@/components/gym/theme/skyTheme";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -329,6 +330,14 @@ function CountdownPageContent() {
   const teamCount = useTeamCount((user?.team ?? "may_nhe") as CloudType);
   const leaderboard = useLeaderboard();
   const { days, hours, minutes, seconds } = useCountdown();
+  const [skyBg, setSkyBg] = useState<string>(() => getSkyTheme(getLocalTimeHours()).bgGradient);
+
+  useEffect(() => {
+    const update = () => setSkyBg(getSkyTheme(getLocalTimeHours()).bgGradient);
+    update();
+    const id = setInterval(update, 60000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!shouldAnimateVerifiedBadge || !profile.isVerified) return;
@@ -585,7 +594,7 @@ function CountdownPageContent() {
       {/* 1) Dark background — bottom layer */}
       <div
         className="fixed inset-0 pointer-events-none"
-        style={{ background: HERO_BG, zIndex: 1 }}
+        style={{ background: skyBg, zIndex: 1 }}
         aria-hidden
       />
       {/* 2) Starfield (twinkle, drift, shooting stars) — above dark, below all UI */}
