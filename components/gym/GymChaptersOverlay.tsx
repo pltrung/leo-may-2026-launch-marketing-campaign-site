@@ -104,9 +104,9 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
       }}
       aria-hidden
     >
-      {/* On mobile: extra top padding so title/subtitle sit lower (not touching GLB); title closer to CTA */}
-      <div className="flex-1 flex flex-col min-h-0 w-full max-w-2xl mx-auto px-4 md:px-8 pt-[48vh] md:pt-0">
-        {/* Title: on desktop above island; on mobile below GLB zone */}
+      {/* Mobile keeps extra top padding so text sits below GLB; desktop uses a centered vertical stack so title, island, and CTA feel like one unit */}
+      <div className="flex-1 flex flex-col min-h-0 w-full max-w-2xl mx-auto px-4 md:px-8 pt-[48vh] md:pt-[12vh] md:pb-[12vh] md:gap-7">
+        {/* Title block: compact vertical spacing (title + subtitle) */}
         <div className="flex-shrink-0 pt-2 pb-2 md:pb-6 md:pb-8 flex flex-col items-center text-center">
           <div className="relative w-full min-h-[4.5rem] md:min-h-[5rem]">
             {chapterStates.map(({ id, opacity, translateY }) => {
@@ -135,16 +135,20 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
                       fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
                       color: titleColor ?? undefined,
                       fontSize: "clamp(28px, 5vw, 48px)",
+                      textShadow:
+                        "0 0 14px rgba(0,0,0,0.75), 0 0 26px rgba(0,0,0,0.9)",
                     }}
                   >
                     <span className="block">{headline}</span>
                   </h1>
                   <p
-                    className="mt-2 md:mt-3 text-white/85 max-w-xl w-full"
+                    className="mt-2 md:mt-3 text-white/90 max-w-xl w-full"
                     style={{
                       fontFamily: "MiSans-Regular, sans-serif",
                       fontSize: "clamp(14px, 2.5vw, 20px)",
                       lineHeight: 1.25,
+                      textShadow:
+                        "0 0 10px rgba(0,0,0,0.7), 0 0 18px rgba(0,0,0,0.85)",
                     }}
                   >
                     {subline}
@@ -155,17 +159,19 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
           </div>
         </div>
 
-        {/* Middle: on desktop reserved for GLB; on mobile collapsed (title/CTA already below 42vh) */}
-        <div className="flex-1 min-h-0 hidden md:block" />
+        {/* Middle: previously a large spacer; removed on desktop so text + GLB + CTA feel vertically connected */}
+        <div className="hidden" />
 
-        {/* CTA: below GLB; on mobile closer to title (pt-4); fades in with smoothstep when intro text reveals */}
+        {/* CTA: directly under the island zone; fades in with smoothstep when intro text reveals */}
         <div
-          className="flex-shrink-0 pt-4 pb-2 md:pt-10 md:pb-2 flex flex-col items-center justify-end"
+          className="flex-shrink-0 pt-4 pb-2 md:pt-4 md:pb-0 flex flex-col items-center"
           style={{ opacity: ctaBlockOpacity }}
         >
           {!isIntroGlbOnly && (
             <div
-              className={`pointer-events-auto flex flex-wrap items-center justify-center gap-3 mb-12 md:mb-0 ${activeId === "membership" ? "mt-8 md:mt-10" : "mt-4 md:mt-8"}`}
+              className={`pointer-events-auto flex flex-wrap items-center justify-center gap-3 mb-6 md:mb-0 ${
+                activeId === "membership" ? "mt-3 md:mt-4" : "mt-3 md:mt-4"
+              }`}
             >
               {activeId === "intro" && (
                 <button
@@ -174,7 +180,7 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
                     e.stopPropagation();
                     openAboutModal();
                   }}
-                  className="px-6 py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-transparent hover:bg-white/10 transition-colors"
+                  className="px-6 py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-black/30 hover:bg-black/40 transition-colors"
                   style={{ letterSpacing: "0.08em", fontFamily: "MiSans-Regular, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
                   aria-label={messages.about.title}
                 >
@@ -188,7 +194,7 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
                     e.stopPropagation();
                     openLocationModal();
                   }}
-                  className="px-6 py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-transparent hover:bg-white/10 transition-colors"
+                  className="px-6 py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-black/30 hover:bg-black/40 transition-colors"
                   style={{ letterSpacing: "0.08em", fontFamily: "MiSans-Regular, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
                 >
                   {locationTitle}
@@ -201,7 +207,7 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
                     e.stopPropagation();
                     openPricingModal();
                   }}
-                  className="px-6 py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-transparent hover:bg-white/10 transition-colors"
+                  className="px-6 py-3 rounded-full border border-white/70 text-white font-medium tracking-wider uppercase text-sm md:text-base bg-black/30 hover:bg-black/40 transition-colors"
                   style={{ letterSpacing: "0.08em", fontFamily: "MiSans-Regular, sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
                 >
                   {pricingTitle}

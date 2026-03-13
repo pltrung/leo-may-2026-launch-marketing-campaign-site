@@ -21,6 +21,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const fullName = typeof body.full_name === "string" ? body.full_name.trim() : "";
     const agreed = body.agreed === true;
+    const signature = typeof body.signature_data === "string" ? body.signature_data.trim() || null : null;
+    const waiverText = typeof body.waiver_text === "string" ? body.waiver_text : null;
 
     if (!fullName || !agreed) {
       return NextResponse.json(
@@ -38,23 +40,52 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServerClient();
-    const { error } = await supabase
+
+    const { data: member, error: memberErr } = await supabase
+      .from("member_profiles")
+      .select("id")
+      .eq("auth_id", user.id)
+      .maybeSingle();
+
+    if (memberErr || !member?.id) {
+      console.error("Waiver member lookup error:", memberErr);
+      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+
+    const now = new Date().toISOString();
+
+    const { error: updateErr } = await supabase
       .from("member_profiles")
       .update({
         waiver_signed: true,
-        waiver_signed_at: new Date().toISOString(),
+        waiver_signed_at: now,
         full_name: fullName,
-        updated_at: new Date().toISOString(),
+        updated_at: now,
       })
-      .eq("auth_id", user.id);
+      .eq("id", member.id);
 
-    if (error) {
-      console.error("Waiver update error:", error);
+    if (updateErr) {
+      console.error("Waiver update error:", updateErr);
       return NextResponse.json({ error: "Failed to save waiver" }, { status: 500 });
     }
 
+    if (waiverText) {
+      const { error: insertErr } = await supabase.from("member_waivers").insert({
+        member_id: member.id,
+        full_name: fullName,
+        waiver_text: waiverText,
+        signature,
+      });
+
+      if (insertErr) {
+        console.error("Waiver insert error:", insertErr);
+        return NextResponse.json({ error: "Failed to save waiver record" }, { status: 500 });
+      }
+    }
+
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (e) {
+    console.error("Waiver route error:", e);
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }
