@@ -106,6 +106,22 @@ export default function DashboardPage() {
     return () => { cancelled = true; };
   }, [accessToken]);
 
+  const handleFreeze = useCallback(async () => {
+    if (!accessToken) return;
+    setFreezeLoading(true);
+    try {
+      const res = await fetch("/api/member/membership", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ action: "freeze" }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      if (typeof window !== "undefined") window.location.reload();
+    } catch {
+      setFreezeLoading(false);
+    }
+  }, [accessToken]);
+
   // Fullscreen QR: keep screen awake while open.
   useEffect(() => {
     if (!isQrModalOpen) {
@@ -278,23 +294,6 @@ export default function DashboardPage() {
       ? Math.ceil((expiry.getTime() - Date.now()) / 86400000)
       : null;
   const isActive = rawStatus === "active" && daysRemaining != null && daysRemaining > 0;
-
-  const handleFreeze = useCallback(async () => {
-    if (!accessToken) return;
-    setFreezeLoading(true);
-    try {
-      const res = await fetch("/api/member/membership", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ action: "freeze" }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      router.refresh();
-      if (typeof window !== "undefined") window.location.reload();
-    } catch {
-      setFreezeLoading(false);
-    }
-  }, [accessToken, router]);
 
   return (
     <div
