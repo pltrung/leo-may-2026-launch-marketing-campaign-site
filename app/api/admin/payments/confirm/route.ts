@@ -3,7 +3,7 @@ import { createServerClient } from "@/lib/supabaseServer";
 
 /**
  * POST - Confirm payment and extend membership
- * Body: { member_id, plan_id }
+ * Body: { member_id, plan_id, method?: "vietqr" | "cash" }
  */
 export async function POST(req: NextRequest) {
   const supabase = createServerClient();
@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const memberId = typeof body.member_id === "string" ? body.member_id.trim() : "";
     const planId = typeof body.plan_id === "string" ? body.plan_id.trim() : "";
+    const method = body.method === "cash" ? "cash" : "vietqr";
     if (!memberId || !planId) {
       return NextResponse.json({ error: "member_id and plan_id required" }, { status: 400 });
     }
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
       member_id: memberId,
       plan_id: planId,
       amount: amountVnd,
-      method: "vietqr",
+      method,
       status: "success",
       memo,
     });

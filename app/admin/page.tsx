@@ -36,6 +36,7 @@ export default function AdminPage() {
   const [plans, setPlans] = useState<{ id: string; name: string; duration_days: number; price_vnd: number }[]>([]);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentQrFullscreen, setPaymentQrFullscreen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"vietqr" | "cash">("vietqr");
   const [paymentPlanId, setPaymentPlanId] = useState<string>("explorer_month");
   const [paymentQrUrl, setPaymentQrUrl] = useState<string | null>(null);
   const [paymentPlanName, setPaymentPlanName] = useState("");
@@ -49,6 +50,18 @@ export default function AdminPage() {
   const [nameResults, setNameResults] = useState<NameSearchResult[]>([]);
   const [paymentReceived, setPaymentReceived] = useState(false);
   const lastPaymentCountRef = React.useRef<number | null>(null);
+  const [toolsModal, setToolsModal] = useState<"occupancy" | "checkins" | "revenue" | null>(null);
+  const [checkinsData, setCheckinsData] = useState<{
+    checkins: { id: string; member_name: string; member_code: string | null; timestamp: string }[];
+    byDay: Record<string, { id: string; member_name: string; member_code: string | null; timestamp: string }[]>;
+  } | null>(null);
+  const [revenueData, setRevenueData] = useState<{
+    period: string;
+    total: number;
+    byPlan: Record<string, number>;
+    payments: { id?: string; plan_name: string; amount: number; method: string; created_at: string }[];
+  } | null>(null);
+  const [revenuePeriod, setRevenuePeriod] = useState<"day" | "week" | "month">("day");
 
   // Fetch plans
   useEffect(() => {
@@ -106,6 +119,24 @@ export default function AdminPage() {
     const id = setInterval(poll, 4000);
     return () => clearInterval(id);
   }, [foundMember?.id, loadMemberById]);
+
+  // Fetch check-ins when modal opens
+  useEffect(() => {
+    if (toolsModal !== "checkins") return;
+    fetch("/api/admin/checkins?days=7")
+      .then((r) => r.json())
+      .then((d) => setCheckinsData({ checkins: d.checkins ?? [], byDay: d.byDay ?? {} }))
+      .catch(() => setCheckinsData({ checkins: [], byDay: {} }));
+  }, [toolsModal]);
+
+  // Fetch revenue when modal opens or period changes
+  useEffect(() => {
+    if (toolsModal !== "revenue") return;
+    fetch(`/api/admin/revenue?period=${revenuePeriod}`)
+      .then((r) => r.json())
+      .then((d) => setRevenueData(d))
+      .catch(() => setRevenueData(null));
+  }, [toolsModal, revenuePeriod]);
 
   // Poll real-time-ish occupancy from backend.
   useEffect(() => {
@@ -371,6 +402,7 @@ export default function AdminPage() {
     if (!foundMember) return;
     setPaymentModalOpen(true);
     setPaymentPlanId("explorer_month");
+    setPaymentMethod("vietqr");
     setPaymentQrUrl(null);
     setPaymentPlanName("");
     setPaymentPrice(0);
@@ -409,7 +441,7 @@ export default function AdminPage() {
       const res = await fetch("/api/admin/payments/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ member_id: foundMember.id, plan_id: paymentPlanId }),
+        body: JSON.stringify({ member_id: foundMember.id, plan_id: paymentPlanId, method: paymentMethod }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed");
@@ -434,7 +466,7 @@ export default function AdminPage() {
     } finally {
       setActionLoading(null);
     }
-  }, [foundMember, paymentPlanId, paymentPlanName, paymentPrice]);
+  }, [foundMember, paymentPlanId, paymentPlanName, paymentPrice, paymentMethod]);
 
   const handleUpgrade = useCallback(() => {
     if (!foundMember) return;
@@ -838,32 +870,58 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <button
                   type="button"
+                  onClick={() => document.getElementById("new-member-form")?.scrollIntoView({ behavior: "smooth" })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
                 >
                   Add New Member
                 </button>
                 <button
                   type="button"
+                  onClick={() => {
+                    if (foundMember) {
+                      setPaymentPlanId("day_pass");
+                      handlePaymentPlanChange("day_pass");
+                      setPaymentModalOpen(true);
+                    } else {
+                      setActionError("Search for a member first to generate Day Pass.");
+                    }
+                  }}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
                 >
                   Generate Day Pass
                 </button>
                 <button
                   type="button"
+                  onClick={() => setToolsModal("checkins")}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
+                >
+                  Recent Check-ins
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setToolsModal("occupancy")}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
+                >
+                  View Gym Occupancy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.open("/en/countdown", "_blank")}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
                 >
                   View Leaderboard
                 </button>
                 <button
                   type="button"
+                  onClick={() => setToolsModal("revenue")}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
                 >
-                  View Gym Occupancy
+                  Revenue
                 </button>
               </div>
             </div>
 
-            <div className="rounded-2xl bg-white/95 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">
+            <div id="new-member-form" className="rounded-2xl bg-white/95 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">
               <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
                 New Member
               </h3>
@@ -926,6 +984,117 @@ export default function AdminPage() {
         </div>
       </main>
 
+      {/* Admin Tools Modals */}
+      {toolsModal === "occupancy" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-slate-900">Gym Occupancy</h3>
+              <button type="button" onClick={() => setToolsModal(null)} className="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
+            </div>
+            <p className="text-4xl font-bold text-slate-900">{gymOccupancy}</p>
+            <p className="text-sm text-slate-500 mt-1">climber{gymOccupancy === 1 ? "" : "s"} inside (last 2 hours)</p>
+          </div>
+        </div>
+      )}
+
+      {toolsModal === "checkins" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="text-lg font-semibold text-slate-900">Recent Check-ins (7 days)</h3>
+              <button type="button" onClick={() => setToolsModal(null)} className="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
+            </div>
+            <div className="overflow-y-auto p-4 space-y-4">
+              {!checkinsData && <p className="text-sm text-slate-500">Loading…</p>}
+              {checkinsData && Object.keys(checkinsData.byDay).length === 0 && (
+                <p className="text-sm text-slate-500">No check-ins in the last 7 days.</p>
+              )}
+              {checkinsData && Object.entries(checkinsData.byDay)
+                .sort(([a], [b]) => b.localeCompare(a))
+                .map(([date, items]) => (
+                  <div key={date}>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                      {new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                    </p>
+                    <ul className="space-y-1.5">
+                      {items.map((c) => (
+                        <li key={(c as { id?: string }).id ?? c.timestamp} className="flex justify-between items-center text-sm py-1.5 px-3 rounded-lg bg-slate-50">
+                          <span className="font-medium text-slate-800">{c.member_name}</span>
+                          <span className="text-slate-500 text-xs">
+                            {new Date(c.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                            {c.member_code && ` • ${c.member_code}`}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toolsModal === "revenue" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="text-lg font-semibold text-slate-900">Revenue</h3>
+              <button type="button" onClick={() => setToolsModal(null)} className="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="flex gap-2">
+                {(["day", "week", "month"] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setRevenuePeriod(p)}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium ${
+                      revenuePeriod === p ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    {p === "day" ? "Today" : p === "week" ? "This Week" : "This Month"}
+                  </button>
+                ))}
+              </div>
+              {!revenueData && <p className="text-sm text-slate-500">Loading…</p>}
+              {revenueData && (
+                <>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {revenueData.total.toLocaleString("vi-VN")} VND
+                  </p>
+                  {Object.keys(revenueData.byPlan).length > 0 && (
+                    <div className="space-y-1.5 text-sm">
+                      <p className="font-medium text-slate-600">By plan:</p>
+                      {Object.entries(revenueData.byPlan).map(([plan, amt]) => (
+                        <div key={plan} className="flex justify-between">
+                          <span className="text-slate-700">{plan}</span>
+                          <span className="font-medium">{amt.toLocaleString("vi-VN")} VND</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="border-t pt-3 mt-3">
+                    <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Payments</p>
+                    {revenueData.payments.length === 0 && (
+                      <p className="text-sm text-slate-500">No payments in this period.</p>
+                    )}
+                    <ul className="space-y-1 max-h-40 overflow-y-auto">
+                      {revenueData.payments.map((p) => (
+                        <li key={p.id ?? p.created_at} className="flex justify-between text-xs py-1">
+                          <span>{p.plan_name} — {p.method}</span>
+                          <span>{p.amount.toLocaleString("vi-VN")} VND</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Collect Payment Modal */}
       {paymentModalOpen && foundMember && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -945,6 +1114,29 @@ export default function AdminPage() {
                 ))}
               </select>
             </div>
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-slate-600">Payment method</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("vietqr")}
+                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border ${
+                    paymentMethod === "vietqr" ? "bg-slate-900 text-white border-slate-900" : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  VietQR / Bank
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("cash")}
+                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border ${
+                    paymentMethod === "cash" ? "bg-slate-900 text-white border-slate-900" : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  Cash
+                </button>
+              </div>
+            </div>
             {paymentPlanName && (
               <>
                 <div className="grid grid-cols-2 gap-2 text-sm">
@@ -955,7 +1147,7 @@ export default function AdminPage() {
                   <span className="text-slate-500">Member ID</span>
                   <span className="font-medium">{foundMember.displayId ?? foundMember.id}</span>
                 </div>
-                {paymentQrUrl && (
+                {paymentMethod === "vietqr" && paymentQrUrl && (
                   <div className="flex flex-col items-center py-2 gap-1">
                     <button
                       type="button"
@@ -967,7 +1159,12 @@ export default function AdminPage() {
                     <p className="text-[11px] text-slate-500">Tap to enlarge</p>
                   </div>
                 )}
-                <p className="text-xs text-slate-500">Customer scans with banking app, MoMo, or ZaloPay. Confirm after payment received.</p>
+                {paymentMethod === "cash" && (
+                  <p className="text-sm text-slate-600 py-2">Collect {paymentPrice.toLocaleString("vi-VN")} VND in cash. Confirm when received.</p>
+                )}
+                {paymentMethod === "vietqr" && (
+                  <p className="text-xs text-slate-500">Customer scans with banking app, MoMo, or ZaloPay. Confirm after payment received.</p>
+                )}
               </>
             )}
             <div className="flex gap-3 pt-2">
@@ -981,7 +1178,7 @@ export default function AdminPage() {
               <button
                 type="button"
                 onClick={handleConfirmPayment}
-                disabled={!paymentQrUrl || actionLoading === "confirm"}
+                disabled={(!paymentPlanName || (paymentMethod === "vietqr" && !paymentQrUrl)) || actionLoading === "confirm"}
                 className="flex-1 px-4 py-2 rounded-full text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60"
               >
                 {actionLoading === "confirm" ? "Confirming..." : "Confirm Payment"}
