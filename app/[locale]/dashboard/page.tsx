@@ -318,7 +318,7 @@ export default function DashboardPage() {
     expiry = Number.isNaN(p.getTime()) ? null : p;
   }
   const validUntilLabel = expiry
-    ? expiry.toLocaleDateString(isVi ? "vi-VN" : "en-US", { month: "short", year: "numeric" })
+    ? expiry.toLocaleDateString(isVi ? "vi-VN" : "en-US", { day: "numeric", month: "short", year: "numeric" })
     : isVi
     ? "Chưa thiết lập"
     : "Not set";

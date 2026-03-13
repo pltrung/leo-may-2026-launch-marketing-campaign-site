@@ -137,10 +137,10 @@ export async function GET(req: NextRequest) {
         ? ("Active" as const)
         : ("Inactive" as const);
 
-    let validUntil = "March 2026";
+    let validUntil = "—";
     if (memberRow.membership_expires_at) {
       const d = new Date(memberRow.membership_expires_at as string);
-      validUntil = d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+      validUntil = d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
     }
 
     const responseMember = {

@@ -46,6 +46,8 @@ export default function AdminPage() {
   const [newMemberType, setNewMemberType] = useState<MembershipType>("Founder Member");
   const [gymOccupancy, setGymOccupancy] = useState(0);
   const [nameResults, setNameResults] = useState<NameSearchResult[]>([]);
+  const [paymentReceived, setPaymentReceived] = useState(false);
+  const lastPaymentCountRef = React.useRef<number | null>(null);
 
   // Fetch plans
   useEffect(() => {
@@ -55,17 +57,54 @@ export default function AdminPage() {
       .catch(() => {});
   }, []);
 
-  // Fetch recent payments when member found
+  const loadMemberById = useCallback(async (id: string) => {
+    setSearchError(null);
+    setActionError(null);
+    setActionMessage(null);
+    try {
+      const res = await fetch(`/api/admin/members?id=${encodeURIComponent(id)}`);
+      const data = await res.json();
+      if (!res.ok || !data.member) {
+        setSearchError(data.error || "Member not found.");
+        return;
+      }
+      setFoundMember(data.member as AdminMember);
+      setNameResults([]);
+    } catch {
+      setSearchError("Unable to load member.");
+    }
+  }, []);
+
+  // Fetch and poll recent payments when member found; detect new payment for auto webhook
   useEffect(() => {
     if (!foundMember?.id) {
       setRecentPayments([]);
+      lastPaymentCountRef.current = null;
       return;
     }
-    fetch(`/api/admin/payments?member_id=${encodeURIComponent(foundMember.id)}`)
-      .then((r) => r.json())
-      .then((d) => setRecentPayments(d.payments ?? []))
-      .catch(() => setRecentPayments([]));
-  }, [foundMember?.id]);
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/admin/payments?member_id=${encodeURIComponent(foundMember.id)}`);
+        const data = await res.json();
+        const payments = (data.payments ?? []) as { id: string; plan_name: string; amount: number; created_at: string }[];
+        const prevCount = lastPaymentCountRef.current;
+        setRecentPayments(payments);
+        if (prevCount !== null && payments.length > prevCount) {
+          setPaymentReceived(true);
+          loadMemberById(foundMember.id);
+          setTimeout(() => setPaymentReceived(false), 8000);
+        }
+        lastPaymentCountRef.current = payments.length;
+      } catch {
+        /* ignore */
+      }
+    };
+
+    poll();
+    const id = setInterval(poll, 4000);
+    return () => clearInterval(id);
+  }, [foundMember?.id, loadMemberById]);
 
   // Poll real-time-ish occupancy from backend.
   useEffect(() => {
@@ -160,24 +199,6 @@ export default function AdminPage() {
     () => !!foundMember && foundMember.status === "Active",
     [foundMember]
   );
-
-  const loadMemberById = useCallback(async (id: string) => {
-    setSearchError(null);
-    setActionError(null);
-    setActionMessage(null);
-    try {
-      const res = await fetch(`/api/admin/members?id=${encodeURIComponent(id)}`);
-      const data = await res.json();
-      if (!res.ok || !data.member) {
-        setSearchError(data.error || "Member not found.");
-        return;
-      }
-      setFoundMember(data.member as AdminMember);
-      setNameResults([]);
-    } catch {
-      setSearchError("Unable to load member.");
-    }
-  }, []);
 
   const handleCheckIn = useCallback(async () => {
     if (!foundMember) return;
@@ -605,6 +626,11 @@ export default function AdminPage() {
           {/* MEMBER PROFILE & ACTIONS */}
           {foundMember && (
             <section className="grid md:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)] gap-8 items-start">
+              {paymentReceived && (
+                <div className="md:col-span-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-emerald-800 text-sm font-medium">
+                  Payment received! Membership updated.
+                </div>
+              )}
               {/* Profile + activity */}
               <div className="space-y-4 md:space-y-6">
                 <div className="rounded-2xl bg-white/90 border border-slate-200 shadow-[0_14px_40px_rgba(15,23,42,0.08)] p-4 md:p-6">
