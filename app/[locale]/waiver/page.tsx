@@ -1,6 +1,6 @@
-"use client";
+\"use client\";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
@@ -140,6 +140,131 @@ This agreement applies to all current and future visits to Leo Mây Climbing Gym
 End.
 `;
 
+type SignatureMode = "typed" | "drawn";
+
+function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawingRef = useRef(false);
+  const lastPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  const getCtx = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    return { canvas, ctx };
+  };
+
+  const resizeCanvas = () => {
+    const wrapper = canvasRef.current?.parentElement;
+    if (!wrapper || !canvasRef.current) return;
+    const rect = wrapper.getBoundingClientRect();
+    const canvas = canvasRef.current;
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = rect.width * ratio;
+    canvas.height = 180 * ratio;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.scale(ratio, ratio);
+      ctx.clearRect(0, 0, rect.width, 180);
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "#ffffff";
+    }
+  };
+
+  React.useEffect(() => {
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+    return () => window.removeEventListener("resize", resizeCanvas);
+  }, []);
+
+  const getPos = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const ctxObj = getCtx();
+    if (!ctxObj) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drawingRef.current = true;
+    const pos = getPos(e);
+    lastPosRef.current = pos;
+    ctxObj.ctx.beginPath();
+    ctxObj.ctx.moveTo(pos.x, pos.y);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawingRef.current) return;
+    const ctxObj = getCtx();
+    if (!ctxObj || !lastPosRef.current) return;
+    const pos = getPos(e);
+    ctxObj.ctx.lineTo(pos.x, pos.y);
+    ctxObj.ctx.stroke();
+    lastPosRef.current = pos;
+  };
+
+  const finishStroke = () => {
+    drawingRef.current = false;
+    lastPosRef.current = null;
+    const ctxObj = getCtx();
+    if (!ctxObj) return;
+    try {
+      const dataUrl = ctxObj.canvas.toDataURL("image/png");
+      onChange(dataUrl);
+    } catch {
+      onChange(null);
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    finishStroke();
+  };
+
+  const handlePointerLeave = () => {
+    if (drawingRef.current) finishStroke();
+  };
+
+  const handleClear = () => {
+    const ctxObj = getCtx();
+    if (!ctxObj) return;
+    const { canvas, ctx } = ctxObj;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    resizeCanvas();
+    onChange(null);
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="rounded-lg bg-white/5 border border-white/20 overflow-hidden">
+        <canvas
+          ref={canvasRef}
+          className="w-full h-[180px] touch-none cursor-crosshair"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerLeave}
+        />
+      </div>
+      <div className="flex justify-between items-center text-xs text-white/60">
+        <span>Draw your signature</span>
+        <button
+          type="button"
+          onClick={handleClear}
+          className="px-3 py-1 rounded-full border border-white/30 text-white/80 hover:bg-white/10"
+        >
+          Clear
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function WaiverPage() {
   const locale = useLocale();
   const router = useRouter();
@@ -152,6 +277,9 @@ export default function WaiverPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showWaiver, setShowWaiver] = useState(false);
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+  const [canSign, setCanSign] = useState(false);
+  const [signatureMode, setSignatureMode] = useState<SignatureMode>("typed");
+  const [drawnSignature, setDrawnSignature] = useState<string | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -182,7 +310,15 @@ export default function WaiverPage() {
       setError("Full name and agreement required");
       return;
     }
-    if (!signature.trim()) {
+
+    let signatureValue: string | null = null;
+    if (signatureMode === "typed") {
+      signatureValue = signature.trim() || null;
+    } else {
+      signatureValue = drawnSignature || null;
+    }
+
+    if (!signatureValue) {
       setError("Signature is required");
       return;
     }
@@ -204,7 +340,7 @@ export default function WaiverPage() {
         body: JSON.stringify({
           full_name: fullName.trim(),
           agreed: true,
-          signature_data: signature.trim(),
+          signature_data: signatureValue,
           waiver_text: WAIVER_TEXT,
         }),
       });
@@ -224,14 +360,14 @@ export default function WaiverPage() {
 
   if (loading || (!user && !loading)) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: HERO_BG }}>
+      <div className="min-h-screen flex items-center justify-center sky-auth-page">
         <p className="text-white/60 text-sm">Loading…</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-20" style={{ background: HERO_BG }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-20 sky-auth-page">
       <h1 className="text-2xl font-bold text-white mb-4" style={{ fontFamily: "MiSans-Bold, sans-serif" }}>
         {m.title}
       </h1>
@@ -248,39 +384,87 @@ export default function WaiverPage() {
           Open Waiver
         </button>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            placeholder={m.fullName}
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/50"
-          />
-          <label className="flex items-center gap-2 text-white/90 text-sm">
+        {canSign && (
+          <form onSubmit={handleSubmit} className="space-y-4">
             <input
-              type="checkbox"
-              checked={agreed}
-              readOnly
-              className="rounded"
+              id="waiver-full-name"
+              type="text"
+              placeholder={m.fullName}
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/50"
             />
-            {m.agreement}
-          </label>
-          <input
-            type="text"
-            placeholder={m.signature}
-            value={signature}
-            onChange={(e) => setSignature(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/50"
-          />
-          {error && <p className="text-red-400 text-sm">{error}</p>}
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full py-3 rounded-full bg-white text-[#0B0B0F] font-medium disabled:opacity-60"
-          >
-            {submitting ? "…" : m.submit}
-          </button>
-        </form>
+            <label className="flex items-center gap-2 text-white/90 text-sm">
+              <input
+                type="checkbox"
+                checked={agreed}
+                readOnly
+                className="rounded"
+              />
+              {m.agreement}
+            </label>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-white/70">
+                <span>{m.signature}</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSignatureMode("typed")}
+                    className={`px-3 py-1 rounded-full border text-xs ${
+                      signatureMode === "typed"
+                        ? "bg-white text-[#0B0B0F] border-white"
+                        : "border-white/40 text-white/80 hover:bg-white/10"
+                    }`}
+                  >
+                    Type
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSignatureMode("drawn")}
+                    className={`px-3 py-1 rounded-full border text-xs ${
+                      signatureMode === "drawn"
+                        ? "bg-white text-[#0B0B0F] border-white"
+                        : "border-white/40 text-white/80 hover:bg-white/10"
+                    }`}
+                  >
+                    Draw
+                  </button>
+                </div>
+              </div>
+
+              {signatureMode === "typed" ? (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    placeholder="Type your full name as signature"
+                    value={signature}
+                    onChange={(e) => setSignature(e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSignature(fullName.trim())}
+                    className="text-xs text-white/70 hover:text-white underline-offset-2 hover:underline"
+                  >
+                    Use full name as signature
+                  </button>
+                </div>
+              ) : (
+                <SignaturePad onChange={setDrawnSignature} />
+              )}
+            </div>
+
+            {error && <p className="text-red-400 text-sm">{error}</p>}
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full py-3 rounded-full bg-white text-[#0B0B0F] font-medium disabled:opacity-60"
+            >
+              {submitting ? "…" : m.submit}
+            </button>
+          </form>
+        )}
       </div>
 
       {showWaiver && (
@@ -325,7 +509,12 @@ export default function WaiverPage() {
                 onClick={() => {
                   if (!hasScrolledToBottom) return;
                   setAgreed(true);
+                  setCanSign(true);
                   setShowWaiver(false);
+                  setTimeout(() => {
+                    const el = document.getElementById("waiver-full-name") as HTMLInputElement | null;
+                    el?.focus();
+                  }, 0);
                 }}
                 className="px-5 py-2 rounded-full bg-white text-[#0B0B0F] text-sm font-medium disabled:opacity-50"
               >
