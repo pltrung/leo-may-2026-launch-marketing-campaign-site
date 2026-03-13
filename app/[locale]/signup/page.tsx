@@ -164,6 +164,8 @@ export default function SignupPage() {
         <form onSubmit={handleSignup} className="space-y-3">
           <input
             type="text"
+            name="name"
+            autoComplete="name"
             placeholder={m.name}
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -171,6 +173,8 @@ export default function SignupPage() {
           />
           <input
             type="email"
+            name="email"
+            autoComplete="email"
             placeholder={m.email}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -178,6 +182,8 @@ export default function SignupPage() {
           />
           <input
             type="tel"
+            name="tel"
+            autoComplete="tel"
             placeholder={m.phone}
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
@@ -185,6 +191,8 @@ export default function SignupPage() {
           />
           <input
             type="password"
+            name="new-password"
+            autoComplete="new-password"
             placeholder={m.password}
             value={password}
             onChange={(e) => setPassword(e.target.value)}

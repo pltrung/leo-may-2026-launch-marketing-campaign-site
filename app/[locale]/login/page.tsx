@@ -145,6 +145,7 @@ function LoginPageInner() {
           <input
             type="text"
             inputMode="email"
+            name="username"
             autoComplete="username"
             placeholder={m.emailOrPhone}
             value={emailOrPhone}
@@ -153,6 +154,7 @@ function LoginPageInner() {
           />
           <input
             type="password"
+            name="password"
             autoComplete="current-password"
             placeholder={m.password}
             value={password}

@@ -18,16 +18,44 @@ export async function GET(req: NextRequest) {
   const name = url.searchParams.get("name")?.trim() || null;
 
   if (!id && !code && !name) {
-    return NextResponse.json({ error: "id, code, or name is required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "id, code, or name is required" },
+      { status: 400 }
+    );
   }
 
   const supabase = createServerClient();
 
   try {
-    let memberRow: any = null;
-
     const baseSelect =
       "id, auth_id, email, phone, full_name, tier, member_code, created_at, membership_status, membership_expires_at";
+
+    // Name search: return a list of basic matches to let the UI choose.
+    if (!id && !code && name) {
+      const { data, error } = await supabase
+        .from("member_profiles")
+        .select(baseSelect)
+        .ilike("full_name", `%${name}%`)
+        .order("created_at", { ascending: true })
+        .limit(20);
+
+      if (error) throw error;
+
+      const members =
+        data?.map((row) => ({
+          id: row.id as string,
+          displayId: (row.member_code as string | null) ?? null,
+          name: (row.full_name as string) ?? "Member",
+          membershipType: (row.tier as string) ?? "Member",
+        })) ?? [];
+
+      return NextResponse.json(
+        { members },
+        { headers: { "Cache-Control": "no-store, max-age=0" } }
+      );
+    }
+
+    let memberRow: any = null;
 
     if (id) {
       const { data, error } = await supabase

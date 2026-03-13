@@ -441,6 +441,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
             <input
               type="text"
               inputMode="email"
+              name="username"
               autoComplete="username"
               placeholder={auth.emailOrPhone}
               value={loginEmailOrPhone}
@@ -449,6 +450,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
             />
             <input
               type="password"
+              name="password"
               autoComplete="current-password"
               placeholder={auth.password}
               value={loginPassword}
@@ -520,6 +522,8 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
           <form onSubmit={handleSignupSubmit} className="space-y-3">
             <input
               type="text"
+              name="name"
+              autoComplete="name"
               placeholder={auth.name}
               value={signupName}
               onChange={(e) => setSignupName(e.target.value)}
@@ -527,6 +531,8 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
             />
             <input
               type="email"
+              name="email"
+              autoComplete="email"
               placeholder={auth.email}
               value={signupEmail}
               onChange={(e) => setSignupEmail(e.target.value)}
@@ -534,6 +540,8 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
             />
             <input
               type="tel"
+              name="tel"
+              autoComplete="tel"
               placeholder={auth.phone}
               value={signupPhone}
               onChange={(e) => setSignupPhone(e.target.value)}
@@ -541,6 +549,8 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
             />
             <input
               type="password"
+              name="new-password"
+              autoComplete="new-password"
               placeholder={auth.password}
               value={signupPassword}
               onChange={(e) => setSignupPassword(e.target.value)}
@@ -624,6 +634,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
               <input
                 type="text"
                 inputMode="email"
+                name="username"
                 autoComplete="username"
                 placeholder={auth.emailOrPhone}
                 value={claimEmailOrPhone}

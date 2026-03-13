@@ -18,6 +18,13 @@ interface AdminMember {
   recentCheckins: { label: string }[];
 }
 
+interface NameSearchResult {
+  id: string;
+  displayId: string | null;
+  name: string;
+  membershipType: string;
+}
+
 export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchMode, setSearchMode] = useState<"id" | "name" | "qr">("id");
@@ -31,6 +38,7 @@ export default function AdminPage() {
   const [newMemberPhone, setNewMemberPhone] = useState("");
   const [newMemberType, setNewMemberType] = useState<MembershipType>("Founder Member");
   const [gymOccupancy, setGymOccupancy] = useState(0);
+  const [nameResults, setNameResults] = useState<NameSearchResult[]>([]);
 
   // Poll real-time-ish occupancy from backend.
   useEffect(() => {
@@ -62,6 +70,7 @@ export default function AdminPage() {
     setActionMessage(null);
     setActionError(null);
     setFoundMember(null);
+    setNameResults([]);
 
     const raw = searchQuery.trim();
     if (!raw) {
@@ -90,11 +99,25 @@ export default function AdminPage() {
     try {
       const res = await fetch(`/api/admin/members?${params.toString()}`);
       const data = await res.json();
-      if (!res.ok || !data.member) {
-        setSearchError(data.error || "Member not found.");
-        return;
+      if (searchMode === "name") {
+        const results = (data.members as NameSearchResult[] | undefined) ?? [];
+        if (!res.ok) {
+          setSearchError(data.error || "Unable to search members.");
+          return;
+        }
+        if (results.length === 0) {
+          setSearchError("No members found with that name.");
+          return;
+        }
+        setNameResults(results);
+        setSearchError(null);
+      } else {
+        if (!res.ok || !data.member) {
+          setSearchError(data.error || "Member not found.");
+          return;
+        }
+        setFoundMember(data.member as AdminMember);
       }
-      setFoundMember(data.member as AdminMember);
     } catch {
       setSearchError("Unable to search members right now.");
     }
@@ -107,6 +130,24 @@ export default function AdminPage() {
   }, []);
 
   const canCheckIn = useMemo(() => !!foundMember, [foundMember]);
+
+  const loadMemberById = useCallback(async (id: string) => {
+    setSearchError(null);
+    setActionError(null);
+    setActionMessage(null);
+    try {
+      const res = await fetch(`/api/admin/members?id=${encodeURIComponent(id)}`);
+      const data = await res.json();
+      if (!res.ok || !data.member) {
+        setSearchError(data.error || "Member not found.");
+        return;
+      }
+      setFoundMember(data.member as AdminMember);
+      setNameResults([]);
+    } catch {
+      setSearchError("Unable to load member.");
+    }
+  }, []);
 
   const handleCheckIn = useCallback(async () => {
     if (!foundMember) return;
@@ -411,6 +452,37 @@ export default function AdminPage() {
                   <p className="text-xs text-emerald-600">{actionMessage}</p>
                 )}
                 {actionError && <p className="text-xs text-red-500">{actionError}</p>}
+                {searchMode === "name" && nameResults.length > 0 && (
+                  <div className="mt-2 space-y-1.5">
+                    <p className="text-[11px] text-slate-500">
+                      Select a member:
+                    </p>
+                    <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white">
+                      {nameResults.map((m) => (
+                        <button
+                          type="button"
+                          key={m.id}
+                          onClick={() => loadMemberById(m.id)}
+                          className="w-full px-3 py-2 text-left text-xs hover:bg-slate-50 border-b last:border-b-0 border-slate-100"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <p className="font-medium text-slate-900">
+                                {m.name}
+                              </p>
+                              <p className="text-[11px] text-slate-500">
+                                {m.displayId ?? "No Member ID"}
+                              </p>
+                            </div>
+                            <span className="text-[11px] text-slate-600">
+                              {m.membershipType}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex gap-2 md:flex-col md:gap-3">
                 <button
