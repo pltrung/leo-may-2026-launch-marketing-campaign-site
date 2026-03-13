@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
+import { getMessages } from "@/lib/messages";
 
 interface ProfileModalProps {
   open: boolean;
@@ -26,6 +27,10 @@ export default function ProfileModal({
   onSaved,
   isVi,
 }: ProfileModalProps) {
+  const d = getMessages(isVi ? "vi" : "en").dashboard;
+  const [fullName, setFullName] = useState(member.full_name ?? "");
+  const [email, setEmail] = useState(member.email ?? "");
+  const [phone, setPhone] = useState(member.phone ?? "");
   const [idNumber, setIdNumber] = useState(member.id_number ?? "");
   const [dateOfBirth, setDateOfBirth] = useState(
     member.date_of_birth ? member.date_of_birth.slice(0, 10) : ""
@@ -34,19 +39,33 @@ export default function ProfileModal({
     member.profile_photo_url ?? null
   );
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
+      setFullName(member.full_name ?? "");
+      setEmail(member.email ?? "");
+      setPhone(member.phone ?? "");
       setIdNumber(member.id_number ?? "");
       setDateOfBirth(member.date_of_birth ? member.date_of_birth.slice(0, 10) : "");
       setPhotoPreview(member.profile_photo_url ?? null);
       setPhotoFile(null);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
       setError(null);
+      setPasswordError(null);
+      setPasswordSuccess(false);
     }
-  }, [open, member.id_number, member.date_of_birth, member.profile_photo_url]);
+  }, [open, member.full_name, member.email, member.phone, member.id_number, member.date_of_birth, member.profile_photo_url]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -83,6 +102,9 @@ export default function ProfileModal({
       }
 
       const body: Record<string, unknown> = {
+        full_name: fullName.trim() || null,
+        email: email.trim() || null,
+        phone: phone.trim() || null,
         id_number: idNumber.trim() || null,
         date_of_birth: dateOfBirth.trim() || null,
       };
@@ -105,7 +127,49 @@ export default function ProfileModal({
     } finally {
       setLoading(false);
     }
-  }, [accessToken, idNumber, dateOfBirth, photoFile, onSaved, onClose, isVi]);
+  }, [accessToken, fullName, email, phone, idNumber, dateOfBirth, photoFile, onSaved, onClose, isVi]);
+
+  const handleChangePassword = useCallback(async () => {
+    if (!accessToken) return;
+    setPasswordError(null);
+    setPasswordSuccess(false);
+    if (!currentPassword) {
+      setPasswordError(isVi ? "Nhập mật khẩu hiện tại." : "Enter current password.");
+      return;
+    }
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordError(isVi ? "Mật khẩu mới tối thiểu 6 ký tự." : "New password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError(d.passwordMismatch);
+      return;
+    }
+    setPasswordLoading(true);
+    try {
+      const res = await fetch("/api/member/change-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      setPasswordSuccess(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (e) {
+      setPasswordError((e as Error).message ?? d.passwordError);
+    } finally {
+      setPasswordLoading(false);
+    }
+  }, [accessToken, currentPassword, newPassword, confirmPassword, isVi, d.passwordMismatch, d.passwordError]);
 
   if (!open) return null;
 
@@ -171,8 +235,42 @@ export default function ProfileModal({
             </p>
           </div>
 
-          {/* Govt ID / Passport */}
+          {/* Name, email, phone */}
           <div className="space-y-4 mb-4">
+            <label className="block">
+              <span className="text-xs text-white/70">{d.fullName}</span>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder={isVi ? "Họ tên đầy đủ" : "Full name"}
+                className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs text-white/70">{d.email}</span>
+              <input
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={isVi ? "Email" : "Email"}
+                className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs text-white/70">{d.phone}</span>
+              <input
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder={isVi ? "Số điện thoại" : "Phone"}
+                className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              />
+            </label>
             <label className="block">
               <span className="text-xs text-white/70">
                 {isVi ? "Số CCCD / Hộ chiếu" : "Govt ID / Passport"}
@@ -196,10 +294,51 @@ export default function ProfileModal({
                 className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 [color-scheme:dark]"
               />
             </label>
-            <p className="text-xs text-white/50">
-              {member.email && <span>Email: {member.email}</span>}
-              {member.phone && <span className="ml-2">Phone: {member.phone}</span>}
-            </p>
+          </div>
+
+          {/* Password change */}
+          <div className="border-t border-white/10 pt-4 mb-4">
+            <p className="text-xs text-white/70 mb-3">{d.setPassword}</p>
+            <div className="space-y-3">
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder={d.currentPassword}
+                className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              />
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder={d.newPassword}
+                className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              />
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder={d.confirmPassword}
+                className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              />
+              <button
+                type="button"
+                onClick={handleChangePassword}
+                disabled={passwordLoading || !currentPassword || !newPassword || !confirmPassword}
+                className="w-full py-2 rounded-lg text-sm font-medium bg-white/15 text-white hover:bg-white/25 disabled:opacity-50 disabled:hover:bg-white/15"
+              >
+                {passwordLoading ? (isVi ? "Đang cập nhật…" : "Updating…") : d.updatePassword}
+              </button>
+              {passwordSuccess && (
+                <p className="text-sm text-emerald-400">{d.passwordUpdated}</p>
+              )}
+              {passwordError && (
+                <p className="text-sm text-amber-300">{passwordError}</p>
+              )}
+            </div>
           </div>
 
           {error && (

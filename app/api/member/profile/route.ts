@@ -54,8 +54,8 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/member/profile
- * Body: { profile_photo_base64?: string, id_number?: string, date_of_birth?: string (YYYY-MM-DD) }
- * Updates profile and optionally uploads photo to storage.
+ * Body: { profile_photo_base64?, id_number?, date_of_birth?, full_name?, email?, phone? }
+ * Updates profile (member_profiles + Supabase Auth) and optionally uploads photo.
  */
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("Authorization");
@@ -84,6 +84,9 @@ export async function POST(req: NextRequest) {
     const photoBase64 = typeof body.profile_photo_base64 === "string" ? body.profile_photo_base64.trim() : null;
     const idNumber = typeof body.id_number === "string" ? body.id_number.trim() || null : null;
     const dateOfBirth = typeof body.date_of_birth === "string" ? body.date_of_birth.trim() || null : null;
+    const fullName = typeof body.full_name === "string" ? body.full_name.trim() || null : undefined;
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() || null : undefined;
+    const phone = typeof body.phone === "string" ? body.phone.trim().replace(/\s+/g, "") || null : undefined;
 
     let profilePhotoUrl: string | null = null;
 
@@ -120,6 +123,15 @@ export async function POST(req: NextRequest) {
     if (profilePhotoUrl !== null) updates.profile_photo_url = profilePhotoUrl;
     if (idNumber !== undefined) updates.id_number = idNumber;
     if (dateOfBirth !== undefined) updates.date_of_birth = dateOfBirth || null;
+    if (fullName !== undefined) updates.full_name = fullName ?? "";
+    if (email !== undefined) updates.email = email;
+    if (phone !== undefined) updates.phone = phone;
+
+    // Sync full_name to Auth user metadata (for display; email/phone stay in member_profiles only)
+    if (fullName !== undefined) {
+      const { error: authErr } = await authClient.auth.updateUser({ data: { full_name: fullName ?? "" } });
+      if (authErr) console.warn("auth full_name sync:", authErr.message);
+    }
 
     const { error: updateErr } = await supabase
       .from("member_profiles")
