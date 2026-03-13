@@ -8,7 +8,7 @@ import Logo from "@/components/Logo";
 import { useLocale } from "@/components/LocaleProvider";
 import { useMemberAuth } from "@/lib/useMemberAuth";
 import { HERO_BG } from "@/lib/heroConstants";
-import { getSkyTheme, getLocalTimeHours } from "@/components/gym/theme/skyTheme";
+import { getLocalTimeHours } from "@/components/gym/theme/skyTheme";
 import { SOCIAL_LINKS } from "@/lib/announcementConfig";
 
 const QRCodeSVG = dynamic(
@@ -22,7 +22,6 @@ export default function DashboardPage() {
   const { user, member, loading, signOut } = useMemberAuth();
 
   const [mounted, setMounted] = useState(false);
-  const [skyBg, setSkyBg] = useState<string>(() => getSkyTheme(getLocalTimeHours()).bgGradient);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const wakeLockRef = useRef<any | null>(null);
 
@@ -41,14 +40,6 @@ export default function DashboardPage() {
       router.replace(`/${locale}/waiver`);
     }
   }, [mounted, loading, user, member, locale, router]);
-
-  // Dynamic sky background similar to countdown / gym.
-  useEffect(() => {
-    const update = () => setSkyBg(getSkyTheme(getLocalTimeHours()).bgGradient);
-    update();
-    const id = setInterval(update, 60000);
-    return () => clearInterval(id);
-  }, []);
 
   // Fullscreen QR: keep screen awake while open.
   useEffect(() => {
@@ -199,18 +190,15 @@ export default function DashboardPage() {
     <div
       className="min-h-screen flex flex-col"
       style={{
-        background: skyBg,
+        background: "linear-gradient(to bottom, #BEE7FF 0%, #EAF6FF 45%, #FFFFFF 100%)",
       }}
     >
       {/* HEADER */}
       <header className="w-full sticky top-0 z-20 backdrop-blur-md bg-black/15 border-b border-white/10">
         <div className="max-w-3xl mx-auto flex items-center justify-between px-4 py-3 md:px-6 md:py-4">
           <div className="flex items-center gap-3">
-            <Link href={`/${locale}/gym`} className="md:hidden text-white/70 text-xs hover:text-white">
-              ← {isVi ? "Gym" : "Gym"}
-            </Link>
-            <div className="w-[120px] md:w-[160px]">
-              <Logo className="w-full h-auto object-contain" />
+            <div className="h-10 md:h-11">
+              <Logo className="h-full w-auto object-contain" />
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -247,8 +235,8 @@ export default function DashboardPage() {
       </header>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 flex flex-col items-center px-4 pb-8 pt-6 md:pt-8">
-        <div className="w-full max-w-3xl space-y-6 md:space-y-8">
+      <main className="flex-1 flex flex-col items-center px-4 pb-10 pt-6 md:pt-10">
+        <div className="w-full max-w-3xl space-y-12">
           {/* GREETING */}
           <section>
             <h1
@@ -260,8 +248,8 @@ export default function DashboardPage() {
           </section>
 
           {/* CHECK IN */}
-          <section className="grid md:grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)] gap-6 md:gap-8 items-start">
-            <div className="rounded-3xl bg-black/35 border border-white/12 shadow-[0_18px_60px_rgba(0,0,0,0.55)] p-5 md:p-6 flex flex-col items-center">
+          <section>
+            <div className="rounded-3xl bg-black/35 border border-white/12 shadow-[0_22px_70px_rgba(0,0,0,0.65)] px-6 py-7 md:px-7 md:py-8 flex flex-col items-center">
               <div className="w-full flex items-center justify-between mb-4">
                 <h2 className="text-sm font-semibold text-white/80 tracking-[0.18em] uppercase">
                   CHECK IN
@@ -297,8 +285,10 @@ export default function DashboardPage() {
                 <span className="text-white/85">{lastCheckIn}</span>
               </div>
             </div>
+          </section>
 
-            {/* MEMBERSHIP CARD */}
+          {/* MEMBERSHIP */}
+          <section>
             <div className="rounded-3xl bg-white/9 border border-white/16 shadow-[0_18px_60px_rgba(0,0,0,0.45)] p-5 md:p-6 backdrop-blur-md">
               <h2 className="text-sm font-semibold text-white/80 tracking-[0.18em] uppercase mb-4">
                 {isVi ? "THẺ THÀNH VIÊN" : "MEMBERSHIP"}
@@ -335,15 +325,20 @@ export default function DashboardPage() {
                   </span>
                 </div>
               </div>
-              <div className="mt-4 pt-3 border-t border-white/10 text-xs text-white/60 flex items-center justify-between">
-                <span>{isVi ? "Tham gia từ" : "Member since"}</span>
-                <span className="text-white/85">{memberSince}</span>
+              <div className="mt-4 pt-3 border-t border-white/10 text-xs text-white/70 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span>{isVi ? "Tham gia từ" : "Member since"}</span>
+                  <span className="text-white/90">{memberSince}</span>
+                </div>
+                <p className="text-[11px] text-white/65 font-mono break-all">
+                  {isVi ? "ID nội bộ:" : "Internal ID:"} {member.id}
+                </p>
               </div>
             </div>
           </section>
 
-          {/* GYM STATUS */}
-          <section className="grid md:grid-cols-2 gap-6">
+          {/* GYM STATUS + ACTIVITY */}
+          <section className="grid md:grid-cols-2 gap-8">
             <div className="rounded-3xl bg-black/30 border border-white/14 p-5 md:p-6 shadow-[0_16px_50px_rgba(0,0,0,0.5)]">
               <h2 className="text-sm font-semibold text-white/80 tracking-[0.18em] uppercase mb-3">
                 {isVi ? "TÌNH TRẠNG PHÒNG GYM" : "GYM STATUS"}
@@ -362,33 +357,59 @@ export default function DashboardPage() {
                   ? "Ước lượng dựa trên khung giờ — số liệu trực tiếp sẽ sớm có."
                   : "Estimate based on time of day — live occupancy coming soon."}
               </p>
+              <div className="mt-4 pt-3 border-t border-white/12">
+                <p className="text-xs font-semibold text-white/80 mb-2">
+                  {isVi ? "Hoạt động gần đây" : "Recent activity"}
+                </p>
+                <div className="flex flex-wrap gap-2 text-xs text-white/75">
+                  {recentVisits.map((d) => (
+                    <span
+                      key={d}
+                      className="px-3 py-1 rounded-full bg-white/8 border border-white/15"
+                    >
+                      {d}
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-3 flex items-center justify-between text-xs text-white/70">
+                  <span>{isVi ? "Buổi trong tháng này" : "Sessions this month"}</span>
+                  <span className="text-white font-medium">
+                    {sessionsThisMonth}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            {/* ACTIVITY */}
+            {/* CLOUD ASCENSION (placeholder, only if >= 5 check-ins) */}
+            {totalVisits >= 5 && (
+              <div className="rounded-3xl bg-black/26 border border-white/14 p-5 md:p-6 shadow-[0_16px_50px_rgba(0,0,0,0.5)]">
+                <h2 className="text-sm font-semibold text-white/80 tracking-[0.18em] uppercase mb-3">
+                  {isVi ? "CLOUD ASCENSION" : "CLOUD ASCENSION"}
+                </h2>
+                <p className="text-xs text-white/70 mb-3">
+                  {isVi
+                    ? "Khu vực gamification sẽ xuất hiện ở đây để phản ánh hành trình leo núi của bạn."
+                    : "A future gamification area will appear here to reflect your climbing journey."}
+                </p>
+                <p className="text-xs text-white/60">
+                  {isVi
+                    ? `Bạn đã có ${totalVisits} lượt check-in. Sau khi hệ thống hoàn thiện, cấp bậc và phần thưởng sẽ được hiển thị tại đây.`
+                    : `You have ${totalVisits} check-ins so far. Once finalized, levels and rewards will be displayed here.`}
+                </p>
+              </div>
+            )}
+          </section>
+
+          {/* COMMUNITY LEADERBOARD (placeholder) */}
+          <section>
             <div className="rounded-3xl bg-black/26 border border-white/14 p-5 md:p-6 shadow-[0_16px_50px_rgba(0,0,0,0.5)]">
               <h2 className="text-sm font-semibold text-white/80 tracking-[0.18em] uppercase mb-3">
-                {isVi ? "HOẠT ĐỘNG CỦA BẠN" : "YOUR ACTIVITY"}
+                {isVi ? "BẢNG XẾP HẠNG CỘNG ĐỒNG" : "COMMUNITY LEADERBOARD"}
               </h2>
-              <div className="flex flex-wrap gap-2 text-xs text-white/75">
-                {recentVisits.map((d) => (
-                  <span
-                    key={d}
-                    className="px-3 py-1 rounded-full bg-white/8 border border-white/15"
-                  >
-                    {d}
-                  </span>
-                ))}
-              </div>
-              <div className="mt-4 flex items-center justify-between text-xs text-white/70">
-                <span>{isVi ? "Buổi trong tháng này" : "Sessions this month"}</span>
-                <span className="text-white font-medium">
-                  {sessionsThisMonth}
-                </span>
-              </div>
-              <p className="mt-1 text-[11px] text-white/50">
+              <p className="text-xs text-white/70">
                 {isVi
-                  ? "Số liệu chỉ mang tính minh hoạ trong giai đoạn thử nghiệm."
-                  : "Numbers are illustrative while we finalize tracking."}
+                  ? "Trong giai đoạn thử nghiệm, bảng xếp hạng sẽ hiển thị tổng số buổi leo của từng thành viên và những người dẫn đầu mỗi tháng."
+                  : "During the pilot phase, this area will show total sessions for each member and highlight monthly leaders."}
               </p>
             </div>
           </section>
@@ -435,50 +456,30 @@ export default function DashboardPage() {
         </div>
       </main>
 
+      {/* Cloud divider above footer */}
+      <div className="w-full h-16 md:h-20 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.9)_0,_rgba(255,255,255,0.7)_45%,_rgba(255,255,255,0)_75%)]" />
+
       {/* FOOTER */}
-      <footer className="w-full border-t border-white/10 bg-black/20 backdrop-blur-md">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-white/70">
+      <footer className="w-full border-t border-white/20 bg-white/80 backdrop-blur-md">
+        <div className="max-w-3xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-[#1b2735]/80">
           <div className="flex items-center gap-4">
             <a
               href={SOCIAL_LINKS.instagram}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-white"
+              className="hover:text-[#0b1320]"
             >
               Instagram
             </a>
-            <Link href={`mailto:hello@leomay.vn`} className="hover:text-white">
+            <Link href={`mailto:hello@leomay.vn`} className="hover:text-[#0b1320]">
               {isVi ? "Liên hệ" : "Contact"}
             </Link>
-            <Link href={`/${locale}/rules`} className="hover:text-white">
+            <Link href={`/${locale}/rules`} className="hover:text-[#0b1320]">
               {isVi ? "Nội quy" : "Rules"}
             </Link>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-white/50">
-              {isVi ? "Ngôn ngữ" : "Language"}
-            </span>
-            <div className="flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 border border-white/20">
-              <button
-                type="button"
-                onClick={() => handleLanguageChange("vi")}
-                className={`px-2 py-0.5 rounded-full ${
-                  isVi ? "bg-white text-[#0B0B0F]" : "text-white/70 hover:text-white"
-                }`}
-              >
-                VN
-              </button>
-              <span className="text-white/40">|</span>
-              <button
-                type="button"
-                onClick={() => handleLanguageChange("en")}
-                className={`px-2 py-0.5 rounded-full ${
-                  !isVi ? "bg-white text-[#0B0B0F]" : "text-white/70 hover:text-white"
-                }`}
-              >
-                EN
-              </button>
-            </div>
+          <div className="text-[10px] text-[#1b2735]/60">
+            © Leo Mây {new Date().getFullYear()}
           </div>
         </div>
       </footer>
