@@ -32,13 +32,40 @@ export default function AdminPage() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState<null | "checkin" | "manual" | "undo" | "extend" | "freeze" | "cancel" | "upgrade">(null);
+  const [actionLoading, setActionLoading] = useState<null | "checkin" | "manual" | "undo" | "extend" | "freeze" | "cancel" | "upgrade" | "payment" | "confirm">(null);
+  const [plans, setPlans] = useState<{ id: string; name: string; duration_days: number; price_vnd: number }[]>([]);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentPlanId, setPaymentPlanId] = useState<string>("explorer_month");
+  const [paymentQrUrl, setPaymentQrUrl] = useState<string | null>(null);
+  const [paymentPlanName, setPaymentPlanName] = useState("");
+  const [paymentPrice, setPaymentPrice] = useState(0);
+  const [recentPayments, setRecentPayments] = useState<{ id: string; plan_name: string; amount: number; created_at: string }[]>([]);
   const [newMemberName, setNewMemberName] = useState("");
   const [newMemberEmail, setNewMemberEmail] = useState("");
   const [newMemberPhone, setNewMemberPhone] = useState("");
   const [newMemberType, setNewMemberType] = useState<MembershipType>("Founder Member");
   const [gymOccupancy, setGymOccupancy] = useState(0);
   const [nameResults, setNameResults] = useState<NameSearchResult[]>([]);
+
+  // Fetch plans
+  useEffect(() => {
+    fetch("/api/admin/plans")
+      .then((r) => r.json())
+      .then((d) => setPlans(d.plans ?? []))
+      .catch(() => {});
+  }, []);
+
+  // Fetch recent payments when member found
+  useEffect(() => {
+    if (!foundMember?.id) {
+      setRecentPayments([]);
+      return;
+    }
+    fetch(`/api/admin/payments?member_id=${encodeURIComponent(foundMember.id)}`)
+      .then((r) => r.json())
+      .then((d) => setRecentPayments(d.payments ?? []))
+      .catch(() => setRecentPayments([]));
+  }, [foundMember?.id]);
 
   // Poll real-time-ish occupancy from backend.
   useEffect(() => {
@@ -315,6 +342,75 @@ export default function AdminPage() {
       .finally(() => setActionLoading(null));
   }, [foundMember, updateStatus]);
 
+    const handleCollectPayment = useCallback(() => {
+    if (!foundMember) return;
+    setPaymentModalOpen(true);
+    setPaymentPlanId("explorer_month");
+    setPaymentQrUrl(null);
+    setPaymentPlanName("");
+    setPaymentPrice(0);
+    fetch(`/api/admin/vietqr?plan_id=explorer_month&member_id=${encodeURIComponent(foundMember.id)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        setPaymentQrUrl(d.url ?? null);
+        setPaymentPlanName(d.plan_name ?? "");
+        setPaymentPrice(d.price_vnd ?? 0);
+      })
+      .catch(() => setPaymentQrUrl(null));
+  }, [foundMember]);
+
+  const handlePaymentPlanChange = useCallback(
+    (planId: string) => {
+      if (!foundMember) return;
+      setPaymentPlanId(planId);
+      setPaymentQrUrl(null);
+      fetch(`/api/admin/vietqr?plan_id=${encodeURIComponent(planId)}&member_id=${encodeURIComponent(foundMember.id)}`)
+        .then((r) => r.json())
+        .then((d) => {
+          setPaymentQrUrl(d.url ?? null);
+          setPaymentPlanName(d.plan_name ?? "");
+          setPaymentPrice(d.price_vnd ?? 0);
+        })
+        .catch(() => setPaymentQrUrl(null));
+    },
+    [foundMember]
+  );
+
+  const handleConfirmPayment = useCallback(async () => {
+    if (!foundMember) return;
+    setActionLoading("confirm");
+    setActionError(null);
+    try {
+      const res = await fetch("/api/admin/payments/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ member_id: foundMember.id, plan_id: paymentPlanId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      setFoundMember((prev) =>
+        prev
+          ? { ...prev, validUntil: data.member?.validUntil ?? prev.validUntil }
+          : prev
+      );
+      setRecentPayments((prev) => [
+        {
+          id: crypto.randomUUID(),
+          plan_name: paymentPlanName,
+          amount: paymentPrice,
+          created_at: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
+      setPaymentModalOpen(false);
+      setActionMessage("Payment confirmed. Membership extended.");
+    } catch (e) {
+      setActionError((e as Error).message ?? "Unable to confirm payment.");
+    } finally {
+      setActionLoading(null);
+    }
+  }, [foundMember, paymentPlanId, paymentPlanName, paymentPrice]);
+
   const handleUpgrade = useCallback(() => {
     if (!foundMember) return;
     setActionLoading("upgrade");
@@ -586,6 +682,32 @@ export default function AdminPage() {
                     ))}
                   </ul>
                 </div>
+
+                <div className="rounded-2xl bg-white/90 border border-slate-200 shadow-[0_8px_28px_rgba(15,23,42,0.07)] p-4 md:p-5">
+                  <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
+                    Recent Payments
+                  </h3>
+                  {recentPayments.length === 0 ? (
+                    <p className="text-xs text-slate-500">No payments yet</p>
+                  ) : (
+                    <ul className="space-y-2 text-xs md:text-sm text-slate-800">
+                      {recentPayments.map((p) => (
+                        <li key={p.id} className="flex justify-between items-center">
+                          <div>
+                            <span className="font-medium">{p.plan_name}</span>
+                            <span className="text-slate-500 ml-2">
+                              {new Date(p.created_at).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </span>
+                          </div>
+                          <span className="font-medium">{p.amount.toLocaleString("vi-VN")} VND</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
 
               {/* Check-in + membership controls */}
@@ -629,11 +751,18 @@ export default function AdminPage() {
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
+                      onClick={handleCollectPayment}
+                      className="px-4 py-2 rounded-full text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-500"
+                    >
+                      Collect Payment
+                    </button>
+                    <button
+                      type="button"
                       onClick={handleExtend}
                       disabled={actionLoading === "extend"}
                       className="px-4 py-2 rounded-full text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-60"
                     >
-                      {actionLoading === "extend" ? "Extending..." : "Extend membership"}
+                      {actionLoading === "extend" ? "Extending..." : "Extend (no payment)"}
                     </button>
                     <button
                       type="button"
@@ -761,6 +890,64 @@ export default function AdminPage() {
           </section>
         </div>
       </main>
+
+      {/* Collect Payment Modal */}
+      {paymentModalOpen && foundMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900">Collect Payment</h3>
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-slate-600">Membership plan</label>
+              <select
+                value={paymentPlanId}
+                onChange={(e) => handlePaymentPlanChange(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-900"
+              >
+                {plans.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} — {p.price_vnd > 0 ? `${p.price_vnd.toLocaleString("vi-VN")} VND` : "prorated"}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {paymentPlanName && (
+              <>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <span className="text-slate-500">Plan</span>
+                  <span className="font-medium">{paymentPlanName}</span>
+                  <span className="text-slate-500">Price</span>
+                  <span className="font-medium">{paymentPrice.toLocaleString("vi-VN")} VND</span>
+                  <span className="text-slate-500">Member ID</span>
+                  <span className="font-medium">{foundMember.displayId ?? foundMember.id}</span>
+                </div>
+                {paymentQrUrl && (
+                  <div className="flex justify-center py-2">
+                    <img src={paymentQrUrl} alt="VietQR" className="w-48 h-48 object-contain bg-white rounded-lg border" />
+                  </div>
+                )}
+                <p className="text-xs text-slate-500">Customer scans with banking app, MoMo, or ZaloPay. Confirm after payment received.</p>
+              </>
+            )}
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setPaymentModalOpen(false)}
+                className="flex-1 px-4 py-2 rounded-full text-sm font-medium border border-slate-300 text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmPayment}
+                disabled={!paymentQrUrl || actionLoading === "confirm"}
+                className="flex-1 px-4 py-2 rounded-full text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60"
+              >
+                {actionLoading === "confirm" ? "Confirming..." : "Confirm Payment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

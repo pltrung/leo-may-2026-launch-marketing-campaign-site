@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -41,6 +41,11 @@ export default function DashboardPage() {
     top: { rank: number; full_name: string; visits: number }[];
     currentUser: { rank: number | null; visits: number; full_name: string };
   } | null>(null);
+  const [renewPlanId, setRenewPlanId] = useState<string | null>(null);
+  const [renewQrUrl, setRenewQrUrl] = useState<string | null>(null);
+  const [renewPlanName, setRenewPlanName] = useState("");
+  const [renewPrice, setRenewPrice] = useState(0);
+  const [freezeLoading, setFreezeLoading] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -272,6 +277,24 @@ export default function DashboardPage() {
     expiry && expiry.getTime() > Date.now()
       ? Math.ceil((expiry.getTime() - Date.now()) / 86400000)
       : null;
+  const isActive = rawStatus === "active" && daysRemaining != null && daysRemaining > 0;
+
+  const handleFreeze = useCallback(async () => {
+    if (!accessToken) return;
+    setFreezeLoading(true);
+    try {
+      const res = await fetch("/api/member/membership", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ action: "freeze" }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      router.refresh();
+      if (typeof window !== "undefined") window.location.reload();
+    } catch {
+      setFreezeLoading(false);
+    }
+  }, [accessToken, router]);
 
   return (
     <div
@@ -380,7 +403,7 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          {/* MEMBERSHIP */}
+          {/* MEMBERSHIP + PAYMENT + FREEZE */}
           <section>
             <div className="rounded-3xl bg-white/9 border border-white/16 shadow-[0_18px_60px_rgba(0,0,0,0.45)] p-5 md:p-6 backdrop-blur-md">
               <h2 className="text-sm font-semibold text-white/80 tracking-[0.18em] uppercase mb-4">
@@ -406,17 +429,9 @@ export default function DashboardPage() {
                   <span className="text-white font-medium">{shortId}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-white/60">
-                    {isVi ? "Còn lại" : "Days remaining"}
-                  </span>
+                  <span className="text-white/60">{isVi ? "Còn lại" : "Days remaining"}</span>
                   <span className="text-white font-medium">
-                    {daysRemaining != null && daysRemaining > 0
-                      ? isVi
-                        ? `${daysRemaining} ngày`
-                        : `${daysRemaining} days`
-                      : isVi
-                      ? "Không có"
-                      : "None"}
+                    {daysRemaining != null && daysRemaining > 0 ? (isVi ? `${daysRemaining} ngày` : `${daysRemaining} days`) : isVi ? "Không có" : "None"}
                   </span>
                 </div>
               </div>
@@ -425,9 +440,89 @@ export default function DashboardPage() {
                   <span>{isVi ? "Tham gia từ" : "Member since"}</span>
                   <span className="text-white/90">{memberSince}</span>
                 </div>
-                <p className="text-[11px] text-white/65 font-mono break-all">
+                {rawStatus === "active" && isActive && (
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={handleFreeze}
+                      disabled={freezeLoading}
+                      className="text-amber-300/90 hover:text-amber-300 text-[11px] underline disabled:opacity-60"
+                    >
+                      {freezeLoading ? (isVi ? "Đang xử lý…" : "Processing…") : isVi ? "Tạm đóng băng thẻ" : "Freeze membership"}
+                    </button>
+                  </div>
+                )}
+                <p className="text-[11px] text-white/65 font-mono break-all pt-1">
                   {isVi ? "ID nội bộ:" : "Internal ID:"} {member.id}
                 </p>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-white/10">
+                <h3 className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-3">
+                  {isVi ? "Thanh toán / gia hạn" : "Pay / Renew"}
+                </h3>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {isActive ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => { if (!accessToken) return; setRenewPlanId("explorer_month"); setRenewQrUrl(null); fetch(`/api/member/vietqr?plan_id=explorer_month`, { headers: { Authorization: `Bearer ${accessToken}` } }).then((r) => r.json()).then((d) => { setRenewQrUrl(d.url ?? null); setRenewPlanName(d.plan_name ?? ""); setRenewPrice(d.price_vnd ?? 0); }).catch(() => setRenewQrUrl(null)); }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium ${renewPlanId === "explorer_month" ? "bg-white text-slate-900" : "bg-white/10 text-white/90 hover:bg-white/20"}`}
+                      >
+                        Extend Monthly — 900,000 VND
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { if (!accessToken) return; setRenewPlanId("explorer_year"); setRenewQrUrl(null); fetch(`/api/member/vietqr?plan_id=explorer_year`, { headers: { Authorization: `Bearer ${accessToken}` } }).then((r) => r.json()).then((d) => { setRenewQrUrl(d.url ?? null); setRenewPlanName(d.plan_name ?? ""); setRenewPrice(d.price_vnd ?? 0); }).catch(() => setRenewQrUrl(null)); }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium ${renewPlanId === "explorer_year" ? "bg-white text-slate-900" : "bg-white/10 text-white/90 hover:bg-white/20"}`}
+                      >
+                        Extend Yearly — 9,000,000 VND
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { if (!accessToken) return; setRenewPlanId("until_end_of_year"); setRenewQrUrl(null); fetch(`/api/member/vietqr?plan_id=until_end_of_year`, { headers: { Authorization: `Bearer ${accessToken}` } }).then((r) => r.json()).then((d) => { setRenewQrUrl(d.url ?? null); setRenewPlanName(d.plan_name ?? ""); setRenewPrice(d.price_vnd ?? 0); }).catch(() => setRenewQrUrl(null)); }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium ${renewPlanId === "until_end_of_year" ? "bg-white text-slate-900" : "bg-white/10 text-white/90 hover:bg-white/20"}`}
+                      >
+                        Until end of year
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => { if (!accessToken) return; setRenewPlanId("day_pass"); setRenewQrUrl(null); fetch(`/api/member/vietqr?plan_id=day_pass`, { headers: { Authorization: `Bearer ${accessToken}` } }).then((r) => r.json()).then((d) => { setRenewQrUrl(d.url ?? null); setRenewPlanName(d.plan_name ?? ""); setRenewPrice(d.price_vnd ?? 0); }).catch(() => setRenewQrUrl(null)); }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium ${renewPlanId === "day_pass" ? "bg-white text-slate-900" : "bg-white/10 text-white/90 hover:bg-white/20"}`}
+                      >
+                        Day Pass — 300,000 VND
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { if (!accessToken) return; setRenewPlanId("explorer_month"); setRenewQrUrl(null); fetch(`/api/member/vietqr?plan_id=explorer_month`, { headers: { Authorization: `Bearer ${accessToken}` } }).then((r) => r.json()).then((d) => { setRenewQrUrl(d.url ?? null); setRenewPlanName(d.plan_name ?? ""); setRenewPrice(d.price_vnd ?? 0); }).catch(() => setRenewQrUrl(null)); }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium ${renewPlanId === "explorer_month" ? "bg-white text-slate-900" : "bg-white/10 text-white/90 hover:bg-white/20"}`}
+                      >
+                        Explorer Monthly — 900,000 VND
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { if (!accessToken) return; setRenewPlanId("explorer_year"); setRenewQrUrl(null); fetch(`/api/member/vietqr?plan_id=explorer_year`, { headers: { Authorization: `Bearer ${accessToken}` } }).then((r) => r.json()).then((d) => { setRenewQrUrl(d.url ?? null); setRenewPlanName(d.plan_name ?? ""); setRenewPrice(d.price_vnd ?? 0); }).catch(() => setRenewQrUrl(null)); }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium ${renewPlanId === "explorer_year" ? "bg-white text-slate-900" : "bg-white/10 text-white/90 hover:bg-white/20"}`}
+                      >
+                        Explorer Yearly — 9,000,000 VND
+                      </button>
+                    </>
+                  )}
+                </div>
+                {renewQrUrl && (
+                  <div className="space-y-3 pt-2">
+                    <p className="text-xs text-white/70">{renewPlanName} — {renewPrice.toLocaleString("vi-VN")} VND</p>
+                    <div className="flex justify-center">
+                      <img src={renewQrUrl} alt="VietQR" className="w-40 h-40 object-contain bg-white rounded-xl p-2" />
+                    </div>
+                    <p className="text-[11px] text-white/60">
+                      {isVi ? "Quét mã bằng ứng dụng ngân hàng, MoMo hoặc ZaloPay. Thanh toán xong, mang biên lai cho quầy lễ tân." : "Scan with banking app, MoMo, or ZaloPay. Show receipt to front desk after payment."}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </section>
