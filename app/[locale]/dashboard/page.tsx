@@ -175,6 +175,45 @@ export default function DashboardPage() {
   }
   const sessionsThisMonth = member.total_visits != null ? Math.min(member.total_visits, 12) : 0;
 
+  // Cloud Ascension levels based on total check-ins
+  const totalVisits = member.total_visits ?? 0;
+  const ascensionLevels = [
+    { level: 1, name: "Cloud Walker", required: 5, reward: "Free Coffee" },
+    { level: 2, name: "Sky Climber", required: 10, reward: "Free Chalk" },
+    { level: 3, name: "Storm Rider", required: 25, reward: "Free Day Pass" },
+    { level: 4, name: "Cloud Master", required: 50, reward: "Leo May T-Shirt" },
+    { level: 5, name: "Sky Legend", required: 100, reward: "VIP Wall Event" },
+  ];
+
+  let currentLevelIndex = -1;
+  for (let i = 0; i < ascensionLevels.length; i += 1) {
+    if (totalVisits >= ascensionLevels[i].required) currentLevelIndex = i;
+  }
+  const nextLevelIndex =
+    currentLevelIndex < ascensionLevels.length - 1 ? currentLevelIndex + 1 : currentLevelIndex;
+
+  const currentLevel =
+    currentLevelIndex >= 0 ? ascensionLevels[currentLevelIndex] : null;
+  const nextLevel =
+    nextLevelIndex >= 0 ? ascensionLevels[nextLevelIndex] : null;
+
+  const progressTarget = nextLevel?.required ?? currentLevel?.required ?? 1;
+  const progressValue = Math.min(totalVisits, progressTarget);
+  const progressPct = Math.min(100, Math.round((progressValue / progressTarget) * 100));
+
+  const currentLevelLabel = currentLevel
+    ? `Level ${currentLevel.level} – ${currentLevel.name}`
+    : "Level 0 – New Cloud";
+
+  const nextRewardLabel =
+    nextLevel && nextLevel.level !== currentLevel?.level
+      ? nextLevel.reward
+      : currentLevel?.reward ?? "Stay consistent to unlock rewards";
+
+  // Simple weekly streak approximation (can be wired to real check-in history later)
+  const weeklyVisits = Math.min(totalVisits, 7);
+  const hasWeeklyReward = weeklyVisits >= 5;
+
   return (
     <div
       className="min-h-screen pb-20"
@@ -271,6 +310,54 @@ export default function DashboardPage() {
 
           <section className="p-6 md:p-7 rounded-3xl bg-white/6 border border-white/12 shadow-lg">
             <h2 className="text-sm font-semibold tracking-[0.18em] text-white/70 uppercase mb-4">
+              Cloud Ascension
+            </h2>
+            <div className="space-y-4 text-sm">
+              <div>
+                <p className="text-xs text-white/60 mb-1">Current Level</p>
+                <p className="text-sm text-white">{currentLevelLabel}</p>
+              </div>
+
+              <div>
+                <div className="h-3 w-full rounded-full bg-white/8 overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${progressPct}%`,
+                      background:
+                        "linear-gradient(90deg, rgba(148, 197, 255, 0.9), rgba(244, 244, 255, 0.98))",
+                      boxShadow: "0 0 12px rgba(148, 197, 255, 0.7)",
+                    }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-white/70">
+                  {progressValue} / {progressTarget} visits
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs text-white/60 mb-1">Next Reward</p>
+                <p className="text-sm text-white">{nextRewardLabel}</p>
+              </div>
+
+              <div className="pt-3 border-t border-white/10 space-y-1">
+                <p className="text-xs text-white/60 mb-1">Climbing Streak</p>
+                <p className="text-sm text-white flex items-center gap-1">
+                  <span aria-hidden>🔥</span>
+                  {weeklyVisits} {weeklyVisits === 1 ? "visit" : "visits"} this week
+                </p>
+                <p className="text-[11px] text-white/60">
+                  5 visits in one week – Free coffee{" "}
+                  {hasWeeklyReward && (
+                    <span className="text-emerald-300 font-medium">(unlocked)</span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="p-6 md:p-7 rounded-3xl bg-white/6 border border-white/12 shadow-lg">
+            <h2 className="text-sm font-semibold tracking-[0.18em] text-white/70 uppercase mb-4">
               Gym Status
             </h2>
             <div className="flex items-center justify-between">
@@ -321,6 +408,73 @@ export default function DashboardPage() {
             )}
           </section>
 
+          {/* Community Leaderboard */}
+          <section className="p-6 md:p-7 rounded-3xl bg-white/6 border border-white/12 shadow-lg">
+            <h2 className="text-sm font-semibold tracking-[0.18em] text-white/70 uppercase mb-1">
+              Community Leaderboard
+            </h2>
+            <p className="text-xs text-white/60 mb-4">
+              Top Climbers This Month
+            </p>
+            {leaderboardLoading ? (
+              <p className="text-xs text-white/50">Loading leaderboard…</p>
+            ) : leaderboardError ? (
+              <p className="text-xs text-red-300">{leaderboardError}</p>
+            ) : leaderboard && leaderboard.top.length > 0 ? (
+              <div className="space-y-3 text-sm">
+                <ol className="space-y-1">
+                  {leaderboard.top.map((entry) => {
+                    const medal =
+                      entry.rank === 1
+                        ? "🥇"
+                        : entry.rank === 2
+                        ? "🥈"
+                        : entry.rank === 3
+                        ? "🥉"
+                        : `${entry.rank}.`;
+                    return (
+                      <li
+                        key={entry.member_id}
+                        className="flex items-center justify-between text-white/85"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className="w-6 text-center text-base" aria-hidden>
+                            {medal}
+                          </span>
+                          <span>{entry.full_name}</span>
+                        </span>
+                        <span className="text-xs text-white/70">
+                          {entry.visits} {entry.visits === 1 ? "visit" : "visits"}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ol>
+
+                {leaderboard.currentUser && (
+                  <div className="pt-3 mt-3 border-t border-white/10">
+                    <p className="text-xs text-white/60 mb-1">Your Rank</p>
+                    {leaderboard.currentUser.rank ? (
+                      <p className="text-sm text-white/85">
+                        #{leaderboard.currentUser.rank} {leaderboard.currentUser.full_name} —{" "}
+                        {leaderboard.currentUser.visits}{" "}
+                        {leaderboard.currentUser.visits === 1 ? "visit" : "visits"}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-white/60">
+                        No check-ins yet this month.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-white/50">
+                No check-ins yet this month. Be the first to climb.
+              </p>
+            )}
+          </section>
+
           <section className="p-6 md:p-7 rounded-3xl bg-white/6 border border-white/12 shadow-lg">
             <h2 className="text-sm font-semibold tracking-[0.18em] text-white/70 uppercase mb-4">
               Upcoming Events
@@ -344,6 +498,16 @@ export default function DashboardPage() {
                   </span>
                 </div>
               ))}
+            </div>
+            <div className="mt-5 pt-3 border-t border-white/10">
+              <p className="text-xs text-white/60 mb-1">
+                Top 3 rewards this month
+              </p>
+              <ul className="text-xs text-white/80 space-y-1">
+                <li>🥇 Free Chalk</li>
+                <li>🥈 Free Coffee</li>
+                <li>🥉 Guest Pass</li>
+              </ul>
             </div>
           </section>
 
