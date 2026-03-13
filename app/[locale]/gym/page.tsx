@@ -1,11 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import GymLoadingScreen from "@/components/gym/GymLoadingScreen";
+import LoadingScreen from "@/components/LoadingScreen";
 
 const GymWorld = dynamic(() => import("@/components/gym/GymWorld"), {
   ssr: false,
-  loading: () => <GymLoadingScreen />,
+  loading: () => <LoadingScreen />,
 });
 
 export default function GymPage() {
