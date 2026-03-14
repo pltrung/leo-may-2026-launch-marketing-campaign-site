@@ -124,12 +124,18 @@ export default function DashboardPage() {
   const [eventModalEvent, setEventModalEvent] = useState<DashboardEvent | null>(null);
   const [waiverModalOpen, setWaiverModalOpen] = useState(false);
 
-  // Clean VNPay return params from URL when returning from VNPay
+  // Handle VNPay return: show payment success banner, refresh member, then clean URL
   useEffect(() => {
     if (typeof window === "undefined") return;
     const u = new URL(window.location.href);
     const vnp = u.searchParams.get("vnp_ResponseCode");
     if (vnp == null) return;
+    const isSuccess = vnp === "00";
+    if (isSuccess) {
+      setPaymentSuccess(true);
+      refresh();
+      setTimeout(() => setPaymentSuccess(false), 8000);
+    }
     u.searchParams.forEach((_, k) => {
       if (k.startsWith("vnp_")) u.searchParams.delete(k);
     });
@@ -137,7 +143,18 @@ export default function DashboardPage() {
     if (clean !== window.location.pathname + window.location.search) {
       router.replace(clean, { scroll: false });
     }
-  }, [router]);
+  }, [router, refresh]);
+
+  // Periodic member refresh when visible (fallback if realtime doesn't fire)
+  useEffect(() => {
+    if (!accessToken) return;
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        refresh();
+      }
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [accessToken, refresh]);
 
   // Fetch occupancy (no auth required)
   useEffect(() => {
@@ -210,7 +227,7 @@ export default function DashboardPage() {
       return;
     }
     const channel = supabase
-      .channel("payments-for-member")
+      .channel(`payments-${member.id}`)
       .on(
         "postgres_changes",
         {
@@ -241,7 +258,7 @@ export default function DashboardPage() {
       return;
     }
     const channel = supabase
-      .channel("checkins-for-member")
+      .channel(`checkins-${member.id}`)
       .on(
         "postgres_changes",
         {

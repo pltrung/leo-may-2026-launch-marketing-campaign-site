@@ -274,26 +274,14 @@ export default function AdminPage() {
       if (!res.ok) {
         throw new Error("Failed to record check-in");
       }
-      setFoundMember((prev) =>
-        prev
-          ? {
-              ...prev,
-              checkinsThisMonth: prev.checkinsThisMonth + 1,
-              totalVisits: prev.totalVisits + 1,
-              recentCheckins: [
-                { label: new Date().toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) },
-                ...prev.recentCheckins,
-              ].slice(0, 5),
-            }
-          : prev
-      );
       setActionMessage("Check-in recorded.");
+      loadMemberById(foundMember.id);
     } catch (e) {
       setActionError("Unable to record check-in. Please verify member ID and try again.");
     } finally {
       setActionLoading(null);
     }
-  }, [foundMember]);
+  }, [foundMember, loadMemberById]);
 
   const handleManualCheckIn = useCallback(async () => {
     if (!foundMember) return;
@@ -309,22 +297,14 @@ export default function AdminPage() {
       if (!res.ok) {
         throw new Error("Failed to record manual check-in");
       }
-      setFoundMember((prev) =>
-        prev
-          ? {
-              ...prev,
-              checkinsThisMonth: prev.checkinsThisMonth + 1,
-              totalVisits: prev.totalVisits + 1,
-            }
-          : prev
-      );
       setActionMessage("Manual check-in recorded.");
+      loadMemberById(foundMember.id);
     } catch {
       setActionError("Unable to record manual check-in.");
     } finally {
       setActionLoading(null);
     }
-  }, [foundMember]);
+  }, [foundMember, loadMemberById]);
 
   const handleUndoCheckIn = useCallback(() => {
     if (!foundMember) return;

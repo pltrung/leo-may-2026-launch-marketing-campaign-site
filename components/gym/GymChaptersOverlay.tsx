@@ -128,8 +128,8 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
           priority
         />
       </div>
-      {/* Mobile: 3-layer hero (title 22vh, cloud center, CTA 72vh). Desktop: centered vertical stack. */}
-      <div className="flex-1 flex flex-col min-h-0 w-full max-w-xl md:max-w-2xl mx-auto px-4 md:px-8 pt-[22vh] md:pt-[12vh] pb-[8vh] md:pb-[12vh] md:gap-7 gap-6">
+      {/* Mobile: title + subtitle in same vertical area as intro logo (above GLB). Desktop: centered vertical stack. */}
+      <div className="flex-1 flex flex-col min-h-0 w-full max-w-xl md:max-w-2xl mx-auto px-4 md:px-8 pt-[8vh] md:pt-[12vh] pb-[8vh] md:pb-[12vh] md:gap-7 gap-6">
         {/* Title block: intro logo (desktop only, below GLB) + chapter headlines — layer 1 */}
         <div className="flex-shrink-0 pt-2 pb-4 md:pb-6 md:pb-8 flex flex-col items-center text-center">
           <div className="relative w-full min-h-[4.5rem] md:min-h-[5rem]">
