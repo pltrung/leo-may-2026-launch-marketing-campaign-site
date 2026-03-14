@@ -40,6 +40,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
   const [signupName, setSignupName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPhone, setSignupPhone] = useState("");
+  const [signupGender, setSignupGender] = useState<"male" | "female" | "">("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupError, setSignupError] = useState("");
   const [signupLoading, setSignupLoading] = useState(false);
@@ -345,6 +346,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
           full_name: signupName.trim(),
           email: trimmedEmail,
           phone: signupPhone.trim() || undefined,
+          gender: signupGender === "male" || signupGender === "female" ? signupGender : undefined,
         }),
       });
       if (!res.ok) {
@@ -404,6 +406,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
             full_name: signupName.trim(),
             email: emailTrim,
             phone: signupPhone.trim() || undefined,
+            gender: signupGender === "male" || signupGender === "female" ? signupGender : undefined,
           }),
         });
         if (!res.ok) {
@@ -420,7 +423,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
         setSignupVerifyLoading(false);
       }
     },
-    [signupOtpCode, signupEmail, signupName, signupPhone, auth.error, auth.invalidCredentials, locale, handleClose, router]
+    [signupOtpCode, signupEmail, signupName, signupPhone, signupGender, auth.error, auth.invalidCredentials, locale, handleClose, router]
   );
 
   const backButton = (
@@ -547,6 +550,18 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
               onChange={(e) => setSignupPhone(e.target.value)}
               className="sky-input w-full px-4 py-3 rounded-xl border border-[var(--sky-glass-border)] bg-white/5 text-[var(--sky-text-primary)] placeholder-[var(--sky-text-secondary)]"
             />
+            <div>
+              <label className="block text-sm text-[var(--sky-text-secondary)] mb-1.5">{auth.gender}</label>
+              <select
+                value={signupGender}
+                onChange={(e) => setSignupGender((e.target.value || "") as "male" | "female" | "")}
+                className="sky-input w-full px-4 py-3 rounded-xl border border-[var(--sky-glass-border)] bg-white/5 text-[var(--sky-text-primary)]"
+              >
+                <option value="">—</option>
+                <option value="male">{auth.genderMale}</option>
+                <option value="female">{auth.genderFemale}</option>
+              </select>
+            </div>
             <input
               type="password"
               name="new-password"

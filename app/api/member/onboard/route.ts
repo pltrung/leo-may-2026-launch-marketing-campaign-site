@@ -8,7 +8,7 @@ const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 /**
  * POST /api/member/onboard
  * Called after signup with Bearer token. Creates member_profiles with tier Explorer.
- * Body: { full_name: string, email?: string, phone?: string }
+ * Body: { full_name: string, email?: string, phone?: string, gender?: "male" | "female" }
  */
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("Authorization");
@@ -22,6 +22,9 @@ export async function POST(request: NextRequest) {
     const fullName = typeof body.full_name === "string" ? body.full_name.trim() : "";
     const email = typeof body.email === "string" ? body.email.trim() || null : null;
     const phone = typeof body.phone === "string" ? body.phone.trim() || null : null;
+    const gender = typeof body.gender === "string" && ["male", "female"].includes(body.gender.trim().toLowerCase())
+      ? body.gender.trim().toLowerCase()
+      : null;
 
     if (!fullName) {
       return NextResponse.json({ error: "full_name required" }, { status: 400 });
@@ -55,6 +58,7 @@ export async function POST(request: NextRequest) {
         full_name: fullName,
         tier: "Explorer",
         membership_status: "inactive",
+        gender,
       })
       .select("id")
       .single();

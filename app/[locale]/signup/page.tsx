@@ -16,6 +16,7 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [gender, setGender] = useState<"male" | "female" | "">("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -98,6 +99,7 @@ export default function SignupPage() {
           full_name: name.trim(),
           email: trimmedEmail,
           phone: phone.trim() || undefined,
+          gender: gender === "male" || gender === "female" ? gender : undefined,
         }),
       });
       if (!res.ok) {
@@ -189,6 +191,18 @@ export default function SignupPage() {
             onChange={(e) => setPhone(e.target.value)}
             className="sky-input w-full px-4 py-3 rounded-xl border border-[var(--sky-glass-border)] bg-white/5 text-[var(--sky-text-primary)] placeholder-[var(--sky-text-secondary)]"
           />
+          <div>
+            <label className="block text-sm text-[var(--sky-text-secondary)] mb-1.5">{m.gender}</label>
+            <select
+              value={gender}
+              onChange={(e) => setGender((e.target.value || "") as "male" | "female" | "")}
+              className="sky-input w-full px-4 py-3 rounded-xl border border-[var(--sky-glass-border)] bg-white/5 text-[var(--sky-text-primary)]"
+            >
+              <option value="">—</option>
+              <option value="male">{m.genderMale}</option>
+              <option value="female">{m.genderFemale}</option>
+            </select>
+          </div>
           <input
             type="password"
             name="new-password"

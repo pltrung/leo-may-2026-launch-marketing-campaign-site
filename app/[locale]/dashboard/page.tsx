@@ -10,7 +10,6 @@ import { useMemberAuth } from "@/lib/useMemberAuth";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { HERO_BG } from "@/lib/heroConstants";
 import { SOCIAL_LINKS } from "@/lib/announcementConfig";
-import { getSkyTheme, getLocalTimeHours } from "@/components/gym/theme/skyTheme";
 import ProfileModal from "@/components/dashboard/ProfileModal";
 import PackageDetailModal, { type Plan } from "@/components/dashboard/PackageDetailModal";
 import PaymentModal from "@/components/dashboard/PaymentModal";
@@ -49,9 +48,10 @@ export default function DashboardPage() {
   const wakeLockRef = useRef<any | null>(null);
   const [gymOccupancy, setGymOccupancy] = useState<number | null>(null);
   const [leaderboard, setLeaderboard] = useState<{
-    top: { rank: number; full_name: string; visits: number }[];
+    top: { rank: number; full_name: string; instagram_handle?: string | null; visits: number }[];
     currentUser: { rank: number | null; visits: number; full_name: string };
   } | null>(null);
+  const [leaderboardGender, setLeaderboardGender] = useState<"all" | "male" | "female">("all");
   const [plans, setPlans] = useState<Plan[]>([]);
   const [payments, setPayments] = useState<{ id: string; plan_name: string; amount: number; created_at: string }[]>([]);
   const [packageDetailPlan, setPackageDetailPlan] = useState<Plan | null>(null);
@@ -65,15 +65,9 @@ export default function DashboardPage() {
   const [freezeLoading, setFreezeLoading] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [vnpayLoading, setVnpayLoading] = useState(false);
-  const [skyBg, setSkyBg] = useState<string>(() => getSkyTheme(getLocalTimeHours()).bgGradient);
+  // Use consistent night gradient so EN and VN dashboard backgrounds always match
+  const skyBg = "linear-gradient(180deg, #0B0B0F 0%, #0d0d14 40%, #12121a 100%)";
   const [profileModalOpen, setProfileModalOpen] = useState(false);
-
-  useEffect(() => {
-    const update = () => setSkyBg(getSkyTheme(getLocalTimeHours()).bgGradient);
-    update();
-    const id = setInterval(update, 60000);
-    return () => clearInterval(id);
-  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -131,9 +125,10 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!accessToken) return;
     let cancelled = false;
+    const genderParam = leaderboardGender === "all" ? "" : `?gender=${leaderboardGender}`;
     (async () => {
       try {
-        const res = await fetch("/api/member/leaderboard", {
+        const res = await fetch(`/api/member/leaderboard${genderParam}`, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         if (!res.ok || cancelled) return;
@@ -147,7 +142,7 @@ export default function DashboardPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [accessToken]);
+  }, [accessToken, leaderboardGender]);
 
   // Fetch plans
   useEffect(() => {
@@ -714,26 +709,46 @@ export default function DashboardPage() {
                   {isVi ? "Thanh toán / gia hạn" : "Pay / Renew"}
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                  {plans.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => {
-                        setPackageDetailPlan(p);
-                        setPackageDetailOpen(true);
-                      }}
-                      className="text-left rounded-xl p-4 transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
-                      style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}
-                    >
-                      <p className="font-semibold text-white/95">{p.name}</p>
-                      <p className="text-emerald-300/90 text-sm mt-1">
-                        {p.price_vnd.toLocaleString("vi-VN")} VND
-                      </p>
-                      {p.description && (
-                        <p className="text-xs text-white/60 mt-1 line-clamp-2">{p.description}</p>
-                      )}
-                    </button>
-                  ))}
+                  {plans.map((p) => {
+                    const isNewbieClass = p.id === "newbie_class";
+                    const hasBoughtNewbieClass = payments.some((pmt) => pmt.plan_name === "Newbie Class");
+                    const showNewbieAura = isNewbieClass && !hasBoughtNewbieClass;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          setPackageDetailPlan(p);
+                          setPackageDetailOpen(true);
+                        }}
+                        className="relative text-left rounded-xl p-4 transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] overflow-hidden"
+                        style={{
+                          background: showNewbieAura ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.08)",
+                          border: showNewbieAura ? "1px solid rgba(16,185,129,0.4)" : "1px solid rgba(255,255,255,0.12)",
+                          boxShadow: showNewbieAura ? "0 0 24px rgba(16,185,129,0.25), inset 0 0 20px rgba(16,185,129,0.08)" : undefined,
+                        }}
+                      >
+                        {showNewbieAura && (
+                          <div
+                            className="absolute inset-0 pointer-events-none opacity-40"
+                            style={{
+                              background: "radial-gradient(ellipse 80% 80% at 50% 50%, rgba(16,185,129,0.3) 0%, transparent 70%)",
+                            }}
+                            aria-hidden
+                          />
+                        )}
+                        <div className="relative">
+                          <p className="font-semibold text-white/95">{p.name}</p>
+                          <p className="text-emerald-300/90 text-sm mt-1">
+                            {p.price_vnd.toLocaleString("vi-VN")} VND
+                          </p>
+                          {p.description && (
+                            <p className="text-xs text-white/60 mt-1 line-clamp-2">{p.description}</p>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
                 {payments.length > 0 && (
                   <div className="pt-3 border-t border-white/[0.08]">
@@ -828,9 +843,27 @@ export default function DashboardPage() {
           {/* COMMUNITY LEADERBOARD */}
           <section>
             <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
-              <h2 className="text-[22px] font-semibold text-white/90 mb-4">
-                {isVi ? "BẢNG XẾP HẠNG CỘNG ĐỒNG" : "COMMUNITY LEADERBOARD"}
-              </h2>
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                <h2 className="text-[22px] font-semibold text-white/90">
+                  {isVi ? "BẢNG XẾP HẠNG CỘNG ĐỒNG" : "COMMUNITY LEADERBOARD"}
+                </h2>
+                <div className="flex gap-2">
+                  {(["all", "male", "female"] as const).map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setLeaderboardGender(g)}
+                      className={`px-3 py-1.5 rounded-full text-[13px] font-medium transition-all ${
+                        leaderboardGender === g
+                          ? "bg-white text-slate-900"
+                          : "bg-white/10 text-white/80 hover:bg-white/20"
+                      }`}
+                    >
+                      {g === "all" ? (isVi ? "Tất cả" : "All") : g === "male" ? (isVi ? "Nam" : "Male") : (isVi ? "Nữ" : "Female")}
+                    </button>
+                  ))}
+                </div>
+              </div>
               {!leaderboard && (
                 <p className="text-[15px] text-white/60">{isVi ? "Đang tải…" : "Loading…"}</p>
               )}
@@ -841,26 +874,46 @@ export default function DashboardPage() {
               )}
               {leaderboard && leaderboard.top.length > 0 && (
                 <div className="space-y-3 text-[15px] text-white">
-                  <div className="space-y-2">
-                    {leaderboard.top.slice(0, 3).map((entry) => (
-                      <div
-                        key={entry.rank}
-                        className="flex items-center justify-between rounded-[16px] px-4 py-3 transition-transform duration-200 hover:-translate-y-0.5"
-                        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="text-xl">
-                            {entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : entry.rank}
-                          </span>
-                          <div>
-                            <p className="text-[18px] font-medium">{entry.full_name}</p>
-                            <p className="text-[13px] text-white/60">
-                              {entry.visits} {isVi ? "lượt trong tháng này" : entry.visits === 1 ? "visit this month" : "visits this month"}
-                            </p>
+                  <div className="space-y-2 max-h-[360px] overflow-y-auto">
+                    {leaderboard.top.map((entry) => {
+                      const instaUrl = entry.instagram_handle
+                        ? `https://www.instagram.com/${entry.instagram_handle.replace(/^@/, "")}/`
+                        : null;
+                      return (
+                        <div
+                          key={entry.rank}
+                          className="flex items-center justify-between rounded-[16px] px-4 py-3 transition-transform duration-200 hover:-translate-y-0.5"
+                          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <span className="text-xl shrink-0">
+                              {entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : entry.rank}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="text-[18px] font-medium">{entry.full_name}</p>
+                                {instaUrl && (
+                                  <a
+                                    href={instaUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-white/70 hover:text-white transition-colors shrink-0"
+                                    aria-label="Instagram"
+                                  >
+                                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069z" />
+                                    </svg>
+                                  </a>
+                                )}
+                              </div>
+                              <p className="text-[13px] text-white/60">
+                                {entry.visits} {isVi ? "lượt trong tháng này" : entry.visits === 1 ? "visit this month" : "visits this month"}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                   {leaderboard.currentUser && (
                     <div className="mt-2 pt-2 border-t border-white/[0.08] text-[13px] text-white/70">
@@ -869,8 +922,8 @@ export default function DashboardPage() {
                         {leaderboard.currentUser.rank != null
                           ? `#${leaderboard.currentUser.rank}`
                           : isVi
-                          ? "ngoài top 5"
-                          : "outside top 5"}
+                          ? "ngoài top 20"
+                          : "outside top 20"}
                       </p>
                       <p>
                         {isVi ? "Lượt trong tháng này: " : "Visits this month: "}
@@ -975,6 +1028,7 @@ export default function DashboardPage() {
         onBuyPass={() => packageDetailPlan && handleBuyPass(packageDetailPlan)}
         isVi={isVi}
         hasActivePass={isActive}
+        currentExpiry={member?.membership_expires_at ?? null}
       />
       <PaymentModal
         open={isVietQrModalOpen}

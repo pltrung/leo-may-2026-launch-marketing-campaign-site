@@ -10,6 +10,8 @@ interface ProfileModalProps {
     full_name?: string | null;
     email?: string | null;
     phone?: string | null;
+    instagram_handle?: string | null;
+    gender?: string | null;
     profile_photo_url?: string | null;
     id_number?: string | null;
     date_of_birth?: string | null;
@@ -31,6 +33,10 @@ export default function ProfileModal({
   const [fullName, setFullName] = useState(member.full_name ?? "");
   const [email, setEmail] = useState(member.email ?? "");
   const [phone, setPhone] = useState(member.phone ?? "");
+  const [instagramHandle, setInstagramHandle] = useState(member.instagram_handle ?? "");
+  const [gender, setGender] = useState<"male" | "female" | "">(
+    member.gender === "male" || member.gender === "female" ? member.gender : ""
+  );
   const [idNumber, setIdNumber] = useState(member.id_number ?? "");
   const [dateOfBirth, setDateOfBirth] = useState(
     member.date_of_birth ? member.date_of_birth.slice(0, 10) : ""
@@ -54,6 +60,8 @@ export default function ProfileModal({
       setFullName(member.full_name ?? "");
       setEmail(member.email ?? "");
       setPhone(member.phone ?? "");
+      setInstagramHandle(member.instagram_handle ?? "");
+      setGender(member.gender === "male" || member.gender === "female" ? member.gender : "");
       setIdNumber(member.id_number ?? "");
       setDateOfBirth(member.date_of_birth ? member.date_of_birth.slice(0, 10) : "");
       setPhotoPreview(member.profile_photo_url ?? null);
@@ -65,7 +73,7 @@ export default function ProfileModal({
       setPasswordError(null);
       setPasswordSuccess(false);
     }
-  }, [open, member.full_name, member.email, member.phone, member.id_number, member.date_of_birth, member.profile_photo_url]);
+  }, [open, member.full_name, member.email, member.phone, member.instagram_handle, member.gender, member.id_number, member.date_of_birth, member.profile_photo_url]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -105,6 +113,8 @@ export default function ProfileModal({
         full_name: fullName.trim() || null,
         email: email.trim() || null,
         phone: phone.trim() || null,
+        instagram_handle: instagramHandle.trim() || null,
+        gender: gender || null,
         id_number: idNumber.trim() || null,
         date_of_birth: dateOfBirth.trim() || null,
       };
@@ -127,7 +137,7 @@ export default function ProfileModal({
     } finally {
       setLoading(false);
     }
-  }, [accessToken, fullName, email, phone, idNumber, dateOfBirth, photoFile, onSaved, onClose, isVi]);
+  }, [accessToken, fullName, email, phone, instagramHandle, gender, idNumber, dateOfBirth, photoFile, onSaved, onClose, isVi]);
 
   const handleChangePassword = useCallback(async () => {
     if (!accessToken) return;
@@ -270,6 +280,29 @@ export default function ProfileModal({
                 placeholder={isVi ? "Số điện thoại" : "Phone"}
                 className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
               />
+            </label>
+            <label className="block">
+              <span className="text-xs text-white/70">{d.instagram}</span>
+              <input
+                type="text"
+                autoComplete="off"
+                value={instagramHandle}
+                onChange={(e) => setInstagramHandle(e.target.value)}
+                placeholder={isVi ? "@username hoặc username" : "@username or username"}
+                className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs text-white/70">{d.gender}</span>
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value as "male" | "female" | "")}
+                className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 [color-scheme:dark]"
+              >
+                <option value="">{isVi ? "Chọn" : "Select"}</option>
+                <option value="male">{d.genderMale}</option>
+                <option value="female">{d.genderFemale}</option>
+              </select>
             </label>
             <label className="block">
               <span className="text-xs text-white/70">

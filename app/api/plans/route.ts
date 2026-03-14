@@ -14,5 +14,8 @@ export async function GET() {
     console.error("plans error", error);
     return NextResponse.json({ error: "Failed to load plans" }, { status: 500 });
   }
-  return NextResponse.json({ plans: data ?? [] }, { headers: { "Cache-Control": "no-store, max-age=60" } });
+  // Exclude deprecated plans from dashboard purchase flow
+  const excludedIds = ["until_end_of_year", "explorer_month", "explorer_year"];
+  const plans = (data ?? []).filter((p) => !excludedIds.includes((p.id as string) ?? ""));
+  return NextResponse.json({ plans }, { headers: { "Cache-Control": "no-store, max-age=60" } });
 }

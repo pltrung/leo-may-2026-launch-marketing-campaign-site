@@ -8,10 +8,11 @@ const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 /**
  * GET /api/member/leaderboard
  * Authorization: Bearer <access_token>
+ * Query: ?gender=male|female|all (default: all)
  *
  * Returns monthly gym check-in leaderboard for current month:
- * - top: top 5 members by visits this month
- * - currentUser: current user's rank and visits this month (always included when member exists)
+ * - top: top 20 members by visits (filtered by gender if specified)
+ * - currentUser: current user's rank and visits this month
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("Authorization");
@@ -46,10 +47,12 @@ export async function GET(request: NextRequest) {
 
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const genderParam = request.nextUrl.searchParams.get("gender")?.trim().toLowerCase();
+    const genderFilter = genderParam === "male" || genderParam === "female" ? genderParam : null;
 
     const { data: checkins, error: checkinErr } = await supabase
       .from("gym_checkins")
-      .select("member_id, member:member_profiles(full_name)")
+      .select("member_id, member:member_profiles(full_name, instagram_handle, gender)")
       .gte("timestamp", monthStart.toISOString());
 
     if (checkinErr) {
@@ -59,19 +62,24 @@ export async function GET(request: NextRequest) {
 
     const counts = new Map<
       string,
-      { member_id: string; full_name: string; visits: number }
+      { member_id: string; full_name: string; instagram_handle: string | null; gender: string | null; visits: number }
     >();
 
     for (const row of checkins ?? []) {
       const memberId = (row as any).member_id as string;
       if (!memberId) continue;
-      const fullName =
-        ((row as any).member?.full_name as string | null) ?? "Member";
+      const member = (row as any).member;
+      const fullName = (member?.full_name as string | null) ?? "Member";
+      const instagramHandle = (member?.instagram_handle as string | null) ?? null;
+      const gender = (member?.gender as string | null) ?? null;
+
+      if (genderFilter && gender !== genderFilter) continue;
+
       const existing = counts.get(memberId);
       if (existing) {
         existing.visits += 1;
       } else {
-        counts.set(memberId, { member_id: memberId, full_name: fullName, visits: 1 });
+        counts.set(memberId, { member_id: memberId, full_name: fullName, instagram_handle: instagramHandle, gender, visits: 1 });
       }
     }
 
@@ -79,10 +87,11 @@ export async function GET(request: NextRequest) {
       (a, b) => b.visits - a.visits
     );
 
-    const top = allEntries.slice(0, 5).map((entry, index) => ({
+    const top = allEntries.slice(0, 20).map((entry, index) => ({
       rank: index + 1,
       member_id: entry.member_id,
       full_name: entry.full_name,
+      instagram_handle: entry.instagram_handle,
       visits: entry.visits,
     }));
 

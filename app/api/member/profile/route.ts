@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const supabase = createServerClient();
     const { data: member, error } = await supabase
       .from("member_profiles")
-      .select("id, profile_photo_url, id_number, date_of_birth, full_name, email, phone")
+      .select("id, profile_photo_url, id_number, date_of_birth, full_name, email, phone, instagram_handle, gender")
       .eq("auth_id", user.id)
       .maybeSingle();
 
@@ -44,6 +44,8 @@ export async function GET(req: NextRequest) {
         full_name: member.full_name ?? null,
         email: member.email ?? null,
         phone: member.phone ?? null,
+        instagram_handle: member.instagram_handle ?? null,
+        gender: member.gender ?? null,
       },
     });
   } catch (e) {
@@ -54,7 +56,7 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/member/profile
- * Body: { profile_photo_base64?, id_number?, date_of_birth?, full_name?, email?, phone? }
+ * Body: { profile_photo_base64?, id_number?, date_of_birth?, full_name?, email?, phone?, instagram_handle?, gender? }
  * Updates profile (member_profiles + Supabase Auth) and optionally uploads photo.
  */
 export async function POST(req: NextRequest) {
@@ -87,6 +89,12 @@ export async function POST(req: NextRequest) {
     const fullName = typeof body.full_name === "string" ? body.full_name.trim() || null : undefined;
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() || null : undefined;
     const phone = typeof body.phone === "string" ? body.phone.trim().replace(/\s+/g, "") || null : undefined;
+    const instagramHandle = typeof body.instagram_handle === "string"
+      ? body.instagram_handle.trim().replace(/^@/, "").toLowerCase() || null
+      : undefined;
+    const gender = typeof body.gender === "string" && ["male", "female"].includes(body.gender.trim().toLowerCase())
+      ? body.gender.trim().toLowerCase()
+      : undefined;
 
     let profilePhotoUrl: string | null = null;
 
@@ -126,6 +134,8 @@ export async function POST(req: NextRequest) {
     if (fullName !== undefined) updates.full_name = fullName ?? "";
     if (email !== undefined) updates.email = email;
     if (phone !== undefined) updates.phone = phone;
+    if (instagramHandle !== undefined) updates.instagram_handle = instagramHandle ?? null;
+    if (gender !== undefined) updates.gender = gender ?? null;
 
     // Sync full_name to Auth user metadata (for display; email/phone stay in member_profiles only)
     if (fullName !== undefined) {

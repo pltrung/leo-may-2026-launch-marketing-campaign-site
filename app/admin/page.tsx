@@ -19,6 +19,8 @@ interface AdminMember {
   profile_photo_url?: string | null;
   id_number?: string | null;
   date_of_birth?: string | null;
+  instagram_handle?: string | null;
+  gender?: string | null;
 }
 
 interface NameSearchResult {
@@ -733,6 +735,25 @@ export default function AdminPage() {
                         {foundMember.validUntil}
                       </p>
                     </div>
+                    {foundMember.gender && (
+                      <div>
+                        <p className="text-slate-500">Gender</p>
+                        <p className="font-medium text-slate-900">{foundMember.gender === "male" ? "Male" : "Female"}</p>
+                      </div>
+                    )}
+                    {foundMember.instagram_handle && (
+                      <div>
+                        <p className="text-slate-500">Instagram</p>
+                        <a
+                          href={`https://www.instagram.com/${foundMember.instagram_handle.replace(/^@/, "")}/`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-slate-900 hover:underline"
+                        >
+                          @{foundMember.instagram_handle.replace(/^@/, "")}
+                        </a>
+                      </div>
+                    )}
                     {foundMember.id_number && (
                       <div>
                         <p className="text-slate-500">Govt ID</p>

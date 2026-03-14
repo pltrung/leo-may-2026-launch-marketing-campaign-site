@@ -18,6 +18,8 @@ interface PackageDetailModalProps {
   isVi: boolean;
   /** When true, show message that purchase will extend current membership */
   hasActivePass?: boolean;
+  /** Current membership expiry (ISO string); used to compute and display new expiry date */
+  currentExpiry?: string | null;
 }
 
 export default function PackageDetailModal({
@@ -27,6 +29,7 @@ export default function PackageDetailModal({
   onBuyPass,
   isVi,
   hasActivePass = false,
+  currentExpiry,
 }: PackageDetailModalProps) {
   if (!open || !plan) return null;
 
@@ -85,13 +88,32 @@ export default function PackageDetailModal({
                     : "365 days"
                   : `${plan.duration_days} ${isVi ? "ngày" : "days"}`}
           </p>
-          {hasActivePass && (
-            <p className="mb-4 text-sm text-emerald-300/90 bg-emerald-500/10 rounded-lg px-3 py-2">
-              {isVi
+          {hasActivePass && (() => {
+            const base = currentExpiry && plan ? new Date(currentExpiry) : null;
+            const isValidBase = base && !Number.isNaN(base.getTime());
+            const newExpiry = isValidBase && plan
+              ? (() => {
+                  const d = new Date(base);
+                  d.setDate(d.getDate() + plan.duration_days);
+                  return d;
+                })()
+              : null;
+            const fmt = (d: Date, loc: "vi-VN" | "en-US") =>
+              d.toLocaleDateString(loc, { day: "numeric", month: "short", year: "numeric" });
+            const loc = isVi ? "vi-VN" : "en-US";
+            const extendMsg = newExpiry && isValidBase
+              ? isVi
+                ? `Mua thẻ này sẽ gia hạn thêm: từ ${fmt(base!, loc)} → ${fmt(newExpiry, loc)}`
+                : `This will extend your access: ${fmt(base!, loc)} → ${fmt(newExpiry, loc)}`
+              : isVi
                 ? "Mua thẻ này sẽ gia hạn thêm thời gian sử dụng từ ngày hết hạn hiện tại."
-                : "Purchasing this pass will extend your access from your current expiry date."}
-            </p>
-          )}
+                : "Purchasing this pass will extend your access from your current expiry date.";
+            return (
+              <p className="mb-4 text-sm text-emerald-300/90 bg-emerald-500/10 rounded-lg px-3 py-2">
+                {extendMsg}
+              </p>
+            );
+          })()}
           {bullets.length > 0 && (
             <div className="mb-6 text-sm text-white/80 space-y-1">
               {bullets.map((b, i) => (

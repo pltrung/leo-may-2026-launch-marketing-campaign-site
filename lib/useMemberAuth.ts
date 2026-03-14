@@ -22,6 +22,8 @@ export interface MemberProfile {
   profile_photo_url?: string | null;
   id_number?: string | null;
   date_of_birth?: string | null;
+  instagram_handle?: string | null;
+  gender?: string | null;
 }
 
 export function useMemberAuth() {
