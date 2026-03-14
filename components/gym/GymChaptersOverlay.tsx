@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
+import Image from "next/image";
 import { useLocale } from "@/components/LocaleProvider";
 import { getMessages } from "@/lib/messages";
 import { useGymNav } from "@/components/gym/context/GymNavContext";
@@ -8,6 +9,12 @@ import { smoothstep } from "@/lib/easing";
 import type { ScrollProgressState } from "@/components/gym/scroll/useScrollProgress";
 import type { GymChapter } from "@/components/gym/scroll/chapters";
 import { HERO_ACCENT_COLORS } from "@/lib/heroConstants";
+
+/** Logo visible at progress 0; fades out 0.06–0.14. Welcome fades in 0.08–0.18. */
+const LOGO_FADE_OUT_START = 0.06;
+const LOGO_FADE_OUT_END = 0.14;
+const WELCOME_FADE_IN_START = 0.08;
+const WELCOME_FADE_IN_END = 0.18;
 
 interface GymChaptersOverlayProps {
   scroll: ScrollProgressState;
@@ -18,9 +25,9 @@ interface GymChaptersOverlayProps {
 const FADE_Y_PX = 20;
 const INTRO_TEXT_REVEAL_PROGRESS = 0.14;
 
-/** Per-chapter progress windows: [fadeInStart, fadeInEnd, holdEnd, fadeOutStart, fadeOutEnd]. Intro aligns with CTA fade-in. */
+/** Per-chapter progress windows: [fadeInStart, fadeInEnd, holdEnd, fadeOutStart, fadeOutEnd]. Intro welcome fades in 0.08–0.18 to crossfade with logo. */
 const CHAPTER_WINDOWS: Record<GymChapter, [number, number, number, number, number]> = {
-  intro: [0.14, 0.22, 0.30, 0.30, 0.40],
+  intro: [WELCOME_FADE_IN_START, WELCOME_FADE_IN_END, 0.30, 0.30, 0.40],
   gym: [0.34, 0.42, 0.54, 0.54, 0.64],
   community: [0.58, 0.66, 0.78, 0.78, 0.86],
   membership: [0.82, 0.90, 1, 1, 1],
@@ -50,10 +57,6 @@ function chapterOpacityAndTranslateY(
   } else {
     opacity = 0;
     translateY = -FADE_Y_PX;
-  }
-  if (chapter === "intro" && p < INTRO_TEXT_REVEAL_PROGRESS) {
-    opacity = 0;
-    translateY = FADE_Y_PX;
   }
   return { opacity, translateY };
 }
@@ -106,9 +109,29 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
     >
       {/* Mobile keeps extra top padding so text sits below GLB; desktop uses a centered vertical stack so title, island, and CTA feel like one unit */}
       <div className="flex-1 flex flex-col min-h-0 w-full max-w-2xl mx-auto px-4 md:px-8 pt-[48vh] md:pt-[12vh] md:pb-[12vh] md:gap-7">
-        {/* Title block: compact vertical spacing (title + subtitle) */}
+        {/* Title block: intro logo (fades out) + chapter headlines (welcome fades in 0.08–0.18) */}
         <div className="flex-shrink-0 pt-2 pb-2 md:pb-6 md:pb-8 flex flex-col items-center text-center">
           <div className="relative w-full min-h-[4.5rem] md:min-h-[5rem]">
+            {/* Intro logo: centered below GLB, fades out on scroll */}
+            <div
+              className="absolute inset-x-0 top-0 flex flex-col items-center justify-center"
+              style={{
+                opacity: reducedMotion
+                  ? progress < LOGO_FADE_OUT_END ? 1 : 0
+                  : 1 - smoothstep(LOGO_FADE_OUT_START, LOGO_FADE_OUT_END, progress),
+                pointerEvents: "none",
+              }}
+              aria-hidden
+            >
+              <Image
+                src="/logo-white.svg"
+                alt=""
+                width={360}
+                height={100}
+                className="w-[min(320px,90vw)] md:w-[min(400px,35vw)] h-auto"
+                priority
+              />
+            </div>
             {chapterStates.map(({ id, opacity, translateY }) => {
               const style: React.CSSProperties = {
                 opacity,
