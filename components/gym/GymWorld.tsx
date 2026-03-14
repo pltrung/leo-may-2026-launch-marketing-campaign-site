@@ -82,7 +82,7 @@ export default function GymWorld() {
 
       if (opts?.immediate) {
         setActiveChapter(chapter);
-        seekToProgress(def.progress, storyVh);
+        seekToProgress(chapter === "intro" ? 0 : def.progress, storyVh);
         return;
       }
 
@@ -91,7 +91,7 @@ export default function GymWorld() {
         await overlay.startTransition();
       }
       setActiveChapter(chapter);
-      seekToProgress(def.progress, storyVh);
+      seekToProgress(chapter === "intro" ? 0 : def.progress, storyVh);
     },
     [storyVh]
   );
@@ -110,7 +110,7 @@ export default function GymWorld() {
         window.location.pathname + window.location.search + "#intro"
       );
       setActiveChapter("intro");
-      seekToProgress(CHAPTERS.intro.progress, storyVh);
+      seekToProgress(0, storyVh);
     }
   }, [goToChapter]);
 
