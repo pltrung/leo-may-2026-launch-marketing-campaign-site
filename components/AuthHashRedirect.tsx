@@ -21,6 +21,8 @@ export default function AuthHashRedirect() {
     if (handled.current || typeof window === "undefined") return;
     const hash = window.location.hash || "";
     if (!/access_token=/.test(hash) && !/type=magiclink/.test(hash)) return;
+    // Let reset-password page handle type=recovery (password reset flow)
+    if (/type=recovery/.test(hash)) return;
 
     // If we're on root (or non-locale path) with hash, go to /en/dashboard with hash so session can be recovered
     const hasLocale = pathname?.startsWith("/en") || pathname?.startsWith("/vi");

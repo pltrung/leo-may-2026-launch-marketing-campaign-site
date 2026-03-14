@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import BottomSheet from "@/components/ui/BottomSheet";
 import { useLocale } from "@/components/LocaleProvider";
@@ -460,6 +461,11 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
               onChange={(e) => setLoginPassword(e.target.value)}
               className="sky-input w-full px-4 py-3 rounded-xl border border-[var(--sky-glass-border)] bg-white/5 text-[var(--sky-text-primary)] placeholder-[var(--sky-text-secondary)]"
             />
+            <div className="flex justify-end">
+              <Link href={`/${locale}/forgot-password`} onClick={onClose} className="text-[var(--sky-text-secondary)] text-sm hover:text-[var(--sky-text-primary)]">
+                {auth.forgotPassword}
+              </Link>
+            </div>
             {loginError && <p className="text-red-400 text-sm">{loginError}</p>}
             <button type="submit" disabled={loginLoading} className="sky-cta-primary w-full py-3 rounded-full font-medium disabled:opacity-60">
               {loginLoading ? "…" : auth.login}

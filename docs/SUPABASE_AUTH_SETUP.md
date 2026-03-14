@@ -56,5 +56,13 @@ This adds `auth_id`, `is_verified`, `verified_at`, referral columns, and the `co
 | Anon key      | Project Settings → API   |
 | Enable Email  | Authentication → Providers → Email |
 | Enable Phone  | Authentication → Providers → Phone (+ SMS provider) |
+| Forgot pwd redirects | Authentication → URL Configuration → Redirect URLs |
+
+## 6. Forgot Password (reset link)
+
+If you use email/password login, the app supports **Forgot Password**:
+1. **Authentication** → **URL Configuration**
+2. Add **Redirect URLs** (e.g. `http://localhost:3000/**`, `https://your-domain.com/**`, or `https://*.vercel.app/**` for Vercel)
+3. Supabase sends a reset email; the link redirects to `/[locale]/reset-password`
 
 No redirect URLs or “magic link” site URL are required for OTP-only flows; the user enters the code in the app.

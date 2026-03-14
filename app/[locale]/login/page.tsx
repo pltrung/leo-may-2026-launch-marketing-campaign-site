@@ -161,6 +161,11 @@ function LoginPageInner() {
             onChange={(e) => setPassword(e.target.value)}
             className="sky-input w-full px-4 py-3 rounded-xl border border-[var(--sky-glass-border)] bg-white/5 text-[var(--sky-text-primary)] placeholder-[var(--sky-text-secondary)]"
           />
+          <div className="flex justify-end">
+            <Link href={`/${locale}/forgot-password`} className="text-[var(--sky-text-secondary)] text-sm hover:text-[var(--sky-text-primary)]">
+              {m.forgotPassword}
+            </Link>
+          </div>
           {error && <p className="text-red-400 text-sm">{error}</p>}
           <button type="submit" disabled={loading} className="sky-cta-primary w-full py-3 rounded-full font-medium disabled:opacity-60">
             {loading ? "…" : m.login}
