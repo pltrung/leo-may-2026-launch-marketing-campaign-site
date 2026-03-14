@@ -61,7 +61,7 @@ export function MemberAuthProvider({ children }: { children: React.ReactNode }) 
       return;
     }
     // Retry getSession: on slow load or during profile/waiver updates, session can be briefly null.
-    let session: { access_token?: string; user?: { id: string } } | null = null;
+    let session: { access_token?: string; user?: User } | null = null;
     for (const delay of [0, 150, 400]) {
       if (delay > 0) await new Promise((r) => setTimeout(r, delay));
       const { data } = await supabase.auth.getSession();
@@ -84,7 +84,7 @@ export function MemberAuthProvider({ children }: { children: React.ReactNode }) 
       freshSession = fs ?? session;
     }
     const token = freshSession.access_token;
-    setUser(freshSession.user);
+    setUser((freshSession as { user: User }).user);
     setAccessToken(token ?? null);
     try {
       const controller = new AbortController();
