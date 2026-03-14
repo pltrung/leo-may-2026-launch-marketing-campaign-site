@@ -812,6 +812,14 @@ export default function AdminPage() {
                         {foundMember.totalVisits}
                       </p>
                     </div>
+                    {(foundMember.visits_remaining ?? 0) > 0 && (
+                      <div className="col-span-2 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-3">
+                        <p className="text-slate-600 mb-1">Visits remaining (check-ins left)</p>
+                        <p className="text-xl font-semibold text-emerald-700">
+                          {foundMember.visits_remaining} visits
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
