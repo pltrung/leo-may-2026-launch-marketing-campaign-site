@@ -86,7 +86,7 @@ export default function ClaimPage() {
         <div className="w-full max-w-sm space-y-4">
           <p className="text-white/90 text-sm">{m.claimAlreadyHaveAccount}</p>
           <Link
-            href={`/${locale}/login`}
+            href={`/${locale}/gym`}
             className="block w-full py-3 rounded-full bg-white text-[#0B0B0F] font-medium text-center"
           >
             {m.login}
@@ -115,7 +115,7 @@ export default function ClaimPage() {
       )}
 
       <div className="mt-8 flex flex-col items-center gap-2">
-        <Link href={`/${locale}/gym/membership`} className="text-white/80 text-sm hover:text-white">
+        <Link href={`/${locale}/gym`} className="text-white/80 text-sm hover:text-white">
           ← {m.membership}
         </Link>
         <Link href={`/${locale}/signup`} className="text-white/60 text-xs hover:text-white/80">

@@ -77,7 +77,8 @@ export default function ResetPasswordPage() {
         return;
       }
       setSuccess(true);
-      setTimeout(() => router.replace(`/${locale}/dashboard`), 1500);
+      await supabase.auth.signOut();
+      setTimeout(() => router.replace(`/${locale}/gym`), 1500);
     } catch {
       setError(m.error);
     } finally {
@@ -101,8 +102,8 @@ export default function ResetPasswordPage() {
           >
             {m.forgotPasswordSend}
           </Link>
-          <Link href={`/${locale}/login`} className="block text-center text-[var(--sky-text-secondary)] text-sm hover:text-[var(--sky-text-primary)]">
-            ← {m.backToLogin}
+          <Link href={`/${locale}/gym`} className="block text-center text-[var(--sky-text-secondary)] text-sm hover:text-[var(--sky-text-primary)]">
+            ← {locale === "vi" ? "Về trang Gym" : "Back to Gym"}
           </Link>
         </div>
       </div>
@@ -150,8 +151,8 @@ export default function ResetPasswordPage() {
             </button>
           </form>
         )}
-        <Link href={`/${locale}/login`} className="block text-center text-[var(--sky-text-secondary)] text-sm hover:text-[var(--sky-text-primary)]">
-          ← {m.backToLogin}
+        <Link href={`/${locale}/gym`} className="block text-center text-[var(--sky-text-secondary)] text-sm hover:text-[var(--sky-text-primary)]">
+          ← {locale === "vi" ? "Về trang Gym" : "Back to Gym"}
         </Link>
       </div>
     </div>

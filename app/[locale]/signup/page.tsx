@@ -145,7 +145,7 @@ export default function SignupPage() {
           >
             {resendCooldown > 0 ? m.signupResendCooldown.replace("{seconds}", String(resendCooldown)) : m.signupResendCode}
           </button>
-          <Link href={`/${locale}/login`} className="sky-cta-primary block w-full py-3 rounded-full font-medium text-center">
+          <Link href={`/${locale}/gym`} className="sky-cta-primary block w-full py-3 rounded-full font-medium text-center">
             {m.login}
           </Link>
         </div>
@@ -219,14 +219,14 @@ export default function SignupPage() {
         </form>
         <div className="flex flex-col items-center gap-2 pt-2">
           {(alreadyRegistered || rateLimitHit) && (
-            <Link href={`/${locale}/login`} className="sky-cta-primary inline-block w-full py-3 rounded-full font-medium text-center text-sm">
+            <Link href={`/${locale}/gym`} className="sky-cta-primary inline-block w-full py-3 rounded-full font-medium text-center text-sm">
               {m.signupGoToLogin}
             </Link>
           )}
-          <Link href={`/${locale}/login`} className="text-[var(--sky-text-secondary)] text-sm hover:text-[var(--sky-text-primary)]">
+          <Link href={`/${locale}/gym`} className="text-[var(--sky-text-secondary)] text-sm hover:text-[var(--sky-text-primary)]">
             {m.login}
           </Link>
-          <Link href={`/${locale}/gym/membership`} className="text-[var(--sky-text-secondary)] text-xs hover:text-[var(--sky-text-primary)]">
+          <Link href={`/${locale}/gym`} className="text-[var(--sky-text-secondary)] text-xs hover:text-[var(--sky-text-primary)]">
             ← {m.membership}
           </Link>
         </div>

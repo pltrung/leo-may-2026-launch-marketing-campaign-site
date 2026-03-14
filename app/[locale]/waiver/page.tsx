@@ -284,7 +284,7 @@ export default function WaiverPage() {
   useEffect(() => {
     if (loading) return;
     if (!user) {
-      router.replace(`/${locale}/login`);
+      router.replace(`/${locale}/gym`);
       return;
     }
     if (member?.waiver_signed) {

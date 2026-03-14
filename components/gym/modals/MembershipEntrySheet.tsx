@@ -187,8 +187,8 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
     e.preventDefault();
     setLoginError("");
     const input = loginEmailOrPhone.trim();
-    const isTestEmailEmptyPassword = isEmail(input) && isTestEmail(input) && !loginPassword;
-    const isBypassAttempt = isTestEmailEmptyPassword;
+    const isTest = isEmail(input) && isTestEmail(input);
+    const isBypassAttempt = isTest && !loginPassword;
     if (!input) {
       setLoginError(auth.invalidCredentials);
       return;
@@ -199,7 +199,8 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
     }
     setLoginLoading(true);
     try {
-      if (isBypassAttempt) {
+      // For test accounts, always try dev-bypass first (magic link, no password)
+      if (isTest) {
         const res = await fetch("/api/auth/dev-bypass-gym", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -218,6 +219,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
         setLoginLoading(false);
         return;
       }
+      // Fall through for test accounts if dev-bypass returned 403 (env not set)
       if (isEmail(input)) {
         const email = input.toLowerCase();
         const supabase = getSupabaseBrowserClient();
@@ -461,6 +463,9 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
               onChange={(e) => setLoginPassword(e.target.value)}
               className="sky-input w-full px-4 py-3 rounded-xl border border-[var(--sky-glass-border)] bg-white/5 text-[var(--sky-text-primary)] placeholder-[var(--sky-text-secondary)]"
             />
+            {isEmail(loginEmailOrPhone) && isTestEmail(loginEmailOrPhone) && (
+              <p className="text-xs text-[var(--sky-text-secondary)]">Pre-launch test account: click Login to get magic link (no password needed).</p>
+            )}
             <div className="flex justify-end">
               <Link href={`/${locale}/forgot-password`} onClick={onClose} className="text-[var(--sky-text-secondary)] text-sm hover:text-[var(--sky-text-primary)]">
                 {auth.forgotPassword}
@@ -617,25 +622,59 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
     }
 
     if (claimStatus === "has_account" || (claimStatus === "loading" && hasAccountEmail)) {
+      const handleGetMagicLink = async () => {
+        if (!hasAccountEmail || !isTestEmail(hasAccountEmail)) return;
+        setClaimError("");
+        setClaimStatus("loading");
+        try {
+          const res = await fetch("/api/auth/dev-bypass-gym", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: hasAccountEmail, locale, origin: typeof window !== "undefined" ? window.location.origin : undefined }),
+          });
+          const data = await res.json();
+          if (res.ok && typeof data?.url === "string") {
+            window.location.href = data.url;
+            return;
+          }
+          setClaimError(res.status === 403 ? (auth.testAccountUseClaim ?? "Dev bypass not enabled. Set NEXT_PUBLIC_DEV_BYPASS_OTP=true.") : (data?.error || auth.error));
+        } catch {
+          setClaimError(auth.error);
+        } finally {
+          setClaimStatus("has_account");
+        }
+      };
       return (
-        <form onSubmit={handleHasAccountLogin} className="space-y-3">
+        <div className="space-y-3">
           <p className="text-[var(--sky-text-secondary)] text-sm">{auth.claimAlreadyHaveAccount}</p>
-          <input
-            type="password"
-            autoComplete="current-password"
-            placeholder={auth.password}
-            value={claimPassword}
-            onChange={(e) => setClaimPassword(e.target.value)}
-            className="sky-input w-full px-4 py-3 rounded-xl border border-[var(--sky-glass-border)] bg-white/5 text-[var(--sky-text-primary)] placeholder-[var(--sky-text-secondary)]"
-          />
-          {claimError && <p className="text-red-400 text-sm">{claimError}</p>}
-          <button type="submit" disabled={claimStatus === "loading"} className="sky-cta-primary w-full py-3 rounded-full font-medium disabled:opacity-60">
-            {claimStatus === "loading" ? "…" : auth.login}
-          </button>
-          <button type="button" onClick={() => { setClaimStatus("idle"); setHasAccountEmail(""); setClaimPassword(""); }} className="sky-cta-secondary w-full py-3 rounded-full font-medium">
-            Back
-          </button>
-        </form>
+          {hasAccountEmail && isTestEmail(hasAccountEmail) && (
+            <button
+              type="button"
+              onClick={handleGetMagicLink}
+              disabled={claimStatus === "loading"}
+              className="sky-cta-primary w-full py-3 rounded-full font-medium disabled:opacity-60"
+            >
+              {claimStatus === "loading" ? "…" : (auth.prelaunchVerify ?? "Verify with email / Get magic link")}
+            </button>
+          )}
+          <form onSubmit={handleHasAccountLogin} className="space-y-3">
+            <input
+              type="password"
+              autoComplete="current-password"
+              placeholder={auth.password}
+              value={claimPassword}
+              onChange={(e) => setClaimPassword(e.target.value)}
+              className="sky-input w-full px-4 py-3 rounded-xl border border-[var(--sky-glass-border)] bg-white/5 text-[var(--sky-text-primary)] placeholder-[var(--sky-text-secondary)]"
+            />
+            {claimError && <p className="text-red-400 text-sm">{claimError}</p>}
+            <button type="submit" disabled={claimStatus === "loading"} className="sky-cta-primary w-full py-3 rounded-full font-medium disabled:opacity-60">
+              {claimStatus === "loading" ? "…" : auth.login}
+            </button>
+            <button type="button" onClick={() => { setClaimStatus("idle"); setHasAccountEmail(""); setClaimPassword(""); }} className="sky-cta-secondary w-full py-3 rounded-full font-medium">
+              Back
+            </button>
+          </form>
+        </div>
       );
     }
 

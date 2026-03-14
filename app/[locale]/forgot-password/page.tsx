@@ -51,7 +51,7 @@ export default function ForgotPasswordPage() {
           <div className="space-y-4">
             <p className="text-emerald-400 text-sm">{m.forgotPasswordSuccess}</p>
             <Link
-              href={`/${locale}/login`}
+              href={`/${locale}/gym`}
               className="sky-cta-primary block w-full py-3 rounded-full font-medium text-center"
             >
               {m.backToLogin}
@@ -74,7 +74,7 @@ export default function ForgotPasswordPage() {
             </button>
           </form>
         )}
-        <Link href={`/${locale}/login`} className="block text-center text-[var(--sky-text-secondary)] text-sm hover:text-[var(--sky-text-primary)]">
+        <Link href={`/${locale}/gym`} className="block text-center text-[var(--sky-text-secondary)] text-sm hover:text-[var(--sky-text-primary)]">
           ← {m.backToLogin}
         </Link>
       </div>
