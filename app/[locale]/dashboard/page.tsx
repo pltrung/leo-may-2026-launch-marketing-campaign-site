@@ -10,7 +10,6 @@ import { useMemberAuth } from "@/lib/useMemberAuth";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { HERO_BG } from "@/lib/heroConstants";
 import { SOCIAL_LINKS } from "@/lib/announcementConfig";
-import LoadingScreen from "@/components/LoadingScreen";
 import ProfileModal from "@/components/dashboard/ProfileModal";
 import PackageDetailModal, { type Plan } from "@/components/dashboard/PackageDetailModal";
 import PaymentModal from "@/components/dashboard/PaymentModal";
@@ -84,9 +83,13 @@ const QRCodeSVG = dynamic(
 export default function DashboardPage() {
   const locale = useLocale();
   const router = useRouter();
-  const { user, member, loading, accessToken, signOut, refresh } = useMemberAuth();
-
+  const { user, member, accessToken, signOut, refresh } = useMemberAuth();
   const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isVietQrModalOpen, setIsVietQrModalOpen] = useState(false);
   const wakeLockRef = useRef<any | null>(null);
@@ -120,16 +123,6 @@ export default function DashboardPage() {
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [eventModalEvent, setEventModalEvent] = useState<DashboardEvent | null>(null);
   const [waiverModalOpen, setWaiverModalOpen] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Member-only gate. Auth from global AuthProvider; redirect only after loading=false.
-  useEffect(() => {
-    if (!mounted || loading) return;
-    if (!user) router.replace(`/${locale}/gym`);
-  }, [mounted, loading, user, locale, router]);
 
   // Clean VNPay return params from URL when returning from VNPay
   useEffect(() => {
@@ -438,18 +431,7 @@ export default function DashboardPage() {
   const glassCard = "rgba(0,0,0,0.4)";
   const accentColor = "#7DD3FC";
 
-  if (loading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
-        <div className="fixed inset-0" style={{ background: skyBg, zIndex: 1 }} aria-hidden />
-        <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 2 }} aria-hidden>
-          <HeroStarfield heroTransitioning={false} />
-        </div>
-        <p className="relative z-10 text-white/80 text-[15px] drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">Loading…</p>
-      </div>
-    );
-  }
-
+  // ProtectedRoute ensures session exists; member may still be loading
   if (!member) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 relative overflow-hidden">
@@ -551,9 +533,6 @@ export default function DashboardPage() {
     : !canCheckIn
     ? "Inactive"
     : "Active";
-
-  // Wait for auth hydration before render/redirect; prevents post-login redirect loop
-  if (!mounted || loading) return <LoadingScreen />;
 
   return (
     <div className="min-h-screen flex flex-col relative">

@@ -1,7 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
-import { usePathname } from "next/navigation";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -43,14 +42,10 @@ const AuthContext = createContext<AuthValue | null>(null);
 /**
  * Global auth provider. Single source of truth for session.
  * - Waits for session hydration (retries) before setting loading=false
- * - Skips refreshSession on /reset-password to avoid invalidating recovery flow
+ * - Uses getSession() only; no refreshSession to avoid cascading calls and recovery-session issues
  * - Protected pages must wait for loading=false before redirecting
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const pathRef = useRef(pathname);
-  pathRef.current = pathname;
-
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [member, setMember] = useState<MemberProfile | null>(null);
@@ -89,20 +84,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Skip refreshSession on reset-password: recovery sessions can be invalidated
-    const isResetPassword =
-      pathRef.current?.includes("/reset-password") ||
-      (typeof window !== "undefined" && window.location.pathname.includes("/reset-password"));
-
-    let finalSession = s;
-    if (!isResetPassword) {
-      const { data: { session: fs } } = await supabase.auth.refreshSession();
-      finalSession = fs ?? s;
-    }
-
-    const token = finalSession?.access_token ?? null;
-    setSession(finalSession);
-    setUser(finalSession?.user ?? null);
+    // Use getSession() only. refreshSession() causes cascading calls via onAuthStateChange
+    // and invalidates recovery sessions on /reset-password.
+    const token = s.access_token ?? null;
+    setSession(s);
+    setUser(s.user ?? null);
     setAccessToken(token);
 
     try {

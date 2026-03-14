@@ -51,12 +51,8 @@ export default function WaiverModal({ open, onClose, onSuccess, locale, defaultF
       let token = accessToken ?? null;
       if (!token) {
         const supabase = getSupabaseBrowserClient();
-        const { data: { session: existing } } = await supabase.auth.getSession();
-        token = existing?.access_token ?? null;
-        if (!token) {
-          const { data: { session: refreshed } } = await supabase.auth.refreshSession();
-          token = refreshed?.access_token ?? null;
-        }
+        const { data: { session } } = await supabase.auth.getSession();
+        token = session?.access_token ?? null;
       }
       if (!token) {
         setError("Session expired");

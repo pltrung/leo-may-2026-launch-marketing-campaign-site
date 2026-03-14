@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import BottomSheet from "@/components/ui/BottomSheet";
 import ForgotPasswordModal from "@/components/gym/modals/ForgotPasswordModal";
 import { useLocale } from "@/components/LocaleProvider";
+import { useAuth } from "@/context/AuthContext";
 import { getMessages } from "@/lib/messages";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { toE164 } from "@/lib/phoneE164";
@@ -22,6 +23,7 @@ interface MembershipEntrySheetProps {
 export default function MembershipEntrySheet({ open, onClose }: MembershipEntrySheetProps) {
   const locale = useLocale();
   const router = useRouter();
+  const { refresh } = useAuth();
   const m = getMessages(locale as "en" | "vi").gym.membershipEntry;
   const auth = getMessages(locale as "en" | "vi").auth;
 
@@ -177,6 +179,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
         return;
       }
       handleClose();
+      await refresh();
       router.replace(`/${locale}/dashboard`);
     } catch {
       setClaimError(auth.error);
@@ -227,6 +230,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: loginPassword });
         if (!signInError) {
           handleClose();
+          await refresh();
           router.replace(`/${locale}/dashboard`);
           return;
         }
@@ -269,6 +273,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
           });
           if (!signInError) {
             handleClose();
+            await refresh();
             router.replace(`/${locale}/dashboard`);
             return;
           }
@@ -360,6 +365,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
         return;
       }
       handleClose();
+      await refresh();
       router.replace(`/${locale}/dashboard`);
     } catch {
       setSignupError(auth.error);
@@ -420,6 +426,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
           return;
         }
         handleClose();
+        await refresh();
         router.replace(`/${locale}/dashboard`);
       } catch {
         setSignupError(auth.error);
