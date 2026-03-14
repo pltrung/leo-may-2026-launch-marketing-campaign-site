@@ -65,13 +65,15 @@ export default function GymHeader() {
         >
           {pricingTitle}
         </button>
-        <button
-          type="button"
-          onClick={openMembershipModal}
-          className="text-sm font-medium text-white/90 hover:text-white transition-colors"
-        >
-          {auth.membership}
-        </button>
+        {!loggedIn && (
+          <button
+            type="button"
+            onClick={openMembershipModal}
+            className="text-sm font-medium text-white/90 hover:text-white transition-colors"
+          >
+            {auth.membership}
+          </button>
+        )}
         {loggedIn ? (
           <>
             <Link
