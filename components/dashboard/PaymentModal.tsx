@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useCallback } from "react";
 import Logo from "@/components/Logo";
 
 interface PaymentModalProps {
@@ -35,6 +35,23 @@ export default function PaymentModal({
   vnpayLoading,
   isVi,
 }: PaymentModalProps) {
+  const [qrEnlarged, setQrEnlarged] = useState(false);
+
+  const handleDownloadQr = useCallback(async () => {
+    if (!qrUrl) return;
+    try {
+      const res = await fetch(qrUrl);
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `leo-may-payment-${planName.replace(/\s+/g, "-").toLowerCase()}.png`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      window.open(qrUrl, "_blank");
+    }
+  }, [qrUrl, planName]);
+
   if (!open) return null;
   const locale = isVi ? "vi-VN" : "en-US";
 
@@ -79,9 +96,46 @@ export default function PaymentModal({
           <p className="text-sm text-white/60 py-8">{isVi ? "Đang tải…" : "Loading…"}</p>
         ) : (
           <>
-            <div className="rounded-2xl bg-white p-4 shrink-0">
+            <div className="relative rounded-2xl bg-white p-4 shrink-0">
               <img src={qrUrl} alt="VietQR" className="w-64 h-64 object-contain" />
+              <div className="absolute bottom-2 right-2 left-2 flex gap-2 justify-center">
+                <button
+                  type="button"
+                  onClick={() => setQrEnlarged(true)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800/90 text-white hover:bg-slate-700"
+                >
+                  {isVi ? "Phóng to" : "Enlarge"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadQr}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800/90 text-white hover:bg-slate-700"
+                >
+                  {isVi ? "Tải xuống" : "Download"}
+                </button>
+              </div>
             </div>
+            {qrEnlarged && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4"
+                onClick={() => setQrEnlarged(false)}
+              >
+                <button
+                  type="button"
+                  onClick={() => setQrEnlarged(false)}
+                  className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white text-xl"
+                  aria-label={isVi ? "Đóng" : "Close"}
+                >
+                  ×
+                </button>
+                <div
+                  className="max-w-[min(90vw,400px)] max-h-[90vh] rounded-2xl bg-white p-6"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <img src={qrUrl} alt="VietQR" className="w-full h-auto object-contain" />
+                </div>
+              </div>
+            )}
             <p className="mt-4 text-xs text-white/80 text-center">
               {isVi ? "Quét bằng ứng dụng ngân hàng, MoMo hoặc ZaloPay." : "Scan with banking app, MoMo, or ZaloPay."}
             </p>

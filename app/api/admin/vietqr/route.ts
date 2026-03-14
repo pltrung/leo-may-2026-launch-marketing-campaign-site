@@ -22,7 +22,6 @@ export async function GET(req: NextRequest) {
   if (!member) {
     return NextResponse.json({ error: "Member not found" }, { status: 404 });
   }
-  const memo = (member.member_code as string | null) ?? memberId;
   const { data: plan } = await supabase
     .from("membership_plans")
     .select("id, name, price_vnd, duration_days")
@@ -38,6 +37,8 @@ export async function GET(req: NextRequest) {
     ? new Date(member.membership_expires_at as string)
     : null;
   const newExpiry = computeNewExpiry(currentExpiry, plan.duration_days ?? 0, now);
+  const dateStr = newExpiry.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const memo = `${planName} ${dateStr}`.replace(/\s+/g, " ").trim();
   const qrUrl = getVietQRUrl(priceVnd, memo);
   return NextResponse.json({
     url: qrUrl,

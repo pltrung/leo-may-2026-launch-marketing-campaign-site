@@ -55,7 +55,8 @@ export async function GET(req: NextRequest) {
       ? new Date(member.membership_expires_at as string)
       : null;
     const newExpiry = computeNewExpiry(currentExpiry, plan.duration_days ?? 0, now);
-    const memo = (member.member_code as string | null) ?? member.id;
+    const dateStr = newExpiry.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const memo = `${planName} ${dateStr}`.replace(/\s+/g, " ").trim();
     const qrUrl = getVietQRUrl(priceVnd, memo);
     return NextResponse.json({
       url: qrUrl,
