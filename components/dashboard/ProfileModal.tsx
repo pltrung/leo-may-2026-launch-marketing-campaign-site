@@ -181,6 +181,13 @@ export default function ProfileModal({
     }
   }, [accessToken, currentPassword, newPassword, confirmPassword, isVi, d.passwordMismatch, d.passwordError]);
 
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
+
   if (!open) return null;
 
   return (
@@ -189,13 +196,14 @@ export default function ProfileModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl bg-slate-900 border border-white/10 shadow-xl overflow-hidden"
+        className="w-full max-w-md max-h-[calc(100dvh-2rem)] rounded-2xl bg-slate-900 border border-white/10 shadow-xl overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="profile-modal-title"
       >
-        <div className="p-6">
+        {/* Header - fixed */}
+        <div className="shrink-0 p-4 pb-0">
           <div className="flex items-center justify-between mb-4">
             <h2 id="profile-modal-title" className="text-lg font-semibold text-white">
               {isVi ? "Hồ sơ cá nhân" : "Profile"}
@@ -209,7 +217,10 @@ export default function ProfileModal({
               ×
             </button>
           </div>
+        </div>
 
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain px-4 pb-4">
           {/* Photo */}
           <div className="flex flex-col items-center mb-6">
             <div className="relative">
@@ -377,7 +388,10 @@ export default function ProfileModal({
           {error && (
             <p className="text-sm text-amber-300 mb-4">{error}</p>
           )}
+        </div>
 
+        {/* Footer - fixed Save/Cancel */}
+        <div className="shrink-0 p-4 pt-4 border-t border-white/10">
           <div className="flex gap-2">
             <button
               type="button"
