@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+
+const QrScannerModal = dynamic(() => import("@/components/admin/QrScannerModal"), { ssr: false });
 
 function getVietQrProxyUrl(rawUrl: string | null): string | null {
   if (!rawUrl) return null;
@@ -90,6 +93,7 @@ export default function AdminPage() {
   } | null>(null);
   const [revenuePeriod, setRevenuePeriod] = useState<"day" | "week" | "month">("day");
   const [waiverModalOpen, setWaiverModalOpen] = useState(false);
+  const [scannerModalOpen, setScannerModalOpen] = useState(false);
 
   // Fetch plans
   useEffect(() => {
@@ -257,8 +261,28 @@ export default function AdminPage() {
   const handleScanQr = useCallback(() => {
     setSearchMode("qr");
     setSearchError(null);
-    setActionMessage("Scanner ready — focus the search field and scan the member QR.");
+    setScannerModalOpen(true);
   }, []);
+
+  const handleQrScanned = useCallback(
+    async (memberId: string) => {
+      setScannerModalOpen(false);
+      setSearchError(null);
+      try {
+        const res = await fetch(`/api/checkin?member_id=${encodeURIComponent(memberId)}`);
+        if (res.ok) {
+          setActionMessage("Check-in recorded from QR scan.");
+        } else {
+          const data = await res.json().catch(() => ({}));
+          setActionError(data.error || "Check-in failed.");
+        }
+      } catch {
+        setActionError("Unable to record check-in.");
+      }
+      loadMemberById(memberId);
+    },
+    [loadMemberById]
+  );
 
   const canCheckIn = useMemo(
     () => !!foundMember && foundMember.status === "Active",
@@ -1434,6 +1458,17 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* QR Scanner Modal — camera-based scan */}
+      <QrScannerModal
+        open={scannerModalOpen}
+        onClose={() => setScannerModalOpen(false)}
+        onScanned={handleQrScanned}
+        onError={(msg) => {
+          setSearchError(msg);
+          setScannerModalOpen(false);
+        }}
+      />
     </div>
   );
 }
