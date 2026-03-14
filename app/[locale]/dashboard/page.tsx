@@ -1153,6 +1153,7 @@ export default function DashboardPage() {
         onClose={() => { setEventModalOpen(false); setEventModalEvent(null); }}
         event={eventModalEvent}
         isVi={isVi}
+        accessToken={accessToken}
       />
       <PaymentModal
         open={isVietQrModalOpen}

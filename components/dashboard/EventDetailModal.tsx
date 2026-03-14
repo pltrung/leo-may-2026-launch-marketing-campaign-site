@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState, useCallback } from "react";
 
 export interface DashboardEvent {
   id: string;
@@ -18,6 +18,7 @@ interface EventDetailModalProps {
   onClose: () => void;
   event: DashboardEvent | null;
   isVi: boolean;
+  accessToken: string | null;
 }
 
 function EventIcon({ type, className }: { type: DashboardEvent["type"]; className?: string }) {
@@ -54,11 +55,70 @@ export default function EventDetailModal({
   onClose,
   event,
   isVi,
+  accessToken,
 }: EventDetailModalProps) {
+  const [rsvpCount, setRsvpCount] = useState(0);
+  const [userRsvped, setUserRsvped] = useState(false);
+  const [rsvpLoading, setRsvpLoading] = useState(false);
+
+  const fetchRsvp = useCallback(async () => {
+    if (!event?.id || !accessToken) return;
+    try {
+      const res = await fetch(`/api/member/event-rsvp?event_id=${encodeURIComponent(event.id)}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setRsvpCount(d.count ?? 0);
+        setUserRsvped(d.user_rsvped ?? false);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [event?.id, accessToken]);
+
+  useEffect(() => {
+    if (open && event?.id && accessToken) fetchRsvp();
+    else {
+      setRsvpCount(0);
+      setUserRsvped(false);
+    }
+  }, [open, event?.id, accessToken, fetchRsvp]);
+
+  const handleRsvp = useCallback(async () => {
+    if (!event?.id || !accessToken || rsvpLoading) return;
+    setRsvpLoading(true);
+    try {
+      const res = await fetch("/api/member/event-rsvp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ event_id: event.id }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setRsvpCount(d.count ?? rsvpCount + 1);
+        setUserRsvped(true);
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setRsvpLoading(false);
+    }
+  }, [event?.id, accessToken, rsvpLoading, rsvpCount]);
+
   if (!open || !event) return null;
 
   const title = isVi && event.titleVi ? event.titleVi : event.title;
   const desc = isVi && event.descriptionVi ? event.descriptionVi : event.description;
+
+  const joinedText =
+    rsvpCount === 0
+      ? null
+      : userRsvped && rsvpCount === 1
+        ? (isVi ? "Bạn đã tham gia" : "You're going")
+        : userRsvped
+          ? (isVi ? `${rsvpCount - 1} thành viên khác tham gia` : `${rsvpCount - 1} other climbers joined`)
+          : (isVi ? `${rsvpCount} thành viên tham gia` : `${rsvpCount} climbers joined`);
 
   const addToCalendarUrl = (() => {
     const [y, m, d] = event.date.split("-").map(Number);
@@ -110,6 +170,11 @@ export default function EventDetailModal({
                   })}{" "}
                   · {event.time}
                 </p>
+                {joinedText && (
+                  <p className="text-xs text-emerald-300/90 mt-1">
+                    {joinedText}
+                  </p>
+                )}
               </div>
             </div>
             <button
@@ -135,9 +200,15 @@ export default function EventDetailModal({
             </a>
             <button
               type="button"
-              className="flex-1 py-3 rounded-[14px] text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-400 transition-all active:scale-[0.98]"
+              onClick={handleRsvp}
+              disabled={userRsvped || rsvpLoading || !accessToken}
+              className={`flex-1 py-3 rounded-[14px] text-sm font-medium transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-default ${
+                userRsvped
+                  ? "bg-emerald-500/30 text-emerald-300"
+                  : "bg-emerald-500 text-white hover:bg-emerald-400"
+              }`}
             >
-              {isVi ? "RSVP" : "RSVP"}
+              {rsvpLoading ? (isVi ? "Đang xử lý…" : "Processing…") : userRsvped ? (isVi ? "Bạn đã tham gia" : "You're going") : (isVi ? "RSVP" : "RSVP")}
             </button>
           </div>
         </div>

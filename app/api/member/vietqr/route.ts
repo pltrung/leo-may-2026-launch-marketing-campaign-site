@@ -56,7 +56,8 @@ export async function GET(req: NextRequest) {
       : null;
     const newExpiry = computeNewExpiry(currentExpiry, plan.duration_days ?? 0, now);
     const dateStr = newExpiry.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
-    const memo = `${planName} ${dateStr}`.replace(/\s+/g, " ").trim();
+    const memberCode = (member.member_code as string | null) ?? `LM-${String(member.id).slice(0, 8).toUpperCase()}`;
+    const memo = `${memberCode} ${planName} ${dateStr}`.replace(/\s+/g, " ").trim();
     const qrUrl = getVietQRUrl(priceVnd, memo);
     return NextResponse.json({
       url: qrUrl,
