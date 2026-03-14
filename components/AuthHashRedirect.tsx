@@ -21,8 +21,14 @@ export default function AuthHashRedirect() {
     if (handled.current || typeof window === "undefined") return;
     const hash = window.location.hash || "";
     if (!/access_token=/.test(hash) && !/type=magiclink/.test(hash)) return;
-    // Let reset-password page handle type=recovery (password reset flow)
-    if (/type=recovery/.test(hash)) return;
+
+    // Password reset: Supabase often redirects to Site URL (root) with hash. Send user to reset-password page.
+    if (/type=recovery/.test(hash)) {
+      const locale = pathname?.startsWith("/vi") ? "vi" : "en";
+      handled.current = true;
+      window.location.replace(`/${locale}/reset-password${hash}`);
+      return;
+    }
 
     // If we're on root (or non-locale path) with hash, go to /en/dashboard with hash so session can be recovered
     const hasLocale = pathname?.startsWith("/en") || pathname?.startsWith("/vi");
