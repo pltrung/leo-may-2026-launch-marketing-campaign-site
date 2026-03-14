@@ -680,7 +680,7 @@ export default function AdminPage() {
                         : "border-slate-200 text-slate-700 hover:bg-slate-100"
                     }`}
                   >
-                    {m.name}
+                    {t.name}
                   </button>
                   <button
                     type="button"
