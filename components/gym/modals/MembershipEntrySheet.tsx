@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useCallback, useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import BottomSheet from "@/components/ui/BottomSheet";
+import ForgotPasswordModal from "@/components/gym/modals/ForgotPasswordModal";
 import { useLocale } from "@/components/LocaleProvider";
 import { getMessages } from "@/lib/messages";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
@@ -51,6 +51,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
   const [signupAlreadyRegistered, setSignupAlreadyRegistered] = useState(false);
   const [signupRateLimitHit, setSignupRateLimitHit] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [forgotPasswordModalOpen, setForgotPasswordModalOpen] = useState(false);
 
   const isEmail = (v: string) => /@/.test(v.trim());
   const isTestEmail = (e: string) =>
@@ -467,9 +468,13 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
               <p className="text-xs text-[var(--sky-text-secondary)]">Pre-launch test account: click Login to get magic link (no password needed).</p>
             )}
             <div className="flex justify-end">
-              <Link href={`/${locale}/forgot-password`} onClick={onClose} className="text-[var(--sky-text-secondary)] text-sm hover:text-[var(--sky-text-primary)]">
+              <button
+                type="button"
+                onClick={() => setForgotPasswordModalOpen(true)}
+                className="text-[var(--sky-text-secondary)] text-sm hover:text-[var(--sky-text-primary)]"
+              >
                 {auth.forgotPassword}
-              </Link>
+              </button>
             </div>
             {loginError && <p className="text-red-400 text-sm">{loginError}</p>}
             <button type="submit" disabled={loginLoading} className="sky-cta-primary w-full py-3 rounded-full font-medium disabled:opacity-60">
@@ -734,8 +739,14 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
   };
 
   return (
-    <BottomSheet open={open} onClose={handleClose} title={m.headline}>
-      {renderContent()}
-    </BottomSheet>
+    <>
+      <BottomSheet open={open} onClose={handleClose} title={m.headline}>
+        {renderContent()}
+      </BottomSheet>
+      <ForgotPasswordModal
+        open={forgotPasswordModalOpen}
+        onClose={() => setForgotPasswordModalOpen(false)}
+      />
+    </>
   );
 }
