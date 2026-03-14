@@ -1249,12 +1249,12 @@ export default function AdminPage() {
               </div>
               <div className="pt-4 mt-6 border-t border-slate-200">
                 <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Signature</p>
-                <div className="min-h-[80px] p-4 border border-slate-200 rounded-lg bg-slate-50">
+                <div className="min-h-[80px] p-4 border border-slate-200 rounded-lg bg-white">
                   {foundMember.waiver.signature?.startsWith("data:image") ? (
                     <img
                       src={foundMember.waiver.signature}
                       alt="Signature"
-                      className="max-w-[280px] max-h-[100px] object-contain object-left"
+                      className="max-w-[280px] max-h-[100px] object-contain object-left invert"
                     />
                   ) : (foundMember.waiver.signature || foundMember.waiver.full_name) ? (
                     <p className="font-medium text-slate-900 text-lg" style={{ fontFamily: "cursive, serif" }}>
