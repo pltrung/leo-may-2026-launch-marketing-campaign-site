@@ -280,16 +280,16 @@ export default function DashboardPage() {
             setRenewError(null);
             setIsVietQrModalOpen(true);
           } else {
-            setRenewError(d.error ?? (isVi ? "Không thể tải QR." : "Failed to load QR."));
+            setRenewError(d.error ?? (locale === "vi" ? "Không thể tải QR." : "Failed to load QR."));
             setIsVietQrModalOpen(true);
           }
         })
         .catch(() => {
-          setRenewError(isVi ? "Đã xảy ra lỗi." : "Something went wrong.");
+          setRenewError(locale === "vi" ? "Đã xảy ra lỗi." : "Something went wrong.");
           setIsVietQrModalOpen(true);
         });
     },
-    [accessToken, isVi]
+    [accessToken, locale]
   );
 
   const handlePayWithVnpay = useCallback(async () => {

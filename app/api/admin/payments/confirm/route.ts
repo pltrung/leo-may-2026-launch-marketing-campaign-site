@@ -56,7 +56,6 @@ export async function POST(req: NextRequest) {
     const currentExpiry = memberRow.membership_expires_at
       ? new Date(memberRow.membership_expires_at as string)
       : null;
-    const newExpiry = isVisitPass ? currentExpiry : computeNewExpiry(currentExpiry, durationDays, now);
     const newVisits = isVisitPass ? currentVisits + durationVisits : currentVisits;
 
     const { error: payErr } = await supabase.from("payments").insert({
@@ -79,7 +78,8 @@ export async function POST(req: NextRequest) {
       updatePayload.visits_remaining = newVisits;
       updatePayload.membership_status = "active";
     } else {
-      updatePayload.membership_expires_at = newExpiry.toISOString();
+      const newExpiryDay = computeNewExpiry(currentExpiry, durationDays, now);
+      updatePayload.membership_expires_at = newExpiryDay.toISOString();
       updatePayload.membership_status = "active";
     }
     const { error: updateErr } = await supabase
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       member: {
-        validUntil: isVisitPass ? null : newExpiry?.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }),
+        validUntil: isVisitPass ? null : computeNewExpiry(currentExpiry, durationDays, now).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }),
         visitsAdded: isVisitPass ? durationVisits : undefined,
       },
     });
