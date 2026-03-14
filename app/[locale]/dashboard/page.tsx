@@ -145,36 +145,16 @@ export default function DashboardPage() {
     }
   }, [router, refresh]);
 
-  // Periodic member refresh when visible (fallback if realtime doesn't fire)
-  useEffect(() => {
-    if (!accessToken) return;
-    const interval = setInterval(() => {
-      if (typeof document !== "undefined" && document.visibilityState === "visible") {
-        refresh();
-      }
-    }, 20000);
-    return () => clearInterval(interval);
-  }, [accessToken, refresh]);
-
-  // Fetch occupancy (no auth required)
+  // Fetch occupancy once on mount (no polling)
   useEffect(() => {
     let cancelled = false;
-    const f = async () => {
-      try {
-        const res = await fetch("/api/admin/occupancy");
-        if (!res.ok) return;
-        const data = await res.json();
+    fetch("/api/admin/occupancy")
+      .then((r) => r.json())
+      .then((data) => {
         if (!cancelled && typeof data.count === "number") setGymOccupancy(data.count);
-      } catch {
-        /* ignore */
-      }
-    };
-    f();
-    const id = setInterval(f, 20000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   // Fetch leaderboard via API (no client Supabase)
