@@ -502,6 +502,8 @@ export default function DashboardPage() {
   const hasValidVisitPass = visitsRemaining > 0;
   const canCheckIn = hasValidDayPass || hasValidVisitPass;
   const canShowQR = member.waiver_signed && canCheckIn && !!member.profile_photo_url;
+  const checkInStepsCompleted =
+    (member.waiver_signed ? 1 : 0) + (canCheckIn ? 1 : 0) + (!!member.profile_photo_url ? 1 : 0);
 
   const statusLabel = isVi
     ? rawStatus === "frozen"
@@ -627,6 +629,16 @@ export default function DashboardPage() {
                 </h1>
                 <p className="text-[13px] text-white/60 mt-0.5">
                   {isVi ? "Chạm để xem / cập nhật hồ sơ" : "Tap to view / update profile"}
+                  {member.waiver_signed && member.waiver_signed_at && (
+                    <span className="block mt-1 text-white/50 text-[12px]">
+                      {isVi ? "Đã ký waiver • " : "Waiver signed • "}
+                      {new Date(member.waiver_signed_at).toLocaleDateString(isVi ? "vi-VN" : "en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+                  )}
                 </p>
               </div>
             </button>
@@ -635,14 +647,30 @@ export default function DashboardPage() {
           {/* CHECK-IN REQUIREMENTS NOTICE - show above waiver when any step is missing */}
           {!canShowQR && (
             <section>
-              <div className="w-full rounded-[20px] px-6 py-4 text-[15px] text-amber-200 transition-transform duration-200" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
-                {!member.waiver_signed
-                  ? (isVi ? "Ký giấy từ chối trách nhiệm trước khi check-in." : "Sign the waiver first before checking in.")
-                  : !canCheckIn
-                  ? (isVi ? "Mua Day Pass hoặc gói thành viên bên dưới để check-in." : "Purchase a Day Pass or membership below to check in.")
-                  : !member.profile_photo_url
-                  ? (isVi ? "Thêm ảnh hồ sơ trước khi check-in. Nhấn tên của bạn ở trên để mở hồ sơ." : "Add a profile photo before check-in. Tap your name above to open profile.")
-                  : null}
+              <div className="w-full rounded-[20px] px-6 py-4 text-[15px] transition-transform duration-200" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <span className="text-amber-200 font-medium">
+                    {checkInStepsCompleted}/3 {isVi ? "hoàn thành" : "complete"}
+                  </span>
+                  <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.1)" }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${(checkInStepsCompleted / 3) * 100}%`,
+                        background: accentColor,
+                      }}
+                    />
+                  </div>
+                </div>
+                <p className="text-amber-200/95 text-[14px]">
+                  {!member.waiver_signed
+                    ? (isVi ? "1. Ký giấy từ chối trách nhiệm trước khi check-in." : "1. Sign the waiver first before checking in.")
+                    : !canCheckIn
+                    ? (isVi ? "2. Mua Day Pass hoặc gói thành viên bên dưới để check-in." : "2. Purchase a Day Pass or membership below to check in.")
+                    : !member.profile_photo_url
+                    ? (isVi ? "3. Thêm ảnh hồ sơ trước khi check-in. Nhấn tên của bạn ở trên để mở hồ sơ." : "3. Add a profile photo before check-in. Tap your name above to open profile.")
+                    : null}
+                </p>
               </div>
             </section>
           )}

@@ -4,6 +4,13 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 type MembershipType = "Founder Member" | "Standard" | "Day Pass";
 
+interface WaiverRecord {
+  waiver_text: string;
+  signature: string | null;
+  created_at: string;
+  full_name: string;
+}
+
 interface AdminMember {
   id: string;
   displayId: string | null;
@@ -24,6 +31,9 @@ interface AdminMember {
   visits_remaining?: number;
   has_active_visit_pass?: boolean;
   has_active_day_pass?: boolean;
+  waiver_signed?: boolean;
+  waiver_signed_at?: string | null;
+  waiver?: WaiverRecord | null;
 }
 
 interface NameSearchResult {
@@ -74,6 +84,7 @@ export default function AdminPage() {
     payments: { id?: string; plan_name: string; amount: number; method: string; created_at: string }[];
   } | null>(null);
   const [revenuePeriod, setRevenuePeriod] = useState<"day" | "week" | "month">("day");
+  const [waiverModalOpen, setWaiverModalOpen] = useState(false);
 
   // Fetch plans
   useEffect(() => {
@@ -786,6 +797,33 @@ export default function AdminPage() {
                         </p>
                       </div>
                     )}
+                    <div className="col-span-2">
+                      <p className="text-slate-500">Waiver Signed</p>
+                      {foundMember.waiver_signed && foundMember.waiver_signed_at ? (
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-slate-900">
+                            {new Date(foundMember.waiver_signed_at).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                          {foundMember.waiver && (
+                            <button
+                              type="button"
+                              onClick={() => setWaiverModalOpen(true)}
+                              className="text-xs font-medium text-slate-600 hover:text-slate-900 underline"
+                            >
+                              View waiver
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="font-medium text-slate-500">Not signed</p>
+                      )}
+                    </div>
                     <div>
                       <p className="text-slate-500">Internal ID</p>
                       <p className="font-mono text-[11px] text-slate-800 break-all">
@@ -1179,6 +1217,55 @@ export default function AdminPage() {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Waiver View Modal */}
+      {waiverModalOpen && foundMember?.waiver && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="text-lg font-semibold text-slate-900">Signed Waiver — {foundMember.name}</h3>
+              <button
+                type="button"
+                onClick={() => setWaiverModalOpen(false)}
+                className="text-slate-500 hover:text-slate-700 text-xl"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="overflow-y-auto p-6 space-y-4">
+              <p className="text-xs text-slate-500">
+                Signed on {new Date(foundMember.waiver.created_at).toLocaleString("en-US", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
+              </p>
+              <div className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">
+                {foundMember.waiver.waiver_text.split("\n\n").map((block, idx) => (
+                  <p key={idx} className="mb-3">{block.trim()}</p>
+                ))}
+              </div>
+              <div className="pt-4 mt-6 border-t border-slate-200">
+                <p className="text-xs text-slate-500 mb-1">Signature</p>
+                {foundMember.waiver.signature?.startsWith("data:image") ? (
+                  <img
+                    src={foundMember.waiver.signature}
+                    alt="Signature"
+                    className="max-w-[280px] h-[100px] object-contain object-left border border-slate-200 rounded"
+                  />
+                ) : (
+                  <p className="font-medium text-slate-900 text-lg" style={{ fontFamily: "cursive, serif" }}>
+                    {foundMember.waiver.signature || foundMember.waiver.full_name}
+                  </p>
+                )}
+                <p className="text-xs text-slate-500 mt-1">{foundMember.waiver.full_name}</p>
+              </div>
             </div>
           </div>
         </div>

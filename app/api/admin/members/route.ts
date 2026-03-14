@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const baseSelect =
-      "id, auth_id, email, phone, full_name, tier, member_code, created_at, membership_status, membership_expires_at, visits_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender";
+      "id, auth_id, email, phone, full_name, tier, member_code, created_at, membership_status, membership_expires_at, visits_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender, waiver_signed, waiver_signed_at";
 
     // Name search: return a list of basic matches to let the UI choose.
     if (!id && !code && name) {
@@ -90,6 +90,24 @@ export async function GET(req: NextRequest) {
     }
 
     const memberId = memberRow.id as string;
+
+    // Latest waiver record (admin can view signed waiver)
+    let waiverRecord: { waiver_text: string; signature: string | null; created_at: string; full_name: string } | null = null;
+    const { data: waiverRow } = await supabase
+      .from("member_waivers")
+      .select("waiver_text, signature, created_at, full_name")
+      .eq("member_id", memberId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (waiverRow) {
+      waiverRecord = {
+        waiver_text: waiverRow.waiver_text as string,
+        signature: (waiverRow.signature as string | null) ?? null,
+        created_at: waiverRow.created_at as string,
+        full_name: (waiverRow.full_name as string) ?? memberRow.full_name,
+      };
+    }
 
     // Total visits
     const { count: totalVisits } = await supabase
@@ -166,6 +184,9 @@ export async function GET(req: NextRequest) {
       visits_remaining: visitsRemaining,
       has_active_day_pass: hasValidDayPass,
       has_active_visit_pass: hasValidVisitPass,
+      waiver_signed: !!memberRow.waiver_signed,
+      waiver_signed_at: memberRow.waiver_signed_at ?? null,
+      waiver: waiverRecord,
     };
 
     return NextResponse.json({ member: responseMember }, { headers: { "Cache-Control": "no-store, max-age=0" } });
