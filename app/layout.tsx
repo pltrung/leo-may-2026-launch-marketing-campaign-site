@@ -3,6 +3,7 @@ import Script from "next/script";
 import LoadingScreen from "@/components/LoadingScreen";
 import GlobalImgSafeguard from "@/components/GlobalImgSafeguard";
 import LandingGate from "@/components/LandingGate";
+import { AuthProvider } from "@/context/AuthContext";
 import { InAppBrowserProvider } from "@/context/InAppBrowserContext";
 import "@/styles/globals.css";
 
@@ -48,9 +49,11 @@ export default function RootLayout({
       </head>
       <body className="min-h-[100dvh] antialiased overflow-x-hidden">
         <GlobalImgSafeguard />
-        <InAppBrowserProvider>
-          <LandingGate>{children}</LandingGate>
-        </InAppBrowserProvider>
+        <AuthProvider>
+          <InAppBrowserProvider>
+            <LandingGate>{children}</LandingGate>
+          </InAppBrowserProvider>
+        </AuthProvider>
       </body>
     </html>
   );

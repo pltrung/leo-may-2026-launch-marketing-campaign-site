@@ -10,6 +10,7 @@ import { useMemberAuth } from "@/lib/useMemberAuth";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { HERO_BG } from "@/lib/heroConstants";
 import { SOCIAL_LINKS } from "@/lib/announcementConfig";
+import LoadingScreen from "@/components/LoadingScreen";
 import ProfileModal from "@/components/dashboard/ProfileModal";
 import PackageDetailModal, { type Plan } from "@/components/dashboard/PackageDetailModal";
 import PaymentModal from "@/components/dashboard/PaymentModal";
@@ -124,7 +125,7 @@ export default function DashboardPage() {
     setMounted(true);
   }, []);
 
-  // Member-only gate. Auth from useMemberAuth (runs only on this route); reset-password stays isolated.
+  // Member-only gate. Auth from global AuthProvider; redirect only after loading=false.
   useEffect(() => {
     if (!mounted || loading) return;
     if (!user) router.replace(`/${locale}/gym`);
@@ -550,6 +551,9 @@ export default function DashboardPage() {
     : !canCheckIn
     ? "Inactive"
     : "Active";
+
+  // Wait for auth hydration before render/redirect; prevents post-login redirect loop
+  if (!mounted || loading) return <LoadingScreen />;
 
   return (
     <div className="min-h-screen flex flex-col relative">
