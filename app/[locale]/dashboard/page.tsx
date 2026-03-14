@@ -88,6 +88,7 @@ export default function DashboardPage() {
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isVietQrModalOpen, setIsVietQrModalOpen] = useState(false);
   const wakeLockRef = useRef<any | null>(null);
+  const visitPassBarMaxRef = useRef<number>(0);
   const [gymOccupancy, setGymOccupancy] = useState<number | null>(null);
   const [leaderboard, setLeaderboard] = useState<{
     top: { rank: number; full_name: string; instagram_handle?: string | null; profile_photo_url?: string | null; visits: number }[];
@@ -470,6 +471,10 @@ export default function DashboardPage() {
 
   const rawStatus = (member.membership_status as string | undefined) ?? "inactive";
   const visitsRemaining = member.visits_remaining ?? 0;
+  if (visitsRemaining > 0 && visitsRemaining > visitPassBarMaxRef.current) {
+    visitPassBarMaxRef.current = visitsRemaining;
+  }
+  const visitBarDenom = Math.max(visitPassBarMaxRef.current, 1);
 
   let expiry: Date | null = null;
   if (member.membership_expires_at && typeof member.membership_expires_at === "string") {
@@ -755,7 +760,7 @@ export default function DashboardPage() {
                       className="h-full rounded-full transition-all duration-500"
                       style={{
                         width: (member.visits_remaining ?? 0) > 0
-                          ? `${Math.min(100, ((member.visits_remaining ?? 0) / 20) * 100)}%`
+                          ? `${Math.min(100, ((member.visits_remaining ?? 0) / visitBarDenom) * 100)}%`
                           : `${Math.min(100, ((daysRemaining ?? 0) / 30) * 100)}%`,
                         background: accentColor,
                       }}
