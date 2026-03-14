@@ -41,9 +41,10 @@ const AuthContext = createContext<AuthValue | null>(null);
 
 /**
  * Global auth provider. Single source of truth for session.
- * - Waits for session hydration (retries) before setting loading=false
- * - Uses getSession() only; no refreshSession to avoid cascading calls and recovery-session issues
- * - Protected pages must wait for loading=false before redirecting
+ * - Initial mount: refresh() runs once with getSession retries
+ * - onAuthStateChange: uses session from callback directly (no refresh), avoids cascading cycles
+ * - Does not clear session when getSession returns null during hydration
+ * - Protected pages wait for loading=false before redirecting
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -51,6 +52,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [member, setMember] = useState<MemberProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+
+  const fetchMember = useCallback(async (token: string) => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const res = await fetch("/api/member/me", {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      const data = await res.json();
+      if (res.ok && data?.member) setMember(data.member);
+      else setMember(null);
+    } catch {
+      setMember(null);
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -76,38 +94,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (!s?.user) {
-      setSession(null);
-      setUser(null);
-      setMember(null);
-      setAccessToken(null);
+      // Do not clear session here — getSession can briefly return null during hydration.
+      // onAuthStateChange will provide definitive SIGNED_OUT when the user actually signs out.
       setLoading(false);
       return;
     }
 
-    // Use getSession() only. refreshSession() causes cascading calls via onAuthStateChange
-    // and invalidates recovery sessions on /reset-password.
     const token = s.access_token ?? null;
     setSession(s);
     setUser(s.user ?? null);
     setAccessToken(token);
+    setLoading(false);
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-      const res = await fetch("/api/member/me", {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      const data = await res.json();
-      if (res.ok && data?.member) setMember(data.member);
-      else setMember(null);
-    } catch {
-      setMember(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    fetchMember(token);
+  }, [fetchMember]);
 
   useEffect(() => {
     let supabase;
@@ -117,12 +117,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       return;
     }
+
     refresh();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      refresh();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const token = session.access_token ?? null;
+        setSession(session);
+        setUser(session.user ?? null);
+        setAccessToken(token);
+        setLoading(false);
+        fetchMember(token);
+      } else {
+        setSession(null);
+        setUser(null);
+        setMember(null);
+        setAccessToken(null);
+        setLoading(false);
+      }
     });
+
     return () => subscription.unsubscribe();
-  }, [refresh]);
+  }, [refresh, fetchMember]);
 
   const signOut = useCallback(async () => {
     try {
