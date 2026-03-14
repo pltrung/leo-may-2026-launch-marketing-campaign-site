@@ -124,7 +124,7 @@ export default function DashboardPage() {
     setMounted(true);
   }, []);
 
-  // Member-only gate. Auth state comes from MemberAuthProvider (root) so it persists across locale switch.
+  // Member-only gate. Auth from useMemberAuth (runs only on this route); reset-password stays isolated.
   useEffect(() => {
     if (!mounted || loading) return;
     if (!user) router.replace(`/${locale}/gym`);
