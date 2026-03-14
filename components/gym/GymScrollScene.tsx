@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, Suspense } from "react";
 import GymCanvas, { type QualityLevel } from "@/components/gym/three/GymCanvas";
 import GymChaptersOverlay from "@/components/gym/GymChaptersOverlay";
 import GymCanvasErrorBoundary from "@/components/gym/GymCanvasErrorBoundary";
-import { useScrollProgress } from "@/components/gym/scroll/useScrollProgress";
+import type { ScrollProgressState } from "@/components/gym/scroll/useScrollProgress";
 import type { SkyTheme } from "@/components/gym/theme/skyTheme";
 import type { GymChapter } from "@/components/gym/scroll/chapters";
 
@@ -127,12 +127,12 @@ interface GymScrollSceneProps {
   activeChapter: GymChapter | null;
   /** Total story height in vh (e.g. 420 mobile, 560 desktop for slower scroll). */
   storyVh: number;
+  scroll: ScrollProgressState;
 }
 
 const ROTATE_SENSITIVITY = 0.004;
 
-export default function GymScrollScene({ theme, activeChapter, storyVh }: GymScrollSceneProps) {
-  const scroll = useScrollProgress(storyVh);
+export default function GymScrollScene({ theme, activeChapter, storyVh, scroll }: GymScrollSceneProps) {
   const { x: pointerX, y: pointerY } = usePointerNormalized();
   const [userRotationY, setUserRotationY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);

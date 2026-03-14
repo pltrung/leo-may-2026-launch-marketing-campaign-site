@@ -82,8 +82,8 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
   }, [chapterStates]);
 
   const isIntroGlbOnly = activeId === "intro" && progress < INTRO_TEXT_REVEAL_PROGRESS;
-  /** Hide overlay only at scroll max (1) so "Trở thành thành viên" stays visible until end of gym section. */
-  const hideOverlayNearFooter = progress >= 1;
+  /** Hide overlay only after scrolling past the gym section so "YOUR SKY STARTS HERE" + CTA stay visible until scroll end. */
+  const hideOverlayNearFooter = scroll.scrollY > scroll.totalScrollHeight;
   /** CTA block fades in with smoothstep when leaving intro (pre-launch feel). */
   const ctaBlockOpacity = reducedMotion ? 1 : smoothstep(INTRO_TEXT_REVEAL_PROGRESS, 0.22, progress);
 
@@ -107,14 +107,36 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
       }}
       aria-hidden
     >
-      {/* Mobile keeps extra top padding so text sits below GLB; desktop uses a centered vertical stack so title, island, and CTA feel like one unit */}
+      {/* Mobile: intro logo above GLB (absolute top). Desktop: logo in content flow below GLB. */}
+      {/* Intro logo for mobile: above GLB, centered in upper viewport */}
+      <div
+        className="md:hidden absolute left-0 right-0 flex justify-center px-4"
+        style={{
+          top: "calc(max(env(safe-area-inset-top), 72px) + 1rem + 12vh)",
+          opacity: reducedMotion
+            ? progress < LOGO_FADE_OUT_END ? 1 : 0
+            : 1 - smoothstep(LOGO_FADE_OUT_START, LOGO_FADE_OUT_END, progress),
+          pointerEvents: "none",
+        }}
+        aria-hidden
+      >
+        <Image
+          src="/logo-white.svg"
+          alt=""
+          width={280}
+          height={80}
+          className="w-[min(260px,85vw)] h-auto"
+          priority
+        />
+      </div>
+      {/* Mobile keeps extra top padding so text sits below GLB; desktop uses a centered vertical stack */}
       <div className="flex-1 flex flex-col min-h-0 w-full max-w-2xl mx-auto px-4 md:px-8 pt-[48vh] md:pt-[12vh] md:pb-[12vh] md:gap-7">
-        {/* Title block: intro logo (fades out) + chapter headlines (welcome fades in 0.08–0.18) */}
+        {/* Title block: intro logo (desktop only, below GLB) + chapter headlines */}
         <div className="flex-shrink-0 pt-2 pb-2 md:pb-6 md:pb-8 flex flex-col items-center text-center">
           <div className="relative w-full min-h-[4.5rem] md:min-h-[5rem]">
-            {/* Intro logo: centered below GLB, fades out on scroll */}
+            {/* Intro logo: desktop only, centered below GLB, fades out on scroll */}
             <div
-              className="absolute inset-x-0 top-0 flex flex-col items-center justify-center"
+              className="hidden md:flex absolute inset-x-0 top-0 flex-col items-center justify-center"
               style={{
                 opacity: reducedMotion
                   ? progress < LOGO_FADE_OUT_END ? 1 : 0
@@ -128,7 +150,7 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
                 alt=""
                 width={360}
                 height={100}
-                className="w-[min(320px,90vw)] md:w-[min(400px,35vw)] h-auto"
+                className="w-[min(400px,35vw)] h-auto"
                 priority
               />
             </div>
@@ -153,11 +175,10 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
                   aria-hidden={opacity < 0.01}
                 >
                   <h1
-                    className="font-bold text-white tracking-tight leading-[1.2] max-w-2xl w-full"
+                    className="font-bold text-white tracking-tight leading-[1.2] max-w-2xl w-full text-[clamp(18px,4.5vw,24px)] md:text-[clamp(28px,5vw,48px)]"
                     style={{
                       fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
                       color: titleColor ?? undefined,
-                      fontSize: "clamp(28px, 5vw, 48px)",
                       textShadow:
                         "0 0 14px rgba(0,0,0,0.75), 0 0 26px rgba(0,0,0,0.9)",
                     }}
@@ -165,10 +186,9 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
                     <span className="block">{headline}</span>
                   </h1>
                   <p
-                    className="mt-2 md:mt-3 text-white/90 max-w-xl w-full"
+                    className="mt-2 md:mt-3 text-white/90 max-w-xl w-full text-[clamp(12px,2vw,16px)] md:text-[clamp(14px,2.5vw,20px)]"
                     style={{
                       fontFamily: "MiSans-Regular, sans-serif",
-                      fontSize: "clamp(14px, 2.5vw, 20px)",
                       lineHeight: 1.25,
                       textShadow:
                         "0 0 10px rgba(0,0,0,0.7), 0 0 18px rgba(0,0,0,0.85)",

@@ -24,7 +24,7 @@ import {
   getChapterHash,
   CHAPTER_PROGRESS,
 } from "@/components/gym/scroll/chapters";
-import { seekToProgress } from "@/components/gym/scroll/useScrollProgress";
+import { seekToProgress, useScrollProgress } from "@/components/gym/scroll/useScrollProgress";
 import GymVisitModal from "@/components/gym/modals/GymVisitModal";
 import MembershipEntrySheet from "@/components/gym/modals/MembershipEntrySheet";
 import LocationSheet from "@/components/gym/modals/LocationSheet";
@@ -34,6 +34,7 @@ import { useLocale } from "@/components/LocaleProvider";
 
 export default function GymWorld() {
   const locale = useLocale();
+  const scroll = useScrollProgress(GYM_STORY_VH);
   const [theme, setTheme] = useState<SkyTheme>(() =>
     getSkyTheme(typeof window !== "undefined" ? getLocalTimeHours() : 12)
   );
@@ -159,9 +160,9 @@ export default function GymWorld() {
           <HeroStarfield heroTransitioning={false} />
         </div>
         <div className="relative" style={{ zIndex: 10 }}>
-          <GymHeader />
+          <GymHeader scrollProgress={scroll.progress} />
         <main className="relative">
-          <GymScrollScene theme={theme} activeChapter={activeChapter} storyVh={GYM_STORY_VH} />
+          <GymScrollScene theme={theme} activeChapter={activeChapter} storyVh={GYM_STORY_VH} scroll={scroll} />
           <GymFooter />
         </main>
         <GymTransitionOverlay overlayRef={overlayRef} />
