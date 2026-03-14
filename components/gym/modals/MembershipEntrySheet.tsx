@@ -60,10 +60,10 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
     /^ev\d+-.+@l$/.test(e.trim().toLowerCase()) || /^dummy2\d+@test\.local$/.test(e.trim().toLowerCase());
 
   useEffect(() => {
-    if (resendCooldown <= 0) return;
-    const t = setInterval(() => setResendCooldown((s) => Math.max(0, s - 1)), 1000);
-    return () => clearInterval(t);
-  }, [resendCooldown]);
+    if (resendCooldown <= 0 || view !== "signup_check_email") return;
+    const interval = setInterval(() => setResendCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(interval);
+  }, [resendCooldown, view]);
 
   const resetClaim = useCallback(() => {
     setShowClaimForm(false);
@@ -76,6 +76,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
 
   const goMain = useCallback(() => {
     setView("main");
+    setResendCooldown(0);
     resetClaim();
     setLoginError("");
     setLoginPassword("");

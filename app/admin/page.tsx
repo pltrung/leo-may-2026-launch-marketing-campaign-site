@@ -2,8 +2,20 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import { useAdminAuth } from "@/components/admin/AdminAuthContext";
+import AdminLoginForm from "@/components/admin/AdminLoginForm";
+import { getMessages } from "@/lib/messages";
+import type { Locale } from "@/lib/i18n";
 
 const QrScannerModal = dynamic(() => import("@/components/admin/QrScannerModal"), { ssr: false });
+
+const ADMIN_LOCALE_KEY = "admin-locale";
+
+function getStoredLocale(): Locale {
+  if (typeof window === "undefined") return "vi";
+  const s = localStorage.getItem(ADMIN_LOCALE_KEY);
+  return s === "en" || s === "vi" ? s : "vi";
+}
 
 function getVietQrProxyUrl(rawUrl: string | null): string | null {
   if (!rawUrl) return null;
@@ -52,7 +64,30 @@ interface NameSearchResult {
 }
 
 export default function AdminPage() {
+  const { isAdmin, loading, adminFetch, signOut } = useAdminAuth();
+  const [locale, setLocale] = useState<Locale>("vi");
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    setLocale(getStoredLocale());
+  }, []);
+  const setLocaleAndStore = useCallback((l: Locale) => {
+    setLocale(l);
+    if (typeof window !== "undefined") localStorage.setItem(ADMIN_LOCALE_KEY, l);
+  }, []);
+
+  const t = getMessages(locale).admin;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#BEE7FF] via-[#EAF6FF] to-white">
+        <p className="text-slate-600">Loading…</p>
+      </div>
+    );
+  }
+  if (!isAdmin) {
+    return <AdminLoginForm locale={locale} onLocaleChange={setLocaleAndStore} />;
+  }
   const [searchMode, setSearchMode] = useState<"id" | "name" | "qr">("id");
   const [foundMember, setFoundMember] = useState<AdminMember | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -97,18 +132,18 @@ export default function AdminPage() {
 
   // Fetch plans
   useEffect(() => {
-    fetch("/api/admin/plans")
+    adminFetch("/api/admin/plans")
       .then((r) => r.json())
       .then((d) => setPlans(d.plans ?? []))
       .catch(() => {});
-  }, []);
+  }, [adminFetch]);
 
   const loadMemberById = useCallback(async (id: string) => {
     setSearchError(null);
     setActionError(null);
     setActionMessage(null);
     try {
-      const res = await fetch(`/api/admin/members?id=${encodeURIComponent(id)}`);
+      const res = await adminFetch(`/api/admin/members?id=${encodeURIComponent(id)}`);
       const data = await res.json();
       if (!res.ok || !data.member) {
         setSearchError(data.error || "Member not found.");
@@ -119,7 +154,7 @@ export default function AdminPage() {
     } catch {
       setSearchError("Unable to load member.");
     }
-  }, []);
+  }, [adminFetch]);
 
   // Fetch and poll recent payments when member found; detect new payment for auto webhook
   useEffect(() => {
@@ -131,7 +166,7 @@ export default function AdminPage() {
 
     const poll = async () => {
       try {
-        const res = await fetch(`/api/admin/payments?member_id=${encodeURIComponent(foundMember.id)}`);
+        const res = await adminFetch(`/api/admin/payments?member_id=${encodeURIComponent(foundMember.id)}`);
         const data = await res.json();
         const payments = (data.payments ?? []) as { id: string; plan_name: string; amount: number; created_at: string }[];
         const prevCount = lastPaymentCountRef.current;
@@ -150,25 +185,25 @@ export default function AdminPage() {
     poll();
     const id = setInterval(poll, 4000);
     return () => clearInterval(id);
-  }, [foundMember?.id, loadMemberById]);
+  }, [foundMember?.id, loadMemberById, adminFetch]);
 
   // Fetch check-ins when modal opens
   useEffect(() => {
     if (toolsModal !== "checkins") return;
-    fetch("/api/admin/checkins?days=7")
+    adminFetch("/api/admin/checkins?days=7")
       .then((r) => r.json())
       .then((d) => setCheckinsData({ checkins: d.checkins ?? [], byDay: d.byDay ?? {} }))
       .catch(() => setCheckinsData({ checkins: [], byDay: {} }));
-  }, [toolsModal]);
+  }, [toolsModal, adminFetch]);
 
   // Fetch revenue when modal opens or period changes
   useEffect(() => {
     if (toolsModal !== "revenue") return;
-    fetch(`/api/admin/revenue?period=${revenuePeriod}`)
+    adminFetch(`/api/admin/revenue?period=${revenuePeriod}`)
       .then((r) => r.json())
       .then((d) => setRevenueData(d))
       .catch(() => setRevenueData(null));
-  }, [toolsModal, revenuePeriod]);
+  }, [toolsModal, revenuePeriod, adminFetch]);
 
   // Poll real-time-ish occupancy from backend.
   useEffect(() => {
@@ -176,7 +211,7 @@ export default function AdminPage() {
 
     const fetchOccupancy = async () => {
       try {
-        const res = await fetch("/api/admin/occupancy");
+        const res = await adminFetch("/api/admin/occupancy");
         if (!res.ok) return;
         const data = await res.json();
         if (!cancelled && typeof data.count === "number") {
@@ -193,7 +228,7 @@ export default function AdminPage() {
       cancelled = true;
       clearInterval(id);
     };
-  }, []);
+  }, [adminFetch]);
 
   const handleSearch = useCallback(async () => {
     setSearchError(null);
@@ -232,7 +267,7 @@ export default function AdminPage() {
     }
 
     try {
-      const res = await fetch(`/api/admin/members?${params.toString()}`);
+      const res = await adminFetch(`/api/admin/members?${params.toString()}`);
       const data = await res.json();
       if (searchMode === "name") {
         const results = (data.members as NameSearchResult[] | undefined) ?? [];
@@ -368,7 +403,7 @@ export default function AdminPage() {
     setActionLoading("extend");
     setActionError(null);
     setActionMessage(null);
-    fetch("/api/admin/membership", {
+    adminFetch("/api/admin/membership", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ member_id: foundMember.id, action: "extend" }),
@@ -398,7 +433,7 @@ export default function AdminPage() {
     setActionLoading("freeze");
     setActionError(null);
     setActionMessage(null);
-    fetch("/api/admin/membership", {
+    adminFetch("/api/admin/membership", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ member_id: foundMember.id, action: "freeze" }),
@@ -419,7 +454,7 @@ export default function AdminPage() {
     setActionLoading("cancel");
     setActionError(null);
     setActionMessage(null);
-    fetch("/api/admin/membership", {
+    adminFetch("/api/admin/membership", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ member_id: foundMember.id, action: "cancel" }),
@@ -451,7 +486,7 @@ export default function AdminPage() {
     setPaymentCurrentExpiry(null);
     setPaymentNewExpiry(null);
     setPaymentVisitsAdded(null);
-    fetch(`/api/admin/vietqr?plan_id=${encodeURIComponent(defaultPlan)}&member_id=${encodeURIComponent(foundMember.id)}`)
+    adminFetch(`/api/admin/vietqr?plan_id=${encodeURIComponent(defaultPlan)}&member_id=${encodeURIComponent(foundMember.id)}`)
       .then((r) => r.json())
       .then((d) => {
         setPaymentQrUrl(d.url ?? null);
@@ -472,7 +507,7 @@ export default function AdminPage() {
       setPaymentCurrentExpiry(null);
       setPaymentNewExpiry(null);
       setPaymentVisitsAdded(null);
-      fetch(`/api/admin/vietqr?plan_id=${encodeURIComponent(planId)}&member_id=${encodeURIComponent(foundMember.id)}`)
+      adminFetch(`/api/admin/vietqr?plan_id=${encodeURIComponent(planId)}&member_id=${encodeURIComponent(foundMember.id)}`)
         .then((r) => r.json())
         .then((d) => {
           setPaymentQrUrl(d.url ?? null);
@@ -492,7 +527,7 @@ export default function AdminPage() {
     setActionLoading("confirm");
     setActionError(null);
     try {
-      const res = await fetch("/api/admin/payments/confirm", {
+      const res = await adminFetch("/api/admin/payments/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ member_id: foundMember.id, plan_id: paymentPlanId, method: paymentMethod }),
@@ -527,7 +562,7 @@ export default function AdminPage() {
     setActionLoading("upgrade");
     setActionError(null);
     setActionMessage(null);
-    fetch("/api/admin/membership", {
+    adminFetch("/api/admin/membership", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ member_id: foundMember.id, action: "upgrade" }),
@@ -580,17 +615,40 @@ export default function AdminPage() {
               className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight"
               style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
             >
-              Leo Mây Admin
+              {t.title}
             </h1>
-            <p className="text-xs md:text-sm text-slate-600">Front Desk Dashboard</p>
+            <p className="text-xs md:text-sm text-slate-600">{t.subtitle}</p>
           </div>
-          <div className="flex items-center gap-4 text-xs md:text-sm text-slate-700">
+          <div className="flex items-center gap-3 md:gap-4 text-xs md:text-sm text-slate-700">
+            <div className="flex gap-1 rounded-full border border-slate-200 bg-white/80 p-0.5">
+              <button
+                type="button"
+                onClick={() => setLocaleAndStore("en")}
+                className={`px-3 py-1 rounded-full text-xs font-medium ${locale === "en" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+              >
+                EN
+              </button>
+              <button
+                type="button"
+                onClick={() => setLocaleAndStore("vi")}
+                className={`px-3 py-1 rounded-full text-xs font-medium ${locale === "vi" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+              >
+                VN
+              </button>
+            </div>
             <div className="border border-slate-200 rounded-xl px-3 py-1.5 bg-white/70 shadow-sm">
-              <span className="font-medium">Gym Occupancy</span>
+              <span className="font-medium">{t.gymOccupancy}</span>
               <span className="ml-2 text-slate-900">
-                {gymOccupancy} climber{gymOccupancy === 1 ? "" : "s"} inside
+                {t.climbersInside.replace("{count}", String(gymOccupancy))}
               </span>
             </div>
+            <button
+              type="button"
+              onClick={() => signOut()}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100"
+            >
+              {t.logout}
+            </button>
           </div>
         </div>
       </header>
@@ -611,7 +669,7 @@ export default function AdminPage() {
                         : "border-slate-200 text-slate-700 hover:bg-slate-100"
                     }`}
                   >
-                    Member ID
+                    {t.memberId}
                   </button>
                   <button
                     type="button"
@@ -622,7 +680,7 @@ export default function AdminPage() {
                         : "border-slate-200 text-slate-700 hover:bg-slate-100"
                     }`}
                   >
-                    Name
+                    {m.name}
                   </button>
                   <button
                     type="button"
@@ -633,22 +691,22 @@ export default function AdminPage() {
                         : "border-slate-200 text-slate-700 hover:bg-slate-100"
                     }`}
                   >
-                    Scan QR
+                    {t.scanQr}
                   </button>
                 </div>
                 <label className="block">
                   <span className="block text-xs font-medium text-slate-700 mb-1">
-                    Search Member
+                    {t.searchMember}
                   </span>
                   <input
                     type="text"
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
                     placeholder={
                       searchMode === "name"
-                        ? "Enter Member Name"
+                        ? t.enterMemberName
                         : searchMode === "qr"
-                        ? "Scan or paste QR payload (leo-member:...)"
-                        : "Enter Member ID (e.g. LM-0234)"
+                        ? t.scanOrPasteQr
+                        : t.enterMemberId
                     }
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -662,27 +720,27 @@ export default function AdminPage() {
                 {searchMode === "name" && nameResults.length > 0 && (
                   <div className="mt-2 space-y-1.5">
                     <p className="text-[11px] text-slate-500">
-                      Select a member:
+                      {t.selectMember}
                     </p>
                     <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white">
-                      {nameResults.map((m) => (
+                      {nameResults.map((member) => (
                         <button
                           type="button"
-                          key={m.id}
-                          onClick={() => loadMemberById(m.id)}
+                          key={member.id}
+                          onClick={() => loadMemberById(member.id)}
                           className="w-full px-3 py-2 text-left text-xs hover:bg-slate-50 border-b last:border-b-0 border-slate-100"
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div>
                               <p className="font-medium text-slate-900">
-                                {m.name}
+                                {member.name}
                               </p>
                               <p className="text-[11px] text-slate-500">
-                                {m.displayId ?? "No Member ID"}
+                                {member.displayId ?? t.noMemberId}
                               </p>
                             </div>
                             <span className="text-[11px] text-slate-600">
-                              {m.membershipType}
+                              {member.membershipType}
                             </span>
                           </div>
                         </button>
@@ -697,14 +755,14 @@ export default function AdminPage() {
                   onClick={handleSearch}
                   className="px-4 py-2 rounded-full text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 shadow-sm"
                 >
-                  Search
+                  {t.search}
                 </button>
                 <button
                   type="button"
                   onClick={handleScanQr}
                   className="px-4 py-2 rounded-full text-sm font-medium border border-slate-300 text-slate-800 bg-white hover:bg-slate-50"
                 >
-                  Scan QR
+                  {t.scanQr}
                 </button>
               </div>
             </div>

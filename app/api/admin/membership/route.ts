@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
+import { getAdminFromRequest } from "@/lib/adminAuth";
 
 type MembershipAction = "extend" | "freeze" | "cancel" | "upgrade";
 
 export async function POST(req: NextRequest) {
+  const admin = await getAdminFromRequest(req);
+  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServerClient();
 
   try {

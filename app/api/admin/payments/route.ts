@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
+import { getAdminFromRequest } from "@/lib/adminAuth";
 
 /**
  * GET ?member_id=xxx - list recent payments for a member
  */
 export async function GET(req: NextRequest) {
+  const admin = await getAdminFromRequest(req);
+  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const memberId = req.nextUrl.searchParams.get("member_id")?.trim();
   if (!memberId) {
     return NextResponse.json({ error: "member_id required" }, { status: 400 });

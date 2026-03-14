@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
+import { getAdminFromRequest } from "@/lib/adminAuth";
 
 /**
  * GET /api/admin/checkins
@@ -7,6 +8,8 @@ import { createServerClient } from "@/lib/supabaseServer";
  * ?date=YYYY-MM-DD — check-ins for a specific day
  */
 export async function GET(req: NextRequest) {
+  const admin = await getAdminFromRequest(req);
+  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServerClient();
   const days = parseInt(req.nextUrl.searchParams.get("days") ?? "7", 10) || 7;
   const dateParam = req.nextUrl.searchParams.get("date")?.trim();

@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
+import { getAdminFromRequest } from "@/lib/adminAuth";
 
 const PLAN_ORDER = ["newbie_class", "day_pass", "month_pass", "year_pass", "visit_5", "visit_10", "visit_20"];
 
@@ -10,7 +11,9 @@ function passType(planId: string): "newbie" | "day" | "visit" {
   return "day";
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const admin = await getAdminFromRequest(req);
+  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServerClient();
   const { data, error } = await supabase
     .from("membership_plans")
