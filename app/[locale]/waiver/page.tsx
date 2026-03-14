@@ -71,7 +71,13 @@ export default function WaiverPage() {
     if (!user) return;
     setSubmitting(true);
     try {
-      const { data: { session } } = await getSupabaseBrowserClient().auth.getSession();
+      const supabase = getSupabaseBrowserClient();
+      const { data: { session: existing } } = await supabase.auth.getSession();
+      let session = existing;
+      if (!session?.access_token) {
+        const { data: { session: refreshed } } = await supabase.auth.refreshSession();
+        session = refreshed;
+      }
       if (!session?.access_token) {
         setError("Session expired");
         setSubmitting(false);
@@ -149,11 +155,11 @@ export default function WaiverPage() {
               onChange={(e) => setFullName(e.target.value)}
               className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/50"
             />
-            <label className="flex items-center gap-2 text-white/90 text-sm">
+            <label className="flex items-center gap-2 text-white/90 text-sm cursor-pointer">
               <input
                 type="checkbox"
                 checked={agreed}
-                readOnly
+                onChange={(e) => setAgreed(e.target.checked)}
                 className="rounded"
               />
               {m.agreement}

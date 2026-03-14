@@ -123,12 +123,14 @@ export default function DashboardPage() {
     setMounted(true);
   }, []);
 
-  // Keep member-only gate. No redirect to /waiver; show Sign Waiver section + modal instead.
+  // Keep member-only gate. Defer redirect so Supabase has time to restore session (avoids redirect to gym on language switch / initial load).
   useEffect(() => {
     if (!mounted || loading) return;
-    if (!user) {
+    if (user) return;
+    const timer = setTimeout(() => {
       router.replace(`/${locale}/gym`);
-    }
+    }, 600);
+    return () => clearTimeout(timer);
   }, [mounted, loading, user, locale, router]);
 
   // Clean VNPay return params from URL when returning from VNPay
@@ -396,12 +398,12 @@ export default function DashboardPage() {
     try {
       if (typeof window !== "undefined") {
         window.localStorage.setItem("leo_language", target);
-        // Full page navigation to avoid auth/session race during SPA transition
-        window.location.href = `/${target}/dashboard`;
       }
     } catch {
       // ignore
     }
+    // Client-side navigation keeps Supabase session in memory, stays on dashboard
+    router.replace(`/${target}/dashboard`);
   };
 
   const glassCard = "rgba(0,0,0,0.4)";
