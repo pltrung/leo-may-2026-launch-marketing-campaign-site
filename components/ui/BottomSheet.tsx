@@ -27,11 +27,9 @@ export default function BottomSheet({ open, onClose, children, title }: BottomSh
     previousActiveRef.current = document.activeElement as HTMLElement | null;
     document.addEventListener("keydown", handleKeyDown);
     document.body.style.overflow = "hidden";
-    document.body.style.touchAction = "none";
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
-      document.body.style.touchAction = "";
       previousActiveRef.current?.focus?.();
     };
   }, [open, handleKeyDown]);

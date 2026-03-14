@@ -174,7 +174,7 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
                   aria-hidden={opacity < 0.01}
                 >
                   <h1
-                    className="font-bold text-white tracking-tight leading-[1.2] max-w-[20rem] md:max-w-2xl w-full text-[clamp(18px,4.5vw,24px)] md:text-[clamp(28px,5vw,48px)]"
+                    className="font-bold text-white tracking-tight leading-[1.2] max-w-[20rem] md:max-w-2xl w-full text-[clamp(22px,5.4vw,29px)] md:text-[clamp(28px,5vw,48px)]"
                     style={{
                       fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
                       color: titleColor ?? undefined,
@@ -185,7 +185,7 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
                     <span className="block">{headline}</span>
                   </h1>
                   <p
-                    className="mt-2 md:mt-3 text-white/90 max-w-[18rem] md:max-w-xl w-full text-[clamp(12px,2vw,16px)] md:text-[clamp(14px,2.5vw,20px)]"
+                    className="mt-2 md:mt-3 text-white/90 max-w-[18rem] md:max-w-xl w-full text-[clamp(14px,2.4vw,19px)] md:text-[clamp(14px,2.5vw,20px)]"
                     style={{
                       fontFamily: "MiSans-Regular, sans-serif",
                       lineHeight: 1.25,
