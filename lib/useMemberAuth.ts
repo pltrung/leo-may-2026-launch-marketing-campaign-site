@@ -52,13 +52,16 @@ export function useMemberAuth() {
       setLoading(false);
       return;
     }
-    setUser(session.user);
-    setAccessToken(session.access_token ?? null);
+    // Refresh token to avoid 401 on page refresh / return from another tab
+    const { data: { session: freshSession } } = await supabase.auth.refreshSession();
+    const token = (freshSession ?? session).access_token;
+    setUser((freshSession ?? session).user);
+    setAccessToken(token ?? null);
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
       const res = await fetch("/api/member/me", {
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: { Authorization: `Bearer ${token}` },
         signal: controller.signal,
       });
       clearTimeout(timeoutId);

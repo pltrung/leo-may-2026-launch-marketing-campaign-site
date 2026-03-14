@@ -422,12 +422,21 @@ export default function DashboardPage() {
 
   if (!member) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-6 relative overflow-hidden">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 relative overflow-hidden">
         <div className="fixed inset-0" style={{ background: skyBg, zIndex: 1 }} aria-hidden />
         <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 2 }} aria-hidden>
           <HeroStarfield heroTransitioning={false} />
         </div>
-        <p className="relative z-10 text-white/90 text-center text-[15px] drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">Setting up your profile…</p>
+        <p className="relative z-10 text-white/90 text-center text-[15px] drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+          Setting up your profile…
+        </p>
+        <button
+          type="button"
+          onClick={() => refresh()}
+          className="relative z-10 px-4 py-2 rounded-full border border-white/40 text-white/90 text-sm font-medium hover:bg-white/10 transition-colors"
+        >
+          Retry
+        </button>
       </div>
     );
   }
