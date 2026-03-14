@@ -111,6 +111,7 @@ export default function DashboardPage() {
   const [renewError, setRenewError] = useState<string | null>(null);
   const [freezeLoading, setFreezeLoading] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [checkInSuccess, setCheckInSuccess] = useState(false);
   const [vnpayLoading, setVnpayLoading] = useState(false);
   // Use consistent night gradient so EN and VN dashboard backgrounds always match
   const skyBg = "linear-gradient(180deg, #0B0B0F 0%, #0d0d14 40%, #12121a 100%)";
@@ -228,6 +229,37 @@ export default function DashboardPage() {
           setPaymentSuccess(true);
           refresh();
           setTimeout(() => setPaymentSuccess(false), 8000);
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [member?.id, refresh]);
+
+  // Subscribe to check-ins realtime so dashboard updates when member is checked in (admin or QR scan)
+  useEffect(() => {
+    if (!member?.id) return;
+    let supabase;
+    try {
+      supabase = getSupabaseBrowserClient();
+    } catch {
+      return;
+    }
+    const channel = supabase
+      .channel("checkins-for-member")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "gym_checkins",
+          filter: `member_id=eq.${member.id}`,
+        },
+        () => {
+          setCheckInSuccess(true);
+          refresh();
+          setTimeout(() => setCheckInSuccess(false), 8000);
         }
       )
       .subscribe();
@@ -590,6 +622,16 @@ export default function DashboardPage() {
             </p>
             <p className="text-[15px] text-emerald-100/90">
               {isVi ? "Thẻ thành viên đã được gia hạn" : "Membership Extended"}
+            </p>
+          </div>
+        )}
+        {checkInSuccess && (
+          <div className="w-full max-w-[720px] mb-6 rounded-[20px] px-6 py-4 flex flex-col gap-1 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
+            <p className="text-[18px] font-medium text-emerald-200">
+              {isVi ? "Check-in thành công" : "Check-in Successful"}
+            </p>
+            <p className="text-[15px] text-emerald-100/90">
+              {isVi ? "Chào mừng bạn đến Leo Mây" : "Welcome to Leo Mây"}
             </p>
           </div>
         )}

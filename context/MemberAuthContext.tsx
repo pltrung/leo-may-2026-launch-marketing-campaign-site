@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import type { User } from "@supabase/supabase-js";
 
@@ -39,6 +40,9 @@ type MemberAuthValue = {
 export const MemberAuthContext = createContext<MemberAuthValue | null>(null);
 
 export function MemberAuthProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const pathRef = useRef(pathname);
+  pathRef.current = pathname;
   const [user, setUser] = useState<User | null>(null);
   const [member, setMember] = useState<MemberProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,7 +60,14 @@ export function MemberAuthProvider({ children }: { children: React.ReactNode }) 
       setLoading(false);
       return;
     }
-    const { data: { session } } = await supabase.auth.getSession();
+    // Retry getSession: on slow load or during profile/waiver updates, session can be briefly null.
+    let session: { access_token?: string; user?: { id: string } } | null = null;
+    for (const delay of [0, 150, 400]) {
+      if (delay > 0) await new Promise((r) => setTimeout(r, delay));
+      const { data } = await supabase.auth.getSession();
+      session = data.session;
+      if (session?.user) break;
+    }
     if (!session?.user) {
       setUser(null);
       setMember(null);
@@ -64,9 +75,16 @@ export function MemberAuthProvider({ children }: { children: React.ReactNode }) 
       setLoading(false);
       return;
     }
-    const { data: { session: freshSession } } = await supabase.auth.refreshSession();
-    const token = (freshSession ?? session).access_token;
-    setUser((freshSession ?? session).user);
+    // Skip refreshSession on reset-password: recovery sessions can be invalidated by it,
+    // causing "Auth session missing!" when user tries to set new password.
+    const isResetPassword = pathRef.current?.includes("/reset-password");
+    let freshSession = session;
+    if (!isResetPassword) {
+      const { data: { session: fs } } = await supabase.auth.refreshSession();
+      freshSession = fs ?? session;
+    }
+    const token = freshSession.access_token;
+    setUser(freshSession.user);
     setAccessToken(token ?? null);
     try {
       const controller = new AbortController();
