@@ -468,18 +468,8 @@ export default function DashboardPage() {
   const totalVisits = member.total_visits ?? 0;
   const sessionsThisMonth = totalVisits === 0 ? 0 : Math.max(1, Math.min(totalVisits, 12));
 
-  const rawStatus = (member.membership_status as string | undefined) ?? "active";
-  const statusLabel = isVi
-    ? rawStatus === "frozen"
-      ? "Tạm đóng băng"
-      : rawStatus === "cancelled"
-      ? "Đã hủy"
-      : "Đang hoạt động"
-    : rawStatus === "frozen"
-    ? "Frozen"
-    : rawStatus === "cancelled"
-    ? "Cancelled"
-    : "Active";
+  const rawStatus = (member.membership_status as string | undefined) ?? "inactive";
+  const visitsRemaining = member.visits_remaining ?? 0;
 
   let expiry: Date | null = null;
   if (member.membership_expires_at && typeof member.membership_expires_at === "string") {
@@ -495,7 +485,25 @@ export default function DashboardPage() {
     expiry && expiry.getTime() > Date.now()
       ? Math.ceil((expiry.getTime() - Date.now()) / 86400000)
       : null;
-  const isActive = rawStatus === "active" && daysRemaining != null && daysRemaining > 0;
+  const hasValidDayPass = rawStatus === "active" && daysRemaining != null && daysRemaining > 0;
+  const hasValidVisitPass = visitsRemaining > 0;
+  const canCheckIn = hasValidDayPass || hasValidVisitPass;
+
+  const statusLabel = isVi
+    ? rawStatus === "frozen"
+      ? "Tạm đóng băng"
+      : rawStatus === "cancelled"
+      ? "Đã hủy"
+      : !canCheckIn
+      ? "Chưa kích hoạt"
+      : "Đang hoạt động"
+    : rawStatus === "frozen"
+    ? "Frozen"
+    : rawStatus === "cancelled"
+    ? "Cancelled"
+    : !canCheckIn
+    ? "Inactive"
+    : "Active";
 
   return (
     <div className="min-h-screen flex flex-col relative">
@@ -612,14 +620,14 @@ export default function DashboardPage() {
 
           {/* CHECK IN */}
           <section>
-            {isActive && !member.profile_photo_url && (
+            {canCheckIn && !member.profile_photo_url && (
               <div className="w-full mb-4 rounded-[20px] px-6 py-4 text-[15px] text-amber-200 transition-transform duration-200" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
                 {isVi
                   ? "Vui lòng thêm ảnh hồ sơ trước khi check-in. Nhấn tên của bạn ở trên để mở hồ sơ."
                   : "Add a profile photo before check-in. Tap your name above to open profile."}
               </div>
             )}
-            {!isActive && (
+            {!canCheckIn && (
               <div className="w-full mb-4 rounded-[20px] px-6 py-4 text-[15px] text-amber-200 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
                 {isVi
                   ? "Mua Day Pass hoặc gói thành viên bên dưới để check-in."
@@ -640,12 +648,13 @@ export default function DashboardPage() {
 
               <button
                 type="button"
-                onClick={() => (isActive && !member.profile_photo_url ? setProfileModalOpen(true) : setIsQrModalOpen(true))}
-                className="relative rounded-[20px] p-6 md:p-8 flex flex-col items-center justify-center transition-all duration-200 active:scale-[0.98] hover:-translate-y-1"
+                onClick={() => (canCheckIn && !member.profile_photo_url ? setProfileModalOpen(true) : canCheckIn ? setIsQrModalOpen(true) : undefined)}
+                className="relative rounded-[20px] p-6 md:p-8 flex flex-col items-center justify-center transition-all duration-200 active:scale-[0.98] hover:-translate-y-1 disabled:cursor-default disabled:hover:translate-y-0 disabled:opacity-70"
                 style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)", boxShadow: "0 40px 80px rgba(0,0,0,0.7)" }}
+                disabled={!canCheckIn}
               >
-                <div className="flex items-center justify-center">
-                  {mounted && (
+                <div className="flex items-center justify-center min-h-[260px] min-w-[260px]">
+                  {canCheckIn && mounted ? (
                     <QRCodeSVG
                       value={qrPayload}
                       size={260}
@@ -653,10 +662,15 @@ export default function DashboardPage() {
                       bgColor="transparent"
                       fgColor="#ffffff"
                     />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-2 text-white/50 text-center px-4">
+                      <span className="text-4xl">📋</span>
+                      <p className="text-[15px] font-medium">{isVi ? "Mua pass để có mã QR" : "Buy a pass for your check-in QR code"}</p>
+                    </div>
                   )}
                 </div>
                 <p className="mt-4 text-[13px] text-white/70">
-                  {isVi ? "Chạm để phóng to khi quét" : "Tap to enlarge for scanning"}
+                  {canCheckIn ? (isVi ? "Chạm để phóng to khi quét" : "Tap to enlarge for scanning") : (isVi ? "Mua Day Pass hoặc Visit Pass bên dưới" : "Purchase a pass below")}
                 </p>
               </button>
 
@@ -705,13 +719,13 @@ export default function DashboardPage() {
                     className="font-medium"
                     style={{
                       color:
-                        rawStatus === "active"
-                          ? "#22c55e"
+                        !canCheckIn
+                          ? "rgba(255,255,255,0.6)"
                           : rawStatus === "frozen"
                           ? "#f59e0b"
                           : rawStatus === "cancelled"
                           ? "#ef4444"
-                          : "rgba(255,255,255,0.9)",
+                          : "#22c55e",
                     }}
                   >
                     {statusLabel}
@@ -750,13 +764,13 @@ export default function DashboardPage() {
                 )}
               </div>
               <div className="mt-4 pt-3 border-t border-white/[0.08] text-[13px] text-white/70 space-y-1">
-                {isActive && (
+                {canCheckIn && (
                   <div className="flex items-center justify-between">
                     <span>{isVi ? "Tham gia từ" : "Member since"}</span>
                     <span className="text-white/90">{memberSince}</span>
                   </div>
                 )}
-                {rawStatus === "active" && isActive && (
+                {hasValidDayPass && (
                   <div className="pt-2">
                     <button
                       type="button"
@@ -811,7 +825,7 @@ export default function DashboardPage() {
                   const hasBoughtNewbie = payments.some((pmt) => pmt.plan_name === "Newbie Class");
                   const visitsRem = member?.visits_remaining ?? 0;
                   const hasActiveVisitPass = visitsRem > 0;
-                  const hasActiveDayPass = isActive; // expiry valid and status active
+                  const hasActiveDayPass = hasValidDayPass;
                   const filtered = plans.filter((p) => {
                     if (p.id === "newbie_class" && hasBoughtNewbie) return false;
                     const pt = (p as Plan & { pass_type?: string }).pass_type;
@@ -1193,7 +1207,7 @@ export default function DashboardPage() {
         plan={packageDetailPlan}
         onBuyPass={() => packageDetailPlan && handleBuyPass(packageDetailPlan)}
         isVi={isVi}
-        hasActivePass={isActive}
+        hasActivePass={canCheckIn}
         currentExpiry={member?.membership_expires_at ?? null}
       />
       <EventDetailModal

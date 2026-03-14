@@ -79,6 +79,7 @@ export async function GET(request: NextRequest) {
             phone: w.phone ?? null,
             full_name: w.name ?? user.user_metadata?.full_name ?? "Member",
             tier,
+            membership_status: "inactive",
           })
           .select("id, auth_id, email, phone, full_name, tier, waiver_signed, waiver_signed_at, created_at, member_code, membership_status, membership_expires_at, visits_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender")
           .single();

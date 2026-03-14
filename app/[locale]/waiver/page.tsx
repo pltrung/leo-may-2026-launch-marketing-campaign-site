@@ -344,14 +344,22 @@ export default function WaiverPage() {
           waiver_text: WAIVER_TEXT,
         }),
       });
-      const data = await res.json();
+      let data: { error?: string; ok?: boolean } = {};
+      try {
+        const text = await res.text();
+        if (text) data = JSON.parse(text) as { error?: string; ok?: boolean };
+      } catch {
+        setError("Invalid response from server");
+        setSubmitting(false);
+        return;
+      }
       if (!res.ok) {
         setError(data?.error || "Failed to save");
         setSubmitting(false);
         return;
       }
-      await refresh();
-      router.replace(`/${locale}/dashboard`);
+      // Full page redirect to avoid client-side exception during SPA transition
+      window.location.assign(`/${locale}/dashboard`);
     } catch {
       setError("Something went wrong");
     } finally {
