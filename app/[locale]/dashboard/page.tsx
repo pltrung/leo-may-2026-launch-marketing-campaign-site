@@ -13,6 +13,7 @@ import { SOCIAL_LINKS } from "@/lib/announcementConfig";
 import ProfileModal from "@/components/dashboard/ProfileModal";
 import PackageDetailModal, { type Plan } from "@/components/dashboard/PackageDetailModal";
 import PaymentModal from "@/components/dashboard/PaymentModal";
+import EventDetailModal, { type DashboardEvent } from "@/components/dashboard/EventDetailModal";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -32,6 +33,47 @@ function safeDateTime(d: string | null | undefined, locale: "vi-VN" | "en-US"): 
   return p.toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" });
 }
 
+function daysUntil(dateStr: string): number {
+  const d = new Date(dateStr);
+  d.setHours(0, 0, 0, 0);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return Math.ceil((d.getTime() - now.getTime()) / 86400000);
+}
+
+const DASHBOARD_EVENTS: DashboardEvent[] = [
+  {
+    id: "route-setting-july",
+    title: "Route Setting Night",
+    titleVi: "Đêm thay tuyến",
+    date: "2026-07-12",
+    time: "18:00",
+    description: "Join us for a special evening where our setters refresh the walls. Members can try new problems as they go up.",
+    descriptionVi: "Tham gia buổi tối đặc biệt khi đội setter thay đổi các tuyến leo. Thành viên có thể thử các bài leo mới ngay khi chúng được đặt lên.",
+    type: "route_setting",
+  },
+  {
+    id: "womens-july",
+    title: "Women's Climbing Session",
+    titleVi: "Buổi leo dành cho nữ",
+    date: "2026-07-16",
+    time: "16:00",
+    description: "A supportive session for women climbers of all levels. Connect, learn, and climb together.",
+    descriptionVi: "Buổi leo dành cho nữ với mọi trình độ. Kết nối, học hỏi và leo cùng nhau.",
+    type: "womens",
+  },
+  {
+    id: "competition-july",
+    title: "Competition Night",
+    titleVi: "Đêm thi đấu",
+    date: "2026-07-30",
+    time: "19:00",
+    description: "Friendly in-house competition. Test your skills, meet other climbers, and win bragging rights.",
+    descriptionVi: "Cuộc thi đấu thân thiện nội bộ. Thử thách bản thân, gặp gỡ cộng đồng leo và giành chiến thắng.",
+    type: "competition",
+  },
+];
+
 const QRCodeSVG = dynamic(
   () => import("qrcode.react").then((m) => m.QRCodeSVG),
   { ssr: false }
@@ -48,7 +90,7 @@ export default function DashboardPage() {
   const wakeLockRef = useRef<any | null>(null);
   const [gymOccupancy, setGymOccupancy] = useState<number | null>(null);
   const [leaderboard, setLeaderboard] = useState<{
-    top: { rank: number; full_name: string; instagram_handle?: string | null; visits: number }[];
+    top: { rank: number; full_name: string; instagram_handle?: string | null; profile_photo_url?: string | null; visits: number }[];
     currentUser: { rank: number | null; visits: number; full_name: string };
   } | null>(null);
   const [leaderboardGender, setLeaderboardGender] = useState<"all" | "male" | "female">("all");
@@ -68,6 +110,8 @@ export default function DashboardPage() {
   // Use consistent night gradient so EN and VN dashboard backgrounds always match
   const skyBg = "linear-gradient(180deg, #0B0B0F 0%, #0d0d14 40%, #12121a 100%)";
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [eventModalOpen, setEventModalOpen] = useState(false);
+  const [eventModalEvent, setEventModalEvent] = useState<DashboardEvent | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -628,6 +672,25 @@ export default function DashboardPage() {
             </div>
           </section>
 
+          {/* GYM STATUS */}
+          <section>
+            <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
+              <h2 className="text-[22px] font-semibold text-white/90 mb-4">
+                {isVi ? "TÌNH TRẠNG PHÒNG GYM" : "GYM STATUS"}
+              </h2>
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{gymStatusEmoji}</span>
+                <div>
+                  <p className="text-[18px] font-medium text-white">{gymStatusLabel}</p>
+                  <p className="text-[15px] text-white/65">{gymStatusDetail}</p>
+                </div>
+              </div>
+              <p className="mt-4 text-[13px] text-white/50">
+                {isVi ? "Số người đã check-in trong 2 giờ gần nhất." : "Members who checked in within the last 2 hours."}
+              </p>
+            </div>
+          </section>
+
           {/* MEMBERSHIP + PAYMENT + FREEZE */}
           <section>
             <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
@@ -777,67 +840,148 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          {/* GYM STATUS + ACTIVITY */}
-          <section className="grid md:grid-cols-2 gap-4">
+          {/* CLIMBING ACTIVITY — Monthly streak + reward progress */}
+          <section>
             <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               <h2 className="text-[22px] font-semibold text-white/90 mb-4">
-                {isVi ? "TÌNH TRẠNG PHÒNG GYM" : "GYM STATUS"}
+                {isVi ? "HOẠT ĐỘNG LEO" : "CLIMBING ACTIVITY"}
               </h2>
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{gymStatusEmoji}</span>
-                <div>
-                  <p className="text-[18px] font-medium text-white">
-                    {gymStatusLabel}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="rounded-[16px] p-4" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                  <p className="text-[13px] text-white/60 mb-1">{isVi ? "Lượt tháng này" : "Visits this month"}</p>
+                  <p className="text-2xl font-bold" style={{ color: sessionsThisMonth > 0 ? accentColor : "rgba(255,255,255,0.9)" }}>
+                    {sessionsThisMonth}
                   </p>
-                  <p className="text-[15px] text-white/65">{gymStatusDetail}</p>
+                </div>
+                <div className="rounded-[16px] p-4" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                  <p className="text-[13px] text-white/60 mb-1">{isVi ? "Chuỗi tháng" : "Monthly streak"}</p>
+                  <p className="text-2xl font-bold text-white/90">
+                    {sessionsThisMonth > 0 ? `🔥 1` : "—"}
+                  </p>
                 </div>
               </div>
-              <p className="mt-4 text-[13px] text-white/50">
-                {isVi
-                  ? "Số người đã check-in trong 2 giờ gần nhất."
-                  : "Members who checked in within the last 2 hours."}
-              </p>
-              <div className="mt-4 pt-3 border-t border-white/[0.08]">
-                <p className="text-[15px] font-medium text-white/90 mb-2">
-                  {isVi ? "Hoạt động gần đây" : "Recent activity"}
+              <div>
+                <div className="flex justify-between text-[13px] text-white/70 mb-2">
+                  <span>{isVi ? "Tiến độ phần thưởng" : "Reward progress"}</span>
+                  <span>{sessionsThisMonth} / 8 {isVi ? "lượt" : "visits"}</span>
+                </div>
+                <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.1)" }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min(100, (sessionsThisMonth / 8) * 100)}%`, background: "linear-gradient(90deg, #7DD3FC, #22c55e)" }}
+                  />
+                </div>
+                <p className="text-[12px] text-white/50 mt-1.5">
+                  {sessionsThisMonth >= 8 ? (isVi ? "Đã đạt mốc!" : "Milestone reached!") : (isVi ? `${8 - sessionsThisMonth} lượt nữa để nhận phần thưởng` : `${8 - sessionsThisMonth} more visits to next reward`)}
                 </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-white/[0.08]">
+                <p className="text-[13px] text-white/60 mb-2">{isVi ? "Hoạt động gần đây" : "Recent activity"}</p>
                 <div className="flex flex-wrap gap-2 text-[13px] text-white/75">
                   {recentVisits.map((d) => (
-                    <span
-                      key={d}
-                      className="px-3 py-1 rounded-full bg-white/8 border border-white/15"
-                    >
+                    <span key={d} className="px-3 py-1 rounded-full bg-white/8 border border-white/15">
                       {d}
                     </span>
                   ))}
                 </div>
-                <div className="mt-3 flex items-center justify-between text-[13px] text-white/70">
-                  <span>{isVi ? "Buổi trong tháng này" : "Sessions this month"}</span>
-                  <span className="font-medium" style={{ color: sessionsThisMonth > 0 ? accentColor : "rgba(255,255,255,0.9)" }}>
-                    {sessionsThisMonth}
-                  </span>
-                </div>
               </div>
             </div>
+          </section>
 
-            {/* CLOUD ASCENSION (placeholder, only if >= 5 check-ins) */}
-            {totalVisits >= 5 && (
-              <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
-                <h2 className="text-[22px] font-semibold text-white/90 mb-4">
-                  {isVi ? "CLOUD ASCENSION" : "CLOUD ASCENSION"}
-                </h2>
-                <p className="text-[15px] text-white/70 mb-3">
-                  {isVi
-                    ? "Khu vực gamification sẽ xuất hiện ở đây để phản ánh hành trình leo núi của bạn."
-                    : "A future gamification area will appear here to reflect your climbing journey."}
-                </p>
-                <p className="text-[13px] text-white/60">
-                  {isVi
-                    ? `Bạn đã có ${totalVisits} lượt check-in. Sau khi hệ thống hoàn thiện, cấp bậc và phần thưởng sẽ được hiển thị tại đây.`
-                    : `You have ${totalVisits} check-ins so far. Once finalized, levels and rewards will be displayed here.`}
-                </p>
+          {/* EVENTS — Featured card + carousel */}
+          <section
+            className="rounded-[18px] p-6 transition-transform duration-200 hover:-translate-y-0.5"
+            style={{
+              background: glassCard,
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.05)",
+              textShadow: "0 1px 3px rgba(0,0,0,0.6)",
+            }}
+          >
+            <h2 className="text-[22px] font-semibold text-white/90 mb-4">
+              {isVi ? "SỰ KIỆN SẮP TỚI" : "UPCOMING EVENTS"}
+            </h2>
+
+            {/* Featured event (next upcoming) */}
+            {DASHBOARD_EVENTS.length > 0 && (() => {
+              const today = new Date().toISOString().slice(0, 10);
+              const upcoming = DASHBOARD_EVENTS.filter((e) => e.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+              const feat = upcoming[0] ?? DASHBOARD_EVENTS[0];
+              const title = isVi && feat.titleVi ? feat.titleVi : feat.title;
+              const days = daysUntil(feat.date);
+              const countdownText = days <= 0 ? (isVi ? "Hôm nay" : "Today") : days === 1 ? (isVi ? "Ngày mai" : "Tomorrow") : isVi ? `${days} ngày nữa` : `${days} days away`;
+              const dateStr = new Date(feat.date).toLocaleDateString(isVi ? "vi-VN" : "en-US", { weekday: "short", month: "short", day: "numeric" });
+              return (
+                <button
+                  type="button"
+                  onClick={() => { setEventModalEvent(feat); setEventModalOpen(true); }}
+                  className="w-full text-left rounded-[18px] p-5 mb-4 transition-all duration-200 hover:-translate-y-1 active:scale-[0.99]"
+                  style={{
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(16,185,129,0.35)",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.05)",
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[20px] font-semibold text-white">{title}</p>
+                      <p className="text-[14px] text-white/70 mt-1">{dateStr} · {feat.time}</p>
+                      <p className="text-[13px] text-emerald-300/90 mt-2">{countdownText}</p>
+                      {feat.description && (
+                        <p className="text-[13px] text-white/60 mt-2 line-clamp-2">{isVi && feat.descriptionVi ? feat.descriptionVi : feat.description}</p>
+                      )}
+                    </div>
+                    <span className="text-[13px] font-medium text-emerald-400 shrink-0">
+                      {isVi ? "Xem chi tiết" : "View Details"}
+                    </span>
+                  </div>
+                </button>
+              );
+            })()}
+
+            {/* Carousel */}
+            <div className="relative -mx-1">
+              <div
+                data-events-carousel
+                className="flex gap-3 overflow-x-auto overflow-y-hidden pb-2 scroll-smooth snap-x snap-mandatory touch-pan-x"
+                style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" }}
+              >
+                {(DASHBOARD_EVENTS.filter((e) => e.date >= new Date().toISOString().slice(0, 10)).length > 0
+                  ? DASHBOARD_EVENTS.filter((e) => e.date >= new Date().toISOString().slice(0, 10))
+                  : DASHBOARD_EVENTS
+                ).map((ev) => {
+                  const title = isVi && ev.titleVi ? ev.titleVi : ev.title;
+                  const dateStr = new Date(ev.date).toLocaleDateString(isVi ? "vi-VN" : "en-US", { day: "numeric", month: "short" });
+                  return (
+                    <button
+                      key={ev.id}
+                      type="button"
+                      onClick={() => { setEventModalEvent(ev); setEventModalOpen(true); }}
+                      className="flex-shrink-0 w-[140px] rounded-[18px] p-4 transition-all duration-200 hover:-translate-y-1 active:scale-[0.98] snap-start"
+                      style={{
+                        background: "rgba(255,255,255,0.06)",
+                        backdropFilter: "blur(12px)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+                      }}
+                    >
+                      <span className="inline-block px-2 py-0.5 rounded-lg text-[11px] font-medium text-emerald-300/90" style={{ background: "rgba(16,185,129,0.15)" }}>
+                        {dateStr}
+                      </span>
+                      <p className="text-[15px] font-semibold text-white/95 mt-2 line-clamp-2">{title}</p>
+                      <div className="mt-3 w-8 h-8 rounded-lg flex items-center justify-center text-emerald-400/80" style={{ background: "rgba(16,185,129,0.1)" }}>
+                        {ev.type === "route_setting" && <span className="text-lg">🧗</span>}
+                        {ev.type === "womens" && <span className="text-lg">♀</span>}
+                        {ev.type === "competition" && <span className="text-lg">🏆</span>}
+                        {ev.type === "workshop" && <span className="text-lg">📋</span>}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-            )}
+              <style>{`[data-events-carousel]::-webkit-scrollbar { display: none; }`}</style>
+            </div>
           </section>
 
           {/* COMMUNITY LEADERBOARD */}
@@ -897,11 +1041,11 @@ export default function DashboardPage() {
                                     href={instaUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-white/70 hover:text-white transition-colors shrink-0"
+                                    className="inline-flex items-center justify-center text-white/90 hover:text-white transition-colors shrink-0"
                                     aria-label="Instagram"
                                   >
                                     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069z" />
+                                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
                                     </svg>
                                   </a>
                                 )}
@@ -910,6 +1054,19 @@ export default function DashboardPage() {
                                 {entry.visits} {isVi ? "lượt trong tháng này" : entry.visits === 1 ? "visit this month" : "visits this month"}
                               </p>
                             </div>
+                          </div>
+                          <div className="shrink-0 ml-3">
+                            {entry.profile_photo_url ? (
+                              <img
+                                src={entry.profile_photo_url}
+                                alt=""
+                                className="w-10 h-10 rounded-full object-cover border-2 border-white/20"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white/80 text-base font-semibold border border-white/20">
+                                {entry.full_name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -933,47 +1090,6 @@ export default function DashboardPage() {
                   )}
                 </div>
               )}
-            </div>
-          </section>
-
-          {/* EVENTS */}
-          <section className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[22px] font-semibold text-white/90">
-                {isVi ? "SỰ KIỆN SẮP TỚI" : "UPCOMING EVENTS"}
-              </h2>
-            </div>
-            <div className="space-y-2">
-              {[
-                {
-                  title: isVi ? "Đêm thay tuyến" : "Route Setting Night",
-                  date: isVi ? "12 Tháng 7" : "July 12",
-                },
-                {
-                  title: isVi ? "Buổi leo dành cho nữ" : "Women's Climbing Session",
-                  date: isVi ? "16 Tháng 7" : "July 16",
-                },
-                {
-                  title: isVi ? "Đêm thi đấu" : "Competition Night",
-                  date: isVi ? "30 Tháng 7" : "July 30",
-                },
-              ].map((event) => (
-                <div
-                  key={event.title}
-                  className="flex items-center justify-between rounded-[16px] px-4 py-3 transition-transform duration-200 hover:-translate-y-0.5"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}
-                >
-                  <div>
-                    <p className="text-[18px] font-medium text-white">
-                      {event.title}
-                    </p>
-                    <p className="text-[13px] text-white/65">{event.date}</p>
-                  </div>
-                  <span className="text-[13px] text-white/55">
-                    {isVi ? "Chi tiết sớm có" : "Details soon"}
-                  </span>
-                </div>
-              ))}
             </div>
           </section>
         </div>
@@ -1015,6 +1131,8 @@ export default function DashboardPage() {
           profile_photo_url: member.profile_photo_url,
           id_number: member.id_number,
           date_of_birth: member.date_of_birth,
+          instagram_handle: member.instagram_handle,
+          gender: member.gender,
         }}
         accessToken={accessToken}
         onSaved={refresh}
@@ -1029,6 +1147,12 @@ export default function DashboardPage() {
         isVi={isVi}
         hasActivePass={isActive}
         currentExpiry={member?.membership_expires_at ?? null}
+      />
+      <EventDetailModal
+        open={eventModalOpen}
+        onClose={() => { setEventModalOpen(false); setEventModalEvent(null); }}
+        event={eventModalEvent}
+        isVi={isVi}
       />
       <PaymentModal
         open={isVietQrModalOpen}

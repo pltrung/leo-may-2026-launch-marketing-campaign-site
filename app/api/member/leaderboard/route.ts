@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
     const { data: checkins, error: checkinErr } = await supabase
       .from("gym_checkins")
-      .select("member_id, member:member_profiles(full_name, instagram_handle, gender)")
+      .select("member_id, member:member_profiles(full_name, instagram_handle, gender, profile_photo_url)")
       .gte("timestamp", monthStart.toISOString());
 
     if (checkinErr) {
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
 
     const counts = new Map<
       string,
-      { member_id: string; full_name: string; instagram_handle: string | null; gender: string | null; visits: number }
+      { member_id: string; full_name: string; instagram_handle: string | null; gender: string | null; profile_photo_url: string | null; visits: number }
     >();
 
     for (const row of checkins ?? []) {
@@ -72,6 +72,7 @@ export async function GET(request: NextRequest) {
       const fullName = (member?.full_name as string | null) ?? "Member";
       const instagramHandle = (member?.instagram_handle as string | null) ?? null;
       const gender = (member?.gender as string | null) ?? null;
+      const profilePhotoUrl = (member?.profile_photo_url as string | null) ?? null;
 
       if (genderFilter && gender !== genderFilter) continue;
 
@@ -79,7 +80,7 @@ export async function GET(request: NextRequest) {
       if (existing) {
         existing.visits += 1;
       } else {
-        counts.set(memberId, { member_id: memberId, full_name: fullName, instagram_handle: instagramHandle, gender, visits: 1 });
+        counts.set(memberId, { member_id: memberId, full_name: fullName, instagram_handle: instagramHandle, gender, profile_photo_url: profilePhotoUrl, visits: 1 });
       }
     }
 
@@ -92,6 +93,7 @@ export async function GET(request: NextRequest) {
       member_id: entry.member_id,
       full_name: entry.full_name,
       instagram_handle: entry.instagram_handle,
+      profile_photo_url: entry.profile_photo_url,
       visits: entry.visits,
     }));
 
