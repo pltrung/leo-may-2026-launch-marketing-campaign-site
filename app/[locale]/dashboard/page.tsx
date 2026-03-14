@@ -396,11 +396,12 @@ export default function DashboardPage() {
     try {
       if (typeof window !== "undefined") {
         window.localStorage.setItem("leo_language", target);
+        // Full page navigation to avoid auth/session race during SPA transition
+        window.location.href = `/${target}/dashboard`;
       }
     } catch {
       // ignore
     }
-    router.replace(`/${target}/dashboard`);
   };
 
   const glassCard = "rgba(0,0,0,0.4)";
@@ -631,6 +632,21 @@ export default function DashboardPage() {
             </button>
           </section>
 
+          {/* CHECK-IN REQUIREMENTS NOTICE - show above waiver when any step is missing */}
+          {!canShowQR && (
+            <section>
+              <div className="w-full rounded-[20px] px-6 py-4 text-[15px] text-amber-200 transition-transform duration-200" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
+                {!member.waiver_signed
+                  ? (isVi ? "Ký giấy từ chối trách nhiệm trước khi check-in." : "Sign the waiver first before checking in.")
+                  : !canCheckIn
+                  ? (isVi ? "Mua Day Pass hoặc gói thành viên bên dưới để check-in." : "Purchase a Day Pass or membership below to check in.")
+                  : !member.profile_photo_url
+                  ? (isVi ? "Thêm ảnh hồ sơ trước khi check-in. Nhấn tên của bạn ở trên để mở hồ sơ." : "Add a profile photo before check-in. Tap your name above to open profile.")
+                  : null}
+              </div>
+            </section>
+          )}
+
           {/* SIGN WAIVER - when not yet signed */}
           {member && !member.waiver_signed && (
             <section>
@@ -657,17 +673,6 @@ export default function DashboardPage() {
 
           {/* CHECK IN */}
           <section>
-            {!canShowQR && (
-              <div className="w-full mb-4 rounded-[20px] px-6 py-4 text-[15px] text-amber-200 transition-transform duration-200" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
-                {!member.waiver_signed
-                  ? (isVi ? "Ký giấy từ chối trách nhiệm trước khi check-in." : "Sign the waiver first before checking in.")
-                  : !canCheckIn
-                  ? (isVi ? "Mua Day Pass hoặc gói thành viên bên dưới để check-in." : "Purchase a Day Pass or membership below to check in.")
-                  : !member.profile_photo_url
-                  ? (isVi ? "Thêm ảnh hồ sơ trước khi check-in. Nhấn tên của bạn ở trên để mở hồ sơ." : "Add a profile photo before check-in. Tap your name above to open profile.")
-                  : null}
-              </div>
-            )}
             <div className="relative rounded-[20px] p-6 flex flex-col items-center transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               {/* Radial glow behind QR card */}
               <div className="absolute inset-0 rounded-[20px] pointer-events-none opacity-60" style={{ background: "radial-gradient(ellipse 80% 60% at 50% 40%, rgba(125,211,252,0.08) 0%, transparent 70%)" }} aria-hidden />
