@@ -14,9 +14,10 @@ interface WaiverModalProps {
   onSuccess: () => void;
   locale: "en" | "vi";
   defaultFullName?: string;
+  accessToken?: string | null;
 }
 
-export default function WaiverModal({ open, onClose, onSuccess, locale, defaultFullName = "" }: WaiverModalProps) {
+export default function WaiverModal({ open, onClose, onSuccess, locale, defaultFullName = "", accessToken }: WaiverModalProps) {
   const m = getMessages(locale).waiver;
   const [fullName, setFullName] = useState(defaultFullName);
   const [agreed, setAgreed] = useState(false);
@@ -47,14 +48,17 @@ export default function WaiverModal({ open, onClose, onSuccess, locale, defaultF
     }
     setSubmitting(true);
     try {
-      const supabase = getSupabaseBrowserClient();
-      const { data: { session: existing } } = await supabase.auth.getSession();
-      let session = existing;
-      if (!session?.access_token) {
-        const { data: { session: refreshed } } = await supabase.auth.refreshSession();
-        session = refreshed;
+      let token = accessToken ?? null;
+      if (!token) {
+        const supabase = getSupabaseBrowserClient();
+        const { data: { session: existing } } = await supabase.auth.getSession();
+        token = existing?.access_token ?? null;
+        if (!token) {
+          const { data: { session: refreshed } } = await supabase.auth.refreshSession();
+          token = refreshed?.access_token ?? null;
+        }
       }
-      if (!session?.access_token) {
+      if (!token) {
         setError("Session expired");
         setSubmitting(false);
         return;
@@ -63,7 +67,7 @@ export default function WaiverModal({ open, onClose, onSuccess, locale, defaultF
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           full_name: fullName.trim(),

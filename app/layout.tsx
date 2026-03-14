@@ -4,6 +4,7 @@ import LoadingScreen from "@/components/LoadingScreen";
 import GlobalImgSafeguard from "@/components/GlobalImgSafeguard";
 import LandingGate from "@/components/LandingGate";
 import { InAppBrowserProvider } from "@/context/InAppBrowserContext";
+import { MemberAuthProvider } from "@/context/MemberAuthContext";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
@@ -49,7 +50,9 @@ export default function RootLayout({
       <body className="min-h-[100dvh] antialiased overflow-x-hidden">
         <GlobalImgSafeguard />
         <InAppBrowserProvider>
-          <LandingGate>{children}</LandingGate>
+          <MemberAuthProvider>
+            <LandingGate>{children}</LandingGate>
+          </MemberAuthProvider>
         </InAppBrowserProvider>
       </body>
     </html>

@@ -15,7 +15,7 @@ export default function WaiverPage() {
   const locale = useLocale();
   const router = useRouter();
   const m = getMessages(locale as "en" | "vi").waiver;
-  const { user, member, loading } = useMemberAuth();
+  const { user, member, loading, accessToken } = useMemberAuth();
   const [fullName, setFullName] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [signature, setSignature] = useState("");
@@ -71,14 +71,17 @@ export default function WaiverPage() {
     if (!user) return;
     setSubmitting(true);
     try {
-      const supabase = getSupabaseBrowserClient();
-      const { data: { session: existing } } = await supabase.auth.getSession();
-      let session = existing;
-      if (!session?.access_token) {
-        const { data: { session: refreshed } } = await supabase.auth.refreshSession();
-        session = refreshed;
+      let token = accessToken ?? null;
+      if (!token) {
+        const supabase = getSupabaseBrowserClient();
+        const { data: { session: existing } } = await supabase.auth.getSession();
+        token = existing?.access_token ?? null;
+        if (!token) {
+          const { data: { session: refreshed } } = await supabase.auth.refreshSession();
+          token = refreshed?.access_token ?? null;
+        }
       }
-      if (!session?.access_token) {
+      if (!token) {
         setError("Session expired");
         setSubmitting(false);
         return;
@@ -87,7 +90,7 @@ export default function WaiverPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           full_name: fullName.trim(),

@@ -123,14 +123,10 @@ export default function DashboardPage() {
     setMounted(true);
   }, []);
 
-  // Keep member-only gate. Defer redirect so Supabase has time to restore session (avoids redirect to gym on language switch / initial load).
+  // Member-only gate. Auth state comes from MemberAuthProvider (root) so it persists across locale switch.
   useEffect(() => {
     if (!mounted || loading) return;
-    if (user) return;
-    const timer = setTimeout(() => {
-      router.replace(`/${locale}/gym`);
-    }, 600);
-    return () => clearTimeout(timer);
+    if (!user) router.replace(`/${locale}/gym`);
   }, [mounted, loading, user, locale, router]);
 
   // Clean VNPay return params from URL when returning from VNPay
@@ -1318,6 +1314,7 @@ export default function DashboardPage() {
         onSuccess={() => refresh()}
         locale={locale as "en" | "vi"}
         defaultFullName={member?.full_name?.trim() ?? ""}
+        accessToken={accessToken}
       />
       <PaymentModal
         open={isVietQrModalOpen}
