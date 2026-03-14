@@ -699,7 +699,8 @@ export default function DashboardPage() {
             </section>
           )}
 
-          {/* CHECK IN */}
+          {/* CHECK IN - only show when all 3 steps (waiver, package, profile photo) are done */}
+          {canShowQR && (
           <section>
             <div className="relative rounded-[20px] p-6 flex flex-col items-center transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               {/* Radial glow behind QR card */}
@@ -771,6 +772,7 @@ export default function DashboardPage() {
               </div>
             </div>
           </section>
+          )}
 
           {/* GYM STATUS */}
           <section>
