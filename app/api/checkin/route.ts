@@ -20,12 +20,19 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient();
     const { data: profile, error: profileErr } = await supabase
       .from("member_profiles")
-      .select("membership_status, membership_expires_at, visits_remaining, profile_photo_url")
+      .select("waiver_signed, membership_status, membership_expires_at, visits_remaining, profile_photo_url")
       .eq("id", memberId)
       .maybeSingle();
 
     if (profileErr || !profile) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+
+    if (!profile.waiver_signed) {
+      return NextResponse.json(
+        { error: "Waiver must be signed before check-in. Please complete the waiver in the dashboard." },
+        { status: 403 }
+      );
     }
 
     if (!profile.profile_photo_url || !(profile.profile_photo_url as string).trim()) {

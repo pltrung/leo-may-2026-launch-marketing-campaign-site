@@ -14,6 +14,7 @@ import ProfileModal from "@/components/dashboard/ProfileModal";
 import PackageDetailModal, { type Plan } from "@/components/dashboard/PackageDetailModal";
 import PaymentModal from "@/components/dashboard/PaymentModal";
 import EventDetailModal, { type DashboardEvent } from "@/components/dashboard/EventDetailModal";
+import WaiverModal from "@/components/dashboard/WaiverModal";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -116,22 +117,19 @@ export default function DashboardPage() {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [eventModalEvent, setEventModalEvent] = useState<DashboardEvent | null>(null);
+  const [waiverModalOpen, setWaiverModalOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Keep member-only gate exactly as before.
+  // Keep member-only gate. No redirect to /waiver; show Sign Waiver section + modal instead.
   useEffect(() => {
     if (!mounted || loading) return;
     if (!user) {
       router.replace(`/${locale}/gym`);
-      return;
     }
-    if (member && !member.waiver_signed) {
-      router.replace(`/${locale}/waiver`);
-    }
-  }, [mounted, loading, user, member, locale, router]);
+  }, [mounted, loading, user, locale, router]);
 
   // Clean VNPay return params from URL when returning from VNPay
   useEffect(() => {
@@ -502,6 +500,7 @@ export default function DashboardPage() {
   const hasValidDayPass = rawStatus === "active" && daysRemaining != null && daysRemaining > 0;
   const hasValidVisitPass = visitsRemaining > 0;
   const canCheckIn = hasValidDayPass || hasValidVisitPass;
+  const canShowQR = member.waiver_signed && canCheckIn && !!member.profile_photo_url;
 
   const statusLabel = isVi
     ? rawStatus === "frozen"
@@ -632,20 +631,41 @@ export default function DashboardPage() {
             </button>
           </section>
 
+          {/* SIGN WAIVER - when not yet signed */}
+          {member && !member.waiver_signed && (
+            <section>
+              <div
+                className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5"
+                style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}
+              >
+                <h2 className="text-[22px] font-semibold text-white/90 mb-2">
+                  {isVi ? "Giấy từ chối trách nhiệm" : "Safety Waiver"}
+                </h2>
+                <p className="text-[15px] text-white/70 mb-4">
+                  {isVi ? "Vui lòng đọc và ký giấy từ chối trách nhiệm trước khi sử dụng phòng gym." : "Please read and sign the safety waiver before using the gym."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setWaiverModalOpen(true)}
+                  className="w-full py-3 rounded-full bg-white text-[#0B0B0F] font-medium hover:opacity-90 transition-opacity"
+                >
+                  {isVi ? "Mở giấy từ chối" : "Open Waiver"}
+                </button>
+              </div>
+            </section>
+          )}
+
           {/* CHECK IN */}
           <section>
-            {canCheckIn && !member.profile_photo_url && (
+            {!canShowQR && (
               <div className="w-full mb-4 rounded-[20px] px-6 py-4 text-[15px] text-amber-200 transition-transform duration-200" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
-                {isVi
-                  ? "Vui lòng thêm ảnh hồ sơ trước khi check-in. Nhấn tên của bạn ở trên để mở hồ sơ."
-                  : "Add a profile photo before check-in. Tap your name above to open profile."}
-              </div>
-            )}
-            {!canCheckIn && (
-              <div className="w-full mb-4 rounded-[20px] px-6 py-4 text-[15px] text-amber-200 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
-                {isVi
-                  ? "Mua Day Pass hoặc gói thành viên bên dưới để check-in."
-                  : "Purchase a Day Pass or membership below to check in."}
+                {!member.waiver_signed
+                  ? (isVi ? "Ký giấy từ chối trách nhiệm trước khi check-in." : "Sign the waiver first before checking in.")
+                  : !canCheckIn
+                  ? (isVi ? "Mua Day Pass hoặc gói thành viên bên dưới để check-in." : "Purchase a Day Pass or membership below to check in.")
+                  : !member.profile_photo_url
+                  ? (isVi ? "Thêm ảnh hồ sơ trước khi check-in. Nhấn tên của bạn ở trên để mở hồ sơ." : "Add a profile photo before check-in. Tap your name above to open profile.")
+                  : null}
               </div>
             )}
             <div className="relative rounded-[20px] p-6 flex flex-col items-center transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
@@ -662,13 +682,17 @@ export default function DashboardPage() {
 
               <button
                 type="button"
-                onClick={() => (canCheckIn && !member.profile_photo_url ? setProfileModalOpen(true) : canCheckIn ? setIsQrModalOpen(true) : undefined)}
+                onClick={() => {
+                  if (!member.waiver_signed) setWaiverModalOpen(true);
+                  else if (canCheckIn && !member.profile_photo_url) setProfileModalOpen(true);
+                  else if (canShowQR) setIsQrModalOpen(true);
+                }}
                 className="relative rounded-[20px] p-6 md:p-8 flex flex-col items-center justify-center transition-all duration-200 active:scale-[0.98] hover:-translate-y-1 disabled:cursor-default disabled:hover:translate-y-0 disabled:opacity-70"
                 style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)", boxShadow: "0 40px 80px rgba(0,0,0,0.7)" }}
-                disabled={!canCheckIn}
+                disabled={member.waiver_signed && !canCheckIn}
               >
                 <div className="flex items-center justify-center min-h-[260px] min-w-[260px]">
-                  {canCheckIn && mounted ? (
+                  {canShowQR && mounted ? (
                     <QRCodeSVG
                       value={qrPayload}
                       size={260}
@@ -678,13 +702,33 @@ export default function DashboardPage() {
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-2 text-white/50 text-center px-4">
-                      <span className="text-4xl">📋</span>
-                      <p className="text-[15px] font-medium">{isVi ? "Mua pass để có mã QR" : "Buy a pass for your check-in QR code"}</p>
+                      {!member.waiver_signed ? (
+                        <>
+                          <span className="text-4xl">📝</span>
+                          <p className="text-[15px] font-medium">{isVi ? "Ký giấy từ chối trách nhiệm để hiện mã QR" : "Sign the waiver to show your check-in QR code"}</p>
+                        </>
+                      ) : !canCheckIn ? (
+                        <>
+                          <span className="text-4xl">🎫</span>
+                          <p className="text-[15px] font-medium">{isVi ? "Mua pass để có mã QR" : "Buy a pass for your check-in QR code"}</p>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-4xl">📷</span>
+                          <p className="text-[15px] font-medium">{isVi ? "Thêm ảnh hồ sơ để có mã QR" : "Add a profile photo for your check-in QR code"}</p>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
                 <p className="mt-4 text-[13px] text-white/70">
-                  {canCheckIn ? (isVi ? "Chạm để phóng to khi quét" : "Tap to enlarge for scanning") : (isVi ? "Mua Day Pass hoặc Visit Pass bên dưới" : "Purchase a pass below")}
+                  {canShowQR
+                    ? (isVi ? "Chạm để phóng to khi quét" : "Tap to enlarge for scanning")
+                    : !member.waiver_signed
+                    ? (isVi ? "Chạm để mở giấy từ chối" : "Tap to open waiver")
+                    : !canCheckIn
+                    ? (isVi ? "Mua Day Pass hoặc Visit Pass bên dưới" : "Purchase a pass below")
+                    : (isVi ? "Chạm để thêm ảnh hồ sơ" : "Tap to add profile photo")}
                 </p>
               </button>
 
@@ -1230,6 +1274,13 @@ export default function DashboardPage() {
         event={eventModalEvent}
         isVi={isVi}
         accessToken={accessToken}
+      />
+      <WaiverModal
+        open={waiverModalOpen}
+        onClose={() => setWaiverModalOpen(false)}
+        onSuccess={() => refresh()}
+        locale={locale as "en" | "vi"}
+        defaultFullName={member?.full_name?.trim() ?? ""}
       />
       <PaymentModal
         open={isVietQrModalOpen}

@@ -176,7 +176,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
         return;
       }
       handleClose();
-      router.replace(`/${locale}/dashboard`);
+      window.location.href = `/${locale}/dashboard`;
     } catch {
       setClaimError(auth.error);
       setClaimStatus("has_account");
@@ -226,7 +226,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: loginPassword });
         if (!signInError) {
           handleClose();
-          router.replace(`/${locale}/dashboard`);
+          window.location.href = `/${locale}/dashboard`;
           return;
         }
         const claimRes = await fetch("/api/auth/claim-waitlist", {
@@ -268,7 +268,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
           });
           if (!signInError) {
             handleClose();
-            router.replace(`/${locale}/dashboard`);
+            window.location.href = `/${locale}/dashboard`;
             return;
           }
         }
@@ -359,7 +359,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
         return;
       }
       handleClose();
-      router.replace(`/${locale}/waiver`);
+      window.location.href = `/${locale}/dashboard`;
     } catch {
       setSignupError(auth.error);
     } finally {
@@ -419,7 +419,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
           return;
         }
         handleClose();
-        router.replace(`/${locale}/waiver`);
+        window.location.href = `/${locale}/dashboard`;
       } catch {
         setSignupError(auth.error);
       } finally {

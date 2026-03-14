@@ -1,275 +1,21 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import Link from "next/link";
-import { useRouter, useParams } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { useLocale } from "@/components/LocaleProvider";
 import { getMessages } from "@/lib/messages";
 import { useMemberAuth } from "@/lib/useMemberAuth";
-import { HERO_BG } from "@/lib/heroConstants";
-
-const WAIVER_TEXT = `
-Leo Mây Climbing Gym
-Climbing Activity Waiver & Release of Liability
-
-Leo Mây Climbing Gym – Ho Chi Minh City, Vietnam
-
-Last Updated: [DATE]
-
-1. Acknowledgment of Risk
-
-I understand that climbing activities—including bouldering, training, and the use of climbing walls and equipment—are physically demanding and inherently dangerous activities.
-
-I acknowledge that participation may involve risks including, but not limited to:
-
-Falls from climbing walls
-
-Impact with climbing holds, flooring, or structures
-
-Injuries caused by other climbers or gym users
-
-Sprains, fractures, head injuries, or other serious bodily harm
-
-Equipment failure or misuse
-
-Fatigue, loss of grip, or improper technique
-
-I understand that bouldering is performed without ropes and falls are a normal part of the activity.
-
-Even when safety padding and supervision are present, serious injury or death may occur.
-
-By participating in climbing activities at Leo Mây Climbing Gym, I voluntarily accept and assume all such risks.
-
-2. Health & Physical Condition
-
-I confirm that:
-
-I am physically able to participate in climbing activities.
-
-I do not have any medical conditions that would make participation unsafe.
-
-I will climb within my personal ability level.
-
-If I have any injuries, medical conditions, or limitations, I agree to inform gym staff before climbing.
-
-3. Safety Rules & Instructions
-
-I agree to follow all Leo Mây Climbing Gym safety rules, including but not limited to:
-
-Following posted gym rules and instructions
-
-Using crash pads properly
-
-Being aware of other climbers
-
-Not climbing directly above or below other climbers
-
-Using equipment responsibly
-
-Listening to staff instructions
-
-I understand that failure to follow safety rules may result in removal from the facility without refund.
-
-4. Equipment Use
-
-I understand that Leo Mây Climbing Gym may provide equipment such as:
-
-climbing holds
-
-crash pads
-
-rental climbing shoes
-
-chalk or training equipment
-
-I acknowledge that improper use of equipment may result in injury.
-
-I agree to use all equipment only as intended.
-
-5. Release of Liability
-
-To the fullest extent permitted by law, I hereby release and discharge:
-
-Leo Mây Climbing Gym, its owners, employees, instructors, contractors, and affiliates
-
-from any and all liability for injury, illness, damage, loss, or death arising from my participation in climbing activities or use of the facility.
-
-This includes injuries caused by:
-
-my own actions
-
-the actions of other participants
-
-facility conditions
-
-equipment usage
-
-except where prohibited by applicable law.
-
-6. Property & Personal Belongings
-
-I understand that Leo Mây Climbing Gym is not responsible for lost, stolen, or damaged personal property brought into the facility.
-
-7. Photography & Media
-
-Leo Mây Climbing Gym may capture photos or videos within the facility for marketing or promotional purposes.
-
-By using the facility, I grant permission for Leo Mây Climbing Gym to use images or videos in which I may appear unless I explicitly request otherwise in writing.
-
-8. Minors
-
-Participants under the age of 18 must have this waiver signed by a parent or legal guardian.
-
-Parents/guardians accept full responsibility for the minor’s participation.
-
-9. Agreement
-
-By signing below, I confirm that:
-
-I have read and understood this waiver
-
-I accept the risks of climbing activities
-
-I agree to follow gym safety rules
-
-I release Leo Mây Climbing Gym from liability
-
-This agreement applies to all current and future visits to Leo Mây Climbing Gym unless revoked in writing.
-
-End.
-`;
+import { WAIVER_TEXT } from "@/lib/waiverText";
+import WaiverSignaturePad from "@/components/waiver/WaiverSignaturePad";
 
 type SignatureMode = "typed" | "drawn";
-
-function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const drawingRef = useRef(false);
-  const lastPosRef = useRef<{ x: number; y: number } | null>(null);
-
-  const getCtx = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return null;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    return { canvas, ctx };
-  };
-
-  const resizeCanvas = () => {
-    const wrapper = canvasRef.current?.parentElement;
-    if (!wrapper || !canvasRef.current) return;
-    const rect = wrapper.getBoundingClientRect();
-    const canvas = canvasRef.current;
-    const ratio = window.devicePixelRatio || 1;
-    canvas.width = rect.width * ratio;
-    canvas.height = 180 * ratio;
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.scale(ratio, ratio);
-      ctx.clearRect(0, 0, rect.width, 180);
-      ctx.lineWidth = 2;
-      ctx.lineCap = "round";
-      ctx.strokeStyle = "#ffffff";
-    }
-  };
-
-  React.useEffect(() => {
-    resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
-    return () => window.removeEventListener("resize", resizeCanvas);
-  }, []);
-
-  const getPos = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    };
-  };
-
-  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const ctxObj = getCtx();
-    if (!ctxObj) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    drawingRef.current = true;
-    const pos = getPos(e);
-    lastPosRef.current = pos;
-    ctxObj.ctx.beginPath();
-    ctxObj.ctx.moveTo(pos.x, pos.y);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!drawingRef.current) return;
-    const ctxObj = getCtx();
-    if (!ctxObj || !lastPosRef.current) return;
-    const pos = getPos(e);
-    ctxObj.ctx.lineTo(pos.x, pos.y);
-    ctxObj.ctx.stroke();
-    lastPosRef.current = pos;
-  };
-
-  const finishStroke = () => {
-    drawingRef.current = false;
-    lastPosRef.current = null;
-    const ctxObj = getCtx();
-    if (!ctxObj) return;
-    try {
-      const dataUrl = ctxObj.canvas.toDataURL("image/png");
-      onChange(dataUrl);
-    } catch {
-      onChange(null);
-    }
-  };
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    e.currentTarget.releasePointerCapture(e.pointerId);
-    finishStroke();
-  };
-
-  const handlePointerLeave = () => {
-    if (drawingRef.current) finishStroke();
-  };
-
-  const handleClear = () => {
-    const ctxObj = getCtx();
-    if (!ctxObj) return;
-    const { canvas, ctx } = ctxObj;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    resizeCanvas();
-    onChange(null);
-  };
-
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="rounded-lg bg-white/5 border border-white/20 overflow-hidden">
-        <canvas
-          ref={canvasRef}
-          className="w-full h-[180px] touch-none cursor-crosshair"
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerLeave={handlePointerLeave}
-        />
-      </div>
-      <div className="flex justify-between items-center text-xs text-white/60">
-        <span>Draw your signature</span>
-        <button
-          type="button"
-          onClick={handleClear}
-          className="px-3 py-1 rounded-full border border-white/30 text-white/80 hover:bg-white/10"
-        >
-          Clear
-        </button>
-      </div>
-    </div>
-  );
-}
 
 export default function WaiverPage() {
   const locale = useLocale();
   const router = useRouter();
   const m = getMessages(locale as "en" | "vi").waiver;
-  const { user, member, loading, refresh } = useMemberAuth();
+  const { user, member, loading } = useMemberAuth();
   const [fullName, setFullName] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [signature, setSignature] = useState("");
@@ -359,7 +105,7 @@ export default function WaiverPage() {
         return;
       }
       // Full page redirect to avoid client-side exception during SPA transition
-      window.location.assign(`/${locale}/dashboard`);
+      window.location.href = `/${locale}/dashboard`;
     } catch {
       setError("Something went wrong");
     } finally {
@@ -460,7 +206,7 @@ export default function WaiverPage() {
                   </button>
                 </div>
               ) : (
-                <SignaturePad onChange={setDrawnSignature} />
+                <WaiverSignaturePad onChange={setDrawnSignature} />
               )}
             </div>
 
