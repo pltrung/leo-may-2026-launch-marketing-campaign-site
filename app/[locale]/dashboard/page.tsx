@@ -451,25 +451,6 @@ export default function DashboardPage() {
     }
   }
 
-  const baseDate =
-    member.last_checkin && typeof member.last_checkin === "string"
-      ? (() => {
-          const p = new Date(member.last_checkin);
-          return Number.isNaN(p.getTime()) ? new Date() : p;
-        })()
-      : new Date();
-  const recentVisits: string[] = [];
-  for (let i = 0; i < 4; i += 1) {
-    const d = new Date(baseDate);
-    d.setDate(baseDate.getDate() - i * 2);
-    recentVisits.push(
-      d.toLocaleDateString(isVi ? "vi-VN" : "en-US", {
-        month: "short",
-        day: "numeric",
-      })
-    );
-  }
-
   const totalVisits = member.total_visits ?? 0;
   const sessionsThisMonth = totalVisits === 0 ? 0 : Math.max(1, Math.min(totalVisits, 12));
 
@@ -706,7 +687,21 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-white/60">{isVi ? "Trạng thái" : "Status"}</span>
-                  <span className="text-white font-medium">{statusLabel}</span>
+                  <span
+                    className="font-medium"
+                    style={{
+                      color:
+                        rawStatus === "active"
+                          ? "#22c55e"
+                          : rawStatus === "frozen"
+                          ? "#f59e0b"
+                          : rawStatus === "cancelled"
+                          ? "#ef4444"
+                          : "rgba(255,255,255,0.9)",
+                    }}
+                  >
+                    {statusLabel}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-white/60">{isVi ? "Có hiệu lực đến" : "Valid Until"}</span>
@@ -771,7 +766,11 @@ export default function DashboardPage() {
                 <h3 className="text-[18px] font-medium text-white/90 mb-4">
                   {isVi ? "Thanh toán / gia hạn" : "Pay / Renew"}
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <div
+                  data-passes-carousel
+                  className="flex gap-3 overflow-x-auto overflow-y-hidden pb-2 mb-4 scroll-smooth snap-x snap-mandatory touch-pan-x"
+                  style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" }}
+                >
                   {plans.map((p) => {
                     const isNewbieClass = p.id === "newbie_class";
                     const hasBoughtNewbieClass = payments.some((pmt) => pmt.plan_name === "Newbie Class");
@@ -784,11 +783,12 @@ export default function DashboardPage() {
                           setPackageDetailPlan(p);
                           setPackageDetailOpen(true);
                         }}
-                        className="relative text-left rounded-xl p-4 transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] overflow-hidden"
+                        className="relative flex-shrink-0 w-[140px] text-left rounded-[18px] p-4 transition-all duration-200 hover:-translate-y-1 active:scale-[0.98] snap-start overflow-hidden"
                         style={{
-                          background: showNewbieAura ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.08)",
-                          border: showNewbieAura ? "1px solid rgba(16,185,129,0.4)" : "1px solid rgba(255,255,255,0.12)",
-                          boxShadow: showNewbieAura ? "0 0 24px rgba(16,185,129,0.25), inset 0 0 20px rgba(16,185,129,0.08)" : undefined,
+                          background: showNewbieAura ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.06)",
+                          border: showNewbieAura ? "1px solid rgba(16,185,129,0.4)" : "1px solid rgba(255,255,255,0.1)",
+                          boxShadow: showNewbieAura ? "0 0 24px rgba(16,185,129,0.25)" : "0 4px 16px rgba(0,0,0,0.2)",
+                          backdropFilter: "blur(12px)",
                         }}
                       >
                         {showNewbieAura && (
@@ -801,18 +801,16 @@ export default function DashboardPage() {
                           />
                         )}
                         <div className="relative">
-                          <p className="font-semibold text-white/95">{p.name}</p>
-                          <p className="text-emerald-300/90 text-sm mt-1">
+                          <p className="text-[15px] font-semibold text-white/95 line-clamp-2">{p.name}</p>
+                          <p className="text-emerald-300/90 text-sm mt-2">
                             {p.price_vnd.toLocaleString("vi-VN")} VND
                           </p>
-                          {p.description && (
-                            <p className="text-xs text-white/60 mt-1 line-clamp-2">{p.description}</p>
-                          )}
                         </div>
                       </button>
                     );
                   })}
                 </div>
+                <style>{`[data-passes-carousel]::-webkit-scrollbar { display: none; }`}</style>
                 {payments.length > 0 && (
                   <div className="pt-3 border-t border-white/[0.08]">
                     <p className="text-xs font-medium text-white/70 uppercase tracking-wider mb-2">
@@ -874,16 +872,6 @@ export default function DashboardPage() {
                 <p className="text-[12px] text-white/50 mt-1.5">
                   {sessionsThisMonth >= 8 ? (isVi ? "Đã đạt mốc!" : "Milestone reached!") : (isVi ? `${8 - sessionsThisMonth} lượt nữa để nhận phần thưởng` : `${8 - sessionsThisMonth} more visits to next reward`)}
                 </p>
-              </div>
-              <div className="mt-4 pt-3 border-t border-white/[0.08]">
-                <p className="text-[13px] text-white/60 mb-2">{isVi ? "Hoạt động gần đây" : "Recent activity"}</p>
-                <div className="flex flex-wrap gap-2 text-[13px] text-white/75">
-                  {recentVisits.map((d) => (
-                    <span key={d} className="px-3 py-1 rounded-full bg-white/8 border border-white/15">
-                      {d}
-                    </span>
-                  ))}
-                </div>
               </div>
             </div>
           </section>
