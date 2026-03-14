@@ -23,7 +23,12 @@ const CHAPTER_BREAKPOINTS = {
   c4: [0.8, 1],
 } as const;
 
-export function useScrollProgress(totalStoryHeightVh: number): ScrollProgressState {
+export interface UseScrollProgressOptions {
+  /** When true, skip scroll/resize updates. Use when a modal with inputs is open to prevent viewport-resize-triggered re-renders that can dismiss the mobile keyboard. */
+  pauseUpdates?: boolean;
+}
+
+export function useScrollProgress(totalStoryHeightVh: number, options?: UseScrollProgressOptions): ScrollProgressState {
   const [state, setState] = useState<ScrollProgressState>({
     scrollY: 0,
     viewportHeight: 800,
@@ -37,6 +42,7 @@ export function useScrollProgress(totalStoryHeightVh: number): ScrollProgressSta
 
   const update = useCallback(() => {
     if (typeof window === "undefined") return;
+    if (options?.pauseUpdates) return;
     const scrollY = window.scrollY;
     const viewportHeight = window.innerHeight;
     const vh = (viewportHeight * totalStoryHeightVh) / 100;
@@ -54,7 +60,7 @@ export function useScrollProgress(totalStoryHeightVh: number): ScrollProgressSta
       p3: remap(progress, CHAPTER_BREAKPOINTS.c3[0], CHAPTER_BREAKPOINTS.c3[1]),
       p4: remap(progress, CHAPTER_BREAKPOINTS.c4[0], CHAPTER_BREAKPOINTS.c4[1]),
     });
-  }, [totalStoryHeightVh]);
+  }, [totalStoryHeightVh, options?.pauseUpdates]);
 
   useEffect(() => {
     update();

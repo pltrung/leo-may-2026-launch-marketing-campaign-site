@@ -67,7 +67,6 @@ export default function AdminPage() {
   const { isAdmin, loading, adminFetch, signOut } = useAdminAuth();
   const [locale, setLocale] = useState<Locale>("vi");
   const [searchQuery, setSearchQuery] = useState("");
-
   useEffect(() => {
     setLocale(getStoredLocale());
   }, []);
@@ -75,19 +74,6 @@ export default function AdminPage() {
     setLocale(l);
     if (typeof window !== "undefined") localStorage.setItem(ADMIN_LOCALE_KEY, l);
   }, []);
-
-  const t = getMessages(locale).admin;
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#BEE7FF] via-[#EAF6FF] to-white">
-        <p className="text-slate-600">Loading…</p>
-      </div>
-    );
-  }
-  if (!isAdmin) {
-    return <AdminLoginForm locale={locale} onLocaleChange={setLocaleAndStore} />;
-  }
   const [searchMode, setSearchMode] = useState<"id" | "name" | "qr">("id");
   const [foundMember, setFoundMember] = useState<AdminMember | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -605,6 +591,19 @@ export default function AdminPage() {
     },
     [newMemberName]
   );
+
+  const t = getMessages(locale).admin;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#BEE7FF] via-[#EAF6FF] to-white">
+        <p className="text-slate-600">Loading…</p>
+      </div>
+    );
+  }
+  if (!isAdmin) {
+    return <AdminLoginForm locale={locale} onLocaleChange={setLocaleAndStore} />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#BEE7FF] via-[#EAF6FF] to-white">

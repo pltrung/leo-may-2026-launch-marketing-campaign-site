@@ -48,13 +48,15 @@ function useStoryVh(): number {
 export default function GymWorld() {
   const locale = useLocale();
   const storyVh = useStoryVh();
-  const scroll = useScrollProgress(storyVh);
+  const [visitModalOpen, setVisitModalOpen] = useState(false);
+  const [membershipEntryOpen, setMembershipEntryOpen] = useState(false);
+  const scroll = useScrollProgress(storyVh, {
+    pauseUpdates: membershipEntryOpen,
+  });
   const [theme, setTheme] = useState<SkyTheme>(() =>
     getSkyTheme(typeof window !== "undefined" ? getLocalTimeHours() : 12)
   );
   const [activeChapter, setActiveChapter] = useState<GymChapter>("intro");
-  const [visitModalOpen, setVisitModalOpen] = useState(false);
-  const [membershipEntryOpen, setMembershipEntryOpen] = useState(false);
   const [aboutModalOpen, setAboutModalOpen] = useState(false);
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
@@ -125,6 +127,7 @@ export default function GymWorld() {
 
   useEffect(() => {
     const syncChapterFromScroll = () => {
+      if (membershipEntryOpen) return;
       const vh = window.innerHeight * (storyVh / 100);
       const maxScroll = Math.max(0, vh - window.innerHeight);
       const p = maxScroll > 0 ? window.scrollY / maxScroll : 0;
@@ -142,7 +145,7 @@ export default function GymWorld() {
     };
     window.addEventListener("scroll", syncChapterFromScroll, { passive: true });
     return () => window.removeEventListener("scroll", syncChapterFromScroll);
-  }, [storyVh]);
+  }, [storyVh, membershipEntryOpen]);
 
   const openVisitModal = useCallback(() => setVisitModalOpen(true), []);
   const openMembershipModal = useCallback(() => setMembershipEntryOpen(true), []);
