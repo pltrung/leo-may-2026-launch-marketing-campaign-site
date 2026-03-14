@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
+import { computeNewExpiry } from "@/lib/membershipExtension";
 import { verifyVnPaySecureHash } from "@/lib/vnpay";
 
 const VNPAY_HASH_SECRET = process.env.VNPAY_HASH_SECRET ?? "";
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ RspCode: "04", Message: "Invalid order info" });
   }
 
-  const validPlans = ["day_pass", "explorer_month", "explorer_year", "until_end_of_year"];
+  const validPlans = ["day_pass", "month_pass", "year_pass", "newbie_class"];
   if (!validPlans.includes(planId)) {
     return NextResponse.json({ RspCode: "04", Message: "Invalid plan" });
   }
@@ -69,31 +70,20 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date();
-  let amountVnd: number;
-  let newExpiry: Date;
-
-  if (planId === "until_end_of_year") {
-    const endOfYear = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
-    const monthsRemaining = Math.max(1, Math.ceil((endOfYear.getTime() - now.getTime()) / (30 * 86400000)));
-    amountVnd = monthsRemaining * 900000;
-    newExpiry = endOfYear;
-  } else {
-    const { data: plan, error: planErr } = await supabase
-      .from("membership_plans")
-      .select("id, duration_days, price_vnd")
-      .eq("id", planId)
-      .maybeSingle();
-    if (planErr || !plan) {
-      return NextResponse.json({ RspCode: "04", Message: "Plan not found" });
-    }
-    amountVnd = plan.price_vnd as number;
-    const currentExpiry = memberRow.membership_expires_at
-      ? new Date(memberRow.membership_expires_at as string)
-      : null;
-    const base = currentExpiry && currentExpiry.getTime() > now.getTime() ? currentExpiry : now;
-    newExpiry = new Date(base);
-    newExpiry.setDate(newExpiry.getDate() + (plan.duration_days ?? 0));
+  const { data: plan, error: planErr } = await supabase
+    .from("membership_plans")
+    .select("id, duration_days, price_vnd")
+    .eq("id", planId)
+    .maybeSingle();
+  if (planErr || !plan) {
+    return NextResponse.json({ RspCode: "04", Message: "Plan not found" });
   }
+  const amountVnd = plan.price_vnd as number;
+  const durationDays = (plan.duration_days ?? 0);
+  const currentExpiry = memberRow.membership_expires_at
+    ? new Date(memberRow.membership_expires_at as string)
+    : null;
+  const newExpiry = computeNewExpiry(currentExpiry, durationDays, now);
 
   const memo = (memberRow.member_code as string | null) ?? memberRow.id;
 

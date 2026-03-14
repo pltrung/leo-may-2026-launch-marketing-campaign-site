@@ -22,8 +22,9 @@ export async function GET(req: NextRequest) {
   }
   const planNames: Record<string, string> = {
     day_pass: "Day Pass",
-    explorer_month: "Explorer Monthly",
-    explorer_year: "Explorer Yearly",
+    month_pass: "Month Pass",
+    year_pass: "Year Pass",
+    newbie_class: "Newbie Class",
   };
   const payments = (data ?? []).map((p) => ({
     id: p.id,

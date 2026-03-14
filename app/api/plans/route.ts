@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 
+/**
+ * GET /api/plans - Returns membership plans (public, for dashboard purchase flow)
+ */
 export async function GET() {
   const supabase = createServerClient();
   const { data, error } = await supabase

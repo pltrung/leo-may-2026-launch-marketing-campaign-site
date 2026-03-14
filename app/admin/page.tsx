@@ -40,10 +40,12 @@ export default function AdminPage() {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentQrFullscreen, setPaymentQrFullscreen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"vietqr" | "cash">("vietqr");
-  const [paymentPlanId, setPaymentPlanId] = useState<string>("explorer_month");
+  const [paymentPlanId, setPaymentPlanId] = useState<string>("month_pass");
   const [paymentQrUrl, setPaymentQrUrl] = useState<string | null>(null);
   const [paymentPlanName, setPaymentPlanName] = useState("");
   const [paymentPrice, setPaymentPrice] = useState(0);
+  const [paymentCurrentExpiry, setPaymentCurrentExpiry] = useState<string | null>(null);
+  const [paymentNewExpiry, setPaymentNewExpiry] = useState<string | null>(null);
   const [recentPayments, setRecentPayments] = useState<{ id: string; plan_name: string; amount: number; created_at: string }[]>([]);
   const [newMemberName, setNewMemberName] = useState("");
   const [newMemberEmail, setNewMemberEmail] = useState("");
@@ -404,17 +406,21 @@ export default function AdminPage() {
     const handleCollectPayment = useCallback(() => {
     if (!foundMember) return;
     setPaymentModalOpen(true);
-    setPaymentPlanId("explorer_month");
+    setPaymentPlanId("month_pass");
     setPaymentMethod("vietqr");
     setPaymentQrUrl(null);
     setPaymentPlanName("");
     setPaymentPrice(0);
-    fetch(`/api/admin/vietqr?plan_id=explorer_month&member_id=${encodeURIComponent(foundMember.id)}`)
+    setPaymentCurrentExpiry(null);
+    setPaymentNewExpiry(null);
+    fetch(`/api/admin/vietqr?plan_id=month_pass&member_id=${encodeURIComponent(foundMember.id)}`)
       .then((r) => r.json())
       .then((d) => {
         setPaymentQrUrl(d.url ?? null);
         setPaymentPlanName(d.plan_name ?? "");
         setPaymentPrice(d.price_vnd ?? 0);
+        setPaymentCurrentExpiry(d.current_expiry ?? null);
+        setPaymentNewExpiry(d.new_expiry ?? null);
       })
       .catch(() => setPaymentQrUrl(null));
   }, [foundMember]);
@@ -424,12 +430,16 @@ export default function AdminPage() {
       if (!foundMember) return;
       setPaymentPlanId(planId);
       setPaymentQrUrl(null);
+      setPaymentCurrentExpiry(null);
+      setPaymentNewExpiry(null);
       fetch(`/api/admin/vietqr?plan_id=${encodeURIComponent(planId)}&member_id=${encodeURIComponent(foundMember.id)}`)
         .then((r) => r.json())
         .then((d) => {
           setPaymentQrUrl(d.url ?? null);
           setPaymentPlanName(d.plan_name ?? "");
           setPaymentPrice(d.price_vnd ?? 0);
+          setPaymentCurrentExpiry(d.current_expiry ?? null);
+          setPaymentNewExpiry(d.new_expiry ?? null);
         })
         .catch(() => setPaymentQrUrl(null));
     },
@@ -1182,6 +1192,30 @@ export default function AdminPage() {
                   <span className="font-medium">{paymentPrice.toLocaleString("vi-VN")} VND</span>
                   <span className="text-slate-500">Member ID</span>
                   <span className="font-medium">{foundMember.displayId ?? foundMember.id}</span>
+                  {(paymentCurrentExpiry || paymentNewExpiry) && (
+                    <>
+                      <span className="text-slate-500">Current expiry</span>
+                      <span className="font-medium">
+                        {paymentCurrentExpiry
+                          ? new Date(paymentCurrentExpiry).toLocaleDateString("en-US", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })
+                          : "—"}
+                      </span>
+                      <span className="text-slate-500">After purchase</span>
+                      <span className="font-medium text-emerald-600">
+                        {paymentNewExpiry
+                          ? new Date(paymentNewExpiry).toLocaleDateString("en-US", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })
+                          : "—"}
+                      </span>
+                    </>
+                  )}
                 </div>
                 {paymentMethod === "vietqr" && paymentQrUrl && (
                   <div className="flex flex-col items-center py-2 gap-1">

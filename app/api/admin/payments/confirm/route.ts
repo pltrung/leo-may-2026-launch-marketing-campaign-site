@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
+import { computeNewExpiry } from "@/lib/membershipExtension";
 
 /**
  * POST - Confirm payment and extend membership
@@ -27,34 +28,21 @@ export async function POST(req: NextRequest) {
 
     const memo = (memberRow.member_code as string | null) ?? memberId;
     const now = new Date();
-    let planName: string;
-    let amountVnd: number;
-    let newExpiry: Date;
 
-    if (planId === "until_end_of_year") {
-      planName = "Until end of year";
-      const endOfYear = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
-      const monthsRemaining = Math.max(1, Math.ceil((endOfYear.getTime() - now.getTime()) / (30 * 86400000)));
-      amountVnd = monthsRemaining * 900000;
-      newExpiry = endOfYear;
-    } else {
-      const { data: plan, error: planErr } = await supabase
-        .from("membership_plans")
-        .select("id, name, duration_days, price_vnd")
-        .eq("id", planId)
-        .maybeSingle();
-      if (planErr || !plan) {
-        return NextResponse.json({ error: "Plan not found" }, { status: 404 });
-      }
-      planName = plan.name as string;
-      amountVnd = plan.price_vnd as number;
-      const currentExpiry = memberRow.membership_expires_at
-        ? new Date(memberRow.membership_expires_at as string)
-        : null;
-      const base = currentExpiry && currentExpiry.getTime() > now.getTime() ? currentExpiry : now;
-      newExpiry = new Date(base);
-      newExpiry.setDate(newExpiry.getDate() + (plan.duration_days ?? 0));
+    const { data: plan, error: planErr } = await supabase
+      .from("membership_plans")
+      .select("id, name, duration_days, price_vnd")
+      .eq("id", planId)
+      .maybeSingle();
+    if (planErr || !plan) {
+      return NextResponse.json({ error: "Plan not found" }, { status: 404 });
     }
+    const planName = plan.name as string;
+    const amountVnd = plan.price_vnd as number;
+    const currentExpiry = memberRow.membership_expires_at
+      ? new Date(memberRow.membership_expires_at as string)
+      : null;
+    const newExpiry = computeNewExpiry(currentExpiry, plan.duration_days ?? 0, now);
 
     const { error: payErr } = await supabase.from("payments").insert({
       member_id: memberId,
@@ -85,7 +73,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       member: {
-        validUntil: newExpiry.toLocaleDateString("en-US", { month: "short", year: "numeric" }),
+        validUntil: newExpiry.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }),
       },
     });
   } catch (e) {

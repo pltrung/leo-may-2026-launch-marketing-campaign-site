@@ -12,6 +12,8 @@ import { HERO_BG } from "@/lib/heroConstants";
 import { SOCIAL_LINKS } from "@/lib/announcementConfig";
 import { getSkyTheme, getLocalTimeHours } from "@/components/gym/theme/skyTheme";
 import ProfileModal from "@/components/dashboard/ProfileModal";
+import PackageDetailModal, { type Plan } from "@/components/dashboard/PackageDetailModal";
+import PaymentModal from "@/components/dashboard/PaymentModal";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -50,10 +52,16 @@ export default function DashboardPage() {
     top: { rank: number; full_name: string; visits: number }[];
     currentUser: { rank: number | null; visits: number; full_name: string };
   } | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [payments, setPayments] = useState<{ id: string; plan_name: string; amount: number; created_at: string }[]>([]);
+  const [packageDetailPlan, setPackageDetailPlan] = useState<Plan | null>(null);
+  const [packageDetailOpen, setPackageDetailOpen] = useState(false);
   const [renewPlanId, setRenewPlanId] = useState<string | null>(null);
   const [renewQrUrl, setRenewQrUrl] = useState<string | null>(null);
   const [renewPlanName, setRenewPlanName] = useState("");
   const [renewPrice, setRenewPrice] = useState(0);
+  const [renewCurrentExpiry, setRenewCurrentExpiry] = useState<string | null>(null);
+  const [renewNewExpiry, setRenewNewExpiry] = useState<string | null>(null);
   const [freezeLoading, setFreezeLoading] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [vnpayLoading, setVnpayLoading] = useState(false);
@@ -141,6 +149,23 @@ export default function DashboardPage() {
     return () => { cancelled = true; };
   }, [accessToken]);
 
+  // Fetch plans
+  useEffect(() => {
+    fetch("/api/plans")
+      .then((r) => r.json())
+      .then((d) => setPlans(d.plans ?? []))
+      .catch(() => setPlans([]));
+  }, []);
+
+  // Fetch payment history
+  useEffect(() => {
+    if (!accessToken) return;
+    fetch("/api/member/payments", { headers: { Authorization: `Bearer ${accessToken}` } })
+      .then((r) => r.json())
+      .then((d) => setPayments(d.payments ?? []))
+      .catch(() => setPayments([]));
+  }, [accessToken, paymentSuccess]);
+
   // Subscribe to payments realtime for this member
   useEffect(() => {
     if (!member?.id) return;
@@ -187,6 +212,56 @@ export default function DashboardPage() {
       setFreezeLoading(false);
     }
   }, [accessToken]);
+
+  const handleBuyPass = useCallback(
+    (plan: Plan) => {
+      if (!accessToken) return;
+      setRenewPlanId(plan.id);
+      setRenewPlanName(plan.name);
+      setRenewPrice(plan.price_vnd);
+      setRenewQrUrl(null);
+      setRenewCurrentExpiry(null);
+      setRenewNewExpiry(null);
+      fetch(`/api/member/vietqr?plan_id=${plan.id}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+        .then((r) => r.json())
+        .then((d) => {
+          setRenewQrUrl(d.url ?? null);
+          setRenewPlanName(d.plan_name ?? plan.name);
+          setRenewPrice(d.price_vnd ?? plan.price_vnd);
+          setRenewCurrentExpiry(d.current_expiry ?? null);
+          setRenewNewExpiry(d.new_expiry ?? null);
+          setIsVietQrModalOpen(true);
+        })
+        .catch(() => setRenewQrUrl(null));
+    },
+    [accessToken]
+  );
+
+  const handlePayWithVnpay = useCallback(async () => {
+    if (!accessToken || !renewPlanId) return;
+    setVnpayLoading(true);
+    try {
+      const returnUrl =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/${locale}/dashboard`
+          : undefined;
+      const qs = new URLSearchParams({ plan_id: renewPlanId });
+      if (returnUrl) qs.set("return_url", returnUrl);
+      const r = await fetch(`/api/member/vnpay?${qs}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const d = await r.json();
+      if (r.ok && d?.url) {
+        window.location.href = d.url;
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
+    setVnpayLoading(false);
+  }, [accessToken, renewPlanId, locale]);
 
   const handleUnfreeze = useCallback(async () => {
     if (!accessToken) return;
@@ -638,103 +713,49 @@ export default function DashboardPage() {
                 <h3 className="text-[18px] font-medium text-white/90 mb-4">
                   {isVi ? "Thanh toán / gia hạn" : "Pay / Renew"}
                 </h3>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {isActive ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => { if (!accessToken) return; setRenewPlanId("explorer_month"); setRenewQrUrl(null); fetch(`/api/member/vietqr?plan_id=explorer_month`, { headers: { Authorization: `Bearer ${accessToken}` } }).then((r) => r.json()).then((d) => { setRenewQrUrl(d.url ?? null); setRenewPlanName(d.plan_name ?? ""); setRenewPrice(d.price_vnd ?? 0); }).catch(() => setRenewQrUrl(null)); }}
-                        className={`px-4 py-2 rounded-full text-[13px] font-medium transition-transform duration-150 active:scale-95 ${renewPlanId === "explorer_month" ? "bg-white text-slate-900" : "bg-white/10 text-white/90 hover:bg-white/20"}`}
-                      >
-                        Extend Monthly — 900,000 VND
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { if (!accessToken) return; setRenewPlanId("explorer_year"); setRenewQrUrl(null); fetch(`/api/member/vietqr?plan_id=explorer_year`, { headers: { Authorization: `Bearer ${accessToken}` } }).then((r) => r.json()).then((d) => { setRenewQrUrl(d.url ?? null); setRenewPlanName(d.plan_name ?? ""); setRenewPrice(d.price_vnd ?? 0); }).catch(() => setRenewQrUrl(null)); }}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium ${renewPlanId === "explorer_year" ? "bg-white text-slate-900" : "bg-white/10 text-white/90 hover:bg-white/20"}`}
-                      >
-                        Extend Yearly — 9,000,000 VND
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { if (!accessToken) return; setRenewPlanId("until_end_of_year"); setRenewQrUrl(null); fetch(`/api/member/vietqr?plan_id=until_end_of_year`, { headers: { Authorization: `Bearer ${accessToken}` } }).then((r) => r.json()).then((d) => { setRenewQrUrl(d.url ?? null); setRenewPlanName(d.plan_name ?? ""); setRenewPrice(d.price_vnd ?? 0); }).catch(() => setRenewQrUrl(null)); }}
-                        className={`px-4 py-2 rounded-full text-[13px] font-medium transition-transform duration-150 active:scale-95 ${renewPlanId === "until_end_of_year" ? "bg-white text-slate-900" : "bg-white/10 text-white/90 hover:bg-white/20"}`}
-                      >
-                        Until end of year
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => { if (!accessToken) return; setRenewPlanId("day_pass"); setRenewQrUrl(null); fetch(`/api/member/vietqr?plan_id=day_pass`, { headers: { Authorization: `Bearer ${accessToken}` } }).then((r) => r.json()).then((d) => { setRenewQrUrl(d.url ?? null); setRenewPlanName(d.plan_name ?? ""); setRenewPrice(d.price_vnd ?? 0); }).catch(() => setRenewQrUrl(null)); }}
-                        className={`px-4 py-2 rounded-full text-[13px] font-medium transition-transform duration-150 active:scale-95 ${renewPlanId === "day_pass" ? "bg-white text-slate-900" : "bg-white/10 text-white/90 hover:bg-white/20"}`}
-                      >
-                        Day Pass — 300,000 VND
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { if (!accessToken) return; setRenewPlanId("explorer_month"); setRenewQrUrl(null); fetch(`/api/member/vietqr?plan_id=explorer_month`, { headers: { Authorization: `Bearer ${accessToken}` } }).then((r) => r.json()).then((d) => { setRenewQrUrl(d.url ?? null); setRenewPlanName(d.plan_name ?? ""); setRenewPrice(d.price_vnd ?? 0); }).catch(() => setRenewQrUrl(null)); }}
-                        className={`px-4 py-2 rounded-full text-[13px] font-medium transition-transform duration-150 active:scale-95 ${renewPlanId === "explorer_month" ? "bg-white text-slate-900" : "bg-white/10 text-white/90 hover:bg-white/20"}`}
-                      >
-                        Explorer Monthly — 900,000 VND
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { if (!accessToken) return; setRenewPlanId("explorer_year"); setRenewQrUrl(null); fetch(`/api/member/vietqr?plan_id=explorer_year`, { headers: { Authorization: `Bearer ${accessToken}` } }).then((r) => r.json()).then((d) => { setRenewQrUrl(d.url ?? null); setRenewPlanName(d.plan_name ?? ""); setRenewPrice(d.price_vnd ?? 0); }).catch(() => setRenewQrUrl(null)); }}
-                        className={`px-4 py-2 rounded-full text-[13px] font-medium transition-transform duration-150 active:scale-95 ${renewPlanId === "explorer_year" ? "bg-white text-slate-900" : "bg-white/10 text-white/90 hover:bg-white/20"}`}
-                      >
-                        Explorer Yearly — 9,000,000 VND
-                      </button>
-                    </>
-                  )}
-                </div>
-                {renewQrUrl && (
-                  <div className="space-y-4 pt-2">
-                    <p className="text-[15px] text-white/80">{renewPlanName} — {renewPrice.toLocaleString("vi-VN")} VND</p>
-                    <div className="relative rounded-[20px] p-6 flex flex-col items-center transition-transform duration-200 hover:-translate-y-0.5" style={{ boxShadow: "0 40px 80px rgba(0,0,0,0.7)", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
-                      <div className="absolute inset-0 rounded-[20px] pointer-events-none opacity-50" style={{ background: "radial-gradient(ellipse 70% 50% at 50% 50%, rgba(125,211,252,0.06) 0%, transparent 70%)" }} aria-hidden />
-                      <button
-                        type="button"
-                        onClick={() => setIsVietQrModalOpen(true)}
-                        className="relative flex justify-center w-full rounded-[16px] p-4 transition-all duration-200 active:scale-[0.98] hover:opacity-90"
-                      >
-                        <img src={renewQrUrl} alt="VietQR" className="w-48 h-48 object-contain bg-white rounded-xl p-3" />
-                      </button>
-                    </div>
-                    <p className="text-[13px] text-white/60">
-                      {isVi ? "Chạm mã để phóng to. Quét bằng ứng dụng ngân hàng, MoMo hoặc ZaloPay." : "Tap to enlarge. Scan with banking app, MoMo, or ZaloPay."}
-                    </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                  {plans.map((p) => (
                     <button
+                      key={p.id}
                       type="button"
-                      disabled={vnpayLoading || !renewPlanId}
-                      className="w-full mt-2 py-3 rounded-[16px] text-[15px] font-medium text-white hover:bg-white/20 transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}
-                      onClick={async () => {
-                        if (!accessToken || !renewPlanId) return;
-                        setVnpayLoading(true);
-                        try {
-                          const returnUrl = typeof window !== "undefined"
-                            ? `${window.location.origin}/${locale}/dashboard`
-                            : undefined;
-                          const qs = new URLSearchParams({ plan_id: renewPlanId });
-                          if (returnUrl) qs.set("return_url", returnUrl);
-                          const r = await fetch(`/api/member/vnpay?${qs}`, {
-                            headers: { Authorization: `Bearer ${accessToken}` },
-                          });
-                          const d = await r.json();
-                          if (r.ok && d?.url) {
-                            window.location.href = d.url;
-                            return;
-                          }
-                          setVnpayLoading(false);
-                        } catch {
-                          setVnpayLoading(false);
-                        }
+                      onClick={() => {
+                        setPackageDetailPlan(p);
+                        setPackageDetailOpen(true);
                       }}
+                      className="text-left rounded-xl p-4 transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
+                      style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}
                     >
-                      {vnpayLoading ? (isVi ? "Đang chuyển hướng..." : "Redirecting...") : (isVi ? "Thanh toán qua VNPay" : "Pay with VNPay")}
+                      <p className="font-semibold text-white/95">{p.name}</p>
+                      <p className="text-emerald-300/90 text-sm mt-1">
+                        {p.price_vnd.toLocaleString("vi-VN")} VND
+                      </p>
+                      {p.description && (
+                        <p className="text-xs text-white/60 mt-1 line-clamp-2">{p.description}</p>
+                      )}
                     </button>
+                  ))}
+                </div>
+                {payments.length > 0 && (
+                  <div className="pt-3 border-t border-white/[0.08]">
+                    <p className="text-xs font-medium text-white/70 uppercase tracking-wider mb-2">
+                      {isVi ? "Lịch sử thanh toán" : "Payment history"}
+                    </p>
+                    <ul className="space-y-1.5">
+                      {payments.slice(0, 5).map((p) => (
+                        <li key={p.id} className="flex justify-between items-center text-sm">
+                          <span className="text-white/80">
+                            {new Date(p.created_at).toLocaleDateString(isVi ? "vi-VN" : "en-US", {
+                              month: "short",
+                              day: "numeric",
+                            })}{" "}
+                            {p.plan_name}
+                          </span>
+                          <span className="text-white/90 font-medium">
+                            {p.amount.toLocaleString("vi-VN")} VND
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </div>
@@ -947,36 +968,26 @@ export default function DashboardPage() {
         isVi={isVi}
       />
 
-      {/* VIETQR PAYMENT FULLSCREEN MODAL */}
-      {isVietQrModalOpen && renewQrUrl && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/90 backdrop-blur-xl">
-          <div className="absolute top-4 right-4">
-            <button
-              type="button"
-              onClick={() => setIsVietQrModalOpen(false)}
-              className="w-9 h-9 rounded-full bg-white/10 border border-white/30 flex items-center justify-center text-white hover:bg-white/20"
-              aria-label={isVi ? "Đóng" : "Close"}
-            >
-              <span className="text-lg">&times;</span>
-            </button>
-          </div>
-          <div className="w-full max-w-sm mx-auto flex flex-col items-center px-6">
-            <div className="w-[180px] mb-4">
-              <Logo className="w-full h-auto object-contain" />
-            </div>
-            <h2 className="text-sm font-semibold text-white/80 tracking-[0.18em] uppercase mb-2">
-              {isVi ? "THANH TOÁN" : "PAYMENT"}
-            </h2>
-            <p className="text-xs text-white/70 mb-4">{renewPlanName} — {renewPrice.toLocaleString("vi-VN")} VND</p>
-            <div className="rounded-2xl bg-white p-4">
-              <img src={renewQrUrl} alt="VietQR" className="w-64 h-64 object-contain" />
-            </div>
-            <p className="mt-4 text-xs text-white/80 text-center">
-              {isVi ? "Quét bằng ứng dụng ngân hàng, MoMo hoặc ZaloPay." : "Scan with banking app, MoMo, or ZaloPay."}
-            </p>
-          </div>
-        </div>
-      )}
+      <PackageDetailModal
+        open={packageDetailOpen}
+        onClose={() => { setPackageDetailOpen(false); setPackageDetailPlan(null); }}
+        plan={packageDetailPlan}
+        onBuyPass={() => packageDetailPlan && handleBuyPass(packageDetailPlan)}
+        isVi={isVi}
+        hasActivePass={isActive}
+      />
+      <PaymentModal
+        open={isVietQrModalOpen}
+        onClose={() => { setIsVietQrModalOpen(false); setRenewQrUrl(null); }}
+        planName={renewPlanName}
+        priceVnd={renewPrice}
+        qrUrl={renewQrUrl}
+        currentExpiry={renewCurrentExpiry}
+        newExpiry={renewNewExpiry}
+        onPayWithVnpay={handlePayWithVnpay}
+        vnpayLoading={vnpayLoading}
+        isVi={isVi}
+      />
 
       {/* QR FULLSCREEN MODAL */}
       {isQrModalOpen && (
