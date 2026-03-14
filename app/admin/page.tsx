@@ -2,6 +2,11 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
+function getVietQrProxyUrl(rawUrl: string | null): string | null {
+  if (!rawUrl) return null;
+  return `/api/vietqr-proxy?url=${encodeURIComponent(rawUrl)}`;
+}
+
 type MembershipType = "Founder Member" | "Standard" | "Day Pass";
 
 interface WaiverRecord {
@@ -1237,34 +1242,40 @@ export default function AdminPage() {
               </button>
             </div>
             <div className="overflow-y-auto p-6 space-y-4">
-              <p className="text-xs text-slate-500">
-                Signed on {new Date(foundMember.waiver.created_at).toLocaleString("en-US", {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
-              </p>
               <div className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">
                 {foundMember.waiver.waiver_text.split("\n\n").map((block, idx) => (
                   <p key={idx} className="mb-3">{block.trim()}</p>
                 ))}
               </div>
               <div className="pt-4 mt-6 border-t border-slate-200">
-                <p className="text-xs text-slate-500 mb-1">Signature</p>
-                {foundMember.waiver.signature?.startsWith("data:image") ? (
-                  <img
-                    src={foundMember.waiver.signature}
-                    alt="Signature"
-                    className="max-w-[280px] h-[100px] object-contain object-left border border-slate-200 rounded"
-                  />
-                ) : (
-                  <p className="font-medium text-slate-900 text-lg" style={{ fontFamily: "cursive, serif" }}>
-                    {foundMember.waiver.signature || foundMember.waiver.full_name}
-                  </p>
-                )}
-                <p className="text-xs text-slate-500 mt-1">{foundMember.waiver.full_name}</p>
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Signature</p>
+                <div className="min-h-[80px] p-4 border border-slate-200 rounded-lg bg-slate-50">
+                  {foundMember.waiver.signature?.startsWith("data:image") ? (
+                    <img
+                      src={foundMember.waiver.signature}
+                      alt="Signature"
+                      className="max-w-[280px] max-h-[100px] object-contain object-left"
+                    />
+                  ) : (foundMember.waiver.signature || foundMember.waiver.full_name) ? (
+                    <p className="font-medium text-slate-900 text-lg" style={{ fontFamily: "cursive, serif" }}>
+                      {foundMember.waiver.signature || foundMember.waiver.full_name}
+                    </p>
+                  ) : (
+                    <p className="text-slate-400 italic text-sm">No signature on file</p>
+                  )}
+                </div>
+                <div className="mt-2 flex flex-col gap-0.5 text-xs text-slate-500">
+                  <span className="font-medium text-slate-600">{foundMember.waiver.full_name}</span>
+                  <span>
+                    Signed on {new Date(foundMember.waiver.created_at).toLocaleString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -1380,9 +1391,9 @@ export default function AdminPage() {
                     <button
                       type="button"
                       onClick={() => setPaymentQrFullscreen(true)}
-                      className="rounded-lg border border-slate-200 p-1 hover:bg-slate-50 transition-colors"
+                      className="rounded-lg border border-slate-200 p-1 hover:bg-slate-50 transition-colors min-w-[192px] min-h-[192px] flex items-center justify-center bg-slate-50"
                     >
-                      <img src={paymentQrUrl} alt="VietQR" className="w-48 h-48 object-contain bg-white rounded" />
+                      <img src={getVietQrProxyUrl(paymentQrUrl) ?? undefined} alt="VietQR" className="w-48 h-48 object-contain bg-white rounded" />
                     </button>
                     <p className="text-[11px] text-slate-500">Tap to enlarge</p>
                   </div>
@@ -1432,7 +1443,7 @@ export default function AdminPage() {
           <div className="flex flex-col items-center px-6">
             <p className="text-white font-medium mb-2">{paymentPlanName} — {paymentPrice.toLocaleString("vi-VN")} VND</p>
             <div className="rounded-2xl bg-white p-4">
-              <img src={paymentQrUrl} alt="VietQR" className="w-72 h-72 object-contain" />
+              <img src={getVietQrProxyUrl(paymentQrUrl) ?? undefined} alt="VietQR" className="w-72 h-72 object-contain" />
             </div>
             <p className="mt-4 text-sm text-white/80">Scan with banking app, MoMo, or ZaloPay</p>
           </div>

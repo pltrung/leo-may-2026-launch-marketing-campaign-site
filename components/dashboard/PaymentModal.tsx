@@ -1,7 +1,13 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import Logo from "@/components/Logo";
+
+/** Proxies VietQR image through our API to avoid slow/blank external loads */
+function getProxyUrl(rawUrl: string | null): string | null {
+  if (!rawUrl) return null;
+  return `/api/vietqr-proxy?url=${encodeURIComponent(rawUrl)}`;
+}
 
 interface PaymentModalProps {
   open: boolean;
@@ -40,11 +46,22 @@ export default function PaymentModal({
   isVi,
 }: PaymentModalProps) {
   const [qrEnlarged, setQrEnlarged] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const imgSrc = getProxyUrl(qrUrl);
+
+  useEffect(() => {
+    if (qrUrl) {
+      setImgLoaded(false);
+      setImgError(false);
+    }
+  }, [qrUrl]);
 
   const handleDownloadQr = useCallback(async () => {
-    if (!qrUrl) return;
+    const url = imgSrc ?? qrUrl;
+    if (!url) return;
     try {
-      const res = await fetch(qrUrl);
+      const res = await fetch(url);
       const blob = await res.blob();
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
@@ -52,9 +69,9 @@ export default function PaymentModal({
       a.click();
       URL.revokeObjectURL(a.href);
     } catch {
-      window.open(qrUrl, "_blank");
+      window.open(qrUrl ?? undefined, "_blank");
     }
-  }, [qrUrl, planName]);
+  }, [imgSrc, qrUrl, planName]);
 
   if (!open) return null;
   const locale = isVi ? "vi-VN" : "en-US";
@@ -109,7 +126,23 @@ export default function PaymentModal({
         ) : (
           <>
             <div className="relative rounded-2xl bg-white p-4 shrink-0">
-              <img src={qrUrl} alt="VietQR" className="w-64 h-64 object-contain" />
+              <div className="relative w-64 h-64 flex items-center justify-center bg-slate-100">
+                {!imgLoaded && !imgError && (
+                  <p className="text-sm text-slate-500 absolute">{isVi ? "Đang tải mã QR…" : "Loading QR…"}</p>
+                )}
+                {imgError && (
+                  <p className="text-sm text-amber-600 absolute px-2 text-center">{isVi ? "Không tải được mã QR. Thử lại." : "Failed to load QR. Try again."}</p>
+                )}
+                {imgSrc && (
+                  <img
+                    src={imgSrc}
+                    alt="VietQR"
+                    className={`w-64 h-64 object-contain ${!imgLoaded ? "opacity-0 absolute" : ""}`}
+                    onLoad={() => { setImgLoaded(true); setImgError(false); }}
+                    onError={() => setImgError(true)}
+                  />
+                )}
+              </div>
               <div className="absolute bottom-2 right-2 left-2 flex gap-2 justify-center">
                 <button
                   type="button"
@@ -144,7 +177,7 @@ export default function PaymentModal({
                   className="max-w-[min(90vw,400px)] max-h-[90vh] rounded-2xl bg-white p-6"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <img src={qrUrl} alt="VietQR" className="w-full h-auto object-contain" />
+                  {imgSrc && <img src={imgSrc} alt="VietQR" className="w-full h-auto object-contain" />}
                 </div>
               </div>
             )}

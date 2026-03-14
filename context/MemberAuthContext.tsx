@@ -45,6 +45,7 @@ export function MemberAuthProvider({ children }: { children: React.ReactNode }) 
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
+    setLoading(true);
     let supabase;
     try {
       supabase = getSupabaseBrowserClient();
