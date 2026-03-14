@@ -20,6 +20,7 @@ import type { GymChapter } from "@/components/gym/scroll/chapters";
 import {
   CHAPTERS,
   GYM_STORY_VH,
+  GYM_STORY_VH_MOBILE,
   getChapterFromHash,
   getChapterHash,
   CHAPTER_PROGRESS,
@@ -32,9 +33,22 @@ import PricingSheet from "@/components/gym/modals/PricingSheet";
 import AboutUsModal from "@/components/AboutUsModal";
 import { useLocale } from "@/components/LocaleProvider";
 
+function useStoryVh(): number {
+  const [vh, setVh] = useState(GYM_STORY_VH);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    setVh(mq.matches ? GYM_STORY_VH_MOBILE : GYM_STORY_VH);
+    const onChange = () => setVh(mq.matches ? GYM_STORY_VH_MOBILE : GYM_STORY_VH);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return vh;
+}
+
 export default function GymWorld() {
   const locale = useLocale();
-  const scroll = useScrollProgress(GYM_STORY_VH);
+  const storyVh = useStoryVh();
+  const scroll = useScrollProgress(storyVh);
   const [theme, setTheme] = useState<SkyTheme>(() =>
     getSkyTheme(typeof window !== "undefined" ? getLocalTimeHours() : 12)
   );
@@ -68,7 +82,7 @@ export default function GymWorld() {
 
       if (opts?.immediate) {
         setActiveChapter(chapter);
-        seekToProgress(def.progress, GYM_STORY_VH);
+        seekToProgress(def.progress, storyVh);
         return;
       }
 
@@ -77,9 +91,9 @@ export default function GymWorld() {
         await overlay.startTransition();
       }
       setActiveChapter(chapter);
-      seekToProgress(def.progress, GYM_STORY_VH);
+      seekToProgress(def.progress, storyVh);
     },
-    []
+    [storyVh]
   );
 
   useEffect(() => {
@@ -96,7 +110,7 @@ export default function GymWorld() {
         window.location.pathname + window.location.search + "#intro"
       );
       setActiveChapter("intro");
-      seekToProgress(CHAPTERS.intro.progress, GYM_STORY_VH);
+      seekToProgress(CHAPTERS.intro.progress, storyVh);
     }
   }, [goToChapter]);
 
@@ -111,7 +125,7 @@ export default function GymWorld() {
 
   useEffect(() => {
     const syncChapterFromScroll = () => {
-      const vh = window.innerHeight * (GYM_STORY_VH / 100);
+      const vh = window.innerHeight * (storyVh / 100);
       const maxScroll = Math.max(0, vh - window.innerHeight);
       const p = maxScroll > 0 ? window.scrollY / maxScroll : 0;
       const chapterOrder: GymChapter[] = ["intro", "gym", "community", "membership"];
@@ -128,7 +142,7 @@ export default function GymWorld() {
     };
     window.addEventListener("scroll", syncChapterFromScroll, { passive: true });
     return () => window.removeEventListener("scroll", syncChapterFromScroll);
-  }, []);
+  }, [storyVh]);
 
   const openVisitModal = useCallback(() => setVisitModalOpen(true), []);
   const openMembershipModal = useCallback(() => setMembershipEntryOpen(true), []);
@@ -162,7 +176,14 @@ export default function GymWorld() {
         <div className="relative" style={{ zIndex: 10 }}>
           <GymHeader scrollProgress={scroll.progress} />
         <main className="relative">
-          <GymScrollScene theme={theme} activeChapter={activeChapter} storyVh={GYM_STORY_VH} scroll={scroll} />
+          <GymScrollScene theme={theme} activeChapter={activeChapter} storyVh={storyVh} scroll={scroll} />
+          <div
+            className="h-16 md:h-12"
+            style={{
+              background: "linear-gradient(to bottom, transparent, rgba(11,11,15,0.4) 50%, #0B0B0F)",
+            }}
+            aria-hidden
+          />
           <GymFooter />
         </main>
         <GymTransitionOverlay overlayRef={overlayRef} />

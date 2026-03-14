@@ -25,9 +25,9 @@ interface GymChaptersOverlayProps {
 const FADE_Y_PX = 20;
 const INTRO_TEXT_REVEAL_PROGRESS = 0.14;
 
-/** Per-chapter progress windows: [fadeInStart, fadeInEnd, holdEnd, fadeOutStart, fadeOutEnd]. Intro welcome fades in 0.08–0.18 to crossfade with logo. */
+/** Per-chapter progress: longer holds for cinematic pacing. Intro welcome crossfades with logo. */
 const CHAPTER_WINDOWS: Record<GymChapter, [number, number, number, number, number]> = {
-  intro: [WELCOME_FADE_IN_START, WELCOME_FADE_IN_END, 0.30, 0.30, 0.40],
+  intro: [WELCOME_FADE_IN_START, WELCOME_FADE_IN_END, 0.34, 0.34, 0.45],
   gym: [0.34, 0.42, 0.54, 0.54, 0.64],
   community: [0.58, 0.66, 0.78, 0.78, 0.86],
   membership: [0.82, 0.90, 1, 1, 1],
@@ -84,8 +84,8 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
   const isIntroGlbOnly = activeId === "intro" && progress < INTRO_TEXT_REVEAL_PROGRESS;
   /** Hide overlay only after scrolling past the gym section so "YOUR SKY STARTS HERE" + CTA stay visible until scroll end. */
   const hideOverlayNearFooter = scroll.scrollY > scroll.totalScrollHeight;
-  /** CTA block fades in with smoothstep when leaving intro (pre-launch feel). */
-  const ctaBlockOpacity = reducedMotion ? 1 : smoothstep(INTRO_TEXT_REVEAL_PROGRESS, 0.22, progress);
+  /** CTA fades in after title — staggered reveal for cinematic feel. */
+  const ctaBlockOpacity = reducedMotion ? 1 : smoothstep(0.14, 0.24, progress);
 
   const c1 = messages.gym.chapter1;
   const c2 = messages.gym.chapter2;
@@ -100,19 +100,18 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
     <div
       className="fixed inset-0 z-40 pointer-events-none flex flex-col"
       style={{
-        paddingTop: "calc(max(env(safe-area-inset-top), 72px) + 1rem)",
-        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)",
+        paddingTop: "calc(max(env(safe-area-inset-top), 72px) + 1.5rem + 4vh)",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)",
         paddingLeft: "max(env(safe-area-inset-left), 1rem)",
         paddingRight: "max(env(safe-area-inset-right), 1rem)",
       }}
       aria-hidden
     >
-      {/* Mobile: intro logo above GLB (absolute top). Desktop: logo in content flow below GLB. */}
-      {/* Intro logo for mobile: above GLB, centered in upper viewport */}
+      {/* Mobile: intro logo as hero layer 1 (above GLB). Desktop: logo in content flow below GLB. */}
       <div
         className="md:hidden absolute left-0 right-0 flex justify-center px-4"
         style={{
-          top: "calc(max(env(safe-area-inset-top), 72px) + 1rem + 12vh)",
+          top: "calc(max(env(safe-area-inset-top), 72px) + 1.5rem + 4vh + 8vh)",
           opacity: reducedMotion
             ? progress < LOGO_FADE_OUT_END ? 1 : 0
             : 1 - smoothstep(LOGO_FADE_OUT_START, LOGO_FADE_OUT_END, progress),
@@ -129,10 +128,10 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
           priority
         />
       </div>
-      {/* Mobile keeps extra top padding so text sits below GLB; desktop uses a centered vertical stack */}
-      <div className="flex-1 flex flex-col min-h-0 w-full max-w-2xl mx-auto px-4 md:px-8 pt-[48vh] md:pt-[12vh] md:pb-[12vh] md:gap-7">
-        {/* Title block: intro logo (desktop only, below GLB) + chapter headlines */}
-        <div className="flex-shrink-0 pt-2 pb-2 md:pb-6 md:pb-8 flex flex-col items-center text-center">
+      {/* Mobile: 3-layer hero (title 22vh, cloud center, CTA 72vh). Desktop: centered vertical stack. */}
+      <div className="flex-1 flex flex-col min-h-0 w-full max-w-xl md:max-w-2xl mx-auto px-4 md:px-8 pt-[22vh] md:pt-[12vh] pb-[8vh] md:pb-[12vh] md:gap-7 gap-6">
+        {/* Title block: intro logo (desktop only, below GLB) + chapter headlines — layer 1 */}
+        <div className="flex-shrink-0 pt-2 pb-4 md:pb-6 md:pb-8 flex flex-col items-center text-center">
           <div className="relative w-full min-h-[4.5rem] md:min-h-[5rem]">
             {/* Intro logo: desktop only, centered below GLB, fades out on scroll */}
             <div
@@ -175,7 +174,7 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
                   aria-hidden={opacity < 0.01}
                 >
                   <h1
-                    className="font-bold text-white tracking-tight leading-[1.2] max-w-2xl w-full text-[clamp(18px,4.5vw,24px)] md:text-[clamp(28px,5vw,48px)]"
+                    className="font-bold text-white tracking-tight leading-[1.2] max-w-[20rem] md:max-w-2xl w-full text-[clamp(18px,4.5vw,24px)] md:text-[clamp(28px,5vw,48px)]"
                     style={{
                       fontFamily: "var(--font-bold), MiSans-Bold, sans-serif",
                       color: titleColor ?? undefined,
@@ -186,7 +185,7 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
                     <span className="block">{headline}</span>
                   </h1>
                   <p
-                    className="mt-2 md:mt-3 text-white/90 max-w-xl w-full text-[clamp(12px,2vw,16px)] md:text-[clamp(14px,2.5vw,20px)]"
+                    className="mt-2 md:mt-3 text-white/90 max-w-[18rem] md:max-w-xl w-full text-[clamp(12px,2vw,16px)] md:text-[clamp(14px,2.5vw,20px)]"
                     style={{
                       fontFamily: "MiSans-Regular, sans-serif",
                       lineHeight: 1.25,
@@ -202,12 +201,12 @@ export default function GymChaptersOverlay({ scroll, reducedMotion }: GymChapter
           </div>
         </div>
 
-        {/* Middle: previously a large spacer; removed on desktop so text + GLB + CTA feel vertically connected */}
-        <div className="hidden" />
+        {/* Mobile: flexible spacer for cloud zone (layer 2). Desktop: minimal. */}
+        <div className="flex-1 min-h-[24vh] md:min-h-0 md:hidden" aria-hidden />
 
-        {/* CTA: directly under the island zone; fades in with smoothstep when intro text reveals */}
+        {/* CTA: layer 3 — more breathing room on mobile */}
         <div
-          className="flex-shrink-0 pt-4 pb-2 md:pt-4 md:pb-0 flex flex-col items-center"
+          className="flex-shrink-0 pt-2 pb-2 md:pt-4 md:pb-0 flex flex-col items-center"
           style={{ opacity: ctaBlockOpacity }}
         >
           {!isIntroGlbOnly && (

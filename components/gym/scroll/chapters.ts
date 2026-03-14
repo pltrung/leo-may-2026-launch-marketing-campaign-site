@@ -38,8 +38,9 @@ export interface ChapterDef {
   };
 }
 
-/** Pre-launch style: longer scroll so progress moves slower and text stays clear on both mobile and desktop. */
+/** Pre-launch style: longer scroll so progress moves slower. Mobile uses more for cinematic pacing. */
 export const GYM_STORY_VH = 560;
+export const GYM_STORY_VH_MOBILE = 640;
 
 export const CHAPTERS: Record<GymChapter, ChapterDef> = {
   intro: {

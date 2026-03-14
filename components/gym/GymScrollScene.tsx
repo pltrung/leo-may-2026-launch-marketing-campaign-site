@@ -196,7 +196,7 @@ export default function GymScrollScene({ theme, activeChapter, storyVh, scroll }
               quality={effectiveQuality}
               activeChapter={activeChapter}
               userRotationY={userRotationY}
-              positionYOffsetMobile={isMobile ? 0.24 : 0}
+              positionYOffsetMobile={isMobile ? 0.14 : 0}
               className="absolute inset-0 w-full h-full"
             />
             </Suspense>

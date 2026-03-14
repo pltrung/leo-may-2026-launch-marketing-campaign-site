@@ -7,8 +7,8 @@ import * as THREE from "three";
 import type { Group, Mesh, Material } from "three";
 
 const GLB_URL = "/main-page-bouldering-glb.glb";
-const FLOAT_AMP = 0.008;
-const FLOAT_FREQ = 0.6;
+const FLOAT_AMP = 0.012;
+const FLOAT_FREQ = 0.45;
 /** Raise the GLB so it sits higher and closer to the chapter text. */
 const POSITION_Y_OFFSET = 0.28;
 
@@ -66,7 +66,7 @@ function IslandModel({
   useFrame((_, delta) => {
     if (!groupRef.current || !scene) return;
     const speed = Math.max(0, Math.min(2, rotationSpeedMultiplier));
-    autoRotationY.current += delta * (Math.PI * 2 / 25) * speed;
+    autoRotationY.current += delta * (Math.PI * 2 / 32) * speed;
     groupRef.current.rotation.y = autoRotationY.current + userRotationY;
     floatRef.current += delta * FLOAT_FREQ;
     const floatY = Math.sin(floatRef.current) * FLOAT_AMP;
