@@ -6,10 +6,13 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 const PLAN_NAMES: Record<string, string> = {
-  day_pass: "Day Pass",
-  month_pass: "Month Pass",
-  year_pass: "Year Pass",
+  day_pass: "1 Day Pass",
+  month_pass: "30 Day Pass",
+  year_pass: "365 Day Pass",
   newbie_class: "Newbie Class",
+  visit_5: "5 Visit Pass",
+  visit_10: "10 Visit Pass",
+  visit_20: "20 Visit Pass",
 };
 
 /**

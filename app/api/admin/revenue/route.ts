@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 
 const PLAN_LABELS: Record<string, string> = {
-  day_pass: "Day Pass",
+  day_pass: "1 Day Pass",
+  month_pass: "30 Day Pass",
+  year_pass: "365 Day Pass",
+  newbie_class: "Newbie Class",
+  visit_5: "5 Visit Pass",
+  visit_10: "10 Visit Pass",
+  visit_20: "20 Visit Pass",
   explorer_month: "Explorer Monthly",
   explorer_year: "Explorer Yearly",
   until_end_of_year: "Until end of year",

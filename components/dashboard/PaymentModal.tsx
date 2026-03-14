@@ -11,6 +11,8 @@ interface PaymentModalProps {
   qrUrl: string | null;
   currentExpiry: string | null;
   newExpiry: string | null;
+  visitsAdded?: number | null;
+  error?: string | null;
   onPayWithVnpay: () => void;
   vnpayLoading: boolean;
   isVi: boolean;
@@ -31,6 +33,8 @@ export default function PaymentModal({
   qrUrl,
   currentExpiry,
   newExpiry,
+  visitsAdded,
+  error,
   onPayWithVnpay,
   vnpayLoading,
   isVi,
@@ -79,21 +83,29 @@ export default function PaymentModal({
         </p>
 
         {/* Extension preview */}
-        {(currentExpiry || newExpiry) && (
+        {(currentExpiry || newExpiry || visitsAdded) && (
           <div className="w-full mb-4 rounded-xl bg-white/10 border border-white/20 p-4 text-sm text-white/90">
             <p className="text-white/70 mb-1">
               {isVi ? "Hết hạn hiện tại:" : "Current expiry:"}
             </p>
             <p className="font-medium mb-3">{formatExpiry(currentExpiry, locale)}</p>
             <p className="text-white/70 mb-1">
-              {isVi ? "Sau khi mua:" : "After purchase:"}
+              {visitsAdded ? (isVi ? "Thêm lượt:" : "Adds visits:") : (isVi ? "Sau khi mua:" : "After purchase:")}
             </p>
-            <p className="font-medium text-emerald-300">{formatExpiry(newExpiry, locale)}</p>
+            <p className="font-medium text-emerald-300">
+              {visitsAdded != null ? `+${visitsAdded} ${isVi ? "lượt" : "visits"}` : formatExpiry(newExpiry, locale)}
+            </p>
           </div>
         )}
 
         {!qrUrl ? (
-          <p className="text-sm text-white/60 py-8">{isVi ? "Đang tải…" : "Loading…"}</p>
+          <div className="py-8 text-center">
+            {error ? (
+              <p className="text-sm text-amber-300 mb-4">{error}</p>
+            ) : (
+              <p className="text-sm text-white/60">{isVi ? "Đang tải…" : "Loading…"}</p>
+            )}
+          </div>
         ) : (
           <>
             <div className="relative rounded-2xl bg-white p-4 shrink-0">

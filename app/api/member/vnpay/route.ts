@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   const planId = req.nextUrl.searchParams.get("plan_id")?.trim();
   const returnUrl = req.nextUrl.searchParams.get("return_url")?.trim();
-  const validPlans = ["day_pass", "month_pass", "year_pass", "newbie_class"];
+  const validPlans = ["day_pass", "month_pass", "year_pass", "newbie_class", "visit_5", "visit_10", "visit_20"];
 
   if (!planId || !validPlans.includes(planId)) {
     return NextResponse.json({ error: "Invalid plan_id" }, { status: 400 });

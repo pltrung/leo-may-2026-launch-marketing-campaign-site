@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient();
     const { data: profile, error: profileErr } = await supabase
       .from("member_profiles")
-      .select("membership_status, membership_expires_at, profile_photo_url")
+      .select("membership_status, membership_expires_at, visits_remaining, profile_photo_url")
       .eq("id", memberId)
       .maybeSingle();
 
@@ -39,8 +39,10 @@ export async function POST(request: NextRequest) {
     const expiresAt = profile.membership_expires_at
       ? new Date(profile.membership_expires_at as string)
       : null;
-    const hasValidMembership =
-      status === "active" && expiresAt && expiresAt.getTime() > Date.now();
+    const visitsRemaining = (profile.visits_remaining as number) ?? 0;
+    const hasValidDayPass = status === "active" && expiresAt && expiresAt.getTime() > Date.now();
+    const hasValidVisitPass = visitsRemaining > 0;
+    const hasValidMembership = hasValidDayPass || hasValidVisitPass;
 
     if (!hasValidMembership) {
       return NextResponse.json(
@@ -48,6 +50,7 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       );
     }
+
     const { error } = await supabase.from("gym_checkins").insert({
       member_id: memberId,
       location: location ?? null,
@@ -59,6 +62,13 @@ export async function POST(request: NextRequest) {
         { error: "Failed to record check-in" },
         { status: 500 }
       );
+    }
+
+    if (hasValidVisitPass) {
+      await supabase
+        .from("member_profiles")
+        .update({ visits_remaining: visitsRemaining - 1, updated_at: new Date().toISOString() })
+        .eq("id", memberId);
     }
 
     return NextResponse.json({ ok: true });

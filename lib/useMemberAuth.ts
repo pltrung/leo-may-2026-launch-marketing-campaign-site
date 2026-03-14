@@ -14,6 +14,7 @@ export interface MemberProfile {
   tier?: string;
   membership_status?: string;
   membership_expires_at?: string | null;
+  visits_remaining?: number;
   waiver_signed: boolean;
   waiver_signed_at: string | null;
   created_at: string;

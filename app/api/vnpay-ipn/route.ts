@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ RspCode: "04", Message: "Invalid order info" });
   }
 
-  const validPlans = ["day_pass", "month_pass", "year_pass", "newbie_class"];
+  const validPlans = ["day_pass", "month_pass", "year_pass", "newbie_class", "visit_5", "visit_10", "visit_20"];
   if (!validPlans.includes(planId)) {
     return NextResponse.json({ RspCode: "04", Message: "Invalid plan" });
   }
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
 
   const { data: memberRow, error: memberErr } = await supabase
     .from("member_profiles")
-    .select("id, member_code, membership_expires_at")
+    .select("id, member_code, membership_expires_at, visits_remaining")
     .eq("id", memberId)
     .maybeSingle();
 
@@ -72,18 +72,31 @@ export async function GET(req: NextRequest) {
   const now = new Date();
   const { data: plan, error: planErr } = await supabase
     .from("membership_plans")
-    .select("id, duration_days, price_vnd")
+    .select("id, duration_days, duration_visits, price_vnd")
     .eq("id", planId)
     .maybeSingle();
   if (planErr || !plan) {
     return NextResponse.json({ RspCode: "04", Message: "Plan not found" });
   }
   const amountVnd = plan.price_vnd as number;
+  const durationVisits = (plan.duration_visits as number | null) ?? 0;
   const durationDays = (plan.duration_days ?? 0);
+  const isVisitPass = durationVisits > 0;
+  const currentVisits = (memberRow.visits_remaining as number) ?? 0;
+  const hasActiveVisitPass = currentVisits > 0;
+  const expiresAt = memberRow.membership_expires_at ? new Date(memberRow.membership_expires_at as string) : null;
+  const hasActiveDayPass = expiresAt && expiresAt.getTime() > Date.now();
+  if (hasActiveVisitPass && !isVisitPass) {
+    return NextResponse.json({ RspCode: "04", Message: "Active visit pass: cannot buy day pass" });
+  }
+  if (hasActiveDayPass && !hasActiveVisitPass && isVisitPass) {
+    return NextResponse.json({ RspCode: "04", Message: "Active day pass: visit pass only when inactive" });
+  }
   const currentExpiry = memberRow.membership_expires_at
     ? new Date(memberRow.membership_expires_at as string)
     : null;
-  const newExpiry = computeNewExpiry(currentExpiry, durationDays, now);
+  const newExpiry = isVisitPass ? currentExpiry : computeNewExpiry(currentExpiry, durationDays, now);
+  const newVisits = isVisitPass ? currentVisits + durationVisits : currentVisits;
 
   const memo = (memberRow.member_code as string | null) ?? memberRow.id;
 
@@ -106,13 +119,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ RspCode: "99", Message: "Unknown error" });
   }
 
+  const updatePayload: Record<string, unknown> = { updated_at: now.toISOString() };
+  if (isVisitPass) {
+    updatePayload.visits_remaining = newVisits;
+    updatePayload.membership_status = "active";
+  } else {
+    updatePayload.membership_expires_at = newExpiry!.toISOString();
+    updatePayload.membership_status = "active";
+  }
   const { error: updateErr } = await supabase
     .from("member_profiles")
-    .update({
-      membership_expires_at: newExpiry.toISOString(),
-      membership_status: "active",
-      updated_at: now.toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", memberRow.id);
 
   if (updateErr) {

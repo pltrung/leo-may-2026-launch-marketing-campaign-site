@@ -6,8 +6,10 @@ export interface Plan {
   id: string;
   name: string;
   duration_days: number;
+  duration_visits?: number | null;
   price_vnd: number;
   description?: string | null;
+  pass_type?: "newbie" | "day" | "visit";
 }
 
 interface PackageDetailModalProps {
@@ -74,24 +76,20 @@ export default function PackageDetailModal({
             {plan.price_vnd.toLocaleString("vi-VN")} VND
           </p>
           <p className="text-sm text-white/60 mb-4">
-            {plan.duration_days === 1
-              ? isVi
-                ? "1 ngày"
-                : "1 day"
-              : plan.duration_days === 30
-                ? isVi
-                  ? "30 ngày"
-                  : "30 days"
-                : plan.duration_days === 365
-                  ? isVi
-                    ? "365 ngày"
-                    : "365 days"
-                  : `${plan.duration_days} ${isVi ? "ngày" : "days"}`}
+            {(plan.duration_visits ?? 0) > 0
+              ? `${plan.duration_visits} ${isVi ? "lượt" : "visits"}`
+              : plan.duration_days === 1
+                ? isVi ? "1 ngày" : "1 day"
+                : plan.duration_days === 30
+                  ? isVi ? "30 ngày" : "30 days"
+                  : plan.duration_days === 365
+                    ? isVi ? "365 ngày" : "365 days"
+                    : `${plan.duration_days} ${isVi ? "ngày" : "days"}`}
           </p>
-          {hasActivePass && (() => {
+          {hasActivePass && (plan.duration_visits ?? 0) <= 0 && (() => {
             const base = currentExpiry && plan ? new Date(currentExpiry) : null;
             const isValidBase = base && !Number.isNaN(base.getTime());
-            const newExpiry = isValidBase && plan
+            const newExpiry = isValidBase && plan && plan.duration_days > 0
               ? (() => {
                   const d = new Date(base);
                   d.setDate(d.getDate() + plan.duration_days);

@@ -58,12 +58,12 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServerClient();
 
-  let memberRow: { id: string; member_code: string | null; membership_expires_at: string | null } | null = null;
+  let memberRow: { id: string; member_code: string | null; membership_expires_at: string | null; visits_remaining?: number } | null = null;
 
   if (memberId) {
     const { data, error } = await supabase
       .from("member_profiles")
-      .select("id, member_code, membership_expires_at")
+      .select("id, member_code, membership_expires_at, visits_remaining")
       .eq("id", memberId)
       .maybeSingle();
     if (error) {
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
   if (!memberRow && memberCode) {
     const { data, error } = await supabase
       .from("member_profiles")
-      .select("id, member_code, membership_expires_at")
+      .select("id, member_code, membership_expires_at, visits_remaining")
       .eq("member_code", memberCode)
       .maybeSingle();
     if (error) {
@@ -91,14 +91,14 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date();
-  const validPlans = ["day_pass", "month_pass", "year_pass", "newbie_class"];
+  const validPlans = ["day_pass", "month_pass", "year_pass", "newbie_class", "visit_5", "visit_10", "visit_20"];
   if (!validPlans.includes(planId)) {
     return NextResponse.json({ error: "Invalid plan_id" }, { status: 400 });
   }
 
   const { data: plan, error: planErr } = await supabase
     .from("membership_plans")
-    .select("id, name, duration_days, price_vnd")
+    .select("id, name, duration_days, duration_visits, price_vnd")
     .eq("id", planId)
     .maybeSingle();
   if (planErr || !plan) {
@@ -106,10 +106,23 @@ export async function POST(req: NextRequest) {
   }
   const planName = plan.name as string;
   const amountVnd = plan.price_vnd as number;
+  const durationVisits = (plan.duration_visits as number | null) ?? 0;
+  const isVisitPass = durationVisits > 0;
+  const currentVisits = (memberRow.visits_remaining as number) ?? 0;
+  const hasActiveVisitPass = currentVisits > 0;
+  const expiresAt = memberRow.membership_expires_at ? new Date(memberRow.membership_expires_at as string) : null;
+  const hasActiveDayPass = expiresAt && expiresAt.getTime() > Date.now();
+  if (hasActiveVisitPass && !isVisitPass) {
+    return NextResponse.json({ error: "Active visit pass: cannot buy day pass" }, { status: 400 });
+  }
+  if (hasActiveDayPass && !hasActiveVisitPass && isVisitPass) {
+    return NextResponse.json({ error: "Active day pass: visit pass only when inactive" }, { status: 400 });
+  }
   const currentExpiry = memberRow.membership_expires_at
     ? new Date(memberRow.membership_expires_at as string)
     : null;
-  const newExpiry = computeNewExpiry(currentExpiry, plan.duration_days ?? 0, now);
+  const newExpiry = isVisitPass ? currentExpiry : computeNewExpiry(currentExpiry, (plan.duration_days as number) ?? 0, now);
+  const newVisits = isVisitPass ? currentVisits + durationVisits : currentVisits;
 
   const memo = (memberRow.member_code as string | null) ?? memberRow.id;
 
@@ -144,13 +157,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to record payment" }, { status: 500 });
   }
 
+  const updatePayload: Record<string, unknown> = { updated_at: now.toISOString() };
+  if (isVisitPass) {
+    updatePayload.visits_remaining = newVisits;
+    updatePayload.membership_status = "active";
+  } else {
+    updatePayload.membership_expires_at = newExpiry!.toISOString();
+    updatePayload.membership_status = "active";
+  }
   const { error: updateErr } = await supabase
     .from("member_profiles")
-    .update({
-      membership_expires_at: newExpiry.toISOString(),
-      membership_status: "active",
-      updated_at: now.toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", memberRow.id);
   if (updateErr) {
     console.error("webhook member update error", updateErr);

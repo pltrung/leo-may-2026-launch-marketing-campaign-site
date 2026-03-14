@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const baseSelect =
-      "id, auth_id, email, phone, full_name, tier, member_code, created_at, membership_status, membership_expires_at, profile_photo_url, id_number, date_of_birth, instagram_handle, gender";
+      "id, auth_id, email, phone, full_name, tier, member_code, created_at, membership_status, membership_expires_at, visits_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender";
 
     // Name search: return a list of basic matches to let the UI choose.
     if (!id && !code && name) {
@@ -126,7 +126,10 @@ export async function GET(req: NextRequest) {
     const expiresAt = memberRow.membership_expires_at
       ? new Date(memberRow.membership_expires_at as string).getTime()
       : 0;
-    const hasValidMembership = statusRaw === "active" && expiresAt > Date.now();
+    const visitsRemaining = (memberRow.visits_remaining as number) ?? 0;
+    const hasValidDayPass = statusRaw === "active" && expiresAt > Date.now();
+    const hasValidVisitPass = visitsRemaining > 0;
+    const hasValidMembership = hasValidDayPass || hasValidVisitPass;
 
     const status =
       statusRaw === "frozen"
@@ -160,6 +163,9 @@ export async function GET(req: NextRequest) {
       date_of_birth: memberRow.date_of_birth ?? null,
       instagram_handle: memberRow.instagram_handle ?? null,
       gender: memberRow.gender ?? null,
+      visits_remaining: visitsRemaining,
+      has_active_day_pass: hasValidDayPass,
+      has_active_visit_pass: hasValidVisitPass,
     };
 
     return NextResponse.json({ member: responseMember }, { headers: { "Cache-Control": "no-store, max-age=0" } });

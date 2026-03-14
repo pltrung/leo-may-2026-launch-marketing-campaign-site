@@ -94,6 +94,7 @@ export default function DashboardPage() {
     currentUser: { rank: number | null; visits: number; full_name: string };
   } | null>(null);
   const [leaderboardGender, setLeaderboardGender] = useState<"all" | "male" | "female">("all");
+  const [passFilter, setPassFilter] = useState<"all" | "day" | "visit">("all");
   const [plans, setPlans] = useState<Plan[]>([]);
   const [payments, setPayments] = useState<{ id: string; plan_name: string; amount: number; created_at: string }[]>([]);
   const [packageDetailPlan, setPackageDetailPlan] = useState<Plan | null>(null);
@@ -104,6 +105,8 @@ export default function DashboardPage() {
   const [renewPrice, setRenewPrice] = useState(0);
   const [renewCurrentExpiry, setRenewCurrentExpiry] = useState<string | null>(null);
   const [renewNewExpiry, setRenewNewExpiry] = useState<string | null>(null);
+  const [renewVisitsAdded, setRenewVisitsAdded] = useState<number | null>(null);
+  const [renewError, setRenewError] = useState<string | null>(null);
   const [freezeLoading, setFreezeLoading] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [vnpayLoading, setVnpayLoading] = useState(false);
@@ -261,21 +264,32 @@ export default function DashboardPage() {
       setRenewQrUrl(null);
       setRenewCurrentExpiry(null);
       setRenewNewExpiry(null);
+      setRenewError(null);
       fetch(`/api/member/vietqr?plan_id=${plan.id}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       })
         .then((r) => r.json())
         .then((d) => {
-          setRenewQrUrl(d.url ?? null);
-          setRenewPlanName(d.plan_name ?? plan.name);
-          setRenewPrice(d.price_vnd ?? plan.price_vnd);
-          setRenewCurrentExpiry(d.current_expiry ?? null);
-          setRenewNewExpiry(d.new_expiry ?? null);
-          setIsVietQrModalOpen(true);
+          if (d.url) {
+            setRenewQrUrl(d.url);
+            setRenewPlanName(d.plan_name ?? plan.name);
+            setRenewPrice(d.price_vnd ?? plan.price_vnd);
+            setRenewCurrentExpiry(d.current_expiry ?? null);
+            setRenewNewExpiry(d.new_expiry ?? null);
+            setRenewVisitsAdded(d.visits_added ?? null);
+            setRenewError(null);
+            setIsVietQrModalOpen(true);
+          } else {
+            setRenewError(d.error ?? (isVi ? "Không thể tải QR." : "Failed to load QR."));
+            setIsVietQrModalOpen(true);
+          }
         })
-        .catch(() => setRenewQrUrl(null));
+        .catch(() => {
+          setRenewError(isVi ? "Đã xảy ra lỗi." : "Something went wrong.");
+          setIsVietQrModalOpen(true);
+        });
     },
-    [accessToken]
+    [accessToken, isVi]
   );
 
   const handlePayWithVnpay = useCallback(async () => {
@@ -712,16 +726,25 @@ export default function DashboardPage() {
                   <span className="text-white font-medium">{shortId}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-white/60">{isVi ? "Còn lại" : "Days remaining"}</span>
-                  <span className="font-medium" style={{ color: daysRemaining != null && daysRemaining > 0 ? accentColor : "rgba(255,255,255,0.9)" }}>
-                    {daysRemaining != null && daysRemaining > 0 ? (isVi ? `${daysRemaining} ngày` : `${daysRemaining} days`) : isVi ? "Không có" : "None"}
+                  <span className="text-white/60">{(member.visits_remaining ?? 0) > 0 ? (isVi ? "Lượt còn lại" : "Visits remaining") : (isVi ? "Còn lại" : "Days remaining")}</span>
+                  <span className="font-medium" style={{ color: (daysRemaining != null && daysRemaining > 0) || (member.visits_remaining ?? 0) > 0 ? accentColor : "rgba(255,255,255,0.9)" }}>
+                    {(member.visits_remaining ?? 0) > 0
+                      ? (isVi ? `${member.visits_remaining} lượt` : `${member.visits_remaining} visits`)
+                      : daysRemaining != null && daysRemaining > 0
+                        ? (isVi ? `${daysRemaining} ngày` : `${daysRemaining} days`)
+                        : isVi ? "Không có" : "None"}
                   </span>
                 </div>
-                {daysRemaining != null && daysRemaining > 0 && (
+                {((daysRemaining != null && daysRemaining > 0) || (member.visits_remaining ?? 0) > 0) && (
                   <div className="mt-2 h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.1)" }}>
                     <div
                       className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, (daysRemaining / 30) * 100)}%`, background: accentColor }}
+                      style={{
+                        width: (member.visits_remaining ?? 0) > 0
+                          ? `${Math.min(100, ((member.visits_remaining ?? 0) / 20) * 100)}%`
+                          : `${Math.min(100, ((daysRemaining ?? 0) / 30) * 100)}%`,
+                        background: accentColor,
+                      }}
                     />
                   </div>
                 )}
@@ -763,15 +786,50 @@ export default function DashboardPage() {
               </div>
 
               <div className="mt-6 pt-4 border-t border-white/[0.08]">
-                <h3 className="text-[18px] font-medium text-white/90 mb-4">
-                  {isVi ? "Thanh toán / gia hạn" : "Pay / Renew"}
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-[18px] font-medium text-white/90">
+                    {isVi ? "Thanh toán / gia hạn" : "Pay / Renew"}
+                  </h3>
+                  <div className="flex gap-1">
+                    {(["all", "day", "visit"] as const).map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => setPassFilter(f)}
+                        className={`px-2.5 py-1 rounded-full text-[12px] font-medium transition-all ${
+                          passFilter === f
+                            ? "bg-white text-slate-900"
+                            : "bg-white/10 text-white/80 hover:bg-white/15"
+                        }`}
+                      >
+                        {f === "all" ? (isVi ? "Tất cả" : "All") : f === "day" ? (isVi ? "Thời gian" : "Day") : (isVi ? "Lượt" : "Visit")}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {(() => {
+                  const hasBoughtNewbie = payments.some((pmt) => pmt.plan_name === "Newbie Class");
+                  const visitsRem = member?.visits_remaining ?? 0;
+                  const hasActiveVisitPass = visitsRem > 0;
+                  const hasActiveDayPass = isActive; // expiry valid and status active
+                  const filtered = plans.filter((p) => {
+                    if (p.id === "newbie_class" && hasBoughtNewbie) return false;
+                    const pt = (p as Plan & { pass_type?: string }).pass_type;
+                    const isDayPlan = pt === "day" || p.id === "newbie_class";
+                    const isVisitPlan = pt === "visit";
+                    if (hasActiveVisitPass && isDayPlan) return false; // cannot buy day passes with active visit pass
+                    if (hasActiveDayPass && !hasActiveVisitPass && isVisitPlan) return false; // cannot buy visit pass when active on day pass
+                    if (passFilter === "day") return isDayPlan;
+                    if (passFilter === "visit") return isVisitPlan;
+                    return true;
+                  });
+                  return (
                 <div
                   data-passes-carousel
                   className="flex gap-3 overflow-x-auto overflow-y-hidden pb-2 mb-4 scroll-smooth snap-x snap-mandatory touch-pan-x"
                   style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" }}
                 >
-                  {plans.map((p) => {
+                  {filtered.map((p) => {
                     const isNewbieClass = p.id === "newbie_class";
                     const hasBoughtNewbieClass = payments.some((pmt) => pmt.plan_name === "Newbie Class");
                     const showNewbieAura = isNewbieClass && !hasBoughtNewbieClass;
@@ -810,6 +868,8 @@ export default function DashboardPage() {
                     );
                   })}
                 </div>
+                  );
+                })()}
                 <style>{`[data-passes-carousel]::-webkit-scrollbar { display: none; }`}</style>
                 {payments.length > 0 && (
                   <div className="pt-3 border-t border-white/[0.08]">
@@ -1145,12 +1205,14 @@ export default function DashboardPage() {
       />
       <PaymentModal
         open={isVietQrModalOpen}
-        onClose={() => { setIsVietQrModalOpen(false); setRenewQrUrl(null); }}
+        onClose={() => { setIsVietQrModalOpen(false); setRenewQrUrl(null); setRenewError(null); }}
         planName={renewPlanName}
         priceVnd={renewPrice}
         qrUrl={renewQrUrl}
         currentExpiry={renewCurrentExpiry}
         newExpiry={renewNewExpiry}
+        visitsAdded={renewVisitsAdded}
+        error={renewError}
         onPayWithVnpay={handlePayWithVnpay}
         vnpayLoading={vnpayLoading}
         isVi={isVi}

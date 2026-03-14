@@ -21,10 +21,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Failed to load payments" }, { status: 500 });
   }
   const planNames: Record<string, string> = {
-    day_pass: "Day Pass",
-    month_pass: "Month Pass",
-    year_pass: "Year Pass",
+    day_pass: "1 Day Pass",
+    month_pass: "30 Day Pass",
+    year_pass: "365 Day Pass",
     newbie_class: "Newbie Class",
+    visit_5: "5 Visit Pass",
+    visit_10: "10 Visit Pass",
+    visit_20: "20 Visit Pass",
   };
   const payments = (data ?? []).map((p) => ({
     id: p.id,

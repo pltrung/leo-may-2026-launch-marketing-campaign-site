@@ -21,6 +21,9 @@ interface AdminMember {
   date_of_birth?: string | null;
   instagram_handle?: string | null;
   gender?: string | null;
+  visits_remaining?: number;
+  has_active_visit_pass?: boolean;
+  has_active_day_pass?: boolean;
 }
 
 interface NameSearchResult {
@@ -38,7 +41,7 @@ export default function AdminPage() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<null | "checkin" | "manual" | "undo" | "extend" | "freeze" | "cancel" | "upgrade" | "payment" | "confirm">(null);
-  const [plans, setPlans] = useState<{ id: string; name: string; duration_days: number; price_vnd: number }[]>([]);
+  const [plans, setPlans] = useState<{ id: string; name: string; duration_days: number; duration_visits?: number | null; price_vnd: number; pass_type?: "newbie" | "day" | "visit" }[]>([]);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentQrFullscreen, setPaymentQrFullscreen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"vietqr" | "cash">("vietqr");
@@ -48,6 +51,8 @@ export default function AdminPage() {
   const [paymentPrice, setPaymentPrice] = useState(0);
   const [paymentCurrentExpiry, setPaymentCurrentExpiry] = useState<string | null>(null);
   const [paymentNewExpiry, setPaymentNewExpiry] = useState<string | null>(null);
+  const [paymentVisitsAdded, setPaymentVisitsAdded] = useState<number | null>(null);
+  const [adminPassFilter, setAdminPassFilter] = useState<"all" | "day" | "visit">("all");
   const [recentPayments, setRecentPayments] = useState<{ id: string; plan_name: string; amount: number; created_at: string }[]>([]);
   const [newMemberName, setNewMemberName] = useState("");
   const [newMemberEmail, setNewMemberEmail] = useState("");
@@ -408,14 +413,20 @@ export default function AdminPage() {
     const handleCollectPayment = useCallback(() => {
     if (!foundMember) return;
     setPaymentModalOpen(true);
-    setPaymentPlanId("month_pass");
+    const defaultPlan = foundMember.has_active_visit_pass
+      ? "visit_5"
+      : foundMember.has_active_day_pass
+        ? "month_pass"
+        : "month_pass";
+    setPaymentPlanId(defaultPlan);
     setPaymentMethod("vietqr");
     setPaymentQrUrl(null);
     setPaymentPlanName("");
     setPaymentPrice(0);
     setPaymentCurrentExpiry(null);
     setPaymentNewExpiry(null);
-    fetch(`/api/admin/vietqr?plan_id=month_pass&member_id=${encodeURIComponent(foundMember.id)}`)
+    setPaymentVisitsAdded(null);
+    fetch(`/api/admin/vietqr?plan_id=${encodeURIComponent(defaultPlan)}&member_id=${encodeURIComponent(foundMember.id)}`)
       .then((r) => r.json())
       .then((d) => {
         setPaymentQrUrl(d.url ?? null);
@@ -423,6 +434,7 @@ export default function AdminPage() {
         setPaymentPrice(d.price_vnd ?? 0);
         setPaymentCurrentExpiry(d.current_expiry ?? null);
         setPaymentNewExpiry(d.new_expiry ?? null);
+        setPaymentVisitsAdded(d.visits_added ?? null);
       })
       .catch(() => setPaymentQrUrl(null));
   }, [foundMember]);
@@ -434,6 +446,7 @@ export default function AdminPage() {
       setPaymentQrUrl(null);
       setPaymentCurrentExpiry(null);
       setPaymentNewExpiry(null);
+      setPaymentVisitsAdded(null);
       fetch(`/api/admin/vietqr?plan_id=${encodeURIComponent(planId)}&member_id=${encodeURIComponent(foundMember.id)}`)
         .then((r) => r.json())
         .then((d) => {
@@ -442,6 +455,7 @@ export default function AdminPage() {
           setPaymentPrice(d.price_vnd ?? 0);
           setPaymentCurrentExpiry(d.current_expiry ?? null);
           setPaymentNewExpiry(d.new_expiry ?? null);
+          setPaymentVisitsAdded(d.visits_added ?? null);
         })
         .catch(() => setPaymentQrUrl(null));
     },
@@ -1168,17 +1182,43 @@ export default function AdminPage() {
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
             <h3 className="text-lg font-semibold text-slate-900">Collect Payment</h3>
             <div className="space-y-2">
-              <label className="block text-xs font-medium text-slate-600">Membership plan</label>
+              <div className="flex items-center justify-between gap-2">
+                <label className="block text-xs font-medium text-slate-600">Membership plan</label>
+                <div className="flex gap-1">
+                  {(["all", "day", "visit"] as const).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setAdminPassFilter(f)}
+                      className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                        adminPassFilter === f ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {f === "all" ? "All" : f === "day" ? "Day" : "Visit"}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <select
                 value={paymentPlanId}
                 onChange={(e) => handlePaymentPlanChange(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-900"
               >
-                {plans.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} — {p.price_vnd > 0 ? `${p.price_vnd.toLocaleString("vi-VN")} VND` : "prorated"}
-                  </option>
-                ))}
+                {plans
+                  .filter((p) => {
+                    const isDayPlan = p.pass_type === "day" || p.id === "newbie_class";
+                    const isVisitPlan = p.pass_type === "visit";
+                    if (foundMember?.has_active_visit_pass && isDayPlan) return false;
+                    if (foundMember?.has_active_day_pass && !foundMember?.has_active_visit_pass && isVisitPlan) return false;
+                    if (adminPassFilter === "day") return isDayPlan;
+                    if (adminPassFilter === "visit") return isVisitPlan;
+                    return true;
+                  })
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} — {p.price_vnd > 0 ? `${p.price_vnd.toLocaleString("vi-VN")} VND` : "prorated"}
+                    </option>
+                  ))}
               </select>
             </div>
             <div className="space-y-2">
@@ -1213,7 +1253,7 @@ export default function AdminPage() {
                   <span className="font-medium">{paymentPrice.toLocaleString("vi-VN")} VND</span>
                   <span className="text-slate-500">Member ID</span>
                   <span className="font-medium">{foundMember.displayId ?? foundMember.id}</span>
-                  {(paymentCurrentExpiry || paymentNewExpiry) && (
+                  {(paymentCurrentExpiry || paymentNewExpiry || paymentVisitsAdded) && (
                     <>
                       <span className="text-slate-500">Current expiry</span>
                       <span className="font-medium">
@@ -1225,15 +1265,17 @@ export default function AdminPage() {
                             })
                           : "—"}
                       </span>
-                      <span className="text-slate-500">After purchase</span>
+                      <span className="text-slate-500">{paymentVisitsAdded ? "Adds visits" : "After purchase"}</span>
                       <span className="font-medium text-emerald-600">
-                        {paymentNewExpiry
-                          ? new Date(paymentNewExpiry).toLocaleDateString("en-US", {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            })
-                          : "—"}
+                        {paymentVisitsAdded != null
+                          ? `+${paymentVisitsAdded} visits`
+                          : paymentNewExpiry
+                            ? new Date(paymentNewExpiry).toLocaleDateString("en-US", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })
+                            : "—"}
                       </span>
                     </>
                   )}

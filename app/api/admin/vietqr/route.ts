@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const supabase = createServerClient();
   const { data: member } = await supabase
     .from("member_profiles")
-    .select("id, member_code, membership_expires_at")
+    .select("id, member_code, membership_expires_at, visits_remaining")
     .eq("id", memberId)
     .maybeSingle();
   if (!member) {
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   }
   const { data: plan } = await supabase
     .from("membership_plans")
-    .select("id, name, price_vnd, duration_days")
+    .select("id, name, price_vnd, duration_days, duration_visits")
     .eq("id", planId)
     .maybeSingle();
   if (!plan) {
@@ -32,14 +32,30 @@ export async function GET(req: NextRequest) {
   }
   const planName = plan.name as string;
   const priceVnd = plan.price_vnd as number;
-  const now = new Date();
-  const currentExpiry = member.membership_expires_at
-    ? new Date(member.membership_expires_at as string)
-    : null;
-  const newExpiry = computeNewExpiry(currentExpiry, plan.duration_days ?? 0, now);
-  const dateStr = newExpiry.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const durationVisits = (plan.duration_visits as number | null) ?? 0;
+  const isVisitPass = durationVisits > 0;
+  const currentVisits = (member.visits_remaining as number) ?? 0;
+  const hasActiveVisitPass = currentVisits > 0;
+  const expiresAt = member.membership_expires_at ? new Date(member.membership_expires_at as string) : null;
+  const hasActiveDayPass = expiresAt && expiresAt.getTime() > Date.now();
+  if (hasActiveVisitPass && !isVisitPass) {
+    return NextResponse.json({ error: "Member has active visit pass. Can only add more visit passes." }, { status: 400 });
+  }
+  if (hasActiveDayPass && !hasActiveVisitPass && isVisitPass) {
+    return NextResponse.json({ error: "Visit passes can only be purchased when member is inactive." }, { status: 400 });
+  }
   const memberCode = (member.member_code as string | null) ?? `LM-${String(member.id).slice(0, 8).toUpperCase()}`;
-  const memo = `${memberCode} ${planName} ${dateStr}`.replace(/\s+/g, " ").trim();
+  let memo: string;
+  let newExpiry: Date | null = null;
+  if (isVisitPass) {
+    memo = `${memberCode} ${planName}`.replace(/\s+/g, " ").trim();
+  } else {
+    const now = new Date();
+    const currentExpiry = member.membership_expires_at ? new Date(member.membership_expires_at as string) : null;
+    newExpiry = computeNewExpiry(currentExpiry, (plan.duration_days as number) ?? 0, now);
+    const dateStr = newExpiry.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+    memo = `${memberCode} ${planName} ${dateStr}`.replace(/\s+/g, " ").trim();
+  }
   const qrUrl = getVietQRUrl(priceVnd, memo);
   return NextResponse.json({
     url: qrUrl,
@@ -47,6 +63,7 @@ export async function GET(req: NextRequest) {
     price_vnd: priceVnd,
     memo,
     current_expiry: member.membership_expires_at ?? null,
-    new_expiry: newExpiry.toISOString(),
+    new_expiry: newExpiry?.toISOString() ?? null,
+    visits_added: isVisitPass ? durationVisits : undefined,
   });
 }
