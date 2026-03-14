@@ -454,7 +454,11 @@ export default function DashboardPage() {
   const displayName = member.full_name?.trim() || (isVi ? "bạn" : "Member");
   const greeting = isVi ? `Chào lại, ${displayName}` : `Welcome back, ${displayName}`;
 
-  const qrPayload = `leo-member:${member.id}`;
+  // URL format so scanning with phone camera opens link → immediate check-in. Also supports leo-member:id for admin paste.
+  const qrPayload =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/api/checkin?member_id=${encodeURIComponent(member.id)}`
+      : `leo-member:${member.id}`;
 
   const memberSince = safeDate(member.created_at, isVi ? "vi-VN" : "en-US");
   const lastCheckIn = member.last_checkin

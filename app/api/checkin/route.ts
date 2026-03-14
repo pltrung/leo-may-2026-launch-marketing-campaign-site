@@ -1,22 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 
-/**
- * POST /api/checkin
- * Body: { member_id: string }
- * Inserts a gym check-in. Verification is server-side when staff scans QR.
- * Requires active membership with valid expiry.
- */
-export async function POST(request: NextRequest) {
+async function performCheckIn(memberId: string, location: string | null): Promise<NextResponse> {
   try {
-    const body = await request.json();
-    const memberId = typeof body.member_id === "string" ? body.member_id.trim() : null;
-    const location = typeof body.location === "string" ? body.location.trim() : null;
-
-    if (!memberId) {
-      return NextResponse.json({ error: "member_id required" }, { status: 400 });
-    }
-
     const supabase = createServerClient();
     const { data: profile, error: profileErr } = await supabase
       .from("member_profiles")
@@ -85,4 +71,43 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * POST /api/checkin
+ * Body: { member_id: string, location?: string }
+ * Inserts a gym check-in. Used by admin "Check In" and "Manual Check-In" buttons.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const memberId = typeof body.member_id === "string" ? body.member_id.trim() : null;
+    const location = typeof body.location === "string" ? body.location.trim() : null;
+
+    if (!memberId) {
+      return NextResponse.json({ error: "member_id required" }, { status: 400 });
+    }
+
+    return performCheckIn(memberId, location);
+  } catch {
+    return NextResponse.json(
+      { error: "Something went wrong" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * GET /api/checkin?member_id=xxx
+ * Same check-in logic as POST. Use for QR codes that encode a URL, or links.
+ * All check-in paths (POST and GET) insert into gym_checkins and trigger Realtime.
+ */
+export async function GET(request: NextRequest) {
+  const memberId = request.nextUrl.searchParams.get("member_id")?.trim() ?? null;
+
+  if (!memberId) {
+    return NextResponse.json({ error: "member_id required" }, { status: 400 });
+  }
+
+  return performCheckIn(memberId, null);
 }

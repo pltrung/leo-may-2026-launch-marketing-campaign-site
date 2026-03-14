@@ -206,12 +206,17 @@ export default function AdminPage() {
 
     let params = new URLSearchParams();
 
-    if (searchMode === "qr" || raw.startsWith("leo-member:")) {
-      const payload = raw.startsWith("leo-member:") ? raw : raw;
-      const parts = payload.split(":");
-      const memberId = parts.length === 2 ? parts[1] : "";
+    if (searchMode === "qr" || raw.startsWith("leo-member:") || raw.includes("member_id=")) {
+      let memberId = "";
+      if (raw.startsWith("leo-member:")) {
+        const parts = raw.split(":");
+        memberId = parts.length === 2 ? parts[1].trim() : "";
+      } else {
+        const match = raw.match(/member_id=([^&\s#]+)/);
+        memberId = (match?.[1] ?? "").trim();
+      }
       if (!memberId) {
-        setSearchError("Could not read QR payload.");
+        setSearchError("Could not read QR payload or URL.");
         return;
       }
       params.set("id", memberId);
