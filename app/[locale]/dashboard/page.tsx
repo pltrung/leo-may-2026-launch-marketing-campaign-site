@@ -195,6 +195,7 @@ export default function DashboardPage() {
     minutes_until: number;
   } | null>(null);
   const [tick, setTick] = useState(0);
+  const lastCheckinRef = useRef<string | null>(null);
 
   // Live countdown tick for newbie class (updates every second)
   useEffect(() => {
@@ -354,7 +355,7 @@ export default function DashboardPage() {
 
   // Subscribe to check-ins realtime so dashboard updates when member is checked in (admin or QR scan)
   useEffect(() => {
-    if (!member?.id) return;
+    if (!member?.id || !accessToken) return;
     let supabase;
     try {
       supabase = getSupabaseBrowserClient();
@@ -375,13 +376,53 @@ export default function DashboardPage() {
           setCheckInSuccess(true);
           refresh();
           setTimeout(() => setCheckInSuccess(false), 8000);
+          // Explicitly refetch climbing progress so it updates in real time
+          fetch("/api/member/progress", { headers: { Authorization: `Bearer ${accessToken}` } })
+            .then((r) => r.json())
+            .then((data) => {
+              if (data && typeof data.level === "string") setClimbingProgress(data);
+            })
+            .catch(() => {});
         }
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [member?.id, refresh]);
+  }, [member?.id, accessToken, refresh]);
+
+  // Polling fallback: when Realtime doesn't deliver, detect new check-in by comparing last_checkin
+  useEffect(() => {
+    if (!accessToken || !member?.id) return;
+    lastCheckinRef.current = member.last_checkin ?? null;
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      fetch("/api/member/me", { headers: { Authorization: `Bearer ${accessToken}` } })
+        .then((r) => r.json())
+        .then((data) => {
+          const newLastCheckin = data?.member?.last_checkin ?? null;
+          const prev = lastCheckinRef.current;
+          if (!newLastCheckin) return;
+          const prevTs = prev ? new Date(prev).getTime() : 0;
+          if (new Date(newLastCheckin).getTime() > prevTs) {
+            lastCheckinRef.current = newLastCheckin;
+            setCheckInSuccess(true);
+            setTimeout(() => setCheckInSuccess(false), 8000);
+            refresh();
+            fetch("/api/member/progress", { headers: { Authorization: `Bearer ${accessToken}` } })
+              .then((res) => res.json())
+              .then((d) => {
+                if (d && typeof d.level === "string") setClimbingProgress(d);
+              })
+              .catch(() => {});
+          } else {
+            lastCheckinRef.current = newLastCheckin;
+          }
+        })
+        .catch(() => {});
+    }, 12000);
+    return () => clearInterval(interval);
+  }, [accessToken, member?.id, member?.last_checkin, refresh]);
 
   // Subscribe to member_achievements to show achievement unlock modal when a new one is earned (e.g. after check-in)
   useEffect(() => {

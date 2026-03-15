@@ -127,6 +127,22 @@ export async function POST(req: NextRequest) {
       profilePhotoUrl = urlData.publicUrl;
     }
 
+    if (idNumber !== undefined && idNumber !== null) {
+      const { data: other } = await supabase
+        .from("member_profiles")
+        .select("id")
+        .eq("id_number", idNumber)
+        .neq("id", member.id)
+        .limit(1)
+        .maybeSingle();
+      if (other) {
+        return NextResponse.json(
+          { error: "This ID number is already registered to another member." },
+          { status: 400 }
+        );
+      }
+    }
+
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (profilePhotoUrl !== null) updates.profile_photo_url = profilePhotoUrl;
     if (idNumber !== undefined) updates.id_number = idNumber;

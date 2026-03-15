@@ -2,6 +2,8 @@
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import { getMessages } from "@/lib/messages";
+import { extractIdFromVnEidQr } from "@/lib/vnEidQr";
+import EidQrScannerModal from "@/components/dashboard/EidQrScannerModal";
 
 interface ProfileModalProps {
   open: boolean;
@@ -53,6 +55,7 @@ export default function ProfileModal({
   const [error, setError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [eidScannerOpen, setEidScannerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -72,8 +75,40 @@ export default function ProfileModal({
       setError(null);
       setPasswordError(null);
       setPasswordSuccess(false);
+      setEidScannerOpen(false);
     }
   }, [open, member.full_name, member.email, member.phone, member.instagram_handle, member.gender, member.id_number, member.date_of_birth, member.profile_photo_url]);
+
+  const handleEidScanned = useCallback(
+    async (rawContent: string) => {
+      const parsed = extractIdFromVnEidQr(rawContent);
+      if (!parsed) {
+        setError(d.noIdInQr);
+        return;
+      }
+      setError(null);
+      if (!accessToken) return;
+      try {
+        const res = await fetch(
+          `/api/member/profile/check-id?id_number=${encodeURIComponent(parsed)}`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error ?? d.idAlreadyRegistered);
+          return;
+        }
+        if (data.available) {
+          setIdNumber(parsed);
+        } else {
+          setError(d.idAlreadyRegistered);
+        }
+      } catch {
+        setError(isVi ? "Không thể kiểm tra. Thử lại." : "Could not check. Try again.");
+      }
+    },
+    [accessToken, d.noIdInQr, d.idAlreadyRegistered, isVi]
+  );
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -319,14 +354,32 @@ export default function ProfileModal({
               <span className="text-xs text-white/70">
                 {isVi ? "Số CCCD / Hộ chiếu" : "Govt ID / Passport"}
               </span>
-              <input
-                type="text"
-                value={idNumber}
-                onChange={(e) => setIdNumber(e.target.value)}
-                placeholder={isVi ? "Nhập số CCCD hoặc hộ chiếu" : "Enter CCCD or passport number"}
-                className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-              />
+              <div className="mt-1 flex gap-2">
+                <input
+                  type="text"
+                  value={idNumber}
+                  onChange={(e) => { setIdNumber(e.target.value); setError(null); }}
+                  placeholder={isVi ? "Nhập số CCCD hoặc hộ chiếu" : "Enter CCCD or passport number"}
+                  className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                />
+                <button
+                  type="button"
+                  onClick={() => { setError(null); setEidScannerOpen(true); }}
+                  className="shrink-0 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm font-medium hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  title={d.scanVnEid}
+                >
+                  {d.scanVnEid}
+                </button>
+              </div>
             </label>
+            <EidQrScannerModal
+              open={eidScannerOpen}
+              onClose={() => setEidScannerOpen(false)}
+              onScanned={handleEidScanned}
+              onError={(msg) => setError(msg)}
+              title={d.scanVnEid}
+              hint={d.scanVnEidHint}
+            />
             <label className="block">
               <span className="text-xs text-white/70">
                 {isVi ? "Ngày sinh" : "Date of birth"}

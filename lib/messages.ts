@@ -500,6 +500,10 @@ const en = {
     passwordUpdated: "Password updated.",
     passwordError: "Failed to update password.",
     passwordMismatch: "Passwords do not match.",
+    scanVnEid: "Scan VN eID",
+    scanVnEidHint: "Point your camera at the QR code on your VN eID (CCCD) or passport.",
+    idAlreadyRegistered: "This ID number is already registered to another member.",
+    noIdInQr: "No valid ID number found in the QR code. Try again or enter manually.",
   },
   admin: {
     title: "Leo Mây Admin",
@@ -1145,6 +1149,10 @@ const vi: Messages = {
     passwordUpdated: "Đã cập nhật mật khẩu.",
     passwordError: "Không thể cập nhật mật khẩu.",
     passwordMismatch: "Mật khẩu không khớp.",
+    scanVnEid: "Quét CCCD / VN eID",
+    scanVnEidHint: "Hướng camera vào mã QR trên CCCD hoặc hộ chiếu VN.",
+    idAlreadyRegistered: "Số CCCD/ID này đã được đăng ký cho thành viên khác.",
+    noIdInQr: "Không tìm thấy số định danh trong mã QR. Thử lại hoặc nhập tay.",
   },
   admin: {
     title: "Leo Mây Admin",
