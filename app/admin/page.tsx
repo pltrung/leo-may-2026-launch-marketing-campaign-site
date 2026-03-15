@@ -120,7 +120,7 @@ export default function AdminPage() {
     sessions: { id: string; start_time: string; coach_id: string | null; session_type: string; staff_profiles?: { email?: string } | { email?: string }[] }[];
     zones: { id: string; name: string; next_reset_at: string | null; overdue?: boolean }[];
     tasks: { id: string; title: string; status: string; completed_at: string | null }[];
-    summary: { staff_in_today: number; staff_out_today: number; sessions_today: number; zones_overdue: number; tasks_pending: number };
+    summary: { staff_in_today: number; staff_out_today: number; sessions_today: number; newbie_attendance_today?: number; zones_overdue: number; tasks_pending: number };
   } | null>(null);
 
   // Fetch plans
@@ -1339,13 +1339,16 @@ export default function AdminPage() {
                     }).join(", ") || "—"}</p>
                   </div>
                   <div>
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Coaching sessions today ({staffOpsData.sessions.length})</h4>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                      Coaching sessions today ({staffOpsData.sessions.length})
+                      {" — "}Newbie attendance: {staffOpsData.summary.newbie_attendance_today ?? 0}
+                    </h4>
                     {staffOpsData.sessions.length === 0 && <p className="text-sm text-slate-500">No sessions.</p>}
                     <ul className="space-y-1 text-sm">
-                      {staffOpsData.sessions.slice(0, 20).map((s: { id: string; start_time: string; coach_id: string | null; staff_profiles?: { email?: string } | { email?: string }[] }) => (
-                        <li key={s.id} className="flex justify-between">
-                          <span>{new Date(s.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
-                          <span className="text-slate-600">
+                      {staffOpsData.sessions.slice(0, 20).map((s: { id: string; start_time: string; coach_id: string | null; staff_profiles?: { email?: string } | { email?: string }[]; location?: string; newbie_count?: number }) => (
+                        <li key={s.id} className="flex justify-between items-start gap-2">
+                          <span>{new Date(s.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} {s.location && <span className="text-slate-500">· {s.location}</span>} {(s.newbie_count ?? 0) > 0 && <span className="text-emerald-600">({s.newbie_count} newbie{(s.newbie_count ?? 0) !== 1 ? "s" : ""})</span>}</span>
+                          <span className="text-slate-600 shrink-0">
                             {s.coach_id ? (Array.isArray(s.staff_profiles) ? (s.staff_profiles[0] as { email?: string })?.email : (s.staff_profiles as { email?: string })?.email) ?? "Assigned" : "Unassigned"}
                           </span>
                         </li>

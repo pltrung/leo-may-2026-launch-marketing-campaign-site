@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { computeNewExpiry } from "@/lib/membershipExtension";
+import { bookNewbieClass } from "@/lib/newbieClassBooking";
 
 const webhookSecret = process.env.PAYMENT_WEBHOOK_SECRET;
 
@@ -148,13 +149,22 @@ export async function POST(req: NextRequest) {
   };
   if (transactionId) insertPayload.gateway_transaction_id = transactionId;
 
-  const { error: payErr } = await supabase.from("payments").insert(insertPayload);
+  const { data: insertedPayment, error: payErr } = await supabase
+    .from("payments")
+    .insert(insertPayload)
+    .select("id")
+    .single();
   if (payErr) {
     if (payErr.code === "23505") {
       return NextResponse.json({ received: true }); // unique violation, already processed
     }
     console.error("payment webhook insert error", payErr);
     return NextResponse.json({ error: "Failed to record payment" }, { status: 500 });
+  }
+  const paymentId = insertedPayment?.id ?? null;
+
+  if (planId === "newbie_class" && paymentId) {
+    await bookNewbieClass(supabase, memberRow.id, paymentId);
   }
 
   const updatePayload: Record<string, unknown> = { updated_at: now.toISOString() };

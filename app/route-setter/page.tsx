@@ -18,6 +18,9 @@ interface CoachingSession {
   coach_id: string | null;
   session_type: string;
   status: string;
+  location?: string;
+  newbie_count?: number;
+  staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] | null;
 }
 
 interface RouteZone {
@@ -254,76 +257,67 @@ export default function RouteSetterPage() {
           )}
         </section>
 
-        {/* Alerts: overdue zones */}
-        {overdueZones.length > 0 && (
-          <section className="rounded-xl bg-amber-900/30 border border-amber-700 p-4">
-            <h2 className="text-sm font-semibold text-amber-200 uppercase tracking-wider mb-2">
-              Overdue route resets
+        {/* Daily operations tasks — only show when there are pending tasks */}
+        {tasks.some((t) => t.status === "pending") && (
+          <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
+            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
+              Daily operations tasks
             </h2>
             <ul className="space-y-2">
-              {overdueZones.map((z) => (
-                <li key={z.id} className="flex justify-between items-center">
-                  <span>{z.name}</span>
-                  <button
-                    type="button"
-                    disabled={resettingZoneId === z.id}
-                    onClick={() => handleZoneReset(z.id)}
-                    className="px-3 py-1.5 rounded bg-amber-600 text-amber-100 text-sm font-medium hover:bg-amber-500 disabled:opacity-50"
-                  >
-                    {resettingZoneId === z.id ? "…" : "Mark reset complete"}
-                  </button>
+              {tasks.map((t) => (
+                <li key={t.id} className="flex items-center justify-between gap-2 py-2 border-b border-slate-700 last:border-0">
+                  <div className="flex-1 min-w-0">
+                    <span className={t.status === "completed" ? "line-through text-slate-500" : "text-slate-200"}>
+                      {t.title}
+                    </span>
+                    {t.description && (
+                      <p className="text-xs text-slate-500 mt-0.5">{t.description}</p>
+                    )}
+                  </div>
+                  {t.status === "pending" && (
+                    <button
+                      type="button"
+                      disabled={completingTaskId === t.id}
+                      onClick={() => handleCompleteTask(t.id)}
+                      className="shrink-0 px-3 py-1.5 rounded bg-emerald-600 text-white text-sm hover:bg-emerald-500 disabled:opacity-50"
+                    >
+                      {completingTaskId === t.id ? "…" : "Complete"}
+                    </button>
+                  )}
+                  {t.status === "completed" && (
+                    <span className="text-emerald-400 text-sm">Done</span>
+                  )}
                 </li>
               ))}
             </ul>
           </section>
         )}
 
-        {/* Today's Coaching Sessions */}
+        {/* Route reset schedule */}
         <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
           <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
-            Today’s coaching sessions
+            Route reset schedule
           </h2>
-          {sessions.length === 0 && <p className="text-slate-500 text-sm">No sessions scheduled.</p>}
-          {mySessions.length > 0 && (
-            <div className="mb-3">
-              <p className="text-xs text-slate-400 mb-2">Your sessions</p>
+          {overdueZones.length > 0 && (
+            <div className="mb-3 p-2 rounded-lg bg-amber-900/30 border border-amber-700">
+              <p className="text-xs font-semibold text-amber-200 uppercase tracking-wider mb-2">Overdue</p>
               <ul className="space-y-1.5">
-                {mySessions.map((s) => (
-                  <li key={s.id} className="flex justify-between items-center py-2 px-3 rounded-lg bg-slate-700/50 text-sm">
-                    <span>{formatTime(s.start_time)} – {formatTime(s.end_time)}</span>
-                    <span className="text-emerald-400">Assigned to you</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {unassignedSessions.length > 0 && isIn && (
-            <div>
-              <p className="text-xs text-slate-400 mb-2">Unassigned — tap to take</p>
-              <ul className="space-y-1.5">
-                {unassignedSessions.map((s) => (
-                  <li key={s.id} className="flex justify-between items-center py-2 px-3 rounded-lg bg-slate-700/50 text-sm">
-                    <span>{formatTime(s.start_time)} – {formatTime(s.end_time)}</span>
+                {overdueZones.map((z) => (
+                  <li key={z.id} className="flex justify-between items-center text-sm">
+                    <span>{z.name}</span>
                     <button
                       type="button"
-                      disabled={assigningId === s.id}
-                      onClick={() => handleAssignSession(s.id)}
-                      className="text-amber-400 hover:text-amber-300 text-sm font-medium disabled:opacity-50"
+                      disabled={resettingZoneId === z.id}
+                      onClick={() => handleZoneReset(z.id)}
+                      className="px-2 py-1 rounded bg-amber-600 text-amber-100 text-xs font-medium hover:bg-amber-500 disabled:opacity-50"
                     >
-                      {assigningId === s.id ? "…" : "Assign to me"}
+                      {resettingZoneId === z.id ? "…" : "Mark reset complete"}
                     </button>
                   </li>
                 ))}
               </ul>
             </div>
           )}
-        </section>
-
-        {/* Route reset schedule */}
-        <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
-          <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
-            Route reset schedule
-          </h2>
           <ul className="space-y-2">
             {zones.map((z) => (
               <li key={z.id} className="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-slate-700 last:border-0">
@@ -355,39 +349,61 @@ export default function RouteSetterPage() {
           </ul>
         </section>
 
-        {/* Daily operations tasks */}
+        {/* Today's coaching sessions */}
         <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
           <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
-            Daily operations tasks
+            Today’s coaching sessions
           </h2>
-          <ul className="space-y-2">
-            {tasks.map((t) => (
-              <li key={t.id} className="flex items-center justify-between gap-2 py-2 border-b border-slate-700 last:border-0">
-                <div className="flex-1 min-w-0">
-                  <span className={t.status === "completed" ? "line-through text-slate-500" : "text-slate-200"}>
-                    {t.title}
-                  </span>
-                  {t.description && (
-                    <p className="text-xs text-slate-500 mt-0.5">{t.description}</p>
-                  )}
-                </div>
-                {t.status === "pending" && (
-                  <button
-                    type="button"
-                    disabled={completingTaskId === t.id}
-                    onClick={() => handleCompleteTask(t.id)}
-                    className="shrink-0 px-3 py-1.5 rounded bg-emerald-600 text-white text-sm hover:bg-emerald-500 disabled:opacity-50"
-                  >
-                    {completingTaskId === t.id ? "…" : "Complete"}
-                  </button>
-                )}
-                {t.status === "completed" && (
-                  <span className="text-emerald-400 text-sm">Done</span>
-                )}
-              </li>
-            ))}
-          </ul>
-          {tasks.length === 0 && <p className="text-slate-500 text-sm">No tasks.</p>}
+          {sessions.length === 0 && <p className="text-slate-500 text-sm">No sessions scheduled.</p>}
+          {mySessions.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs text-slate-400 mb-2">Your sessions</p>
+              <ul className="space-y-1.5">
+                {mySessions.map((s) => (
+                  <li key={s.id} className="py-2 px-3 rounded-lg bg-slate-700/50 text-sm space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span>{formatTime(s.start_time)} – {formatTime(s.end_time)}</span>
+                      <span className="text-emerald-400">Assigned to you</span>
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {s.location && <span>{s.location}</span>}
+                      {(s.newbie_count ?? 0) > 0 && (
+                        <span className="ml-2">{s.newbie_count} newbie{(s.newbie_count ?? 0) !== 1 ? "s" : ""} attending</span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {unassignedSessions.length > 0 && isIn && (
+            <div>
+              <p className="text-xs text-slate-400 mb-2">Unassigned — tap to take</p>
+              <ul className="space-y-1.5">
+                {unassignedSessions.map((s) => (
+                  <li key={s.id} className="py-2 px-3 rounded-lg bg-slate-700/50 text-sm space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span>{formatTime(s.start_time)} – {formatTime(s.end_time)}</span>
+                      <button
+                        type="button"
+                        disabled={assigningId === s.id}
+                        onClick={() => handleAssignSession(s.id)}
+                        className="text-amber-400 hover:text-amber-300 text-sm font-medium disabled:opacity-50"
+                      >
+                        {assigningId === s.id ? "…" : "Assign to me"}
+                      </button>
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {s.location && <span>{s.location}</span>}
+                      {(s.newbie_count ?? 0) > 0 && (
+                        <span className="ml-2">{s.newbie_count} newbie{(s.newbie_count ?? 0) !== 1 ? "s" : ""} attending</span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
       </main>
     </div>

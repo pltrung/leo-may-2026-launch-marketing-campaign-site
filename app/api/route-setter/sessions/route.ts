@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 
   const { data: sessions, error } = await supabase
     .from("coaching_sessions")
-    .select("id, start_time, end_time, coach_id, session_type, status")
+    .select("id, start_time, end_time, coach_id, session_type, status, location, staff_profiles(email, display_name)")
     .gte("start_time", startOfDay)
     .lte("start_time", endOfDay)
     .in("status", ["scheduled"])
@@ -39,11 +39,30 @@ export async function GET(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const list = sessions ?? [];
-  const mySessions = list.filter((s) => s.coach_id === staff.id);
-  const unassigned = list.filter((s) => !s.coach_id);
+  const sessionIds = list.map((s) => s.id);
+  const newbieCountBySession: Record<string, number> = {};
+  if (sessionIds.length > 0) {
+    const { data: bookings } = await supabase
+      .from("newbie_class_bookings")
+      .select("coaching_session_id")
+      .in("coaching_session_id", sessionIds);
+    for (const b of bookings ?? []) {
+      const id = b.coaching_session_id as string;
+      newbieCountBySession[id] = (newbieCountBySession[id] ?? 0) + 1;
+    }
+  }
+
+  const listWithMeta = list.map((s) => ({
+    ...s,
+    location: (s.location as string) ?? "Main Wall - Beginner Area",
+    newbie_count: newbieCountBySession[s.id] ?? 0,
+  }));
+
+  const mySessions = listWithMeta.filter((s) => s.coach_id === staff.id);
+  const unassigned = listWithMeta.filter((s) => !s.coach_id);
 
   return NextResponse.json({
-    sessions: list,
+    sessions: listWithMeta,
     my_sessions: mySessions,
     unassigned,
   });

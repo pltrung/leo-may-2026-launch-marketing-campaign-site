@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
 import { computeNewExpiry } from "@/lib/membershipExtension";
+import { bookNewbieClass } from "@/lib/newbieClassBooking";
 
 /**
  * POST - Confirm payment and extend membership
@@ -61,17 +62,27 @@ export async function POST(req: NextRequest) {
       : null;
     const newVisits = isVisitPass ? currentVisits + durationVisits : currentVisits;
 
-    const { error: payErr } = await supabase.from("payments").insert({
-      member_id: memberId,
-      plan_id: planId,
-      amount: amountVnd,
-      method,
-      status: "success",
-      memo,
-    });
+    const isNewbieClass = planId === "newbie_class";
+    const { data: insertedPayment, error: payErr } = await supabase
+      .from("payments")
+      .insert({
+        member_id: memberId,
+        plan_id: planId,
+        amount: amountVnd,
+        method,
+        status: "success",
+        memo,
+      })
+      .select("id")
+      .single();
     if (payErr) {
       console.error("payment insert error", payErr);
       return NextResponse.json({ error: "Failed to record payment" }, { status: 500 });
+    }
+    const paymentId = insertedPayment?.id ?? null;
+
+    if (isNewbieClass && paymentId) {
+      await bookNewbieClass(supabase, memberId, paymentId);
     }
 
     const updatePayload: Record<string, unknown> = {

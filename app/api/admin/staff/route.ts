@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       .order("status"),
     supabase
       .from("coaching_sessions")
-      .select("id, start_time, end_time, coach_id, session_type, status, staff_profiles(email)")
+      .select("id, start_time, end_time, coach_id, session_type, status, location, staff_profiles(email, display_name)")
       .gte("start_time", startOfDay)
       .lte("start_time", endOfDay)
       .in("status", ["scheduled"])
@@ -54,15 +54,36 @@ export async function GET(request: NextRequest) {
     overdue: z.next_reset_at ? z.next_reset_at < now : false,
   }));
 
+  const sessionIds = sessions.map((s) => s.id);
+  const newbieCountBySession: Record<string, number> = {};
+  if (sessionIds.length > 0) {
+    const { data: bookings } = await supabase
+      .from("newbie_class_bookings")
+      .select("coaching_session_id")
+      .in("coaching_session_id", sessionIds);
+    for (const b of bookings ?? []) {
+      const id = b.coaching_session_id as string;
+      newbieCountBySession[id] = (newbieCountBySession[id] ?? 0) + 1;
+    }
+  }
+  const sessionsWithNewbieCount = sessions.map((s) => ({
+    ...s,
+    location: (s.location as string) ?? "Main Wall - Beginner Area",
+    newbie_count: newbieCountBySession[s.id] ?? 0,
+  }));
+
+  const totalNewbieAttendance = Object.values(newbieCountBySession).reduce((a, b) => a + b, 0);
+
   return NextResponse.json({
     attendance: { in: staffIn, out: staffOut, all: attendance },
-    sessions,
+    sessions: sessionsWithNewbieCount,
     zones: zonesWithStatus,
     tasks,
     summary: {
       staff_in_today: staffIn.length,
       staff_out_today: staffOut.length,
       sessions_today: sessions.length,
+      newbie_attendance_today: totalNewbieAttendance,
       zones_overdue: zonesWithStatus.filter((z) => z.overdue).length,
       tasks_pending: tasks.filter((t) => t.status === "pending").length,
     },

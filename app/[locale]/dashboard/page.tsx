@@ -186,6 +186,14 @@ export default function DashboardPage() {
   const [achievementUnlock, setAchievementUnlock] = useState<AchievementUnlockData | null>(null);
   const [showAchievementUnlock, setShowAchievementUnlock] = useState(false);
   const [leaderboardPeriod, setLeaderboardPeriod] = useState<"week" | "month" | "all">("month");
+  const [newbieClass, setNewbieClass] = useState<{
+    session_id: string;
+    start_time: string;
+    end_time: string;
+    location: string;
+    coach_name: string | null;
+    minutes_until: number;
+  } | null>(null);
 
   // Handle VNPay return: show payment success banner, refresh member, then clean URL
   useEffect(() => {
@@ -232,6 +240,20 @@ export default function DashboardPage() {
       .catch(() => {});
     return () => { cancelled = true; };
   }, [accessToken, checkInSuccess, paymentSuccess]);
+
+  // Fetch upcoming newbie class (when member has purchased Newbie Class)
+  useEffect(() => {
+    if (!accessToken) return;
+    let cancelled = false;
+    fetch("/api/member/newbie-class", { headers: { Authorization: `Bearer ${accessToken}` } })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && data?.newbie_class) setNewbieClass(data.newbie_class);
+        else if (!cancelled) setNewbieClass(null);
+      })
+      .catch(() => { if (!cancelled) setNewbieClass(null); });
+    return () => { cancelled = true; };
+  }, [accessToken, paymentSuccess]);
 
   // Fetch leaderboard via API (no client Supabase)
   useEffect(() => {
@@ -1124,6 +1146,33 @@ export default function DashboardPage() {
                   );
                 })()}
                 <style>{`[data-passes-carousel]::-webkit-scrollbar { display: none; }`}</style>
+                {newbieClass && (
+                  <div className="mt-4 p-4 rounded-[18px] border border-emerald-500/40 bg-emerald-500/10">
+                    <p className="text-xs font-semibold text-emerald-300/90 uppercase tracking-wider mb-2">
+                      {isVi ? "Lớp Newbie của bạn" : "Your Newbie Class"}
+                    </p>
+                    <p className="text-white/95 font-medium">
+                      {new Date(newbieClass.start_time).toLocaleTimeString(isVi ? "vi-VN" : "en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
+                      {" – "}
+                      {new Date(newbieClass.end_time).toLocaleTimeString(isVi ? "vi-VN" : "en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
+                    </p>
+                    <p className="text-emerald-200/90 text-sm mt-1">
+                      {newbieClass.minutes_until <= 0
+                        ? (isVi ? "Đang diễn ra" : "Happening now")
+                        : newbieClass.minutes_until < 60
+                          ? (isVi ? `Bắt đầu sau ${newbieClass.minutes_until} phút` : `Starts in ${newbieClass.minutes_until} minutes`)
+                          : (isVi ? `Bắt đầu sau ${Math.floor(newbieClass.minutes_until / 60)} giờ` : `Starts in ${Math.floor(newbieClass.minutes_until / 60)} hour(s)`)}
+                    </p>
+                    <p className="text-white/80 text-sm mt-2">
+                      {isVi ? "Địa điểm: " : "Where to be: "}<strong>{newbieClass.location}</strong>
+                    </p>
+                    {newbieClass.coach_name && (
+                      <p className="text-white/70 text-xs mt-1">
+                        {isVi ? "Coach: " : "Coach: "}{newbieClass.coach_name}
+                      </p>
+                    )}
+                  </div>
+                )}
                 {payments.length > 0 && (
                   <div className="pt-3 border-t border-white/[0.08]">
                     <p className="text-xs font-medium text-white/70 uppercase tracking-wider mb-2">
