@@ -198,7 +198,7 @@ export default function DashboardPage() {
   // Fetch occupancy once on mount (no polling)
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/admin/occupancy")
+    fetch("/api/occupancy")
       .then((r) => r.json())
       .then((data) => {
         if (!cancelled && typeof data.count === "number") setGymOccupancy(data.count);
