@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
+import { computeStreakUpdate, evaluateAndGrantAchievements } from "@/lib/achievements";
 
 async function performCheckIn(memberId: string, location: string | null): Promise<NextResponse> {
   try {
     const supabase = createServerClient();
     const { data: profile, error: profileErr } = await supabase
       .from("member_profiles")
-      .select("waiver_signed, membership_status, membership_expires_at, visits_remaining, profile_photo_url")
+      .select("waiver_signed, membership_status, membership_expires_at, visits_remaining, profile_photo_url, current_streak, best_streak, last_checkin_date")
       .eq("id", memberId)
       .maybeSingle();
 
@@ -44,10 +45,14 @@ async function performCheckIn(memberId: string, location: string | null): Promis
       );
     }
 
-    const { error } = await supabase.from("gym_checkins").insert({
-      member_id: memberId,
-      location: location ?? null,
-    });
+    const { data: inserted, error } = await supabase
+      .from("gym_checkins")
+      .insert({
+        member_id: memberId,
+        location: location ?? null,
+      })
+      .select("timestamp")
+      .single();
 
     if (error) {
       console.error("Checkin insert error:", error);
@@ -57,6 +62,8 @@ async function performCheckIn(memberId: string, location: string | null): Promis
       );
     }
 
+    const checkinTimestamp = (inserted?.timestamp as string) ?? new Date().toISOString();
+
     if (hasValidVisitPass) {
       await supabase
         .from("member_profiles")
@@ -64,7 +71,41 @@ async function performCheckIn(memberId: string, location: string | null): Promis
         .eq("id", memberId);
     }
 
-    return NextResponse.json({ ok: true });
+    const currentStreak = (profile.current_streak as number) ?? 0;
+    const bestStreak = (profile.best_streak as number) ?? 0;
+    const lastCheckinDate = (profile.last_checkin_date as string | null) ?? null;
+
+    const { newCurrentStreak, newBestStreak, newLastCheckinDate } = computeStreakUpdate(
+      lastCheckinDate,
+      currentStreak,
+      bestStreak,
+      checkinTimestamp
+    );
+
+    await supabase
+      .from("member_profiles")
+      .update({
+        current_streak: newCurrentStreak,
+        best_streak: newBestStreak,
+        last_checkin_date: newLastCheckinDate,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", memberId);
+
+    const { count } = await supabase
+      .from("gym_checkins")
+      .select("id", { count: "exact", head: true })
+      .eq("member_id", memberId);
+
+    const totalVisits = count ?? 0;
+
+    const newlyGranted = await evaluateAndGrantAchievements(supabase, memberId, {
+      totalVisits,
+      currentStreak: newCurrentStreak,
+      checkinTimestamp,
+    });
+
+    return NextResponse.json({ ok: true, new_achievements: newlyGranted });
   } catch {
     return NextResponse.json(
       { error: "Something went wrong" },

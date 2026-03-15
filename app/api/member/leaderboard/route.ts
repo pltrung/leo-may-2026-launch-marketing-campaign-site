@@ -9,10 +9,14 @@ const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
  * GET /api/member/leaderboard
  * Authorization: Bearer <access_token>
  * Query: ?gender=male|female|all (default: all)
+ *        ?period=week|month|all (default: month)
  *
- * Returns monthly gym check-in leaderboard for current month:
+ * Returns leaderboard by period:
+ * - week: last 7 days
+ * - month: current month
+ * - all: all-time (total visits)
  * - top: top 20 members by visits (filtered by gender if specified)
- * - currentUser: current user's rank and visits this month
+ * - currentUser: current user's rank and visits in period
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("Authorization");
@@ -46,14 +50,26 @@ export async function GET(request: NextRequest) {
     }
 
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const periodParam = request.nextUrl.searchParams.get("period")?.trim().toLowerCase();
+    const period = periodParam === "week" || periodParam === "all" ? periodParam : "month";
+
+    let since: Date;
+    if (period === "week") {
+      since = new Date(now);
+      since.setDate(since.getDate() - 7);
+    } else if (period === "month") {
+      since = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else {
+      since = new Date(0);
+    }
+
     const genderParam = request.nextUrl.searchParams.get("gender")?.trim().toLowerCase();
     const genderFilter = genderParam === "male" || genderParam === "female" ? genderParam : null;
 
     const { data: checkins, error: checkinErr } = await supabase
       .from("gym_checkins")
       .select("member_id, member:member_profiles(full_name, instagram_handle, gender, profile_photo_url)")
-      .gte("timestamp", monthStart.toISOString());
+      .gte("timestamp", since.toISOString());
 
     if (checkinErr) {
       console.error("Leaderboard checkins error:", checkinErr);
@@ -109,6 +125,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
+      period,
       top,
       currentUser: {
         rank: currentUserRank,

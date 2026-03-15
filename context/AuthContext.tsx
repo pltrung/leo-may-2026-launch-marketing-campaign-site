@@ -25,6 +25,8 @@ export interface MemberProfile {
   date_of_birth?: string | null;
   instagram_handle?: string | null;
   gender?: string | null;
+  current_streak?: number;
+  best_streak?: number;
 }
 
 type AuthValue = {

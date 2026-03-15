@@ -15,6 +15,7 @@ import PackageDetailModal, { type Plan } from "@/components/dashboard/PackageDet
 import PaymentModal from "@/components/dashboard/PaymentModal";
 import EventDetailModal, { type DashboardEvent } from "@/components/dashboard/EventDetailModal";
 import WaiverModal from "@/components/dashboard/WaiverModal";
+import AchievementUnlockModal, { type AchievementUnlockData } from "@/components/dashboard/AchievementUnlockModal";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -173,6 +174,18 @@ export default function DashboardPage() {
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [eventModalEvent, setEventModalEvent] = useState<DashboardEvent | null>(null);
   const [waiverModalOpen, setWaiverModalOpen] = useState(false);
+  const [climbingProgress, setClimbingProgress] = useState<{
+    level: string; level_vi: string; level_icon: string;
+    next_level: string | null; next_level_vi: string | null;
+    total_visits: number; progress_to_next: number; progress_percent: number;
+    next_level_at_visits: number | null;
+    current_streak: number; best_streak: number;
+    recent_achievements: { code: string; name: string; name_vi: string | null; description?: string | null; icon: string; reward: string | null; reward_vi: string | null }[];
+    upcoming_rewards: { type: string; at_visits?: number; name: string; name_vi: string | null; reward: string | null; reward_vi: string | null }[];
+  } | null>(null);
+  const [achievementUnlock, setAchievementUnlock] = useState<AchievementUnlockData | null>(null);
+  const [showAchievementUnlock, setShowAchievementUnlock] = useState(false);
+  const [leaderboardPeriod, setLeaderboardPeriod] = useState<"week" | "month" | "all">("month");
 
   // Handle VNPay return: show payment success banner, refresh member, then clean URL
   useEffect(() => {
@@ -207,14 +220,29 @@ export default function DashboardPage() {
     return () => { cancelled = true; };
   }, []);
 
+  // Fetch climbing progress
+  useEffect(() => {
+    if (!accessToken) return;
+    let cancelled = false;
+    fetch("/api/member/progress", { headers: { Authorization: `Bearer ${accessToken}` } })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && data && typeof data.level === "string") setClimbingProgress(data);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [accessToken, checkInSuccess, paymentSuccess]);
+
   // Fetch leaderboard via API (no client Supabase)
   useEffect(() => {
     if (!accessToken) return;
     let cancelled = false;
-    const genderParam = leaderboardGender === "all" ? "" : `?gender=${leaderboardGender}`;
+    const params = new URLSearchParams();
+    if (leaderboardGender !== "all") params.set("gender", leaderboardGender);
+    params.set("period", leaderboardPeriod);
     (async () => {
       try {
-        const res = await fetch(`/api/member/leaderboard${genderParam}`, {
+        const res = await fetch(`/api/member/leaderboard?${params.toString()}`, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         if (!res.ok || cancelled) return;
@@ -228,7 +256,7 @@ export default function DashboardPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [accessToken, leaderboardGender]);
+  }, [accessToken, leaderboardGender, leaderboardPeriod]);
 
   // Fetch plans
   useEffect(() => {
@@ -308,6 +336,51 @@ export default function DashboardPage() {
       supabase.removeChannel(channel);
     };
   }, [member?.id, refresh]);
+
+  // Subscribe to member_achievements to show achievement unlock modal when a new one is earned (e.g. after check-in)
+  useEffect(() => {
+    if (!member?.id || !accessToken) return;
+    let supabase;
+    try {
+      supabase = getSupabaseBrowserClient();
+    } catch {
+      return;
+    }
+    const channel = supabase
+      .channel(`achievements-${member.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "member_achievements",
+          filter: `member_id=eq.${member.id}`,
+        },
+        async () => {
+          refresh();
+          const res = await fetch("/api/member/progress", { headers: { Authorization: `Bearer ${accessToken}` } });
+          const data = await res.json();
+          const first = data?.recent_achievements?.[0];
+          if (first) {
+            setAchievementUnlock({
+              type: "achievement",
+              title: first.name,
+              titleVi: first.name_vi ?? undefined,
+              subtitle: (first as { description?: string | null }).description ?? (first.reward ? undefined : first.name),
+              icon: first.icon,
+              reward: first.reward ?? undefined,
+              rewardVi: first.reward_vi ?? undefined,
+              code: first.code,
+            });
+            setShowAchievementUnlock(true);
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [member?.id, accessToken, refresh]);
 
   const handleFreeze = useCallback(async () => {
     if (!accessToken) return;
@@ -539,7 +612,6 @@ export default function DashboardPage() {
   }
 
   const totalVisits = member.total_visits ?? 0;
-  const sessionsThisMonth = totalVisits === 0 ? 0 : Math.max(1, Math.min(totalVisits, 12));
 
   const rawStatus = (member.membership_status as string | undefined) ?? "inactive";
   const visitsRemaining = member.visits_remaining ?? 0;
@@ -1079,41 +1151,83 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          {/* CLIMBING ACTIVITY — Monthly streak + reward progress */}
+          {/* CLIMBING PROGRESS — Level, streak, achievements, upcoming rewards */}
           <section>
             <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               <h2 className="text-[22px] font-semibold text-white/90 mb-4">
-                {isVi ? "HOẠT ĐỘNG LEO" : "CLIMBING ACTIVITY"}
+                {isVi ? "TIẾN ĐỘ LEO" : "CLIMBING PROGRESS"}
               </h2>
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="rounded-[16px] p-4" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                  <p className="text-[13px] text-white/60 mb-1">{isVi ? "Lượt tháng này" : "Visits this month"}</p>
-                  <p className="text-2xl font-bold" style={{ color: sessionsThisMonth > 0 ? accentColor : "rgba(255,255,255,0.9)" }}>
-                    {sessionsThisMonth}
+              {!climbingProgress ? (
+                <p className="text-[15px] text-white/60 py-4">{isVi ? "Đang tải…" : "Loading…"}</p>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <span className="text-[13px] text-white/60">{isVi ? "Cấp độ" : "Level"}</span>
+                    <span className="text-lg font-semibold text-white/90">
+                      {isVi && climbingProgress.level_vi ? climbingProgress.level_vi : climbingProgress.level} {climbingProgress.level_icon}
+                    </span>
+                  </div>
+                  <p className="text-[15px] text-white/80 mb-2">
+                    {climbingProgress.total_visits} {climbingProgress.next_level_at_visits != null ? `/ ${climbingProgress.next_level_at_visits} ` : ""}{isVi ? "lượt" : "visits"}
                   </p>
-                </div>
-                <div className="rounded-[16px] p-4" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                  <p className="text-[13px] text-white/60 mb-1">{isVi ? "Chuỗi tháng" : "Monthly streak"}</p>
-                  <p className="text-2xl font-bold text-white/90">
-                    {sessionsThisMonth > 0 ? `🔥 1` : "—"}
-                  </p>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-[13px] text-white/70 mb-2">
-                  <span>{isVi ? "Tiến độ phần thưởng" : "Reward progress"}</span>
-                  <span>{sessionsThisMonth} / 8 {isVi ? "lượt" : "visits"}</span>
-                </div>
-                <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.1)" }}>
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, (sessionsThisMonth / 8) * 100)}%`, background: "linear-gradient(90deg, #7DD3FC, #22c55e)" }}
-                  />
-                </div>
-                <p className="text-[12px] text-white/50 mt-1.5">
-                  {sessionsThisMonth >= 8 ? (isVi ? "Đã đạt mốc!" : "Milestone reached!") : (isVi ? `${8 - sessionsThisMonth} lượt nữa để nhận phần thưởng` : `${8 - sessionsThisMonth} more visits to next reward`)}
-                </p>
-              </div>
+                  <div className="h-2 rounded-full overflow-hidden mb-4" style={{ background: "rgba(255,255,255,0.1)" }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, climbingProgress.progress_percent)}%`, background: "linear-gradient(90deg, #7DD3FC, #22c55e)" }}
+                    />
+                  </div>
+                  {climbingProgress.next_level && (
+                    <p className="text-[12px] text-white/50 mb-4">
+                      {isVi ? "Cấp tiếp theo" : "Next level"}: {isVi && climbingProgress.next_level_vi ? climbingProgress.next_level_vi : climbingProgress.next_level}
+                      {climbingProgress.progress_to_next > 0 && ` — ${climbingProgress.progress_to_next} ${isVi ? "lượt nữa" : "visits to go"}`}
+                    </p>
+                  )}
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="rounded-[16px] p-4" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                      <p className="text-[13px] text-white/60 mb-1">{isVi ? "Chuỗi hiện tại" : "Current Streak"}</p>
+                      <p className="text-2xl font-bold text-white/90">
+                        {climbingProgress.current_streak > 0 ? `🔥 ${climbingProgress.current_streak} ${isVi ? "ngày" : "days"}` : "—"}
+                      </p>
+                    </div>
+                    <div className="rounded-[16px] p-4" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                      <p className="text-[13px] text-white/60 mb-1">{isVi ? "Chuỗi tốt nhất" : "Best Streak"}</p>
+                      <p className="text-2xl font-bold text-white/90">
+                        {climbingProgress.best_streak > 0 ? `🔥 ${climbingProgress.best_streak} ${isVi ? "ngày" : "days"}` : "—"}
+                      </p>
+                    </div>
+                  </div>
+                  {climbingProgress.recent_achievements.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-[13px] text-white/60 mb-2">{isVi ? "Thành tựu gần đây" : "Recent Achievements"}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {climbingProgress.recent_achievements.slice(0, 5).map((a) => (
+                          <span
+                            key={a.code}
+                            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium"
+                            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}
+                          >
+                            <span>{a.icon}</span>
+                            <span className="text-white/90">{isVi && a.name_vi ? a.name_vi : a.name}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {climbingProgress.upcoming_rewards.length > 0 && (
+                    <div>
+                      <p className="text-[13px] text-white/60 mb-2">{isVi ? "Phần thưởng sắp tới" : "Upcoming Reward"}</p>
+                      <div className="rounded-[16px] p-3" style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)" }}>
+                        <p className="text-[14px] font-medium text-emerald-200">
+                          {isVi && climbingProgress.upcoming_rewards[0].reward_vi ? climbingProgress.upcoming_rewards[0].reward_vi : climbingProgress.upcoming_rewards[0].reward}
+                          {climbingProgress.upcoming_rewards[0].at_visits != null && (
+                            <span className="text-white/70 font-normal"> — {climbingProgress.upcoming_rewards[0].at_visits} {isVi ? "lượt" : "visits"}</span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </section>
 
@@ -1220,7 +1334,22 @@ export default function DashboardPage() {
                 <h2 className="text-[22px] font-semibold text-white/90">
                   {isVi ? "BẢNG XẾP HẠNG CỘNG ĐỒNG" : "COMMUNITY LEADERBOARD"}
                 </h2>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                  {(["week", "month", "all"] as const).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setLeaderboardPeriod(p)}
+                      className={`px-3 py-1.5 rounded-full text-[13px] font-medium transition-all ${
+                        leaderboardPeriod === p
+                          ? "bg-white text-slate-900"
+                          : "bg-white/10 text-white/80 hover:bg-white/20"
+                      }`}
+                    >
+                      {p === "week" ? (isVi ? "Tuần" : "Week") : p === "month" ? (isVi ? "Tháng" : "Month") : (isVi ? "Tất cả" : "All-time")}
+                    </button>
+                  ))}
+                  <span className="text-white/40 mx-1">|</span>
                   {(["all", "male", "female"] as const).map((g) => (
                     <button
                       key={g}
@@ -1391,6 +1520,12 @@ export default function DashboardPage() {
         locale={locale as "en" | "vi"}
         defaultFullName={member?.full_name?.trim() ?? ""}
         accessToken={accessToken}
+      />
+      <AchievementUnlockModal
+        open={showAchievementUnlock}
+        onClose={() => { setShowAchievementUnlock(false); setAchievementUnlock(null); }}
+        data={achievementUnlock}
+        isVi={isVi}
       />
       <PaymentModal
         open={isVietQrModalOpen}
