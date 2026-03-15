@@ -101,7 +101,7 @@ export default function AdminPage() {
   const [nameResults, setNameResults] = useState<NameSearchResult[]>([]);
   const [paymentReceived, setPaymentReceived] = useState(false);
   const lastPaymentCountRef = React.useRef<number | null>(null);
-  const [toolsModal, setToolsModal] = useState<"occupancy" | "checkins" | "revenue" | null>(null);
+  const [toolsModal, setToolsModal] = useState<"occupancy" | "checkins" | "revenue" | "staff" | null>(null);
   const [checkinsData, setCheckinsData] = useState<{
     checkins: { id: string; member_name: string; member_code: string | null; timestamp: string }[];
     byDay: Record<string, { id: string; member_name: string; member_code: string | null; timestamp: string }[]>;
@@ -115,6 +115,13 @@ export default function AdminPage() {
   const [revenuePeriod, setRevenuePeriod] = useState<"day" | "week" | "month">("day");
   const [waiverModalOpen, setWaiverModalOpen] = useState(false);
   const [scannerModalOpen, setScannerModalOpen] = useState(false);
+  const [staffOpsData, setStaffOpsData] = useState<{
+    attendance: { in: { staff_id: string; status: string; staff_profiles?: { email?: string } | { email?: string }[] }[]; out: { staff_id: string; status: string; staff_profiles?: { email?: string } | { email?: string }[] }[] };
+    sessions: { id: string; start_time: string; coach_id: string | null; session_type: string; staff_profiles?: { email?: string } | { email?: string }[] }[];
+    zones: { id: string; name: string; next_reset_at: string | null; overdue?: boolean }[];
+    tasks: { id: string; title: string; status: string; completed_at: string | null }[];
+    summary: { staff_in_today: number; staff_out_today: number; sessions_today: number; zones_overdue: number; tasks_pending: number };
+  } | null>(null);
 
   // Fetch plans
   useEffect(() => {
@@ -190,6 +197,15 @@ export default function AdminPage() {
       .then((d) => setRevenueData(d))
       .catch(() => setRevenueData(null));
   }, [toolsModal, revenuePeriod, adminFetch]);
+
+  // Fetch staff operations when modal opens
+  useEffect(() => {
+    if (toolsModal !== "staff") return;
+    adminFetch("/api/admin/staff")
+      .then((r) => r.json())
+      .then((d) => setStaffOpsData(d))
+      .catch(() => setStaffOpsData(null));
+  }, [toolsModal, adminFetch]);
 
   // Poll real-time-ish occupancy from backend.
   useEffect(() => {
@@ -1116,6 +1132,13 @@ export default function AdminPage() {
                 >
                   Revenue
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setToolsModal("staff")}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
+                >
+                  Staff Operations
+                </button>
               </div>
             </div>
 
@@ -1282,6 +1305,73 @@ export default function AdminPage() {
                         <li key={p.id ?? p.created_at} className="flex justify-between text-xs py-1">
                           <span>{p.plan_name} — {p.method}</span>
                           <span>{p.amount.toLocaleString("vi-VN")} VND</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toolsModal === "staff" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="text-lg font-semibold text-slate-900">Staff Operations</h3>
+              <button type="button" onClick={() => setToolsModal(null)} className="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
+            </div>
+            <div className="overflow-y-auto p-4 space-y-4">
+              {!staffOpsData && <p className="text-sm text-slate-500">Loading…</p>}
+              {staffOpsData && (
+                <>
+                  <div>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Today’s attendance</h4>
+                    <p className="text-sm text-slate-600 mb-1"><strong>IN:</strong> {staffOpsData.summary.staff_in_today} — {staffOpsData.attendance.in.map((a: { staff_profiles?: { email?: string } | { email?: string }[] }) => {
+                      const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles;
+                      return p?.email ?? "—";
+                    }).join(", ") || "—"}</p>
+                    <p className="text-sm text-slate-600"><strong>NOT IN:</strong> {staffOpsData.summary.staff_out_today} — {staffOpsData.attendance.out.map((a: { staff_profiles?: { email?: string } | { email?: string }[] }) => {
+                      const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles;
+                      return p?.email ?? "—";
+                    }).join(", ") || "—"}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Coaching sessions today ({staffOpsData.sessions.length})</h4>
+                    {staffOpsData.sessions.length === 0 && <p className="text-sm text-slate-500">No sessions.</p>}
+                    <ul className="space-y-1 text-sm">
+                      {staffOpsData.sessions.slice(0, 20).map((s: { id: string; start_time: string; coach_id: string | null; staff_profiles?: { email?: string } | { email?: string }[] }) => (
+                        <li key={s.id} className="flex justify-between">
+                          <span>{new Date(s.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
+                          <span className="text-slate-600">
+                            {s.coach_id ? (Array.isArray(s.staff_profiles) ? (s.staff_profiles[0] as { email?: string })?.email : (s.staff_profiles as { email?: string })?.email) ?? "Assigned" : "Unassigned"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Route zones (overdue: {staffOpsData.summary.zones_overdue})</h4>
+                    <ul className="space-y-1 text-sm">
+                      {staffOpsData.zones.map((z: { id: string; name: string; next_reset_at: string | null; overdue?: boolean }) => (
+                        <li key={z.id} className="flex justify-between">
+                          <span>{z.name}</span>
+                          <span className={z.overdue ? "text-red-600" : "text-slate-600"}>
+                            {z.overdue ? "Overdue" : z.next_reset_at ? new Date(z.next_reset_at).toLocaleDateString() : "—"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Tasks (pending: {staffOpsData.summary.tasks_pending})</h4>
+                    <ul className="space-y-1 text-sm">
+                      {staffOpsData.tasks.map((t: { id: string; title: string; status: string; completed_at: string | null }) => (
+                        <li key={t.id} className="flex justify-between">
+                          <span className={t.status === "completed" ? "line-through text-slate-500" : ""}>{t.title}</span>
+                          <span className="text-slate-600">{t.status === "completed" ? "Done" : "Pending"}</span>
                         </li>
                       ))}
                     </ul>

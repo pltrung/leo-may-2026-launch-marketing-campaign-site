@@ -1,0 +1,119 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@/lib/supabaseServer";
+import { getRouteSetterFromRequest } from "@/lib/routeSetterAuth";
+import { ensureTodayCoachingSlots } from "@/lib/coachingSessions";
+
+const MAX_SESSIONS_PER_SLOT = 2;
+
+/**
+ * GET /api/route-setter/sessions
+ * Returns today's coaching sessions: upcoming, assigned to me, unassigned.
+ * Ensures today's 30-min slots (09:00–21:00) exist with up to 2 sessions per slot.
+ */
+export async function GET(request: NextRequest) {
+  const user = await getRouteSetterFromRequest(request);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const supabase = createServerClient();
+  const { data: staff } = await supabase
+    .from("staff_profiles")
+    .select("id")
+    .eq("auth_id", user.id)
+    .single();
+  if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
+
+  await ensureTodayCoachingSlots(supabase);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const startOfDay = `${today}T00:00:00.000Z`;
+  const endOfDay = `${today}T23:59:59.999Z`;
+
+  const { data: sessions, error } = await supabase
+    .from("coaching_sessions")
+    .select("id, start_time, end_time, coach_id, session_type, status")
+    .gte("start_time", startOfDay)
+    .lte("start_time", endOfDay)
+    .in("status", ["scheduled"])
+    .order("start_time", { ascending: true });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const list = sessions ?? [];
+  const mySessions = list.filter((s) => s.coach_id === staff.id);
+  const unassigned = list.filter((s) => !s.coach_id);
+
+  return NextResponse.json({
+    sessions: list,
+    my_sessions: mySessions,
+    unassigned,
+  });
+}
+
+/**
+ * POST /api/route-setter/sessions/assign
+ * Body: { session_id: string }
+ * Assigns the session to the current staff. Fails if slot already has 2 sessions
+ * or staff is NOT_IN today.
+ */
+export async function POST(request: NextRequest) {
+  const user = await getRouteSetterFromRequest(request);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  let body: { session_id?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  const sessionId = body.session_id;
+  if (!sessionId) return NextResponse.json({ error: "session_id required" }, { status: 400 });
+
+  const supabase = createServerClient();
+  const { data: staff } = await supabase
+    .from("staff_profiles")
+    .select("id")
+    .eq("auth_id", user.id)
+    .single();
+  if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
+
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: attendance } = await supabase
+    .from("staff_attendance")
+    .select("status")
+    .eq("staff_id", staff.id)
+    .eq("date", today)
+    .maybeSingle();
+  if (attendance?.status !== "IN") {
+    return NextResponse.json({ error: "Mark yourself IN before taking sessions" }, { status: 403 });
+  }
+
+  const { data: session, error: sessionErr } = await supabase
+    .from("coaching_sessions")
+    .select("id, start_time, coach_id")
+    .eq("id", sessionId)
+    .single();
+  if (sessionErr || !session) {
+    return NextResponse.json({ error: "Session not found" }, { status: 404 });
+  }
+
+  const startTime = session.start_time as string;
+  const { count } = await supabase
+    .from("coaching_sessions")
+    .select("id", { count: "exact", head: true })
+    .eq("start_time", startTime)
+    .in("status", ["scheduled"]);
+  if ((count ?? 0) >= MAX_SESSIONS_PER_SLOT && !session.coach_id) {
+    return NextResponse.json(
+      { error: "This time slot already has the maximum number of sessions" },
+      { status: 400 }
+    );
+  }
+
+  const { error: updateErr } = await supabase
+    .from("coaching_sessions")
+    .update({ coach_id: staff.id, updated_at: new Date().toISOString() })
+    .eq("id", sessionId);
+
+  if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
