@@ -79,8 +79,11 @@ export async function GET(request: NextRequest) {
 
     const recentAchievements: ProgressAchievement[] = [];
     if (!earnedErr && earnedRows) {
-      for (const row of earnedRows) {
-        const a = (row as { achievements?: { code: string; name: string; name_vi: string | null; description: string | null; icon: string; reward: string | null; reward_vi: string | null } }).achievements;
+      type Row = { earned_at: string; achievements?: unknown };
+      type Ach = { code: string; name: string; name_vi: string | null; description: string | null; icon: string; reward: string | null; reward_vi: string | null };
+      for (const row of earnedRows as Row[]) {
+        const raw = row.achievements;
+        const a: Ach | null = Array.isArray(raw) ? (raw[0] as Ach) ?? null : (raw as Ach) ?? null;
         if (a) {
           recentAchievements.push({
             code: a.code,
@@ -89,7 +92,7 @@ export async function GET(request: NextRequest) {
             description: a.description ?? null,
             icon: a.icon ?? "🏆",
             reward: a.reward ?? null,
-            earned_at: (row as { earned_at: string }).earned_at,
+            earned_at: row.earned_at,
           });
         }
       }
