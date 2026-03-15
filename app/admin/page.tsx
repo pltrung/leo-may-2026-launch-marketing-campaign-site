@@ -1329,13 +1329,13 @@ export default function AdminPage() {
                 <>
                   <div>
                     <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Today’s attendance</h4>
-                    <p className="text-sm text-slate-600 mb-1"><strong>IN:</strong> {staffOpsData.summary.staff_in_today} — {staffOpsData.attendance.in.map((a: { staff_profiles?: { email?: string } | { email?: string }[] }) => {
+                    <p className="text-sm text-slate-600 mb-1"><strong>IN:</strong> {staffOpsData.summary.staff_in_today} — {staffOpsData.attendance.in.map((a: { staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }) => {
                       const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles;
-                      return p?.email ?? "—";
+                      return (p?.display_name || p?.email) ?? "—";
                     }).join(", ") || "—"}</p>
-                    <p className="text-sm text-slate-600"><strong>NOT IN:</strong> {staffOpsData.summary.staff_out_today} — {staffOpsData.attendance.out.map((a: { staff_profiles?: { email?: string } | { email?: string }[] }) => {
+                    <p className="text-sm text-slate-600"><strong>NOT IN:</strong> {staffOpsData.summary.staff_out_today} — {staffOpsData.attendance.out.map((a: { staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }) => {
                       const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles;
-                      return p?.email ?? "—";
+                      return (p?.display_name || p?.email) ?? "—";
                     }).join(", ") || "—"}</p>
                   </div>
                   <div>
@@ -1345,11 +1345,14 @@ export default function AdminPage() {
                     </h4>
                     {staffOpsData.sessions.length === 0 && <p className="text-sm text-slate-500">No sessions.</p>}
                     <ul className="space-y-1 text-sm">
-                      {staffOpsData.sessions.slice(0, 20).map((s: { id: string; start_time: string; coach_id: string | null; staff_profiles?: { email?: string } | { email?: string }[]; location?: string; newbie_count?: number }) => (
+                      {staffOpsData.sessions.slice(0, 20).map((s: { id: string; start_time: string; coach_id: string | null; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[]; location?: string; newbie_count?: number }) => (
                         <li key={s.id} className="flex justify-between items-start gap-2">
                           <span>{new Date(s.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} {s.location && <span className="text-slate-500">· {s.location}</span>} {(s.newbie_count ?? 0) > 0 && <span className="text-emerald-600">({s.newbie_count} newbie{(s.newbie_count ?? 0) !== 1 ? "s" : ""})</span>}</span>
                           <span className="text-slate-600 shrink-0">
-                            {s.coach_id ? (Array.isArray(s.staff_profiles) ? (s.staff_profiles[0] as { email?: string })?.email : (s.staff_profiles as { email?: string })?.email) ?? "Assigned" : "Unassigned"}
+                            {s.coach_id ? (() => {
+                              const p = Array.isArray(s.staff_profiles) ? s.staff_profiles[0] : s.staff_profiles;
+                              return (p?.display_name || p?.email) ?? "Assigned";
+                            })() : "Unassigned"}
                           </span>
                         </li>
                       ))}

@@ -3,8 +3,6 @@ import { createServerClient } from "@/lib/supabaseServer";
 import { getRouteSetterFromRequest } from "@/lib/routeSetterAuth";
 import { ensureTodayCoachingSlots } from "@/lib/coachingSessions";
 
-const MAX_SESSIONS_PER_SLOT = 2;
-
 /**
  * GET /api/route-setter/sessions
  * Returns today's coaching sessions: upcoming, assigned to me, unassigned.
@@ -24,15 +22,15 @@ export async function GET(request: NextRequest) {
 
   await ensureTodayCoachingSlots(supabase);
 
-  const today = new Date().toISOString().slice(0, 10);
-  const startOfDay = `${today}T00:00:00.000Z`;
-  const endOfDay = `${today}T23:59:59.999Z`;
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
 
   const { data: sessions, error } = await supabase
     .from("coaching_sessions")
     .select("id, start_time, end_time, coach_id, session_type, status, location, staff_profiles(email, display_name)")
-    .gte("start_time", startOfDay)
-    .lte("start_time", endOfDay)
+    .gt("start_time", nowIso)
+    .lte("start_time", twoHoursLater)
     .in("status", ["scheduled"])
     .order("start_time", { ascending: true });
 
@@ -108,24 +106,11 @@ export async function POST(request: NextRequest) {
 
   const { data: session, error: sessionErr } = await supabase
     .from("coaching_sessions")
-    .select("id, start_time, coach_id")
+    .select("id, coach_id")
     .eq("id", sessionId)
     .single();
   if (sessionErr || !session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
-  }
-
-  const startTime = session.start_time as string;
-  const { count } = await supabase
-    .from("coaching_sessions")
-    .select("id", { count: "exact", head: true })
-    .eq("start_time", startTime)
-    .in("status", ["scheduled"]);
-  if ((count ?? 0) >= MAX_SESSIONS_PER_SLOT && !session.coach_id) {
-    return NextResponse.json(
-      { error: "This time slot already has the maximum number of sessions" },
-      { status: 400 }
-    );
   }
 
   const { error: updateErr } = await supabase

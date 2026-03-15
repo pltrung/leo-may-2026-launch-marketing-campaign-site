@@ -42,7 +42,7 @@ interface StaffTask {
 }
 
 export default function RouteSetterPage() {
-  const { staff, loading, staffFetch, signOut } = useRouteSetterAuth();
+  const { staff, loading, staffFetch, signOut, refreshStaff } = useRouteSetterAuth();
   const [attendance, setAttendance] = useState<AttendanceRecord | null>(null);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [sessions, setSessions] = useState<CoachingSession[]>([]);
@@ -55,6 +55,9 @@ export default function RouteSetterPage() {
   const [resettingZoneId, setResettingZoneId] = useState<string | null>(null);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState("");
+  const [profileEditing, setProfileEditing] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
 
   const loadAttendance = useCallback(async () => {
     const res = await staffFetch("/api/route-setter/attendance");
@@ -95,6 +98,31 @@ export default function RouteSetterPage() {
     loadTasks();
   }, [staff, loadAttendance, loadSessions, loadZones, loadTasks]);
 
+  useEffect(() => {
+    if (staff?.display_name != null) setProfileName(staff.display_name);
+    else if (staff?.email) setProfileName(staff.email.split("@")[0] || "");
+  }, [staff?.display_name, staff?.email]);
+
+  const handleSaveProfile = useCallback(async () => {
+    setProfileSaving(true);
+    setError(null);
+    try {
+      const res = await staffFetch("/api/route-setter/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ display_name: profileName.trim() || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update");
+      setProfileEditing(false);
+      refreshStaff();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update name");
+    } finally {
+      setProfileSaving(false);
+    }
+  }, [staffFetch, profileName, refreshStaff]);
+
   const handleAttendance = useCallback(
     async (status: "IN" | "NOT_IN") => {
       setAttendanceLoading(true);
@@ -123,7 +151,7 @@ export default function RouteSetterPage() {
       setAssigningId(sessionId);
       setError(null);
       try {
-        const res = await staffFetch("/api/route-setter/sessions", {
+        const res = await staffFetch("/api/route-setter/sessions/assign", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ session_id: sessionId }),
@@ -205,7 +233,9 @@ export default function RouteSetterPage() {
       <header className="sticky top-0 z-10 border-b border-slate-700 bg-slate-900/95 backdrop-blur px-4 py-3 flex justify-between items-center">
         <h1 className="text-lg font-semibold">Staff Dashboard</h1>
         <div className="flex items-center gap-2">
-          <span className="text-slate-400 text-sm truncate max-w-[140px]">{staff.email}</span>
+          <span className="text-slate-300 text-sm truncate max-w-[140px]">
+            {staff.display_name || staff.email}
+          </span>
           <button
             type="button"
             onClick={() => signOut()}
@@ -217,6 +247,53 @@ export default function RouteSetterPage() {
       </header>
 
       <main className="p-4 pb-8 space-y-6 max-w-2xl mx-auto">
+        {/* Profile: name shown on dashboard & admin as coach */}
+        <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
+          <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
+            Profile
+          </h2>
+          {profileEditing ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                placeholder="Your name (e.g. Alex)"
+                className="flex-1 min-w-[160px] px-3 py-2 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+              <button
+                type="button"
+                disabled={profileSaving}
+                onClick={handleSaveProfile}
+                className="px-3 py-2 rounded-lg bg-amber-600 text-slate-900 text-sm font-medium hover:bg-amber-500 disabled:opacity-50"
+              >
+                {profileSaving ? "…" : "Save"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setProfileEditing(false); setProfileName(staff.display_name ?? staff.email?.split("@")[0] ?? ""); }}
+                className="px-3 py-2 rounded-lg bg-slate-600 text-slate-200 text-sm hover:bg-slate-500"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-slate-200">
+                <span className="text-slate-400 text-sm">Name shown as coach: </span>
+                <strong>{staff.display_name || "Not set"}</strong>
+              </p>
+              <button
+                type="button"
+                onClick={() => setProfileEditing(true)}
+                className="text-xs px-2 py-1.5 rounded bg-slate-600 text-slate-200 hover:bg-slate-500"
+              >
+                {staff.display_name ? "Edit name" : "Set name"}
+              </button>
+            </div>
+          )}
+          <p className="text-slate-500 text-xs mt-2">This name appears on the member dashboard and in admin for your coaching sessions.</p>
+        </section>
         {error && (
           <div className="rounded-lg bg-red-900/30 border border-red-700 text-red-200 text-sm px-4 py-2">
             {error}

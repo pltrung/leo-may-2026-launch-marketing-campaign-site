@@ -13,8 +13,9 @@ export async function GET(request: NextRequest) {
 
   const supabase = createServerClient();
   const today = new Date().toISOString().slice(0, 10);
-  const startOfDay = `${today}T00:00:00.000Z`;
-  const endOfDay = `${today}T23:59:59.999Z`;
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
 
   const [attendanceRes, sessionsRes, zonesRes, tasksRes] = await Promise.all([
     supabase
@@ -25,8 +26,8 @@ export async function GET(request: NextRequest) {
     supabase
       .from("coaching_sessions")
       .select("id, start_time, end_time, coach_id, session_type, status, location, staff_profiles(email, display_name)")
-      .gte("start_time", startOfDay)
-      .lte("start_time", endOfDay)
+      .gt("start_time", nowIso)
+      .lte("start_time", twoHoursLater)
       .in("status", ["scheduled"])
       .order("start_time"),
     supabase
@@ -44,14 +45,12 @@ export async function GET(request: NextRequest) {
   const zones = zonesRes.data ?? [];
   const tasks = tasksRes.data ?? [];
 
-  const now = new Date().toISOString();
   const staffIn = attendance.filter((a) => a.status === "IN");
   const staffOut = attendance.filter((a) => a.status === "NOT_IN");
-  const allStaffIds = new Set(attendance.map((a) => a.staff_id));
 
   const zonesWithStatus = zones.map((z) => ({
     ...z,
-    overdue: z.next_reset_at ? z.next_reset_at < now : false,
+    overdue: z.next_reset_at ? z.next_reset_at < nowIso : false,
   }));
 
   const sessionIds = sessions.map((s) => s.id);

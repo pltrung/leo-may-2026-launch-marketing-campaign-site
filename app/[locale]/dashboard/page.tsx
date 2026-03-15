@@ -194,6 +194,30 @@ export default function DashboardPage() {
     coach_name: string | null;
     minutes_until: number;
   } | null>(null);
+  const [tick, setTick] = useState(0);
+
+  // Live countdown tick for newbie class (updates every second)
+  useEffect(() => {
+    if (!newbieClass) return;
+    const startMs = new Date(newbieClass.start_time).getTime();
+    if (startMs <= Date.now()) return;
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [newbieClass?.start_time, newbieClass]);
+
+  function formatCountdown(startTimeIso: string): { text: string; done: boolean } {
+    const start = new Date(startTimeIso).getTime();
+    const now = Date.now();
+    const ms = Math.max(0, start - now);
+    if (ms <= 0) return { text: "", done: true };
+    const totalSec = Math.floor(ms / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (h > 0) return { text: `${h}h ${m}m ${s}s`, done: false };
+    if (m > 0) return { text: `${m}m ${s}s`, done: false };
+    return { text: `${s}s`, done: false };
+  }
 
   // Handle VNPay return: show payment success banner, refresh member, then clean URL
   useEffect(() => {
@@ -812,6 +836,52 @@ export default function DashboardPage() {
             </button>
           </section>
 
+          {/* YOUR NEWBIE CLASS - prominent block with live timer and where to go */}
+          {newbieClass && (
+            <section>
+              <div className="rounded-[20px] p-6 border-2 border-emerald-500/50 shadow-lg shadow-emerald-500/10" style={{ background: "linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(5,150,105,0.08) 100%)", backdropFilter: "blur(20px)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
+                <h2 className="text-[18px] font-semibold text-emerald-200 mb-3 flex items-center gap-2">
+                  <span>🎓</span>
+                  {isVi ? "Lớp Newbie của bạn" : "Your Newbie Class"}
+                </h2>
+                <p className="text-white font-medium text-[17px] mb-2">
+                  {new Date(newbieClass.start_time).toLocaleTimeString(isVi ? "vi-VN" : "en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
+                  {" – "}
+                  {new Date(newbieClass.end_time).toLocaleTimeString(isVi ? "vi-VN" : "en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
+                </p>
+                {/* Live countdown timer */}
+                <div className="mb-4 p-3 rounded-xl bg-black/20 border border-emerald-500/30">
+                  <p className="text-slate-300 text-xs uppercase tracking-wider mb-1">
+                    {isVi ? "Lớp bắt đầu sau" : "Class starts in"}
+                  </p>
+                  <p className="text-2xl font-mono font-bold text-emerald-200 tabular-nums" suppressHydrationWarning>
+                    {(() => {
+                      const { text, done } = formatCountdown(newbieClass.start_time);
+                      if (done) return isVi ? "Đang diễn ra" : "Happening now";
+                      return text;
+                    })()}
+                  </p>
+                </div>
+                {/* Where to go - prominent */}
+                <div className="mb-3 p-3 rounded-xl bg-white/10 border border-white/20">
+                  <p className="text-slate-300 text-xs uppercase tracking-wider mb-1">
+                    {isVi ? "Đến đây khi tới giờ" : "Where to go"}
+                  </p>
+                  <p className="text-lg font-semibold text-white">{newbieClass.location}</p>
+                </div>
+                {newbieClass.coach_name ? (
+                  <p className="text-white/80 text-[14px]">
+                    {isVi ? "Coach: " : "Coach: "}<strong className="text-emerald-200">{newbieClass.coach_name}</strong>
+                  </p>
+                ) : (
+                  <p className="text-white/60 text-[13px]">
+                    {isVi ? "Coach sẽ được gán trước giờ học." : "Coach will be assigned before class."}
+                  </p>
+                )}
+              </div>
+            </section>
+          )}
+
           {/* CHECK-IN REQUIREMENTS NOTICE - show above waiver when any step is missing */}
           {!canShowQR && (
             <section>
@@ -1146,33 +1216,6 @@ export default function DashboardPage() {
                   );
                 })()}
                 <style>{`[data-passes-carousel]::-webkit-scrollbar { display: none; }`}</style>
-                {newbieClass && (
-                  <div className="mt-4 p-4 rounded-[18px] border border-emerald-500/40 bg-emerald-500/10">
-                    <p className="text-xs font-semibold text-emerald-300/90 uppercase tracking-wider mb-2">
-                      {isVi ? "Lớp Newbie của bạn" : "Your Newbie Class"}
-                    </p>
-                    <p className="text-white/95 font-medium">
-                      {new Date(newbieClass.start_time).toLocaleTimeString(isVi ? "vi-VN" : "en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
-                      {" – "}
-                      {new Date(newbieClass.end_time).toLocaleTimeString(isVi ? "vi-VN" : "en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
-                    </p>
-                    <p className="text-emerald-200/90 text-sm mt-1">
-                      {newbieClass.minutes_until <= 0
-                        ? (isVi ? "Đang diễn ra" : "Happening now")
-                        : newbieClass.minutes_until < 60
-                          ? (isVi ? `Bắt đầu sau ${newbieClass.minutes_until} phút` : `Starts in ${newbieClass.minutes_until} minutes`)
-                          : (isVi ? `Bắt đầu sau ${Math.floor(newbieClass.minutes_until / 60)} giờ` : `Starts in ${Math.floor(newbieClass.minutes_until / 60)} hour(s)`)}
-                    </p>
-                    <p className="text-white/80 text-sm mt-2">
-                      {isVi ? "Địa điểm: " : "Where to be: "}<strong>{newbieClass.location}</strong>
-                    </p>
-                    {newbieClass.coach_name && (
-                      <p className="text-white/70 text-xs mt-1">
-                        {isVi ? "Coach: " : "Coach: "}{newbieClass.coach_name}
-                      </p>
-                    )}
-                  </div>
-                )}
                 {payments.length > 0 && (
                   <div className="pt-3 border-t border-white/[0.08]">
                     <p className="text-xs font-medium text-white/70 uppercase tracking-wider mb-2">
