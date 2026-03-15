@@ -504,6 +504,8 @@ const en = {
     scanVnEidHint: "Point your camera at the QR code on your VN eID (CCCD) or passport.",
     idAlreadyRegistered: "This ID number is already registered to another member.",
     noIdInQr: "No valid ID number found in the QR code. Try again or enter manually.",
+    address: "Address",
+    verifiedFromCccdLocked: "Verified from CCCD — not editable",
   },
   admin: {
     title: "Leo Mây Admin",
@@ -1153,6 +1155,8 @@ const vi: Messages = {
     scanVnEidHint: "Hướng camera vào mã QR trên CCCD hoặc hộ chiếu VN.",
     idAlreadyRegistered: "Số CCCD/ID này đã được đăng ký cho thành viên khác.",
     noIdInQr: "Không tìm thấy số định danh trong mã QR. Thử lại hoặc nhập tay.",
+    address: "Địa chỉ",
+    verifiedFromCccdLocked: "Xác thực từ CCCD — không chỉnh sửa",
   },
   admin: {
     title: "Leo Mây Admin",

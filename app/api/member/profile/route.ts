@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const supabase = createServerClient();
     const { data: member, error } = await supabase
       .from("member_profiles")
-      .select("id, profile_photo_url, id_number, date_of_birth, full_name, email, phone, instagram_handle, gender")
+      .select("id, profile_photo_url, id_number, date_of_birth, full_name, email, phone, instagram_handle, gender, address, id_verified_from_cccd")
       .eq("auth_id", user.id)
       .maybeSingle();
 
@@ -46,6 +46,8 @@ export async function GET(req: NextRequest) {
         phone: member.phone ?? null,
         instagram_handle: member.instagram_handle ?? null,
         gender: member.gender ?? null,
+        address: member.address ?? null,
+        id_verified_from_cccd: member.id_verified_from_cccd ?? false,
       },
     });
   } catch (e) {
@@ -56,7 +58,7 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/member/profile
- * Body: { profile_photo_base64?, id_number?, date_of_birth?, full_name?, email?, phone?, instagram_handle?, gender? }
+ * Body: { profile_photo_base64?, id_number?, date_of_birth?, full_name?, email?, phone?, instagram_handle?, gender?, address?, id_verified_from_cccd? }
  * Updates profile (member_profiles + Supabase Auth) and optionally uploads photo.
  */
 export async function POST(req: NextRequest) {
@@ -95,6 +97,8 @@ export async function POST(req: NextRequest) {
     const gender = typeof body.gender === "string" && ["male", "female"].includes(body.gender.trim().toLowerCase())
       ? body.gender.trim().toLowerCase()
       : undefined;
+    const address = typeof body.address === "string" ? body.address.trim() || null : undefined;
+    const idVerifiedFromCccd = body.id_verified_from_cccd === true;
 
     let profilePhotoUrl: string | null = null;
 
@@ -152,6 +156,8 @@ export async function POST(req: NextRequest) {
     if (phone !== undefined) updates.phone = phone;
     if (instagramHandle !== undefined) updates.instagram_handle = instagramHandle ?? null;
     if (gender !== undefined) updates.gender = gender ?? null;
+    if (address !== undefined) updates.address = address ?? null;
+    if (idVerifiedFromCccd) updates.id_verified_from_cccd = true;
 
     // Sync full_name to Auth user metadata (for display; email/phone stay in member_profiles only)
     if (fullName !== undefined) {

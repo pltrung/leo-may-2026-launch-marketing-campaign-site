@@ -23,6 +23,8 @@ export interface MemberProfile {
   profile_photo_url?: string | null;
   id_number?: string | null;
   date_of_birth?: string | null;
+  address?: string | null;
+  id_verified_from_cccd?: boolean;
   instagram_handle?: string | null;
   gender?: string | null;
   current_streak?: number;

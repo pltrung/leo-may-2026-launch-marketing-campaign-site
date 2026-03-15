@@ -1624,6 +1624,8 @@ export default function DashboardPage() {
           date_of_birth: member.date_of_birth,
           instagram_handle: member.instagram_handle,
           gender: member.gender,
+          address: member.address,
+          id_verified_from_cccd: member.id_verified_from_cccd,
         }}
         accessToken={accessToken}
         onSaved={refresh}

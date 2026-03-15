@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import { getMessages } from "@/lib/messages";
-import { extractIdFromVnEidQr } from "@/lib/vnEidQr";
+import { parseCccdPipeDelimited, extractIdFromVnEidQr } from "@/lib/vnEidQr";
 import EidQrScannerModal from "@/components/dashboard/EidQrScannerModal";
 
 interface ProfileModalProps {
@@ -17,6 +17,8 @@ interface ProfileModalProps {
     profile_photo_url?: string | null;
     id_number?: string | null;
     date_of_birth?: string | null;
+    address?: string | null;
+    id_verified_from_cccd?: boolean;
   };
   accessToken: string | null;
   onSaved: () => void;
@@ -43,6 +45,8 @@ export default function ProfileModal({
   const [dateOfBirth, setDateOfBirth] = useState(
     member.date_of_birth ? member.date_of_birth.slice(0, 10) : ""
   );
+  const [address, setAddress] = useState(member.address ?? "");
+  const [cccdScanPending, setCccdScanPending] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(
     member.profile_photo_url ?? null
   );
@@ -67,6 +71,8 @@ export default function ProfileModal({
       setGender(member.gender === "male" || member.gender === "female" ? member.gender : "");
       setIdNumber(member.id_number ?? "");
       setDateOfBirth(member.date_of_birth ? member.date_of_birth.slice(0, 10) : "");
+      setAddress(member.address ?? "");
+      setCccdScanPending(false);
       setPhotoPreview(member.profile_photo_url ?? null);
       setPhotoFile(null);
       setCurrentPassword("");
@@ -77,10 +83,41 @@ export default function ProfileModal({
       setPasswordSuccess(false);
       setEidScannerOpen(false);
     }
-  }, [open, member.full_name, member.email, member.phone, member.instagram_handle, member.gender, member.id_number, member.date_of_birth, member.profile_photo_url]);
+  }, [open, member.full_name, member.email, member.phone, member.instagram_handle, member.gender, member.id_number, member.date_of_birth, member.address, member.profile_photo_url]);
+
+  const lockedFromCccd = Boolean(member.id_verified_from_cccd);
 
   const handleEidScanned = useCallback(
     async (rawContent: string) => {
+      const cccd = parseCccdPipeDelimited(rawContent);
+      if (cccd) {
+        setError(null);
+        if (!accessToken) return;
+        try {
+          const res = await fetch(
+            `/api/member/profile/check-id?id_number=${encodeURIComponent(cccd.id_number)}`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+          const data = await res.json();
+          if (!res.ok) {
+            setError(data.error ?? d.idAlreadyRegistered);
+            return;
+          }
+          if (!data.available) {
+            setError(d.idAlreadyRegistered);
+            return;
+          }
+          setIdNumber(cccd.id_number);
+          setFullName(cccd.full_name);
+          setDateOfBirth(cccd.date_of_birth);
+          setGender(cccd.gender);
+          setAddress(cccd.address);
+          setCccdScanPending(true);
+        } catch {
+          setError(isVi ? "Không thể kiểm tra. Thử lại." : "Could not check. Try again.");
+        }
+        return;
+      }
       const parsed = extractIdFromVnEidQr(rawContent);
       if (!parsed) {
         setError(d.noIdInQr);
@@ -152,7 +189,9 @@ export default function ProfileModal({
         gender: gender || null,
         id_number: idNumber.trim() || null,
         date_of_birth: dateOfBirth.trim() || null,
+        address: address.trim() || null,
       };
+      if (cccdScanPending) body.id_verified_from_cccd = true;
       if (profilePhotoBase64) body.profile_photo_base64 = profilePhotoBase64;
 
       const res = await fetch("/api/member/profile", {
@@ -165,6 +204,7 @@ export default function ProfileModal({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed");
+      setCccdScanPending(false);
       onSaved();
       onClose();
     } catch (e) {
@@ -172,7 +212,7 @@ export default function ProfileModal({
     } finally {
       setLoading(false);
     }
-  }, [accessToken, fullName, email, phone, instagramHandle, gender, idNumber, dateOfBirth, photoFile, onSaved, onClose, isVi]);
+  }, [accessToken, fullName, email, phone, instagramHandle, gender, idNumber, dateOfBirth, address, cccdScanPending, photoFile, onSaved, onClose, isVi]);
 
   const handleChangePassword = useCallback(async () => {
     if (!accessToken) return;
@@ -295,12 +335,14 @@ export default function ProfileModal({
           <div className="space-y-4 mb-4">
             <label className="block">
               <span className="text-xs text-white/70">{d.fullName}</span>
+              {lockedFromCccd && <span className="text-xs text-white/50 ml-1">({d.verifiedFromCccdLocked})</span>}
               <input
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder={isVi ? "Họ tên đầy đủ" : "Full name"}
-                className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                disabled={lockedFromCccd}
+                className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-70 disabled:cursor-not-allowed"
               />
             </label>
             <label className="block">
@@ -340,10 +382,12 @@ export default function ProfileModal({
             </label>
             <label className="block">
               <span className="text-xs text-white/70">{d.gender}</span>
+              {lockedFromCccd && <span className="text-xs text-white/50 ml-1">({d.verifiedFromCccdLocked})</span>}
               <select
                 value={gender}
                 onChange={(e) => setGender(e.target.value as "male" | "female" | "")}
-                className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 [color-scheme:dark]"
+                disabled={lockedFromCccd}
+                className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 [color-scheme:dark] disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 <option value="">{isVi ? "Chọn" : "Select"}</option>
                 <option value="male">{d.genderMale}</option>
@@ -354,22 +398,26 @@ export default function ProfileModal({
               <span className="text-xs text-white/70">
                 {isVi ? "Số CCCD / Hộ chiếu" : "Govt ID / Passport"}
               </span>
+              {lockedFromCccd && <span className="text-xs text-white/50 ml-1">({d.verifiedFromCccdLocked})</span>}
               <div className="mt-1 flex gap-2">
                 <input
                   type="text"
                   value={idNumber}
                   onChange={(e) => { setIdNumber(e.target.value); setError(null); }}
                   placeholder={isVi ? "Nhập số CCCD hoặc hộ chiếu" : "Enter CCCD or passport number"}
-                  className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  disabled={lockedFromCccd}
+                  className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-70 disabled:cursor-not-allowed"
                 />
-                <button
-                  type="button"
-                  onClick={() => { setError(null); setEidScannerOpen(true); }}
-                  className="shrink-0 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm font-medium hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                  title={d.scanVnEid}
-                >
-                  {d.scanVnEid}
-                </button>
+                {!lockedFromCccd && (
+                  <button
+                    type="button"
+                    onClick={() => { setError(null); setEidScannerOpen(true); }}
+                    className="shrink-0 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm font-medium hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    title={d.scanVnEid}
+                  >
+                    {d.scanVnEid}
+                  </button>
+                )}
               </div>
             </label>
             <EidQrScannerModal
@@ -384,11 +432,25 @@ export default function ProfileModal({
               <span className="text-xs text-white/70">
                 {isVi ? "Ngày sinh" : "Date of birth"}
               </span>
+              {lockedFromCccd && <span className="text-xs text-white/50 ml-1">({d.verifiedFromCccdLocked})</span>}
               <input
                 type="date"
                 value={dateOfBirth}
                 onChange={(e) => setDateOfBirth(e.target.value)}
-                className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 [color-scheme:dark]"
+                disabled={lockedFromCccd}
+                className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 [color-scheme:dark] disabled:opacity-70 disabled:cursor-not-allowed"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs text-white/70">{d.address}</span>
+              {lockedFromCccd && <span className="text-xs text-white/50 ml-1">({d.verifiedFromCccdLocked})</span>}
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder={isVi ? "Địa chỉ" : "Address"}
+                disabled={lockedFromCccd}
+                className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-70 disabled:cursor-not-allowed"
               />
             </label>
           </div>
