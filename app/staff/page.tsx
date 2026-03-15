@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
+import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { useRouteSetterAuth } from "@/components/route-setter/RouteSetterAuthContext";
 import RouteSetterLoginForm from "@/components/route-setter/RouteSetterLoginForm";
 
@@ -123,6 +124,36 @@ export default function StaffPage() {
     loadZones();
     loadTasks();
   }, [staff, loadAttendance, loadSessions, loadZones, loadTasks]);
+
+  // Realtime: when admin scans staff QR, staff_attendance is upserted → update UI without refresh
+  useEffect(() => {
+    if (!staff?.id) return;
+    let supabase;
+    try {
+      supabase = getSupabaseBrowserClient();
+    } catch {
+      return;
+    }
+    const channel = supabase
+      .channel(`staff-attendance-${staff.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "staff_attendance",
+          filter: `staff_id=eq.${staff.id}`,
+        },
+        () => {
+          loadAttendance();
+          loadSessions();
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [staff?.id, loadAttendance, loadSessions]);
 
   useEffect(() => {
     if (staff?.display_name != null) setProfileName(staff.display_name);
