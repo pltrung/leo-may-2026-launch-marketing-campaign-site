@@ -331,8 +331,42 @@ export default function ProfileModal({
             </p>
           </div>
 
-          {/* Name, email, phone */}
+          {/* Govt ID first, then name, email, phone */}
           <div className="space-y-4 mb-4">
+            <label className="block">
+              <span className="text-xs text-white/70">
+                {isVi ? "Số CCCD / Hộ chiếu" : "Govt ID / Passport"}
+              </span>
+              {lockedFromCccd && <span className="text-xs text-white/50 ml-1">({d.verifiedFromCccdLocked})</span>}
+              <div className="mt-1 flex gap-2">
+                <input
+                  type="text"
+                  value={idNumber}
+                  onChange={(e) => { setIdNumber(e.target.value); setError(null); }}
+                  placeholder={isVi ? "Nhập số CCCD hoặc hộ chiếu" : "Enter CCCD or passport number"}
+                  disabled={lockedFromCccd}
+                  className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-70 disabled:cursor-not-allowed"
+                />
+                {!lockedFromCccd && (
+                  <button
+                    type="button"
+                    onClick={() => { setError(null); setEidScannerOpen(true); }}
+                    className="shrink-0 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm font-medium hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    title={d.scanVnEid}
+                  >
+                    {d.scanVnEid}
+                  </button>
+                )}
+              </div>
+            </label>
+            <EidQrScannerModal
+              open={eidScannerOpen}
+              onClose={() => setEidScannerOpen(false)}
+              onScanned={handleEidScanned}
+              onError={(msg) => setError(msg)}
+              title={d.scanVnEid}
+              hint={d.scanVnEidHint}
+            />
             <label className="block">
               <span className="text-xs text-white/70">{d.fullName}</span>
               {lockedFromCccd && <span className="text-xs text-white/50 ml-1">({d.verifiedFromCccdLocked})</span>}
@@ -394,40 +428,6 @@ export default function ProfileModal({
                 <option value="female">{d.genderFemale}</option>
               </select>
             </label>
-            <label className="block">
-              <span className="text-xs text-white/70">
-                {isVi ? "Số CCCD / Hộ chiếu" : "Govt ID / Passport"}
-              </span>
-              {lockedFromCccd && <span className="text-xs text-white/50 ml-1">({d.verifiedFromCccdLocked})</span>}
-              <div className="mt-1 flex gap-2">
-                <input
-                  type="text"
-                  value={idNumber}
-                  onChange={(e) => { setIdNumber(e.target.value); setError(null); }}
-                  placeholder={isVi ? "Nhập số CCCD hoặc hộ chiếu" : "Enter CCCD or passport number"}
-                  disabled={lockedFromCccd}
-                  className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-70 disabled:cursor-not-allowed"
-                />
-                {!lockedFromCccd && (
-                  <button
-                    type="button"
-                    onClick={() => { setError(null); setEidScannerOpen(true); }}
-                    className="shrink-0 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm font-medium hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                    title={d.scanVnEid}
-                  >
-                    {d.scanVnEid}
-                  </button>
-                )}
-              </div>
-            </label>
-            <EidQrScannerModal
-              open={eidScannerOpen}
-              onClose={() => setEidScannerOpen(false)}
-              onScanned={handleEidScanned}
-              onError={(msg) => setError(msg)}
-              title={d.scanVnEid}
-              hint={d.scanVnEidHint}
-            />
             <label className="block">
               <span className="text-xs text-white/70">
                 {isVi ? "Ngày sinh" : "Date of birth"}
