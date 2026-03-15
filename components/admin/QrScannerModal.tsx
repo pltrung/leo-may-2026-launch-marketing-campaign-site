@@ -3,22 +3,31 @@
 import React, { useEffect, useRef, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 
-function extractMemberIdFromQrContent(content: string): string | null {
+export type QrScanResult =
+  | { type: "member"; id: string }
+  | { type: "staff"; id: string };
+
+function parseQrContent(content: string): QrScanResult | null {
   const raw = content.trim();
+  if (raw.startsWith("leo-staff:")) {
+    const parts = raw.split(":");
+    const id = parts.length === 2 ? parts[1].trim() : "";
+    return id ? { type: "staff", id } : null;
+  }
   if (raw.startsWith("leo-member:")) {
     const parts = raw.split(":");
-    const memberId = parts.length === 2 ? parts[1].trim() : "";
-    return memberId || null;
+    const id = parts.length === 2 ? parts[1].trim() : "";
+    return id ? { type: "member", id } : null;
   }
-  const match = raw.match(/member_id=([^&\s#]+)/);
-  const memberId = (match?.[1] ?? "").trim();
-  return memberId || null;
+  const memberMatch = raw.match(/member_id=([^&\s#]+)/);
+  const memberId = (memberMatch?.[1] ?? "").trim();
+  return memberId ? { type: "member", id: memberId } : null;
 }
 
 interface QrScannerModalProps {
   open: boolean;
   onClose: () => void;
-  onScanned: (memberId: string) => void;
+  onScanned: (result: QrScanResult) => void;
   onError?: (message: string) => void;
 }
 
@@ -59,10 +68,10 @@ export default function QrScannerModal({ open, onClose, onScanned, onError }: Qr
             aspectRatio: 1,
           },
           (decodedText) => {
-            const memberId = extractMemberIdFromQrContent(decodedText);
-            if (memberId) {
+            const result = parseQrContent(decodedText);
+            if (result) {
               stopScanner();
-              onScanned(memberId);
+              onScanned(result);
               onClose();
             }
           },
@@ -90,11 +99,11 @@ export default function QrScannerModal({ open, onClose, onScanned, onError }: Qr
     >
       <div className="relative w-full max-w-md rounded-2xl bg-white p-4 shadow-xl">
         <h2 id="qr-scanner-title" className="mb-3 text-lg font-semibold text-slate-900">
-          Scan member QR code
+          Scan QR code
         </h2>
         <div id="qr-reader" ref={containerRef} className="min-h-[280px] rounded-lg overflow-hidden [&_video]:rounded-lg [&_img]:rounded-lg" />
         <p className="mt-2 text-sm text-slate-500">
-          Point your camera at the member&apos;s QR code. The scanner will close automatically when a valid code is detected.
+          Point at a member or staff QR. Member = check-in. Staff = daily attendance. Closes when a valid code is detected.
         </p>
         <button
           type="button"

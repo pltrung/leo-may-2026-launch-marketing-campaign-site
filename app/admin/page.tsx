@@ -103,6 +103,7 @@ export default function AdminPage() {
   const lastPaymentCountRef = React.useRef<number | null>(null);
   const [toolsModal, setToolsModal] = useState<"occupancy" | "checkins" | "revenue" | "staff" | null>(null);
   const [staffModalTab, setStaffModalTab] = useState<"overview" | "monthly">("overview");
+  const [staffResetLoading, setStaffResetLoading] = useState(false);
   const [monthlyAttendanceData, setMonthlyAttendanceData] = useState<{
     label: string;
     staff: { staff_id: string; display_name: string | null; email: string | null; in_days: number }[];
@@ -263,6 +264,32 @@ export default function AdminPage() {
       return;
     }
 
+    if (raw.startsWith("leo-staff:")) {
+      const staffId = raw.split(":")[1]?.trim();
+      if (!staffId) {
+        setSearchError("Could not read staff QR payload.");
+        return;
+      }
+      try {
+        const res = await adminFetch("/api/admin/staff/checkin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ staff_id: staffId }),
+        });
+        const data = await res.json();
+        if (res.ok && data?.staff) {
+          const name = (data.staff.display_name || data.staff.email) ?? "Staff";
+          setActionMessage(locale === "vi" ? `Nhân viên ${name} đã chấm công.` : `${name} checked in for today.`);
+          setSearchQuery("");
+        } else {
+          setSearchError(data?.error || (locale === "vi" ? "Chấm công thất bại." : "Staff check-in failed."));
+        }
+      } catch {
+        setSearchError(locale === "vi" ? "Không thể chấm công." : "Unable to record staff check-in.");
+      }
+      return;
+    }
+
     let params = new URLSearchParams();
 
     if (searchMode === "qr" || raw.startsWith("leo-member:") || raw.includes("member_id=")) {
@@ -311,7 +338,7 @@ export default function AdminPage() {
     } catch {
       setSearchError("Unable to search members right now.");
     }
-  }, [searchMode, searchQuery]);
+  }, [searchMode, searchQuery, adminFetch, locale]);
 
   const handleScanQr = useCallback(() => {
     setSearchMode("qr");
@@ -320,11 +347,30 @@ export default function AdminPage() {
   }, []);
 
   const handleQrScanned = useCallback(
-    async (memberId: string) => {
+    async (result: { type: "member"; id: string } | { type: "staff"; id: string }) => {
       setScannerModalOpen(false);
       setSearchError(null);
+      if (result.type === "staff") {
+        try {
+          const res = await adminFetch("/api/admin/staff/checkin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ staff_id: result.id }),
+          });
+          const data = await res.json();
+          if (res.ok && data?.staff) {
+            const name = (data.staff.display_name || data.staff.email) ?? "Staff";
+            setActionMessage(locale === "vi" ? `Nhân viên ${name} đã chấm công.` : `${name} checked in for today.`);
+          } else {
+            setActionError(data?.error || (locale === "vi" ? "Chấm công thất bại." : "Staff check-in failed."));
+          }
+        } catch {
+          setActionError(locale === "vi" ? "Không thể chấm công." : "Unable to record staff check-in.");
+        }
+        return;
+      }
       try {
-        const res = await fetch(`/api/checkin?member_id=${encodeURIComponent(memberId)}`);
+        const res = await fetch(`/api/checkin?member_id=${encodeURIComponent(result.id)}`);
         if (res.ok) {
           setActionMessage("Check-in recorded from QR scan.");
         } else {
@@ -334,9 +380,9 @@ export default function AdminPage() {
       } catch {
         setActionError("Unable to record check-in.");
       }
-      loadMemberById(memberId);
+      loadMemberById(result.id);
     },
-    [loadMemberById]
+    [loadMemberById, adminFetch, locale]
   );
 
   const canCheckIn = useMemo(
@@ -1346,6 +1392,32 @@ export default function AdminPage() {
               <button type="button" onClick={() => setStaffModalTab("monthly")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${staffModalTab === "monthly" ? "bg-white shadow border border-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-100"}`}>{m.monthlyAttendance}</button>
             </div>
             <div className="overflow-y-auto p-4 space-y-4">
+              {staffModalTab === "overview" && (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    disabled={staffResetLoading}
+                    onClick={async () => {
+                      setStaffResetLoading(true);
+                      try {
+                        const r = await adminFetch("/api/admin/staff/reset-attendance", { method: "POST" });
+                        const d = await r.json();
+                        if (r.ok) {
+                          setActionMessage(locale === "vi" ? "Đã xóa chấm công hôm nay. Staff có thể quét QR lại." : "Today's staff attendance reset. Staff can scan QR again.");
+                          adminFetch("/api/admin/staff").then((res) => res.json()).then((data) => setStaffOpsData(data)).catch(() => setStaffOpsData(null));
+                        } else setActionError(d?.error || "Failed");
+                      } catch {
+                        setActionError("Failed to reset");
+                      } finally {
+                        setStaffResetLoading(false);
+                      }
+                    }}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                  >
+                    {staffResetLoading ? "…" : (locale === "vi" ? "Xóa chấm công hôm nay (test)" : "Reset today's attendance (test)")}
+                  </button>
+                </div>
+              )}
               {staffModalTab === "monthly" ? (
                 <>
                   <p className="text-sm font-medium text-slate-700">{m.currentMonth}: {monthlyAttendanceData?.label ?? "—"}</p>
