@@ -778,9 +778,9 @@ export default function DashboardPage() {
           </div>
         )}
         {checkInSuccess && (
-          <div className="w-full max-w-[720px] mb-6 rounded-[20px] px-6 py-4 flex flex-col gap-1 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
+          <div className="w-full max-w-[720px] mb-6 rounded-[20px] px-6 py-4 flex flex-col gap-1 transition-transform duration-200 hover:-translate-y-0.5 border-2 border-emerald-400/60" style={{ background: glassCard, backdropFilter: "blur(20px)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
             <p className="text-[18px] font-medium text-emerald-200">
-              {isVi ? "Check-in thành công" : "Check-in Successful"}
+              {isVi ? "Đã check-in thành công" : "Checked in successfully"}
             </p>
             <p className="text-[15px] text-emerald-100/90">
               {isVi ? "Chào mừng bạn đến Leo Mây" : "Welcome to Leo Mây"}
