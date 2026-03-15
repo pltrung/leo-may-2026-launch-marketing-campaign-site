@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -56,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [member, setMember] = useState<MemberProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const initialLoadDoneRef = useRef(false);
 
   const fetchMember = useCallback(async (token: string) => {
     try {
@@ -75,7 +76,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    // Only show full-page loading on first load. Background refresh (e.g. after check-in) must not unmount dashboard.
+    if (!initialLoadDoneRef.current) setLoading(true);
     let supabase;
     try {
       supabase = getSupabaseBrowserClient();
@@ -104,6 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    initialLoadDoneRef.current = true;
     const token = s.access_token ?? null;
     setSession(s);
     setUser(s.user ?? null);
@@ -151,6 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       /* env vars may be missing */
     }
+    initialLoadDoneRef.current = false;
     setSession(null);
     setUser(null);
     setMember(null);

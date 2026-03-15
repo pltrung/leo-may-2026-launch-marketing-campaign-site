@@ -375,7 +375,7 @@ export default function DashboardPage() {
         () => {
           setCheckInSuccess(true);
           refresh();
-          setTimeout(() => setCheckInSuccess(false), 8000);
+          setTimeout(() => setCheckInSuccess(false), 20000);
           // Explicitly refetch climbing progress so it updates in real time
           fetch("/api/member/progress", { headers: { Authorization: `Bearer ${accessToken}` } })
             .then((r) => r.json())
@@ -407,7 +407,7 @@ export default function DashboardPage() {
           if (new Date(newLastCheckin).getTime() > prevTs) {
             lastCheckinRef.current = newLastCheckin;
             setCheckInSuccess(true);
-            setTimeout(() => setCheckInSuccess(false), 8000);
+            setTimeout(() => setCheckInSuccess(false), 20000);
             refresh();
             fetch("/api/member/progress", { headers: { Authorization: `Bearer ${accessToken}` } })
               .then((res) => res.json())
@@ -819,7 +819,7 @@ export default function DashboardPage() {
           </div>
         )}
         {checkInSuccess && (
-          <div className="w-full max-w-[720px] mb-6 rounded-[20px] px-6 py-4 flex flex-col gap-1 transition-transform duration-200 hover:-translate-y-0.5 border-2 border-emerald-400/60" style={{ background: glassCard, backdropFilter: "blur(20px)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
+          <div className="sticky top-0 z-30 w-full max-w-[720px] mb-6 rounded-[20px] px-6 py-4 flex flex-col gap-1 border-2 border-emerald-400/60 shadow-lg shadow-emerald-500/20 animate-in fade-in slide-in-from-top-2 duration-300" style={{ background: glassCard, backdropFilter: "blur(20px)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
             <p className="text-[18px] font-medium text-emerald-200">
               {isVi ? "Đã check-in thành công" : "Checked in successfully"}
             </p>
