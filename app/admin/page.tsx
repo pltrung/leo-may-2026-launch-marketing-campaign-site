@@ -102,6 +102,11 @@ export default function AdminPage() {
   const [paymentReceived, setPaymentReceived] = useState(false);
   const lastPaymentCountRef = React.useRef<number | null>(null);
   const [toolsModal, setToolsModal] = useState<"occupancy" | "checkins" | "revenue" | "staff" | null>(null);
+  const [staffModalTab, setStaffModalTab] = useState<"overview" | "monthly">("overview");
+  const [monthlyAttendanceData, setMonthlyAttendanceData] = useState<{
+    label: string;
+    staff: { staff_id: string; display_name: string | null; email: string | null; in_days: number }[];
+  } | null>(null);
   const [checkinsData, setCheckinsData] = useState<{
     checkins: { id: string; member_name: string; member_code: string | null; timestamp: string }[];
     byDay: Record<string, { id: string; member_name: string; member_code: string | null; timestamp: string }[]>;
@@ -122,6 +127,8 @@ export default function AdminPage() {
     tasks: { id: string; title: string; status: string; completed_at: string | null }[];
     summary: { staff_in_today: number; staff_out_today: number; sessions_today: number; newbie_attendance_today?: number; zones_overdue: number; tasks_pending: number };
   } | null>(null);
+
+  const m = getMessages(locale).admin;
 
   // Fetch plans
   useEffect(() => {
@@ -206,6 +213,17 @@ export default function AdminPage() {
       .then((d) => setStaffOpsData(d))
       .catch(() => setStaffOpsData(null));
   }, [toolsModal, adminFetch]);
+
+  useEffect(() => {
+    if (toolsModal !== "staff" || staffModalTab !== "monthly") return;
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    adminFetch(`/api/admin/staff/attendance-summary?period=month&year=${year}&month=${month}`)
+      .then((r) => r.json())
+      .then((d) => setMonthlyAttendanceData({ label: d.label, staff: d.staff ?? [] }))
+      .catch(() => setMonthlyAttendanceData(null));
+  }, [toolsModal, staffModalTab, adminFetch]);
 
   // Poll real-time-ish occupancy from backend.
   useEffect(() => {
@@ -1079,7 +1097,7 @@ export default function AdminPage() {
           <section className="grid md:grid-cols-[minmax(0,1.4fr)_minmax(0,2fr)] gap-8 items-start">
             <div className="rounded-2xl bg-white/90 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">
               <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
-                Admin Tools
+                {m.adminTools}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <button
@@ -1087,7 +1105,7 @@ export default function AdminPage() {
                   onClick={() => document.getElementById("new-member-form")?.scrollIntoView({ behavior: "smooth" })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
                 >
-                  Add New Member
+                  {m.addNewMember}
                 </button>
                 <button
                   type="button"
@@ -1097,59 +1115,59 @@ export default function AdminPage() {
                       handlePaymentPlanChange("day_pass");
                       setPaymentModalOpen(true);
                     } else {
-                      setActionError("Search for a member first to generate Day Pass.");
+                      setActionError(m.searchMemberFirstDayPass);
                     }
                   }}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
                 >
-                  Generate Day Pass
+                  {m.generateDayPass}
                 </button>
                 <button
                   type="button"
                   onClick={() => setToolsModal("checkins")}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
                 >
-                  Recent Check-ins
+                  {m.recentCheckins}
                 </button>
                 <button
                   type="button"
                   onClick={() => setToolsModal("occupancy")}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
                 >
-                  View Gym Occupancy
+                  {m.viewGymOccupancy}
                 </button>
                 <button
                   type="button"
-                  onClick={() => window.open("/en/countdown", "_blank")}
+                  onClick={() => window.open(`/${locale}/countdown`, "_blank")}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
                 >
-                  View Leaderboard
+                  {m.viewLeaderboard}
                 </button>
                 <button
                   type="button"
                   onClick={() => setToolsModal("revenue")}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
                 >
-                  Revenue
+                  {m.revenue}
                 </button>
                 <button
                   type="button"
                   onClick={() => setToolsModal("staff")}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
                 >
-                  Staff Operations
+                  {m.staffOperations}
                 </button>
               </div>
             </div>
 
             <div id="new-member-form" className="rounded-2xl bg-white/95 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">
               <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
-                New Member
+                {m.newMember}
               </h3>
               <form className="space-y-3" onSubmit={handleCreateMember}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="text-xs text-slate-700">
-                    Name
+                    {m.name}
                     <input
                       type="text"
                       className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs md:text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
@@ -1159,7 +1177,7 @@ export default function AdminPage() {
                     />
                   </label>
                   <label className="text-xs text-slate-700">
-                    Email
+                    {m.email}
                     <input
                       type="email"
                       className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs md:text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
@@ -1196,7 +1214,7 @@ export default function AdminPage() {
                     type="submit"
                     className="px-4 py-2 rounded-full text-xs md:text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800"
                   >
-                    Create Member
+                    {m.createMember}
                   </button>
                 </div>
               </form>
@@ -1210,11 +1228,11 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-slate-900">Gym Occupancy</h3>
+              <h3 className="text-lg font-semibold text-slate-900">{m.gymOccupancy}</h3>
               <button type="button" onClick={() => setToolsModal(null)} className="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
             </div>
             <p className="text-4xl font-bold text-slate-900">{gymOccupancy}</p>
-            <p className="text-sm text-slate-500 mt-1">climber{gymOccupancy === 1 ? "" : "s"} inside (last 2 hours)</p>
+            <p className="text-sm text-slate-500 mt-1">{m.climbersInsideLast2h}</p>
           </div>
         </div>
       )}
@@ -1223,13 +1241,13 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
             <div className="flex justify-between items-center p-4 border-b">
-              <h3 className="text-lg font-semibold text-slate-900">Recent Check-ins (7 days)</h3>
+              <h3 className="text-lg font-semibold text-slate-900">{m.recentCheckins} (7 {m.day}s)</h3>
               <button type="button" onClick={() => setToolsModal(null)} className="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
             </div>
             <div className="overflow-y-auto p-4 space-y-4">
-              {!checkinsData && <p className="text-sm text-slate-500">Loading…</p>}
+              {!checkinsData && <p className="text-sm text-slate-500">{m.loading}</p>}
               {checkinsData && Object.keys(checkinsData.byDay).length === 0 && (
-                <p className="text-sm text-slate-500">No check-ins in the last 7 days.</p>
+                <p className="text-sm text-slate-500">{m.noCheckins7Days}</p>
               )}
               {checkinsData && Object.entries(checkinsData.byDay)
                 .sort(([a], [b]) => b.localeCompare(a))
@@ -1260,7 +1278,7 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
             <div className="flex justify-between items-center p-4 border-b">
-              <h3 className="text-lg font-semibold text-slate-900">Revenue</h3>
+              <h3 className="text-lg font-semibold text-slate-900">{m.revenue}</h3>
               <button type="button" onClick={() => setToolsModal(null)} className="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
             </div>
             <div className="p-4 space-y-4">
@@ -1274,11 +1292,11 @@ export default function AdminPage() {
                       revenuePeriod === p ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                     }`}
                   >
-                    {p === "day" ? "Today" : p === "week" ? "This Week" : "This Month"}
+                    {p === "day" ? m.today : p === "week" ? m.thisWeek : m.thisMonth}
                   </button>
                 ))}
               </div>
-              {!revenueData && <p className="text-sm text-slate-500">Loading…</p>}
+              {!revenueData && <p className="text-sm text-slate-500">{m.loading}</p>}
               {revenueData && (
                 <>
                   <p className="text-2xl font-bold text-slate-900">
@@ -1286,7 +1304,7 @@ export default function AdminPage() {
                   </p>
                   {Object.keys(revenueData.byPlan).length > 0 && (
                     <div className="space-y-1.5 text-sm">
-                      <p className="font-medium text-slate-600">By plan:</p>
+                      <p className="font-medium text-slate-600">{m.byPlan}</p>
                       {Object.entries(revenueData.byPlan).map(([plan, amt]) => (
                         <div key={plan} className="flex justify-between">
                           <span className="text-slate-700">{plan}</span>
@@ -1296,9 +1314,9 @@ export default function AdminPage() {
                     </div>
                   )}
                   <div className="border-t pt-3 mt-3">
-                    <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Payments</p>
+                    <p className="text-xs font-semibold text-slate-500 uppercase mb-2">{m.payments}</p>
                     {revenueData.payments.length === 0 && (
-                      <p className="text-sm text-slate-500">No payments in this period.</p>
+                      <p className="text-sm text-slate-500">{m.noPaymentsInPeriod}</p>
                     )}
                     <ul className="space-y-1 max-h-40 overflow-y-auto">
                       {revenueData.payments.map((p) => (
@@ -1320,15 +1338,37 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
             <div className="flex justify-between items-center p-4 border-b">
-              <h3 className="text-lg font-semibold text-slate-900">Staff Operations</h3>
+              <h3 className="text-lg font-semibold text-slate-900">{m.staffOperations}</h3>
               <button type="button" onClick={() => setToolsModal(null)} className="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
             </div>
+            <div className="flex gap-1 p-2 border-b bg-slate-50">
+              <button type="button" onClick={() => setStaffModalTab("overview")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${staffModalTab === "overview" ? "bg-white shadow border border-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-100"}`}>{m.staffTabOverview}</button>
+              <button type="button" onClick={() => setStaffModalTab("monthly")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${staffModalTab === "monthly" ? "bg-white shadow border border-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-100"}`}>{m.monthlyAttendance}</button>
+            </div>
             <div className="overflow-y-auto p-4 space-y-4">
-              {!staffOpsData && <p className="text-sm text-slate-500">Loading…</p>}
+              {staffModalTab === "monthly" ? (
+                <>
+                  <p className="text-sm font-medium text-slate-700">{m.currentMonth}: {monthlyAttendanceData?.label ?? "—"}</p>
+                  {!monthlyAttendanceData && <p className="text-sm text-slate-500">{m.loading}</p>}
+                  {monthlyAttendanceData && monthlyAttendanceData.staff.length === 0 && <p className="text-sm text-slate-500">{m.noSessions}</p>}
+                  {monthlyAttendanceData && monthlyAttendanceData.staff.length > 0 && (
+                    <ul className="space-y-2">
+                      {monthlyAttendanceData.staff.map((s) => (
+                        <li key={s.staff_id} className="flex justify-between items-center py-2 px-3 rounded-lg bg-slate-50 border border-slate-100">
+                          <span className="font-medium text-slate-800">{(s.display_name || s.email) ?? s.staff_id}</span>
+                          <span className="text-slate-600 font-medium">{s.in_days} {m.inDays}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              ) : (
+              <>
+              {!staffOpsData && <p className="text-sm text-slate-500">{m.loading}</p>}
               {staffOpsData && (
                 <>
                   <div>
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Today’s attendance</h4>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.todayAttendance}</h4>
                     <p className="text-sm text-slate-600 mb-1"><strong>IN:</strong> {staffOpsData.summary.staff_in_today} — {staffOpsData.attendance.in.map((a: { staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }) => {
                       const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles;
                       return (p?.display_name || p?.email) ?? "—";
@@ -1340,10 +1380,10 @@ export default function AdminPage() {
                   </div>
                   <div>
                     <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                      Coaching sessions today ({staffOpsData.sessions.length})
-                      {" — "}Newbie attendance: {staffOpsData.summary.newbie_attendance_today ?? 0}
+                      {m.coachingSessionsToday} ({staffOpsData.sessions.length})
+                      {" — "}{m.newbieAttendanceToday}: {staffOpsData.summary.newbie_attendance_today ?? 0}
                     </h4>
-                    {staffOpsData.sessions.length === 0 && <p className="text-sm text-slate-500">No sessions.</p>}
+                    {staffOpsData.sessions.length === 0 && <p className="text-sm text-slate-500">{m.noSessions}</p>}
                     <ul className="space-y-1 text-sm">
                       {staffOpsData.sessions.slice(0, 20).map((s: { id: string; start_time: string; coach_id: string | null; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[]; location?: string; newbie_count?: number }) => (
                         <li key={s.id} className="flex justify-between items-start gap-2">
@@ -1351,38 +1391,40 @@ export default function AdminPage() {
                           <span className="text-slate-600 shrink-0">
                             {s.coach_id ? (() => {
                               const p = Array.isArray(s.staff_profiles) ? s.staff_profiles[0] : s.staff_profiles;
-                              return (p?.display_name || p?.email) ?? "Assigned";
-                            })() : "Unassigned"}
+                              return (p?.display_name || p?.email) ?? m.assigned;
+                            })() : m.unassigned}
                           </span>
                         </li>
                       ))}
                     </ul>
                   </div>
                   <div>
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Route zones (overdue: {staffOpsData.summary.zones_overdue})</h4>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.routeZonesOverdue} {staffOpsData.summary.zones_overdue})</h4>
                     <ul className="space-y-1 text-sm">
                       {staffOpsData.zones.map((z: { id: string; name: string; next_reset_at: string | null; overdue?: boolean }) => (
                         <li key={z.id} className="flex justify-between">
                           <span>{z.name}</span>
                           <span className={z.overdue ? "text-red-600" : "text-slate-600"}>
-                            {z.overdue ? "Overdue" : z.next_reset_at ? new Date(z.next_reset_at).toLocaleDateString() : "—"}
+                            {z.overdue ? m.overdue : z.next_reset_at ? new Date(z.next_reset_at).toLocaleDateString() : "—"}
                           </span>
                         </li>
                       ))}
                     </ul>
                   </div>
                   <div>
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Tasks (pending: {staffOpsData.summary.tasks_pending})</h4>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.tasksPending} {staffOpsData.summary.tasks_pending})</h4>
                     <ul className="space-y-1 text-sm">
                       {staffOpsData.tasks.map((t: { id: string; title: string; status: string; completed_at: string | null }) => (
                         <li key={t.id} className="flex justify-between">
                           <span className={t.status === "completed" ? "line-through text-slate-500" : ""}>{t.title}</span>
-                          <span className="text-slate-600">{t.status === "completed" ? "Done" : "Pending"}</span>
+                          <span className="text-slate-600">{t.status === "completed" ? m.done : m.pending}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
                 </>
+              )}
+              </>
               )}
             </div>
           </div>
@@ -1394,7 +1436,7 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-center p-4 border-b">
-              <h3 className="text-lg font-semibold text-slate-900">Signed Waiver — {foundMember.name}</h3>
+              <h3 className="text-lg font-semibold text-slate-900">{m.signedWaiver} — {foundMember.name}</h3>
               <button
                 type="button"
                 onClick={() => setWaiverModalOpen(false)}
