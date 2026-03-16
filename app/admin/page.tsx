@@ -1810,8 +1810,14 @@ export default function AdminPage() {
                       let imageUrl: string | null = null;
                       if (newProductImageDataUrl) {
                         const upRes = await adminFetch("/api/admin/upload/product-image", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: newProductImageDataUrl }) });
-                        const upData = await upRes.json();
+                        const upText = await upRes.text();
+                        let upData: { url?: string; error?: string } = {};
+                        try { upData = upText ? JSON.parse(upText) : {}; } catch {
+                          setInventoryCreateError(upRes.status === 413 || /request entity too large|body.*large/i.test(upText) ? "Image too large. Use a smaller photo (e.g. under 1–2 MB) or compress it." : `Upload failed (${upRes.status}): ${upText.slice(0, 120)}`);
+                          return;
+                        }
                         if (upRes.ok && upData.url) imageUrl = upData.url;
+                        else if (!upRes.ok) { setInventoryCreateError(upData?.error ?? upText.slice(0, 150) || `Upload failed ${upRes.status}`); return; }
                       }
                       const res = await adminFetch("/api/admin/products/with-variants", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newProductName.trim(), brand: newProductBrand.trim() || null, category: newProductCategory, image: imageUrl, product_code: newProductCode.trim().toUpperCase(), variants: variantsToCreate }) });
                       const text = await res.text();
