@@ -1534,7 +1534,7 @@ export default function AdminPage() {
                                 </p>
                                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                                   <label className="text-xs text-slate-600">{m.quantity}</label>
-                                  <input type="number" min={1} value={posAddQty} onChange={(e) => setPosAddQty(Math.max(1, parseInt(e.target.value, 10) || 1))} className="w-14 px-2 py-1 rounded border border-slate-200 text-sm" />
+                                  <input type="number" min={1} value={posAddQty} onChange={(e) => setPosAddQty(Math.max(1, parseInt(e.target.value, 10) || 1))} className="w-14 px-2 py-1 rounded border border-slate-200 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -1563,10 +1563,10 @@ export default function AdminPage() {
                     {posCart.length === 0 ? <p className="text-xs text-slate-500">Empty</p> : (
                       <ul className="space-y-1.5 mb-3 max-h-32 overflow-y-auto">
                         {posCart.map((item, i) => (
-                          <li key={`${item.sku}-${i}`} className="flex items-center gap-2 text-xs">
+                          <li key={`${item.sku}-${i}`} className="flex items-center gap-2 text-xs text-slate-800">
                             {item.image ? <img src={item.image} alt="" className="w-8 h-8 object-cover rounded flex-shrink-0" /> : null}
                             <span className="truncate flex-1">{item.name} × {item.quantity}</span>
-                            <span className="font-medium">{(item.quantity * item.price).toLocaleString("vi-VN")} VND</span>
+                            <span className="font-medium text-slate-900">{(item.quantity * item.price).toLocaleString("vi-VN")} VND</span>
                             <button type="button" onClick={() => setPosCart((c) => c.filter((_, j) => j !== i))} className="text-red-600 hover:underline">{m.remove}</button>
                           </li>
                         ))}
@@ -1772,8 +1772,8 @@ export default function AdminPage() {
                 ))}
               </div>
               {inventoryList.length === 0 && <p className="text-sm text-slate-500">{m.loading}</p>}
-              <div className="border border-slate-600 rounded-lg overflow-hidden text-sm">
-                <table className="w-full border-collapse">
+              <div className="border border-slate-600 rounded-lg overflow-x-auto text-sm -mx-1 px-1 sm:mx-0 sm:px-0">
+                <table className="w-full border-collapse min-w-[480px]">
                   <thead>
                     <tr className="bg-slate-700/80 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
                       <th className="px-3 py-2 border-b border-slate-600">{locale === "vi" ? "Loại" : "Type"}</th>
@@ -2211,7 +2211,7 @@ export default function AdminPage() {
                       </div>
                       <p className="text-sm font-medium text-slate-700 mb-2">{phaseCompleted} / {phaseTotal} {locale === "vi" ? "công việc đã xong" : "tasks completed"}</p>
                       <ul className="space-y-1.5 text-sm">
-                        {currentPhaseTasks.map((t: { id: string; title: string; status: string; completer?: { display_name?: string; email?: string } | { display_name?: string; email?: string }[] | null }) => {
+                        {currentPhaseTasks.map((t) => {
                           const c = Array.isArray(t.completer) ? t.completer[0] : t.completer;
                           const name = c ? (c.display_name || c.email) : null;
                           return (
