@@ -157,6 +157,34 @@ export default function DashboardPage() {
   const [payments, setPayments] = useState<{ id: string; plan_name: string; amount: number; created_at: string }[]>([]);
   const [purchases, setPurchases] = useState<{ id: string; total: number; created_at: string; items: { sku: string; name: string | null; quantity: number; price: number }[] }[]>([]);
   const [packageDetailPlan, setPackageDetailPlan] = useState<Plan | null>(null);
+  const [qrToken, setQrToken] = useState<string | null>(null);
+
+  // Poll a short-lived QR token so screenshots expire quickly.
+  useEffect(() => {
+    if (!accessToken || !member?.id) return;
+    let cancelled = false;
+
+    const fetchToken = async () => {
+      try {
+        const res = await fetch("/api/member/qr-token", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const data = await res.json();
+        if (!cancelled && res.ok && data?.token) {
+          setQrToken(data.token as string);
+        }
+      } catch {
+        if (!cancelled) setQrToken(null);
+      }
+    };
+
+    fetchToken();
+    const id = window.setInterval(fetchToken, 20000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [accessToken, member?.id]);
   const [packageDetailOpen, setPackageDetailOpen] = useState(false);
   const [renewPlanId, setRenewPlanId] = useState<string | null>(null);
   const [renewQrUrl, setRenewQrUrl] = useState<string | null>(null);
@@ -672,11 +700,8 @@ export default function DashboardPage() {
   const displayName = member.full_name?.trim() || (isVi ? "bạn" : "Member");
   const greeting = isVi ? `Chào lại, ${displayName}` : `Welcome back, ${displayName}`;
 
-  // URL format so scanning with phone camera opens link → immediate check-in. Also supports leo-member:id for admin paste.
-  const qrPayload =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/api/checkin?member_id=${encodeURIComponent(member.id)}`
-      : `leo-member:${member.id}`;
+  // Short-lived signed QR token; prevents reuse of screenshots beyond a short window.
+  const qrPayload = qrToken ?? "";
 
   const memberSince = safeDate(member.created_at, isVi ? "vi-VN" : "en-US");
   const lastCheckIn = member.last_checkin

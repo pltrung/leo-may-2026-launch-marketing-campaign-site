@@ -482,7 +482,7 @@ export default function AdminPage() {
   }, []);
 
   const handleQrScanned = useCallback(
-    async (result: { type: "member"; id: string } | { type: "staff"; id: string }) => {
+    async (result: { type: "member"; raw: string; id?: string } | { type: "staff"; raw: string; id?: string }) => {
       setScannerModalOpen(false);
       setSearchError(null);
       if (result.type === "staff") {
@@ -490,7 +490,7 @@ export default function AdminPage() {
           const res = await adminFetch("/api/admin/staff/checkin", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ staff_id: result.id }),
+            body: JSON.stringify({ qr: result.raw, staff_id: result.id }),
           });
           const data = await res.json();
           if (res.ok && data?.staff) {
@@ -509,20 +509,24 @@ export default function AdminPage() {
           const res = await fetch("/api/checkin", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ member_id: result.id, location: "turnstile" }),
+            body: JSON.stringify({ qr: result.raw, member_id: result.id, location: "turnstile" }),
           });
-          if (res.ok) {
+        if (res.ok) {
             setActionMessage(locale === "vi" ? "Đã check-in thành công." : "Check-in recorded.");
-          } else {
-            const data = await res.json().catch(() => ({}));
+        } else {
+          const data = await res.json().catch(() => ({}));
             setActionError(data?.error || "Check-in failed.");
-          }
-        } catch {
-          setActionError("Unable to record check-in.");
         }
+      } catch {
+        setActionError("Unable to record check-in.");
+      }
         return;
       }
-      loadMemberById(result.id);
+      if (result.id) {
+        loadMemberById(result.id);
+      } else {
+        setSearchError(locale === "vi" ? "Không đọc được ID thành viên từ QR." : "Could not read member ID from QR.");
+      }
     },
     [loadMemberById, adminFetch, locale, scannerIntent]
   );
@@ -1310,12 +1314,12 @@ export default function AdminPage() {
                         .map((entry) => (
                           <li key={`${entry.type}-${entry.id}`} className="flex flex-col gap-0.5">
                             <div className="flex justify-between items-start">
-                              <div>
+                          <div>
                                 <span className="font-medium">{entry.label}</span>
-                                <span className="text-slate-500 ml-2">
+                            <span className="text-slate-500 ml-2">
                                   {new Date(entry.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                                </span>
-                              </div>
+                            </span>
+                          </div>
                               <span className="font-medium">{entry.amount.toLocaleString("vi-VN")} VND</span>
                             </div>
                             {entry.items && entry.items.length > 0 && (
@@ -1325,8 +1329,8 @@ export default function AdminPage() {
                                 ))}
                               </ul>
                             )}
-                          </li>
-                        ))}
+                        </li>
+                      ))}
                     </ul>
                   )}
                 </div>
@@ -1790,7 +1794,7 @@ export default function AdminPage() {
                 >
                   {m.staffOperations}
                 </button>
-                </div>
+              </div>
             </div>
 
             <div id="new-member-form" className="rounded-2xl bg-white/95 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
+import { verifyQrToken } from "@/lib/qrTokens";
 import { computeStreakUpdate, evaluateAndGrantAchievements } from "@/lib/achievements";
 
 async function performCheckIn(memberId: string, location: string | null): Promise<NextResponse> {
@@ -116,17 +117,26 @@ async function performCheckIn(memberId: string, location: string | null): Promis
 
 /**
  * POST /api/checkin
- * Body: { member_id: string, location?: string }
- * Inserts a gym check-in. Used by admin "Check In" and "Manual Check-In" buttons.
+ * Body: { member_id?: string, qr?: string, location?: string }
+ * Inserts a gym check-in. Used by admin "Check In", "Manual Check-In", and QR quick check-in.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const memberId = typeof body.member_id === "string" ? body.member_id.trim() : null;
+    const rawQr = typeof body.qr === "string" ? body.qr.trim() : null;
+    let memberId = typeof body.member_id === "string" ? body.member_id.trim() : null;
     const location = typeof body.location === "string" ? body.location.trim() : null;
 
+    if (!memberId && rawQr) {
+      const { ok, id, error } = verifyQrToken("member", rawQr, 60);
+      if (!ok || !id) {
+        return NextResponse.json({ error: error ?? "Invalid or expired QR token" }, { status: 400 });
+      }
+      memberId = id;
+    }
+
     if (!memberId) {
-      return NextResponse.json({ error: "member_id required" }, { status: 400 });
+      return NextResponse.json({ error: "member_id or qr required" }, { status: 400 });
     }
 
     return performCheckIn(memberId, location);

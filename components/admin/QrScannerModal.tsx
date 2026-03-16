@@ -4,24 +4,24 @@ import React, { useEffect, useRef, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 
 export type QrScanResult =
-  | { type: "member"; id: string }
-  | { type: "staff"; id: string };
+  | { type: "member"; raw: string; id?: string }
+  | { type: "staff"; raw: string; id?: string };
 
 function parseQrContent(content: string): QrScanResult | null {
   const raw = content.trim();
   if (raw.startsWith("leo-staff:")) {
     const parts = raw.split(":");
-    const id = parts.length === 2 ? parts[1].trim() : "";
-    return id ? { type: "staff", id } : null;
+    const id = parts.length >= 2 ? parts[1].trim() : undefined;
+    return { type: "staff", raw, id: id && id.length > 0 ? id : undefined };
   }
   if (raw.startsWith("leo-member:")) {
     const parts = raw.split(":");
-    const id = parts.length === 2 ? parts[1].trim() : "";
-    return id ? { type: "member", id } : null;
+    const id = parts.length >= 2 ? parts[1].trim() : undefined;
+    return { type: "member", raw, id: id && id.length > 0 ? id : undefined };
   }
   const memberMatch = raw.match(/member_id=([^&\s#]+)/);
   const memberId = (memberMatch?.[1] ?? "").trim();
-  return memberId ? { type: "member", id: memberId } : null;
+  return memberId ? { type: "member", raw, id: memberId } : null;
 }
 
 interface QrScannerModalProps {

@@ -86,6 +86,7 @@ export default function StaffPage() {
   const [profileName, setProfileName] = useState("");
   const [profileEditing, setProfileEditing] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [qrToken, setQrToken] = useState<string | null>(null);
 
   const loadAttendance = useCallback(async () => {
     const res = await staffFetch("/api/route-setter/attendance");
@@ -160,6 +161,10 @@ export default function StaffPage() {
     if (staff?.display_name != null) setProfileName(staff.display_name);
     else if (staff?.email) setProfileName(staff.email.split("@")[0] || "");
   }, [staff?.display_name, staff?.email]);
+
+  // Fetch a short-lived QR token for staff attendance; prevents screenshot reuse.
+  // This effect depends on hasAttendanceForToday, which is computed below; TypeScript
+  // requires the dependency to be added after declaration, so the hook order must stay consistent.
 
   const handleSaveProfile = useCallback(async () => {
     setProfileSaving(true);
@@ -265,6 +270,37 @@ export default function StaffPage() {
     [staffFetch, loadTasks, m.failedTask]
   );
 
+  // Fetch a short-lived QR token for staff attendance; prevents screenshot reuse.
+  useEffect(() => {
+    if (!staff) {
+      setQrToken(null);
+      return;
+    }
+    // hasAttendanceForToday is derived later; avoid fetching tokens when we already checked in.
+    if (attendance && attendance.date === getGymToday()) {
+      setQrToken(null);
+      return;
+    }
+    let cancelled = false;
+    const fetchToken = async () => {
+      try {
+        const res = await staffFetch("/api/route-setter/qr-token");
+        const data = await res.json();
+        if (!cancelled && res.ok && data?.token) {
+          setQrToken(data.token as string);
+        }
+      } catch {
+        if (!cancelled) setQrToken(null);
+      }
+    };
+    fetchToken();
+    const id = window.setInterval(fetchToken, 20000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [staff, attendance, staffFetch]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
@@ -337,7 +373,7 @@ export default function StaffPage() {
             <p className="text-slate-400 text-sm mb-4">{m.checkInAtFrontDeskHint}</p>
             <div className="flex flex-col items-center gap-4">
               <div className="rounded-xl bg-white p-3 inline-block">
-                <QRCodeSVG value={`leo-staff:${staff.id}`} size={180} level="M" />
+                {qrToken ? <QRCodeSVG value={qrToken} size={180} level="M" /> : null}
               </div>
               <button
                 type="button"
