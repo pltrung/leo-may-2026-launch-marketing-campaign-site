@@ -1,0 +1,4 @@
+-- Product images are stored in Supabase Storage.
+-- Create the bucket manually in Dashboard: Storage -> New bucket -> name: product-photos
+-- Set the bucket to Public so product image URLs work.
+-- No table changes in this migration.

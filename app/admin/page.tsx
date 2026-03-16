@@ -165,7 +165,10 @@ export default function AdminPage() {
   const [productDetailEditProduct, setProductDetailEditProduct] = useState<{ name: string; brand: string | null; category: string; image: string | null } | null>(null);
   const [productDetailEditVariantId, setProductDetailEditVariantId] = useState<string | null>(null);
   const [productDetailEditVariant, setProductDetailEditVariant] = useState<{ sku: string; size: string | null; barcode: string | null; price: number; cost: number } | null>(null);
-  const [newProductImage, setNewProductImage] = useState("");
+  const [newProductImageDataUrl, setNewProductImageDataUrl] = useState<string | null>(null);
+  const newProductPhotoInputRef = React.useRef<HTMLInputElement>(null);
+  const [posAddQty, setPosAddQty] = useState(1);
+  const productDetailPhotoInputRef = React.useRef<HTMLInputElement>(null);
   const [adminTab, setAdminTab] = useState<"member" | "sales" | "inventory" | "management">("member");
   const [staffOpsData, setStaffOpsData] = useState<{
     attendance: { in: { staff_id: string; status: string; staff_profiles?: { email?: string } | { email?: string }[] }[]; out: { staff_id: string; status: string; staff_profiles?: { email?: string } | { email?: string }[] }[] };
@@ -990,7 +993,7 @@ export default function AdminPage() {
             <button
               type="button"
               onClick={() => signOut()}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100"
+              className="px-3 py-1.5 rounded-lg border border-slate-500 text-slate-200 hover:bg-slate-700 hover:text-white"
             >
               {t.logout}
             </button>
@@ -1162,22 +1165,22 @@ export default function AdminPage() {
                   <div className="flex items-start gap-4 mb-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-lg font-semibold text-slate-900">
+                        <h2 className="text-lg font-semibold text-white">
                           {foundMember.name}
                         </h2>
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 ${
                             foundMember.status === "Active"
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/50"
                               : foundMember.status === "Frozen"
-                              ? "bg-amber-50 text-amber-700 border border-amber-100"
-                              : "bg-rose-50 text-rose-700 border border-rose-100"
+                              ? "bg-amber-500/20 text-amber-300 border border-amber-400/50"
+                              : "bg-rose-500/20 text-rose-300 border border-rose-400/50"
                           }`}
                         >
                           {foundMember.status}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <p className="text-xs text-slate-400 mt-0.5">
                         {foundMember.email || foundMember.phone}
                       </p>
                     </div>
@@ -1186,10 +1189,10 @@ export default function AdminPage() {
                         <img
                           src={foundMember.profile_photo_url}
                           alt=""
-                          className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border-2 border-slate-200"
+                          className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border-2 border-slate-600"
                         />
                       ) : (
-                        <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 text-lg font-semibold">
+                        <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-slate-600 flex items-center justify-center text-slate-300 text-lg font-semibold">
                           {foundMember.name.charAt(0).toUpperCase()}
                         </div>
                       )}
@@ -1197,35 +1200,35 @@ export default function AdminPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-xs md:text-sm">
                     <div>
-                      <p className="text-slate-500">Member ID</p>
-                      <p className="font-medium text-slate-900">{foundMember.displayId}</p>
+                      <p className="text-slate-400">Member ID</p>
+                      <p className="font-medium text-slate-100">{foundMember.displayId}</p>
                     </div>
                     <div>
-                      <p className="text-slate-500">Membership</p>
-                      <p className="font-medium text-slate-900">
+                      <p className="text-slate-400">Membership</p>
+                      <p className="font-medium text-slate-100">
                         {foundMember.membershipType}
                       </p>
                     </div>
                     <div>
-                      <p className="text-slate-500">Valid until</p>
-                      <p className="font-medium text-slate-900">
+                      <p className="text-slate-400">Valid until</p>
+                      <p className="font-medium text-slate-100">
                         {foundMember.validUntil}
                       </p>
                     </div>
                     {foundMember.gender && (
                       <div>
-                        <p className="text-slate-500">Gender</p>
-                        <p className="font-medium text-slate-900">{foundMember.gender === "male" ? "Male" : "Female"}</p>
+                        <p className="text-slate-400">Gender</p>
+                        <p className="font-medium text-slate-100">{foundMember.gender === "male" ? "Male" : "Female"}</p>
                       </div>
                     )}
                     {foundMember.instagram_handle && (
                       <div>
-                        <p className="text-slate-500">Instagram</p>
+                        <p className="text-slate-400">Instagram</p>
                         <a
                           href={`https://www.instagram.com/${foundMember.instagram_handle.replace(/^@/, "")}/`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-medium text-slate-900 hover:underline"
+                          className="font-medium text-sky-300 hover:text-sky-200 hover:underline"
                         >
                           @{foundMember.instagram_handle.replace(/^@/, "")}
                         </a>
@@ -1233,14 +1236,14 @@ export default function AdminPage() {
                     )}
                     {foundMember.id_number && (
                       <div>
-                        <p className="text-slate-500">Govt ID</p>
-                        <p className="font-medium text-slate-900">{foundMember.id_number}</p>
+                        <p className="text-slate-400">Govt ID</p>
+                        <p className="font-medium text-slate-100">{foundMember.id_number}</p>
                       </div>
                     )}
                     {foundMember.date_of_birth && (
                       <div>
-                        <p className="text-slate-500">Date of birth</p>
-                        <p className="font-medium text-slate-900">
+                        <p className="text-slate-400">Date of birth</p>
+                        <p className="font-medium text-slate-100">
                           {new Date(foundMember.date_of_birth).toLocaleDateString("en-US", {
                             year: "numeric",
                             month: "short",
@@ -1250,10 +1253,10 @@ export default function AdminPage() {
                       </div>
                     )}
                     <div className="col-span-2">
-                      <p className="text-slate-500">Waiver Signed</p>
+                      <p className="text-slate-400">Waiver Signed</p>
                       {foundMember.waiver_signed && foundMember.waiver_signed_at ? (
                         <div className="flex items-center gap-2">
-                          <p className="font-medium text-slate-900">
+                          <p className="font-medium text-slate-100">
                             {new Date(foundMember.waiver_signed_at).toLocaleDateString("en-US", {
                               year: "numeric",
                               month: "short",
@@ -1266,19 +1269,19 @@ export default function AdminPage() {
                             <button
                               type="button"
                               onClick={() => setWaiverModalOpen(true)}
-                              className="text-xs font-medium text-slate-600 hover:text-slate-900 underline"
+                              className="text-xs font-medium text-sky-300 hover:text-sky-200 underline"
                             >
                               View waiver
                             </button>
                           )}
                         </div>
                       ) : (
-                        <p className="font-medium text-slate-500">Not signed</p>
+                        <p className="font-medium text-slate-400">Not signed</p>
                       )}
                     </div>
                     <div>
-                      <p className="text-slate-500">Internal ID</p>
-                      <p className="font-mono text-[11px] text-slate-800 break-all">
+                      <p className="text-slate-400">Internal ID</p>
+                      <p className="font-mono text-[11px] text-slate-300 break-all">
                         {foundMember.id}
                       </p>
                     </div>
@@ -1286,26 +1289,26 @@ export default function AdminPage() {
                 </div>
 
                 <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_16px_40px_rgba(15,23,42,0.7)] p-4 md:p-5">
-                  <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
+                  <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-3">
                     Activity
                   </h3>
                   <div className="grid grid-cols-2 gap-4 text-xs md:text-sm">
-                    <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-3">
-                      <p className="text-slate-500 mb-1">Check-ins this month</p>
-                      <p className="text-lg font-semibold text-slate-900">
+                    <div className="rounded-xl bg-slate-700/50 border border-slate-600 px-3 py-3">
+                      <p className="text-slate-400 mb-1">Check-ins this month</p>
+                      <p className="text-lg font-semibold text-white">
                         {foundMember.checkinsThisMonth}
                       </p>
                     </div>
-                    <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-3">
-                      <p className="text-slate-500 mb-1">Total visits</p>
-                      <p className="text-lg font-semibold text-slate-900">
+                    <div className="rounded-xl bg-slate-700/50 border border-slate-600 px-3 py-3">
+                      <p className="text-slate-400 mb-1">Total visits</p>
+                      <p className="text-lg font-semibold text-white">
                         {foundMember.totalVisits}
                       </p>
                     </div>
                     {(foundMember.visits_remaining ?? 0) > 0 && (
-                      <div className="col-span-2 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-3">
-                        <p className="text-slate-600 mb-1">Visits remaining (check-ins left)</p>
-                        <p className="text-xl font-semibold text-emerald-700">
+                      <div className="col-span-2 rounded-xl bg-emerald-500/20 border border-emerald-400/50 px-3 py-3">
+                        <p className="text-slate-300 mb-1">Visits remaining (check-ins left)</p>
+                        <p className="text-xl font-semibold text-emerald-300">
                           {foundMember.visits_remaining} visits
                         </p>
                       </div>
@@ -1314,10 +1317,10 @@ export default function AdminPage() {
                 </div>
 
                 <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_16px_40px_rgba(15,23,42,0.7)] p-4 md:p-5">
-                  <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
+                  <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-3">
                     Recent Check-ins
                   </h3>
-                  <ul className="space-y-1.5 text-xs md:text-sm text-slate-800">
+                  <ul className="space-y-1.5 text-xs md:text-sm text-slate-200">
                     {foundMember.recentCheckins.map((c) => (
                       <li key={c.label}>{c.label}</li>
                     ))}
@@ -1325,13 +1328,13 @@ export default function AdminPage() {
                 </div>
 
                 <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_16px_40px_rgba(15,23,42,0.7)] p-4 md:p-5">
-                  <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
+                  <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-3">
                     {m.payments} / {m.purchaseHistory}
                   </h3>
                   {recentPayments.length === 0 && memberPurchases.length === 0 ? (
-                    <p className="text-xs text-slate-500">{m.noPaymentsInPeriod}</p>
+                    <p className="text-xs text-slate-400">{m.noPaymentsInPeriod}</p>
                   ) : (
-                    <ul className="space-y-2 text-xs md:text-sm text-slate-800">
+                    <ul className="space-y-2 text-xs md:text-sm text-slate-200">
                       {[
                         ...recentPayments.map((p) => ({ type: "membership" as const, id: p.id, date: p.created_at, amount: p.amount, label: p.plan_name, items: null })),
                         ...memberPurchases.map((tx) => ({ type: "retail" as const, id: tx.id, date: tx.created_at, amount: tx.total, label: "Retail", items: tx.items })),
@@ -1341,15 +1344,15 @@ export default function AdminPage() {
                           <li key={`${entry.type}-${entry.id}`} className="flex flex-col gap-0.5">
                             <div className="flex justify-between items-start">
                           <div>
-                                <span className="font-medium">{entry.label}</span>
-                            <span className="text-slate-500 ml-2">
+                                <span className="font-medium text-slate-100">{entry.label}</span>
+                            <span className="text-slate-400 ml-2">
                                   {new Date(entry.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                             </span>
                           </div>
-                              <span className="font-medium">{entry.amount.toLocaleString("vi-VN")} VND</span>
+                              <span className="font-medium text-slate-100">{entry.amount.toLocaleString("vi-VN")} VND</span>
                             </div>
                             {entry.items && entry.items.length > 0 && (
-                              <ul className="list-disc list-inside text-slate-600 ml-0.5">
+                              <ul className="list-disc list-inside text-slate-400 ml-0.5">
                                 {entry.items.map((it, j) => (
                                   <li key={j}>{it.name ?? it.sku} × {it.quantity}</li>
                                 ))}
@@ -1364,8 +1367,8 @@ export default function AdminPage() {
 
               {/* Check-in + membership controls */}
               <div className="space-y-4 md:space-y-6">
-                <div className="rounded-2xl bg-slate-900 text-slate-50 shadow-[0_18px_50px_rgba(15,23,42,0.75)] p-4 md:p-6">
-                  <h3 className="text-xs font-semibold tracking-[0.18em] uppercase mb-4">
+                <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_50px_rgba(15,23,42,0.75)] p-4 md:p-6">
+                  <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-200 uppercase mb-4">
                     Check-in Actions
                   </h3>
                   {!canCheckIn && foundMember?.status === "Inactive" && (
@@ -1401,8 +1404,8 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl bg-white/95 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">
-                  <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
+                <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_16px_40px_rgba(15,23,42,0.7)] p-4 md:p-5">
+                  <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-3">
                     Membership Controls
                   </h3>
                   <div className="flex flex-wrap gap-2">
@@ -1457,10 +1460,10 @@ export default function AdminPage() {
           {adminTab === "sales" && (
           <section className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-6">
             {!foundMember ? (
-              <p className="text-slate-600 text-sm">{m.salesPanelHidden}</p>
+              <p className="text-slate-400 text-sm">{m.salesPanelHidden}</p>
             ) : (
               <>
-                <p className="text-xs text-slate-500 mb-3">{foundMember.name} — {foundMember.displayId ?? foundMember.id}</p>
+                <p className="text-xs text-slate-300 mb-3">{foundMember.name} — {foundMember.displayId ?? foundMember.id}</p>
                 <div className="rounded-2xl bg-white/95 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">
                   <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">{m.frontDeskSales}</h3>
                   <div className="space-y-3">
@@ -1478,13 +1481,7 @@ export default function AdminPage() {
                             e.preventDefault();
                             const val = posSkuInput.trim();
                             if (!val) return;
-                            doPosLookup(val).then((r) => {
-                              if (r.found && r.product && r.variant) {
-                                setPosCart((c) => [...c, { sku: r.variant!.sku, name: r.product!.name, quantity: 1, price: r.variant!.price, variant_id: r.variant!.id, image: r.product!.image ?? undefined }]);
-                                setPosSkuInput("");
-                                setPosLookupResult(null);
-                              }
-                            });
+                            doPosLookup(val).then(() => setPosAddQty(1));
                           }
                         }}
                         className="flex-1 min-w-[120px] px-2 py-1.5 rounded-lg border border-slate-200 text-sm"
@@ -1501,47 +1498,46 @@ export default function AdminPage() {
                         onClick={() => {
                           const val = posSkuInput.trim();
                           if (!val) return;
-                          doPosLookup(val).then((r) => {
-                            if (r.found && r.product && r.variant) {
-                              setPosCart((c) => [...c, { sku: r.variant!.sku, name: r.product!.name, quantity: 1, price: r.variant!.price, variant_id: r.variant!.id, image: r.product!.image ?? undefined }]);
-                              setPosSkuInput("");
-                              setPosLookupResult(null);
-                            }
-                          });
+                          doPosLookup(val).then(() => setPosAddQty(1));
                         }}
                         className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-white hover:bg-slate-700"
                       >
-                        {m.addToCart}
+                        {locale === "vi" ? "Tìm / Thêm" : "Lookup / Add"}
                       </button>
                     </div>
                     {posLookupResult && (
                       <div className={`rounded-lg border p-3 text-sm ${posLookupResult.found ? "border-emerald-200 bg-emerald-50/80" : "border-amber-200 bg-amber-50/80"}`}>
                         {posLookupResult.found && posLookupResult.product && posLookupResult.variant ? (
                           <>
-                            <div className="flex items-start gap-2">
-                              {posLookupResult.product.image && <img src={posLookupResult.product.image} alt="" className="w-12 h-12 object-cover rounded flex-shrink-0" />}
+                            <div className="flex items-start gap-3">
+                              {posLookupResult.product.image ? <img src={posLookupResult.product.image} alt="" className="w-16 h-16 object-cover rounded-lg flex-shrink-0 border border-slate-200" /> : <div className="w-16 h-16 rounded-lg bg-slate-200 flex items-center justify-center text-slate-500 text-xs flex-shrink-0">No photo</div>}
                               <div className="min-w-0 flex-1">
-                            <p className="font-medium text-slate-800">{posLookupResult.product.name}</p>
-                            <p className="text-slate-600 mt-0.5">
-                              {posLookupResult.variant.sku}
-                              {posLookupResult.variant.size != null ? ` — ${posLookupResult.variant.size}` : ""} · {(posLookupResult.variant.price ?? 0).toLocaleString("vi-VN")} VND
-                            </p>
-                            <p className="text-xs mt-1">
-                              {(posLookupResult.stock_quantity ?? 0) > 0
-                                ? `${m.inStock}: ${posLookupResult.stock_quantity}`
-                                : m.outOfStock}
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPosCart((c) => [...c, { sku: posLookupResult.variant!.sku, name: posLookupResult.product!.name, quantity: 1, price: posLookupResult.variant!.price, variant_id: posLookupResult.variant!.id, image: posLookupResult.product!.image ?? undefined }]);
-                                setPosSkuInput("");
-                                setPosLookupResult(null);
-                              }}
-                              className="mt-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-500"
-                            >
-                              {m.addToCart}
-                            </button>
+                                <p className="font-medium text-slate-800">{posLookupResult.product.name}</p>
+                                <p className="text-slate-600 mt-0.5">
+                                  {posLookupResult.variant.sku}
+                                  {posLookupResult.variant.size != null ? ` — ${posLookupResult.variant.size}` : ""}
+                                </p>
+                                <p className="text-sm font-semibold text-slate-900 mt-0.5">{(posLookupResult.variant.price ?? 0).toLocaleString("vi-VN")} VND</p>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                  {(posLookupResult.stock_quantity ?? 0) > 0 ? `${m.inStock}: ${posLookupResult.stock_quantity}` : m.outOfStock}
+                                </p>
+                                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                  <label className="text-xs text-slate-600">{m.quantity}</label>
+                                  <input type="number" min={1} value={posAddQty} onChange={(e) => setPosAddQty(Math.max(1, parseInt(e.target.value, 10) || 1))} className="w-14 px-2 py-1 rounded border border-slate-200 text-sm" />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const qty = Math.max(1, posAddQty);
+                                      setPosCart((c) => [...c, { sku: posLookupResult.variant!.sku, name: posLookupResult.product!.name, quantity: qty, price: posLookupResult.variant!.price, variant_id: posLookupResult.variant!.id, image: posLookupResult.product!.image ?? undefined }]);
+                                      setPosSkuInput("");
+                                      setPosLookupResult(null);
+                                      setPosAddQty(1);
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-500"
+                                  >
+                                    {m.addToCart}
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </>
@@ -1661,7 +1657,19 @@ export default function AdminPage() {
                   <input placeholder={m.productName} value={newProductName} onChange={(e) => setNewProductName(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
                   <input placeholder={m.brand} value={newProductBrand} onChange={(e) => setNewProductBrand(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
                   <input placeholder={m.productCode} value={newProductCode} onChange={(e) => setNewProductCode(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
-                  <input placeholder={locale === "vi" ? "URL hình ảnh" : "Image URL"} value={newProductImage} onChange={(e) => setNewProductImage(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200 col-span-full" />
+                  <div className="col-span-full flex items-center gap-3">
+                    <input ref={newProductPhotoInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (!f || !/^image\/(jpeg|png|webp)$/i.test(f.type)) return; const r = new FileReader(); r.onload = () => setNewProductImageDataUrl(r.result as string); r.readAsDataURL(f); e.target.value = ""; }} />
+                    {newProductImageDataUrl ? (
+                      <div className="flex items-center gap-2">
+                        <img src={newProductImageDataUrl} alt="" className="w-14 h-14 object-cover rounded-lg border border-slate-200" />
+                        <button type="button" onClick={() => setNewProductImageDataUrl(null)} className="text-xs text-slate-600 hover:text-red-600 underline">{locale === "vi" ? "Xóa ảnh" : "Remove photo"}</button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => newProductPhotoInputRef.current?.click()} className="px-3 py-2 rounded-lg border border-slate-300 bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200">
+                        {locale === "vi" ? "Chụp ảnh sản phẩm" : "Take product photo"}
+                      </button>
+                    )}
+                  </div>
                   <select value={newProductCategory} onChange={(e) => setNewProductCategory(e.target.value as "shoes" | "chalk" | "merch" | "rental")} className="px-2 py-1.5 rounded-lg border border-slate-200">
                     <option value="shoes">Shoes</option>
                     <option value="chalk">Chalk</option>
@@ -1690,18 +1698,24 @@ export default function AdminPage() {
                     if (variantsToCreate.length === 0) { setInventoryCreateError(locale === "vi" ? "Thêm ít nhất một size/phiên bản." : "Add at least one variant."); return; }
                     setInventoryCreateError(null);
                     try {
-                      const res = await adminFetch("/api/admin/products/with-variants", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newProductName.trim(), brand: newProductBrand.trim() || null, category: newProductCategory, image: newProductImage.trim() || null, product_code: newProductCode.trim().toUpperCase(), variants: variantsToCreate }) });
+                      let imageUrl: string | null = null;
+                      if (newProductImageDataUrl) {
+                        const upRes = await adminFetch("/api/admin/upload/product-image", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: newProductImageDataUrl }) });
+                        const upData = await upRes.json();
+                        if (upRes.ok && upData.url) imageUrl = upData.url;
+                      }
+                      const res = await adminFetch("/api/admin/products/with-variants", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newProductName.trim(), brand: newProductBrand.trim() || null, category: newProductCategory, image: imageUrl, product_code: newProductCode.trim().toUpperCase(), variants: variantsToCreate }) });
                       const d = await res.json();
                       if (res.ok && d.product) {
                         setInventoryActionMessage(locale === "vi" ? "Đã tạo sản phẩm và các phiên bản." : "Product and variants created.");
-                        setNewProductName(""); setNewProductBrand(""); setNewProductCode(""); setNewProductBarcode(""); setNewProductImage(""); setNewVariants([{ size: "", barcode: "", price: "", cost: "", quantity: "1" }]);
+                        setNewProductName(""); setNewProductBrand(""); setNewProductCode(""); setNewProductBarcode(""); setNewProductImageDataUrl(null); setNewVariants([{ size: "", barcode: "", price: "", cost: "", quantity: "1" }]);
                         adminFetch("/api/admin/products").then((r) => r.json()).then((x) => setProducts(x.products ?? []));
                         adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? []));
                         setTimeout(() => setInventoryActionMessage(null), 3000);
                       } else setInventoryCreateError(d?.error ?? "Failed");
                     } catch (e) { setInventoryCreateError("Request failed. Run migration 031_product_variants_barcode_first.sql if needed."); }
                   }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-800 text-white hover:bg-slate-700">{m.createProduct}</button>
-                  <button type="button" onClick={() => { setNewProductBarcode(""); setNewProductName(""); setNewProductBrand(""); setNewProductCode(""); setNewProductImage(""); setNewVariants([{ size: "", barcode: "", price: "", cost: "", quantity: "1" }]); setInventoryCreateError(null); }} className="px-3 py-1.5 rounded-lg text-sm border border-slate-300 text-slate-700">{m.cancel}</button>
+                  <button type="button" onClick={() => { setNewProductBarcode(""); setNewProductName(""); setNewProductBrand(""); setNewProductCode(""); setNewProductImageDataUrl(null); setNewVariants([{ size: "", barcode: "", price: "", cost: "", quantity: "1" }]); setInventoryCreateError(null); }} className="px-3 py-1.5 rounded-lg text-sm border border-slate-300 text-slate-700">{m.cancel}</button>
                 </div>
               </div>
             )}
@@ -2266,7 +2280,11 @@ export default function AdminPage() {
                         <select value={productDetailEditProduct.category} onChange={(e) => setProductDetailEditProduct((p) => p ? { ...p, category: e.target.value } : null)} className="px-2 py-1.5 rounded-lg border border-slate-500 bg-slate-700 text-white">
                           <option value="shoes">Shoes</option><option value="chalk">Chalk</option><option value="merch">Merch</option><option value="rental">Rental</option>
                         </select>
-                        <input value={productDetailEditProduct.image ?? ""} onChange={(e) => setProductDetailEditProduct((p) => p ? { ...p, image: e.target.value || null } : null)} className="col-span-full px-2 py-1.5 rounded-lg border border-slate-500 bg-slate-700 text-white" placeholder="Image URL" />
+                        <div className="col-span-full flex items-center gap-3">
+                          {productDetailEditProduct.image && <img src={productDetailEditProduct.image} alt="" className="w-14 h-14 object-cover rounded-lg border border-slate-600" />}
+                          <input ref={productDetailPhotoInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (!f || !productDetailProductId || !productDetailEditProduct) return; const reader = new FileReader(); reader.onload = async () => { const dataUrl = reader.result as string; try { const res = await adminFetch("/api/admin/upload/product-image", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: dataUrl }) }); const d = await res.json(); if (res.ok && d.url) setProductDetailEditProduct((p) => p ? { ...p, image: d.url } : null); } catch { /* ignore */ } }; reader.readAsDataURL(f); e.target.value = ""; }} />
+                          <button type="button" onClick={() => productDetailPhotoInputRef.current?.click()} className="px-3 py-1.5 rounded-lg border border-slate-500 text-slate-300 text-xs hover:bg-slate-700">{locale === "vi" ? "Chụp ảnh" : "Take photo"}</button>
+                        </div>
                         <div className="col-span-full flex gap-2">
                           <button type="button" onClick={async () => { if (!productDetailEditProduct || !productDetailProductId) return; const res = await adminFetch(`/api/admin/products/${productDetailProductId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(productDetailEditProduct) }); if (res.ok) { const r = await adminFetch(`/api/admin/products/${productDetailProductId}`).then((x) => x.json()); if (r.product && r.variants) setProductDetailData({ product: r.product, variants: r.variants }); setProductDetailEditProduct(null); const url = inventoryCategoryFilter === "all" ? "/api/admin/inventory" : `/api/admin/inventory?category=${inventoryCategoryFilter}`; adminFetch(url).then((x) => x.json()).then((d) => setInventoryList(d.inventory ?? [])); } }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white">{locale === "vi" ? "Lưu" : "Save"}</button>
                           <button type="button" onClick={() => setProductDetailEditProduct(null)} className="px-3 py-1.5 rounded-lg text-sm border border-slate-500 text-slate-300">{m.cancel}</button>
@@ -2274,12 +2292,18 @@ export default function AdminPage() {
                       </div>
                     ) : (
                       <div className="flex items-start gap-3">
-                        {productDetailData.product.image && <img src={productDetailData.product.image} alt="" className="w-16 h-16 object-cover rounded-lg" />}
+                        {productDetailData.product.image ? <img src={productDetailData.product.image} alt="" className="w-16 h-16 object-cover rounded-lg" /> : (
+                          <div className="w-16 h-16 rounded-lg bg-slate-700 flex items-center justify-center text-slate-500 text-xs">{locale === "vi" ? "Chưa có ảnh" : "No photo"}</div>
+                        )}
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-white">{productDetailData.product.name}</p>
                           <p className="text-sm text-slate-400">{productDetailData.product.brand ?? ""} · {productDetailData.product.category}</p>
                         </div>
-                        <button type="button" onClick={() => setProductDetailEditProduct({ name: productDetailData.product.name, brand: productDetailData.product.brand, category: productDetailData.product.category, image: productDetailData.product.image })} className="text-xs text-amber-400 hover:underline">{locale === "vi" ? "Sửa" : "Edit"}</button>
+                        <div className="flex gap-2">
+                          <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" id="product-detail-photo-view" onChange={async (e) => { const f = e.target.files?.[0]; if (!f || !productDetailProductId) return; const reader = new FileReader(); reader.onload = async () => { const dataUrl = reader.result as string; try { const res = await adminFetch("/api/admin/upload/product-image", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: dataUrl }) }); const d = await res.json(); if (res.ok && d.url) { await adminFetch(`/api/admin/products/${productDetailProductId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: d.url }) }); const r = await adminFetch(`/api/admin/products/${productDetailProductId}`).then((x) => x.json()); if (r.product && r.variants) setProductDetailData({ product: r.product, variants: r.variants }); const url = inventoryCategoryFilter === "all" ? "/api/admin/inventory" : `/api/admin/inventory?category=${inventoryCategoryFilter}`; adminFetch(url).then((x) => x.json()).then((data) => setInventoryList(data.inventory ?? [])); } } catch { /* ignore */ } }; reader.readAsDataURL(f); e.target.value = ""; }} />
+                          <button type="button" onClick={() => document.getElementById("product-detail-photo-view")?.click()} className="text-xs text-amber-400 hover:underline">{productDetailData.product.image ? (locale === "vi" ? "Đổi ảnh" : "Change photo") : (locale === "vi" ? "Chụp ảnh" : "Take photo")}</button>
+                          <button type="button" onClick={() => setProductDetailEditProduct({ name: productDetailData.product.name, brand: productDetailData.product.brand, category: productDetailData.product.category, image: productDetailData.product.image })} className="text-xs text-amber-400 hover:underline">{locale === "vi" ? "Sửa" : "Edit"}</button>
+                        </div>
                       </div>
                     )}
                   </div>
