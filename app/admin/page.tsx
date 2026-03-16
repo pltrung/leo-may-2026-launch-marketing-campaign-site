@@ -200,6 +200,7 @@ export default function AdminPage() {
     currentPhaseTasks?: StaffTaskRow[];
     phase?: { current_phase?: string; phase_label?: string; countdown_message?: string; minutes_until_next_phase?: number };
     gym_ready?: boolean;
+    ready_to_close?: boolean;
     route_reset_day?: boolean;
     timeline?: { id: string; completed_at: string; task_title: string; staff_name: string }[];
     staffTaskPerformance?: { staff_id: string; display_name: string; tasks_completed: number; completion_rate_pct: number }[];
@@ -2172,6 +2173,7 @@ export default function AdminPage() {
                     const phaseCompleted = currentPhaseTasks.filter((t: { status: string }) => t.status === "completed").length;
                     const phaseTotal = currentPhaseTasks.length;
                     const gymReady = staffOpsData.gym_ready === true;
+                    const readyToClose = staffOpsData.ready_to_close === true;
                     const routeResetDay = staffOpsData.route_reset_day === true;
                     const sessionsToday = staffOpsData.sessionsToday ?? staffOpsData.sessions ?? [];
                     const nowIso = new Date().toISOString();
@@ -2394,11 +2396,15 @@ export default function AdminPage() {
                             </p>
                             <p
                               className={`text-sm font-bold ${
-                                gymReady ? "text-emerald-700" : "text-red-700"
+                                readyToClose || gymReady ? "text-emerald-700" : "text-red-700"
                               }`}
                             >
-                              {phase.current_phase === "gym_open" || phase.current_phase === "closing"
+                              {phase.current_phase === "closing" && readyToClose
+                                ? (m as { gymReadyToClose?: string }).gymReadyToClose ?? "Gym READY to be closed"
+                                : phase.current_phase === "gym_open"
                                 ? (m as { gymOperating?: string }).gymOperating ?? "Gym is operating great right now"
+                                : phase.current_phase === "closing"
+                                ? (locale === "vi" ? "Đang đóng cửa — hoàn thành công việc" : "Closing — complete tasks")
                                 : gymReady
                                 ? m.gymReady
                                 : m.gymNotReady}

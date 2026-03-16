@@ -341,6 +341,11 @@ export async function GET(request: NextRequest) {
       ? safetyTasks.length >= 3 && safetyTasks.every((t) => t.status === "completed")
       : currentPhase === "gym_open" || currentPhase === "closing";
 
+  const readyToClose =
+    currentPhase === "closing" &&
+    closing.length > 0 &&
+    closing.every((t) => t.status === "completed");
+
   const todayGym = getGymToday();
   const routeResetDay =
     zonesWithStatus.some((z) => {
@@ -368,6 +373,7 @@ export async function GET(request: NextRequest) {
     },
     currentPhaseTasks,
     gym_ready: gymReady,
+    ready_to_close: readyToClose,
     route_reset_day: routeResetDay,
     summary: {
       staff_in_today: staffIn.length,
