@@ -1984,11 +1984,423 @@ export default function AdminPage() {
           </section>
           )}
 
-          {/* TAB: OPERATIONS (Staff Operations) */}
+          {/* TAB: OPERATIONS (Staff Operations inline) */}
           {adminTab === "operations" && (
-            <section className="rounded-2xl bg-white/80 border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.07)] p-4 md:p-6">
+            <section className="rounded-2xl bg-white border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.12)] p-4 md:p-6">
               <h2 className="text-lg font-semibold text-slate-900">{m.staffOperations}</h2>
-              <p className="text-sm text-slate-600 mt-1">{locale === "vi" ? "Xem bảng Staff Operations phía trên." : "Staff Operations is open above."}</p>
+              <p className="text-sm text-slate-600 mt-1">
+                {locale === "vi"
+                  ? "Bảng điều phối vận hành: staff, nhiệm vụ, attendance, coaching và reset tường."
+                  : "Operations control board for staff, tasks, attendance, coaching, and route resets."}
+              </p>
+
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/80">
+                {/* Staff Operations tabs */}
+                <div className="flex gap-1 p-2 border-b bg-slate-100 flex-wrap">
+                  {(["overview", "tasks", "attendance", "coaching", "routes"] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setStaffModalTab(tab)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+                        staffModalTab === tab
+                          ? "bg-white shadow border border-slate-200 text-slate-900"
+                          : "text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {tab === "overview"
+                        ? m.staffTabOverview
+                        : tab === "tasks"
+                        ? m.staffTabTasks
+                        : tab === "attendance"
+                        ? m.staffTabAttendance
+                        : tab === "coaching"
+                        ? m.staffTabCoaching
+                        : m.staffTabRoutes}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Staff Operations content */}
+                <div className="max-h-[70vh] overflow-y-auto p-4 space-y-4 bg-white">
+                  {!staffOpsData && staffModalTab !== "attendance" && (
+                    <p className="text-sm text-slate-500">{m.loading}</p>
+                  )}
+
+                  {/* TAB 1 — OVERVIEW (reuse modal content) */}
+                  {staffModalTab === "overview" && staffOpsData && (() => {
+                    const sum = staffOpsData.summary;
+                    const req = sum.staff_required ?? 3;
+                    const present = sum.staff_in_today ?? 0;
+                    const preOpenDone = sum.pre_open_completed ?? 0;
+                    const preOpenTotal = sum.pre_open_total ?? 0;
+                    const closingOver = sum.closing_overdue ?? 0;
+                    const zonesOver = sum.zones_overdue ?? 0;
+                    const unassigned = sum.unassigned_sessions ?? 0;
+                    const staffStatus = present >= req ? "green" : present >= req - 1 ? "yellow" : "red";
+                    const preOpenStatus =
+                      preOpenTotal === 0
+                        ? "green"
+                        : preOpenDone >= preOpenTotal
+                        ? "green"
+                        : preOpenDone >= preOpenTotal - 1
+                        ? "yellow"
+                        : "red";
+                    const phase = staffOpsData.phase ?? {};
+                    const currentPhaseLabel = phase.phase_label ?? "Gym Open";
+                    const countdownMessage = phase.countdown_message ?? "";
+                    const currentPhaseTasks = staffOpsData.currentPhaseTasks ?? [];
+                    const phaseCompleted = currentPhaseTasks.filter((t: { status: string }) => t.status === "completed").length;
+                    const phaseTotal = currentPhaseTasks.length;
+                    const gymReady = staffOpsData.gym_ready === true;
+                    const routeResetDay = staffOpsData.route_reset_day === true;
+                    const sessionsToday = staffOpsData.sessionsToday ?? staffOpsData.sessions ?? [];
+                    const nowIso = new Date().toISOString();
+                    const alerts: string[] = [];
+                    staffOpsData.preOpen?.forEach((t: { status: string; due_time?: string | null; title: string }) => {
+                      if (t.status !== "completed" && t.due_time) {
+                        const due = String(t.due_time).slice(0, 5);
+                        const now = new Date()
+                          .toLocaleTimeString("en-GB", {
+                            hour12: false,
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            timeZone: "America/Los_Angeles",
+                          })
+                          .slice(0, 5);
+                        const [dh, dm] = due.split(":").map(Number);
+                        const [nh, nm] = now.split(":").map(Number);
+                        const minOver = nh * 60 + nm - (dh * 60 + dm);
+                        if (minOver > 0)
+                          alerts.push(
+                            `${t.title} ${locale === "vi" ? "quá hạn" : "overdue"} (${minOver} ${
+                              locale === "vi" ? "phút" : "min"
+                            })`,
+                          );
+                      }
+                    });
+                    staffOpsData.closing?.forEach((t: { status: string; due_time?: string | null; title: string }) => {
+                      if (t.status !== "completed" && t.due_time) {
+                        const due = String(t.due_time).slice(0, 5);
+                        const now = new Date()
+                          .toLocaleTimeString("en-GB", {
+                            hour12: false,
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            timeZone: "America/Los_Angeles",
+                          })
+                          .slice(0, 5);
+                        const [dh, dm] = due.split(":").map(Number);
+                        const [nh, nm] = now.split(":").map(Number);
+                        const minOver = nh * 60 + nm - (dh * 60 + dm);
+                        if (minOver > 0)
+                          alerts.push(
+                            `${t.title} ${locale === "vi" ? "quá hạn" : "overdue"} (${minOver} ${
+                              locale === "vi" ? "phút" : "min"
+                            })`,
+                          );
+                      }
+                    });
+                    staffOpsData.zones
+                      ?.filter((z: { overdue?: boolean }) => z.overdue)
+                      .forEach((z: { name: string }) =>
+                        alerts.push(`${z.name} ${locale === "vi" ? "reset quá hạn" : "reset overdue"}`),
+                      );
+                    if (unassigned > 0)
+                      alerts.push(
+                        `${unassigned} ${
+                          locale === "vi" ? "buổi coaching chưa giao" : "coaching sessions unassigned"
+                        }`,
+                      );
+                    const staffIn = staffOpsData.attendance?.in ?? [];
+                    const getStaffName = (a: {
+                      staff_profiles?: { display_name?: string; email?: string } | unknown;
+                    }) => {
+                      const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles;
+                      return (
+                        ((p as { display_name?: string; email?: string })?.display_name ||
+                          (p as { display_name?: string; email?: string })?.email) ??
+                        "—"
+                      );
+                    };
+                    const staffIdInSessionNow = new Set<string>();
+                    for (const s of sessionsToday) {
+                      if (!s.coach_id || !s.end_time) continue;
+                      if (s.start_time <= nowIso && s.end_time >= nowIso) staffIdInSessionNow.add(s.coach_id);
+                    }
+                    const phaseTaskLabel =
+                      phase.current_phase === "pre_open"
+                        ? locale === "vi"
+                          ? "Công việc trước mở cửa"
+                          : "Pre-Open Tasks"
+                        : phase.current_phase === "closing"
+                        ? locale === "vi"
+                          ? "Công việc đóng cửa"
+                          : "Closing Tasks"
+                        : locale === "vi"
+                        ? "Công việc trong giờ"
+                        : "Gym Open Tasks";
+                    const routeLabel = locale === "vi" ? "Reset tường" : "Route Reset";
+                    const coachingLabel = locale === "vi" ? "Buổi coaching" : "Coaching Session";
+                    return (
+                      <>
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            disabled={staffResetLoading}
+                            onClick={async () => {
+                              setStaffResetLoading(true);
+                              try {
+                                const r = await adminFetch("/api/admin/staff/reset-attendance", {
+                                  method: "POST",
+                                });
+                                const d = await r.json();
+                                if (r.ok) {
+                                  setActionMessage(
+                                    locale === "vi"
+                                      ? "Đã xóa chấm công hôm nay."
+                                      : "Today's staff attendance reset.",
+                                  );
+                                  adminFetch("/api/admin/staff")
+                                    .then((res) => res.json())
+                                    .then((data) => setStaffOpsData(data))
+                                    .catch(() => setStaffOpsData(null));
+                                } else setActionError(d?.error || "Failed");
+                              } catch {
+                                setActionError("Failed");
+                              } finally {
+                                setStaffResetLoading(false);
+                              }
+                            }}
+                            className="text-xs px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                          >
+                            {staffResetLoading
+                              ? "…"
+                              : locale === "vi"
+                              ? "Xóa chấm công (test)"
+                              : "Reset attendance (test)"}
+                          </button>
+                        </div>
+                        {/* CURRENT PHASE — top */}
+                        <div className="rounded-lg border-2 border-slate-200 bg-slate-50 p-3">
+                          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                            {m.currentPhase}
+                          </p>
+                          <p className="text-lg font-bold text-slate-800 mt-0.5">{currentPhaseLabel} Phase</p>
+                          {countdownMessage && (
+                            <p className="text-sm text-slate-600 mt-1">{countdownMessage}</p>
+                          )}
+                        </div>
+                        {/* ROUTE RESET DAY banner */}
+                        {routeResetDay && (
+                          <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-3">
+                            <p className="text-xs font-bold text-amber-900 uppercase tracking-wider">
+                              {m.routeResetDay}
+                            </p>
+                            <p className="text-sm text-amber-800 mt-1">{m.routeResetDayBanner}</p>
+                            {staffOpsData.zones
+                              ?.filter(
+                                (z: { overdue?: boolean; next_reset_at?: string | null }) =>
+                                  z.overdue ||
+                                  (z.next_reset_at &&
+                                    getGymDateFromISO(z.next_reset_at) === getGymToday()),
+                              )
+                              .map((z: { name: string }) => (
+                                <span
+                                  key={z.name}
+                                  className="inline-block mt-1 mr-2 text-sm font-medium text-amber-900"
+                                >
+                                  {z.name}
+                                </span>
+                              ))}
+                          </div>
+                        )}
+                        {/* OPERATIONS HEALTH */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          <div
+                            className={`rounded-lg border p-2 ${
+                              staffStatus === "green"
+                                ? "bg-emerald-50 border-emerald-200"
+                                : staffStatus === "yellow"
+                                ? "bg-amber-50 border-amber-200"
+                                : "bg-red-50 border-red-200"
+                            }`}
+                          >
+                            <p className="text-[11px] font-semibold text-slate-600 uppercase">
+                              {m.staffPresent}
+                            </p>
+                            <p className="text-sm font-bold text-slate-800">
+                              {present} / {req}
+                            </p>
+                          </div>
+                          <div
+                            className={`rounded-lg border p-2 ${
+                              preOpenStatus === "green"
+                                ? "bg-emerald-50 border-emerald-200"
+                                : preOpenStatus === "yellow"
+                                ? "bg-amber-50 border-amber-200"
+                                : "bg-red-50 border-red-200"
+                            }`}
+                          >
+                            <p className="text-[11px] font-semibold text-slate-600 uppercase">
+                              {m.preOpenTasks}
+                            </p>
+                            <p className="text-sm font-bold text-slate-800">
+                              {preOpenDone} / {preOpenTotal}
+                            </p>
+                          </div>
+                          <div className="rounded-lg border p-2 bg-red-50 border-red-200">
+                            <p className="text-[11px] font-semibold text-slate-600 uppercase">
+                              {m.closingTasksOverdue}
+                            </p>
+                            <p className="text-sm font-bold text-slate-800">
+                              {closingOver} {locale === "vi" ? "quá hạn" : "overdue"}
+                            </p>
+                          </div>
+                          <div className="rounded-lg border p-2 bg-slate-50 border-slate-200">
+                            <p className="text-[11px] font-semibold text-slate-600 uppercase">
+                              {m.routeResetsOverdue}
+                            </p>
+                            <p className="text-sm font-bold text-slate-800">{zonesOver}</p>
+                          </div>
+                          <div className="rounded-lg border p-2 bg-slate-50 border-slate-200">
+                            <p className="text-[11px] font-semibold text-slate-600 uppercase">
+                              {m.unassignedCoaching}
+                            </p>
+                            <p className="text-sm font-bold text-slate-800">{unassigned}</p>
+                          </div>
+                          <div className="rounded-lg border p-2 bg-slate-50 border-slate-200">
+                            <p className="text-[11px] font-semibold text-slate-600 uppercase">
+                              {m.phaseReadiness}
+                            </p>
+                            <p
+                              className={`text-sm font-bold ${
+                                gymReady ? "text-emerald-700" : "text-red-700"
+                              }`}
+                            >
+                              {gymReady ? m.gymReady : m.gymNotReady}
+                            </p>
+                          </div>
+                        </div>
+                        {/* CURRENT PHASE TASKS */}
+                        <div className="rounded-lg border border-slate-200 p-3">
+                          <p className="text-[11px] font-semibold text-slate-600 uppercase mb-1">
+                            {m.currentPhaseTaskProgress}
+                          </p>
+                          <p className="text-xs text-slate-500 mb-2">{phaseTaskLabel}</p>
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="flex-1 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                              <div
+                                className="h-full bg-emerald-500"
+                                style={{
+                                  width: `${
+                                    phaseTotal === 0
+                                      ? 0
+                                      : Math.round((phaseCompleted / phaseTotal) * 100)
+                                  }%`,
+                                }}
+                              />
+                            </div>
+                            <span className="text-xs text-slate-600">
+                              {phaseCompleted} / {phaseTotal}
+                            </span>
+                          </div>
+                        </div>
+                        {/* ALERTS */}
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                          <p className="text-[11px] font-semibold text-amber-900 uppercase tracking-wider mb-1">
+                            {m.operationsAlerts}
+                          </p>
+                          {alerts.length === 0 ? (
+                            <p className="text-sm text-amber-900/80">{m.noOperationalAlerts}</p>
+                          ) : (
+                            <ul className="list-disc list-inside text-xs text-amber-900 space-y-0.5">
+                              {alerts.map((a) => (
+                                <li key={a}>{a}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                        {/* STAFF ACTIVITY FEED + FOCUS */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                          <div className="rounded-lg border border-slate-200 bg-white p-3">
+                            <p className="text-[11px] font-semibold text-slate-600 uppercase mb-1">
+                              {m.staffActivityFeed}
+                            </p>
+                            {!staffOpsData.timeline || staffOpsData.timeline.length === 0 ? (
+                              <p className="text-sm text-slate-500">
+                                {locale === "vi" ? "Chưa có sự kiện." : "No events yet."}
+                              </p>
+                            ) : (
+                              <ul className="space-y-1.5 text-xs text-slate-700 max-h-60 overflow-y-auto pr-1">
+                                {staffOpsData.timeline.map(
+                                  (e: {
+                                    id: string;
+                                    completed_at: string;
+                                    staff_name: string;
+                                    task_title: string;
+                                  }) => (
+                                    <li key={e.id} className="flex justify-between gap-3">
+                                      <span className="flex-1">
+                                        {e.staff_name} — {e.task_title}
+                                      </span>
+                                      <span className="text-slate-400">
+                                        {new Date(e.completed_at).toLocaleTimeString("en-US", {
+                                          hour: "numeric",
+                                          minute: "2-digit",
+                                        })}
+                                      </span>
+                                    </li>
+                                  ),
+                                )}
+                              </ul>
+                            )}
+                          </div>
+                          <div className="rounded-lg border border-slate-200 bg-white p-3">
+                            <p className="text-[11px] font-semibold text-slate-600 uppercase mb-1">
+                              {m.staffFocusPanel}
+                            </p>
+                            {staffIn.length === 0 ? (
+                              <p className="text-sm text-slate-500">
+                                {locale === "vi"
+                                  ? "Không có staff nào đang IN."
+                                  : "No staff currently IN."}
+                              </p>
+                            ) : (
+                              <ul className="space-y-1.5 text-xs text-slate-700">
+                                {staffIn.map(
+                                  (a: {
+                                    staff_id: string;
+                                    staff_profiles?: {
+                                      display_name?: string;
+                                      email?: string;
+                                    } | unknown;
+                                  }) => {
+                                    const name = getStaffName(a);
+                                    const focus = staffIdInSessionNow.has(a.staff_id)
+                                      ? coachingLabel
+                                      : routeResetDay
+                                      ? routeLabel
+                                      : phaseTaskLabel;
+                                    return (
+                                      <li key={a.staff_id} className="flex justify-between gap-3">
+                                        <span className="font-medium text-slate-800">{name}</span>
+                                        <span className="text-slate-500">{focus}</span>
+                                      </li>
+                                    );
+                                  },
+                                )}
+                              </ul>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+
+                  {/* Other tabs (tasks/attendance/coaching/routes) continue to render from existing modal JSX below */}
+                </div>
+              </div>
             </section>
           )}
         </div>
