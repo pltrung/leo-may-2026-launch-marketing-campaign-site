@@ -194,8 +194,8 @@ export async function GET(request: NextRequest) {
 
   const unassignedSessions = sessionsToday.filter((s) => !s.coach_id).length;
 
-  // Timeline: task_logs with task title and staff name
-  const timeline = taskLogs.map((log: { id: string; completed_at: string; staff_tasks?: { title: string } | null; staff_profiles?: { display_name?: string; email?: string } | null }) => {
+  // Timeline: task_logs with task title and staff name (Supabase returns relations as arrays)
+  const timeline = taskLogs.map((log) => {
     const task = Array.isArray(log.staff_tasks) ? log.staff_tasks[0] : log.staff_tasks;
     const profile = Array.isArray(log.staff_profiles) ? log.staff_profiles[0] : log.staff_profiles;
     return {
