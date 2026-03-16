@@ -1952,8 +1952,8 @@ export default function AdminPage() {
                     <div className="space-y-1.5 text-sm">
                       <p className="font-medium text-slate-600">{m.byPlan}</p>
                       {Object.entries(revenueData.byPlan).map(([plan, amt]) => (
-                        <div key={plan} className="flex justify-between">
-                          <span className="text-slate-700">{plan}</span>
+                        <div key={plan} className="flex justify-between text-slate-800">
+                          <span>{plan}</span>
                           <span className="font-medium">{amt.toLocaleString("vi-VN")} VND</span>
                         </div>
                       ))}
@@ -1962,11 +1962,11 @@ export default function AdminPage() {
                   <div className="border-t pt-3 mt-3">
                     <p className="text-xs font-semibold text-slate-700 uppercase mb-2">{m.payments}</p>
                     {revenueData.payments.length === 0 && <p className="text-sm text-slate-500">{m.noPaymentsInPeriod}</p>}
-                    <ul className="space-y-1 max-h-40 overflow-y-auto">
+                    <ul className="space-y-1 max-h-40 overflow-y-auto text-slate-800">
                       {revenueData.payments.map((p) => (
                         <li key={p.id ?? p.created_at} className="flex justify-between text-xs py-1">
-                          <span>{p.plan_name} — {p.method}</span>
-                          <span>{p.amount.toLocaleString("vi-VN")} VND</span>
+                          <span className="text-slate-800">{p.plan_name} — {p.method}</span>
+                          <span className="text-slate-800 font-medium">{p.amount.toLocaleString("vi-VN")} VND</span>
                         </li>
                       ))}
                     </ul>

@@ -196,11 +196,11 @@ export default function SignupPage() {
             <select
               value={gender}
               onChange={(e) => setGender((e.target.value || "") as "male" | "female" | "")}
-              className="sky-input w-full px-4 py-3 rounded-xl border border-[var(--sky-glass-border)] bg-white/5 text-[var(--sky-text-primary)]"
+              className="sky-input w-full px-4 py-3 rounded-xl border border-[var(--sky-glass-border)] bg-white/95 text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-400"
             >
               <option value="">—</option>
-              <option value="male">{m.genderMale}</option>
-              <option value="female">{m.genderFemale}</option>
+              <option value="male" className="text-slate-900 bg-white">{m.genderMale}</option>
+              <option value="female" className="text-slate-900 bg-white">{m.genderFemale}</option>
             </select>
           </div>
           <input
