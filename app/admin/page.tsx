@@ -8,6 +8,7 @@ import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
 
 const QrScannerModal = dynamic(() => import("@/components/admin/QrScannerModal"), { ssr: false });
+const BarcodeScannerModal = dynamic(() => import("@/components/admin/BarcodeScannerModal"), { ssr: false });
 
 const ADMIN_LOCALE_KEY = "admin-locale";
 
@@ -145,6 +146,7 @@ export default function AdminPage() {
   const [stockOutQty, setStockOutQty] = useState("1");
   const [inventoryActionMessage, setInventoryActionMessage] = useState<string | null>(null);
   const [inventoryCreateError, setInventoryCreateError] = useState<string | null>(null);
+  const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
   const [staffOpsData, setStaffOpsData] = useState<{
     attendance: { in: { staff_id: string; status: string; staff_profiles?: { email?: string } | { email?: string }[] }[]; out: { staff_id: string; status: string; staff_profiles?: { email?: string } | { email?: string }[] }[] };
     sessions: { id: string; start_time: string; coach_id: string | null; session_type: string; staff_profiles?: { email?: string } | { email?: string }[] }[];
@@ -1854,8 +1856,45 @@ export default function AdminPage() {
                   </select>
                   <input placeholder={m.price} value={newProductPrice} onChange={(e) => setNewProductPrice(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" type="number" />
                   <input placeholder={m.cost} value={newProductCost} onChange={(e) => setNewProductCost(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" type="number" />
-                  <input placeholder={m.barcode} value={newProductBarcode} onChange={(e) => setNewProductBarcode(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
+                  <div className="col-span-2 flex gap-2">
+                    <input placeholder={m.barcode} value={newProductBarcode} onChange={(e) => setNewProductBarcode(e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200" />
+                    <button
+                      type="button"
+                      onClick={() => { setInventoryCreateError(null); setBarcodeScannerOpen(true); }}
+                      className="shrink-0 px-3 py-1.5 rounded-lg border border-slate-300 bg-slate-100 text-slate-800 text-sm font-medium hover:bg-slate-200"
+                    >
+                      {m.scanBarcode}
+                    </button>
+                  </div>
                 </div>
+                <BarcodeScannerModal
+                  open={barcodeScannerOpen}
+                  onClose={() => setBarcodeScannerOpen(false)}
+                  onScanned={(raw) => {
+                    setBarcodeScannerOpen(false);
+                    const parts = raw.split("|").map((p) => p.trim());
+                    if (parts.length >= 5) {
+                      setNewProductName(parts[0] ?? "");
+                      setNewProductSku(parts[1] ?? "");
+                      setNewProductBarcode(parts[2] ?? "");
+                      const cat = (parts[3] ?? "").toLowerCase();
+                      if (["shoes", "chalk", "merch", "rental"].includes(cat)) setNewProductCategory(cat as "shoes" | "chalk" | "merch" | "rental");
+                      const priceNum = parseInt(parts[4] ?? "0", 10);
+                      if (!isNaN(priceNum)) setNewProductPrice(String(priceNum));
+                    } else if (parts.length === 4) {
+                      setNewProductName(parts[0] ?? "");
+                      setNewProductSku(parts[1] ?? "");
+                      setNewProductBarcode(parts[2] ?? "");
+                      const priceNum = parseInt(parts[3] ?? "0", 10);
+                      if (!isNaN(priceNum)) setNewProductPrice(String(priceNum));
+                    } else {
+                      setNewProductBarcode(raw);
+                    }
+                  }}
+                  onError={(msg) => setInventoryCreateError(msg)}
+                  title={m.scanBarcode}
+                  hint={m.scanBarcodeHint}
+                />
                 <button
                   type="button"
                   onClick={async () => {

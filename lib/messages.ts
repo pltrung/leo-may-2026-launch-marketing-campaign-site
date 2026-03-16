@@ -630,6 +630,8 @@ const en = {
     remove: "Remove",
     salesPanelHidden: "Scan or search for a member to open Front Desk Sales.",
     cancel: "Cancel",
+    scanBarcode: "Scan barcode",
+    scanBarcodeHint: "Point camera at product barcode or QR. Scanned value fills Barcode; pipe-delimited (name|sku|barcode|category|price) fills all fields.",
   },
   staff: {
     title: "Staff Dashboard",
@@ -1315,6 +1317,8 @@ const vi: Messages = {
     remove: "Xóa",
     salesPanelHidden: "Quét hoặc tìm thành viên để mở Bán hàng quầy.",
     cancel: "Đóng",
+    scanBarcode: "Quét mã vạch",
+    scanBarcodeHint: "Hướng camera vào mã vạch hoặc QR sản phẩm. Nếu có dạng name|sku|barcode|category|price sẽ điền đủ các ô.",
   },
   staff: {
     title: "Bảng điều khiển nhân sự",
