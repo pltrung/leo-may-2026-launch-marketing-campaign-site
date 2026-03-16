@@ -173,8 +173,8 @@ export default function AdminPage() {
   type StaffTaskRow = { id: string; title: string; status: string; block?: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | { display_name?: string | null; email?: string | null }[] | null };
   const [staffOpsData, setStaffOpsData] = useState<{
     attendance: { in: { staff_id: string; status: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[]; out: { staff_id: string; status: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[] };
-    sessions: { id: string; start_time: string; coach_id: string | null; session_type: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[];
-    sessionsToday?: { id: string; start_time: string; coach_id: string | null; location?: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[];
+    sessions: { id: string; start_time: string; end_time?: string; coach_id: string | null; session_type: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[];
+    sessionsToday?: { id: string; start_time: string; end_time?: string; coach_id: string | null; location?: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[];
     zones: { id: string; name: string; next_reset_at: string | null; overdue?: boolean }[];
     tasks: StaffTaskRow[];
     preOpen?: StaffTaskRow[];
@@ -2121,7 +2121,7 @@ export default function AdminPage() {
                 const phaseTotal = currentPhaseTasks.length;
                 const gymReady = staffOpsData.gym_ready === true;
                 const routeResetDay = staffOpsData.route_reset_day === true;
-                const sessionsToday = (staffOpsData.sessionsToday ?? staffOpsData.sessions ?? []) as { coach_id: string | null; start_time: string; end_time: string }[];
+                const sessionsToday = staffOpsData.sessionsToday ?? staffOpsData.sessions ?? [];
                 const nowIso = new Date().toISOString();
                 const alerts: string[] = [];
                 staffOpsData.preOpen?.forEach((t: { status: string; due_time?: string | null; title: string }) => {
@@ -2153,7 +2153,7 @@ export default function AdminPage() {
                 };
                 const staffIdInSessionNow = new Set<string>();
                 for (const s of sessionsToday) {
-                  if (!s.coach_id) continue;
+                  if (!s.coach_id || !s.end_time) continue;
                   if (s.start_time <= nowIso && s.end_time >= nowIso) staffIdInSessionNow.add(s.coach_id);
                 }
                 const phaseTaskLabel = phase.current_phase === "pre_open" ? (locale === "vi" ? "Công việc trước mở cửa" : "Pre-Open Tasks") : phase.current_phase === "closing" ? (locale === "vi" ? "Công việc đóng cửa" : "Closing Tasks") : (locale === "vi" ? "Công việc trong giờ" : "Gym Open Tasks");
