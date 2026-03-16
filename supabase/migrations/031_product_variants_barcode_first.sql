@@ -28,26 +28,41 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_product_variants_product_sku
 CREATE INDEX IF NOT EXISTS idx_product_variants_product_id ON product_variants (product_id);
 CREATE INDEX IF NOT EXISTS idx_product_variants_sku ON product_variants (sku);
 
--- 3) Migrate existing products to one variant each (re-runnable)
-INSERT INTO product_variants (product_id, sku, size, barcode, price, cost)
-SELECT id, sku, NULL, barcode, price, cost FROM products
-ON CONFLICT (product_id, sku) DO NOTHING;
+-- 3) Migrate existing products to one variant each (only if products still has sku/price/cost/barcode)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'products' AND column_name = 'sku'
+  ) THEN
+    INSERT INTO product_variants (product_id, sku, size, barcode, price, cost)
+    SELECT p.id, p.sku, NULL, p.barcode, p.price, p.cost FROM products p
+    ON CONFLICT (product_id, sku) DO NOTHING;
+  END IF;
+END $$;
 
--- 4) Inventory: add variant_id, backfill, then switch
+-- 4) Inventory: add variant_id, backfill, then switch (only if inventory still has product_id)
 DROP INDEX IF EXISTS idx_inventory_product_size_unique;
 
 ALTER TABLE inventory ADD COLUMN IF NOT EXISTS variant_id uuid REFERENCES product_variants(id) ON DELETE CASCADE;
 
-UPDATE inventory i
-SET variant_id = (SELECT pv.id FROM product_variants pv WHERE pv.product_id = i.product_id LIMIT 1)
-WHERE i.variant_id IS NULL AND i.product_id IS NOT NULL;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'inventory' AND column_name = 'product_id'
+  ) THEN
+    UPDATE inventory i
+    SET variant_id = (SELECT pv.id FROM product_variants pv WHERE pv.product_id = i.product_id LIMIT 1)
+    WHERE i.variant_id IS NULL AND i.product_id IS NOT NULL;
 
-DELETE FROM inventory WHERE variant_id IS NULL;
+    ALTER TABLE inventory DROP COLUMN IF EXISTS product_id;
+    ALTER TABLE inventory DROP COLUMN IF EXISTS size;
+  END IF;
 
-ALTER TABLE inventory ALTER COLUMN variant_id SET NOT NULL;
-
-ALTER TABLE inventory DROP COLUMN IF EXISTS product_id;
-ALTER TABLE inventory DROP COLUMN IF EXISTS size;
+  DELETE FROM inventory WHERE variant_id IS NULL;
+  ALTER TABLE inventory ALTER COLUMN variant_id SET NOT NULL;
+END $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_inventory_variant_location_unique
   ON inventory (variant_id, (COALESCE(location, '')));

@@ -75,12 +75,22 @@ export async function POST(req: NextRequest) {
       }
 
       if (quantity > 0) {
-        await supabase.from("inventory").insert({ variant_id: insertedVariant.id, quantity, location: null });
+        const { error: invErr } = await supabase.from("inventory").insert({ variant_id: insertedVariant.id, quantity, location: null });
+        if (invErr) {
+          await supabase.from("products").delete().eq("id", product.id);
+          return NextResponse.json({ error: invErr.message + ". Run migration 031_product_variants_barcode_first.sql if needed." }, { status: 500 });
+        }
       }
     }
 
     return NextResponse.json({ product: { id: product.id, name, brand, category, image }, variants_created: variants.length });
   } catch (e) {
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    const message = e instanceof Error ? e.message : String(e);
+    const isDbError = /relation|column|syntax|migration|does not exist/i.test(message);
+    const hint = " Run migration 031_product_variants_barcode_first.sql on your database (Supabase SQL Editor or migrations) if you have not.";
+    return NextResponse.json(
+      { error: message + (isDbError ? hint : ". Check server logs for details.") },
+      { status: 500 }
+    );
   }
 }

@@ -1643,7 +1643,14 @@ export default function AdminPage() {
           {adminArea === "management" && managementTab === "inventory" && (
           <section className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-6 space-y-6">
             {inventoryActionMessage && <p className="text-sm text-emerald-600">{inventoryActionMessage}</p>}
-            {inventoryCreateError && <p className="text-sm text-red-600">{inventoryCreateError}</p>}
+            {inventoryCreateError && (
+              <div className="space-y-1">
+                <p className="text-sm text-red-400 font-medium">{inventoryCreateError}</p>
+                {/031|migration|relation|column.*does not exist/i.test(inventoryCreateError) && (
+                  <p className="text-xs text-slate-400">Apply migration 031 in Supabase Dashboard → SQL Editor (run <code className="text-slate-300">supabase/migrations/031_product_variants_barcode_first.sql</code>), then try again.</p>
+                )}
+              </div>
+            )}
             {/* 1) Scan Product — barcode triggers lookup or Create Product */}
             <div>
               <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">{m.scanProduct}</h4>
@@ -1807,15 +1814,25 @@ export default function AdminPage() {
                         if (upRes.ok && upData.url) imageUrl = upData.url;
                       }
                       const res = await adminFetch("/api/admin/products/with-variants", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newProductName.trim(), brand: newProductBrand.trim() || null, category: newProductCategory, image: imageUrl, product_code: newProductCode.trim().toUpperCase(), variants: variantsToCreate }) });
-                      const d = await res.json();
+                      const text = await res.text();
+                      let d: { product?: unknown; error?: string };
+                      try { d = text ? JSON.parse(text) : {}; } catch { d = {}; setInventoryCreateError(res.ok ? "Invalid response" : `Error ${res.status}: ${text.slice(0, 200)}`); return; }
                       if (res.ok && d.product) {
                         setInventoryActionMessage(locale === "vi" ? "Đã tạo sản phẩm và các phiên bản." : "Product and variants created.");
                         setNewProductName(""); setNewProductBrand(""); setNewProductCode(""); setNewProductBarcode(""); setNewProductImageDataUrl(null); setNewVariants([{ size: "", barcode: "", price: "", cost: "", quantity: "1" }]);
                         adminFetch("/api/admin/products").then((r) => r.json()).then((x) => setProducts(x.products ?? []));
                         adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? []));
                         setTimeout(() => setInventoryActionMessage(null), 3000);
-                      } else setInventoryCreateError(d?.error ?? "Failed");
-                    } catch (e) { setInventoryCreateError("Request failed. Run migration 031_product_variants_barcode_first.sql if needed."); }
+                      } else {
+                        const errMsg = d?.error ?? `Request failed (${res.status})`;
+                        setInventoryCreateError(errMsg);
+                        if (!res.ok) console.error("[Create product] API error:", res.status, errMsg, text.slice(0, 300));
+                      }
+                    } catch (e) {
+                      const err = e instanceof Error ? e.message : String(e);
+                      setInventoryCreateError(err);
+                      console.error("[Create product] Exception:", e);
+                    }
                   }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-800 text-white hover:bg-slate-700">{m.createProduct}</button>
                   <button type="button" onClick={() => { setNewProductBarcode(""); setNewProductName(""); setNewProductBrand(""); setNewProductCode(""); setNewProductImageDataUrl(null); setNewVariants([{ size: "", barcode: "", price: "", cost: "", quantity: "1" }]); setInventoryCreateError(null); }} className="px-3 py-1.5 rounded-lg text-sm border border-slate-300 text-slate-700">{m.cancel}</button>
                 </div>
