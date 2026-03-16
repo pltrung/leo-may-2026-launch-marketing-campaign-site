@@ -2104,7 +2104,7 @@ export default function AdminPage() {
       )}
 
       {toolsModal === "staff" && (
-        <div className={`fixed inset-0 z-50 flex items-center justify-center ${adminTab === "operations" ? "bg-transparent p-0" : "bg-black/50 p-4"}`}>
+        <div className={`fixed inset-0 ${adminTab === "operations" ? "z-10" : "z-50"} flex items-center justify-center ${adminTab === "operations" ? "bg-transparent p-0" : "bg-black/50 p-4"}`}>
           <div className={`bg-white rounded-2xl shadow-xl w-full max-h-[90vh] flex flex-col ${adminTab === "operations" ? "max-w-[1100px] h-[calc(100vh-96px)] mt-24" : "max-w-2xl"}`}>
             <div className="flex justify-between items-center p-4 border-b">
               <h3 className="text-lg font-semibold text-slate-900">{m.staffOperations}</h3>
