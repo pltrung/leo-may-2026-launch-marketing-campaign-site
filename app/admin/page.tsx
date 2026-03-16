@@ -104,7 +104,9 @@ export default function AdminPage() {
   const [nameResults, setNameResults] = useState<NameSearchResult[]>([]);
   const [paymentReceived, setPaymentReceived] = useState(false);
   const lastPaymentCountRef = React.useRef<number | null>(null);
-  const [toolsModal, setToolsModal] = useState<"occupancy" | "checkins" | "revenue" | "inventory" | null>(null);
+  const [adminArea, setAdminArea] = useState<"front_desk" | "operations" | "management">("front_desk");
+  const [frontDeskTab, setFrontDeskTab] = useState<"checkin" | "sales" | "member">("checkin");
+  const [managementTab, setManagementTab] = useState<"inventory" | "reporting" | "admin_tools">("inventory");
   const [staffModalTab, setStaffModalTab] = useState<"overview" | "tasks" | "attendance" | "coaching" | "routes">("overview");
   const [staffResetLoading, setStaffResetLoading] = useState(false);
   const [showNewMemberForm, setShowNewMemberForm] = useState(false);
@@ -170,7 +172,11 @@ export default function AdminPage() {
   const newProductPhotoInputRef = React.useRef<HTMLInputElement>(null);
   const [posAddQty, setPosAddQty] = useState(1);
   const productDetailPhotoInputRef = React.useRef<HTMLInputElement>(null);
-  const [adminTab, setAdminTab] = useState<"member" | "sales" | "inventory" | "operations" | "admin_tools">("member");
+  // Derived for data-loading: when in Front Desk we need member/sales data when on those tabs; Operations/Management drive inventory and staff ops
+  const isInventoryActive = adminArea === "management" && managementTab === "inventory";
+  const isOperationsActive = adminArea === "operations";
+  const isCheckinActive = adminArea === "front_desk" && frontDeskTab === "checkin";
+  const isReportingActive = adminArea === "management" && managementTab === "reporting";
   type StaffTaskRow = { id: string; title: string; status: string; block?: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | { display_name?: string | null; email?: string | null }[] | null };
   const [staffOpsData, setStaffOpsData] = useState<{
     attendance: { in: { staff_id: string; status: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[]; out: { staff_id: string; status: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[] };
@@ -223,24 +229,25 @@ export default function AdminPage() {
       .catch(() => setMemberPurchases([]));
   }, [foundMember?.id, adminFetch]);
 
-  // Fetch products for front desk and inventory
+  // Fetch products for front desk sales and management inventory
   useEffect(() => {
-    if (!foundMember && toolsModal !== "inventory" && adminTab !== "inventory") return;
+    const needProducts = foundMember || (adminArea === "front_desk" && frontDeskTab === "sales") || isInventoryActive;
+    if (!needProducts) return;
     adminFetch("/api/admin/products")
       .then((r) => r.json())
       .then((d) => setProducts(d.products ?? []))
       .catch(() => setProducts([]));
-  }, [foundMember, toolsModal, adminTab, adminFetch]);
+  }, [foundMember, adminArea, frontDeskTab, isInventoryActive, adminFetch]);
 
-  // Fetch inventory when inventory modal opens or category filter changes
+  // Fetch inventory when Management → Inventory tab is active
   useEffect(() => {
-    if (toolsModal !== "inventory" && adminTab !== "inventory") return;
+    if (!isInventoryActive) return;
     const url = inventoryCategoryFilter === "all" ? "/api/admin/inventory" : `/api/admin/inventory?category=${encodeURIComponent(inventoryCategoryFilter)}`;
     adminFetch(url)
       .then((r) => r.json())
       .then((d) => setInventoryList(d.inventory ?? []))
       .catch(() => setInventoryList([]));
-  }, [toolsModal, adminTab, inventoryCategoryFilter, adminFetch]);
+  }, [isInventoryActive, inventoryCategoryFilter, adminFetch]);
 
   // Load product detail when opening product detail modal
   useEffect(() => {
@@ -306,35 +313,35 @@ export default function AdminPage() {
     return () => clearInterval(id);
   }, [foundMember?.id, loadMemberById, adminFetch]);
 
-  // Fetch check-ins when modal opens
+  // Fetch check-ins when Front Desk → Check-in tab is active
   useEffect(() => {
-    if (toolsModal !== "checkins") return;
+    if (!isCheckinActive) return;
     adminFetch("/api/admin/checkins?days=7")
       .then((r) => r.json())
       .then((d) => setCheckinsData({ checkins: d.checkins ?? [], byDay: d.byDay ?? {} }))
       .catch(() => setCheckinsData({ checkins: [], byDay: {} }));
-  }, [toolsModal, adminFetch]);
+  }, [isCheckinActive, adminFetch]);
 
-  // Fetch revenue when modal opens or period changes
+  // Fetch revenue when Management → Reporting tab is active
   useEffect(() => {
-    if (toolsModal !== "revenue") return;
+    if (!isReportingActive) return;
     adminFetch(`/api/admin/revenue?period=${revenuePeriod}`)
       .then((r) => r.json())
       .then((d) => setRevenueData(d))
       .catch(() => setRevenueData(null));
-  }, [toolsModal, revenuePeriod, adminFetch]);
+  }, [isReportingActive, revenuePeriod, adminFetch]);
 
-  // Fetch staff operations when Operations tab opens
+  // Fetch staff operations when Operations area is active
   useEffect(() => {
-    if (adminTab !== "operations") return;
+    if (!isOperationsActive) return;
     adminFetch("/api/admin/staff")
       .then((r) => r.json())
       .then((d) => setStaffOpsData(d))
       .catch(() => setStaffOpsData(null));
-  }, [adminTab, adminFetch]);
+  }, [isOperationsActive, adminFetch]);
 
   useEffect(() => {
-    if (adminTab !== "operations" || staffModalTab !== "attendance") return;
+    if (!isOperationsActive || staffModalTab !== "attendance") return;
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
@@ -342,7 +349,7 @@ export default function AdminPage() {
       .then((r) => r.json())
       .then((d) => setMonthlyAttendanceData({ label: d.label, staff: d.staff ?? [] }))
       .catch(() => setMonthlyAttendanceData(null));
-  }, [adminTab, staffModalTab, adminFetch]);
+  }, [isOperationsActive, staffModalTab, adminFetch]);
 
   // Poll real-time-ish occupancy from backend.
   useEffect(() => {
@@ -1026,43 +1033,112 @@ export default function AdminPage() {
 
       <main className="flex-1">
         <div className="max-w-[1100px] mx-auto px-4 py-6 md:py-8 space-y-8 md:space-y-10">
-          {/* QUICK CHECK-IN */}
-          <section className="rounded-2xl bg-slate-900/95 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-6">
-            <h3 className="text-sm font-semibold text-white mb-1">{m.quickCheckInScan}</h3>
-            <p className="text-xs text-slate-400 mb-3">{m.quickCheckInScanHint}</p>
-            <button
-              type="button"
-              onClick={handleQuickCheckInScan}
-              className="px-4 py-2.5 rounded-xl text-sm font-medium bg-emerald-500 text-slate-900 hover:bg-emerald-400"
-            >
-              {m.scanQr} — {m.quickCheckInScan}
-            </button>
-          </section>
-
-          {/* STICKY TAB NAV */}
-          <nav className="sticky top-0 z-20 rounded-xl p-1 mb-4 bg-white/95 border border-slate-200 shadow-md backdrop-blur-md overflow-x-auto" aria-label="Admin tabs">
+          {/* AREA NAVIGATION */}
+          <nav className="sticky top-0 z-20 rounded-xl p-1 mb-4 bg-white/95 border border-slate-200 shadow-md backdrop-blur-md overflow-x-auto" aria-label="Admin areas">
             <div className="flex gap-1 min-w-max">
-            {(["member", "sales", "inventory", "operations", "admin_tools"] as const).map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setAdminTab(tab)}
-                className={`flex-none whitespace-nowrap py-2.5 px-3 rounded-lg text-[13px] font-medium transition-all ${
-                  adminTab === tab ? "bg-slate-900 text-white shadow" : "text-slate-700 hover:bg-slate-100 border border-transparent"
-                }`}
-              >
-                {tab === "member" ? (locale === "vi" ? "Thành viên" : "Member") : null}
-                {tab === "sales" ? (locale === "vi" ? "Bán hàng" : "Sales") : null}
-                {tab === "inventory" ? m.inventoryModule : null}
-                {tab === "operations" ? (locale === "vi" ? "Vận hành" : "Operations") : null}
-                {tab === "admin_tools" ? (locale === "vi" ? "Công cụ" : "Admin Tools") : null}
-              </button>
-            ))}
+              {(["front_desk", "operations", "management"] as const).map((area) => (
+                <button
+                  key={area}
+                  type="button"
+                  onClick={() => setAdminArea(area)}
+                  className={`flex-none whitespace-nowrap py-2.5 px-3 rounded-lg text-[13px] font-medium transition-all ${
+                    adminArea === area ? "bg-slate-900 text-white shadow" : "text-slate-700 hover:bg-slate-100 border border-transparent"
+                  }`}
+                >
+                  {area === "front_desk" ? (locale === "vi" ? "Quầy lễ tân" : "Front Desk") : null}
+                  {area === "operations" ? (locale === "vi" ? "Vận hành" : "Operations") : null}
+                  {area === "management" ? (locale === "vi" ? "Quản lý" : "Management") : null}
+                </button>
+              ))}
             </div>
           </nav>
 
-          {/* TAB: MEMBER */}
-          {adminTab === "member" && (
+          {/* FRONT DESK: inner tabs */}
+          {adminArea === "front_desk" && (
+            <nav className="rounded-xl p-1 mb-4 bg-slate-100 border border-slate-200 overflow-x-auto" aria-label="Front desk tabs">
+              <div className="flex gap-1 min-w-max">
+                {(["checkin", "sales", "member"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setFrontDeskTab(tab)}
+                    className={`flex-none whitespace-nowrap py-2 px-3 rounded-lg text-sm font-medium ${
+                      frontDeskTab === tab ? "bg-white shadow border border-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {tab === "checkin" ? (locale === "vi" ? "Check-in" : "Check-in") : null}
+                    {tab === "sales" ? (locale === "vi" ? "Bán hàng" : "Sales") : null}
+                    {tab === "member" ? (locale === "vi" ? "Thành viên" : "Member") : null}
+                  </button>
+                ))}
+              </div>
+            </nav>
+          )}
+
+          {/* FRONT DESK → Check-in: occupancy, quick check-in, lookup, recent check-ins */}
+          {adminArea === "front_desk" && frontDeskTab === "checkin" && (
+            <section className="space-y-6">
+              <div className="rounded-2xl bg-slate-900/95 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-6">
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{m.gymOccupancy}</h3>
+                <p className="text-3xl font-bold text-white">{gymOccupancy}</p>
+                <p className="text-sm text-slate-400 mt-0.5">{m.climbersInsideLast2h}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-900/95 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-6">
+                <h3 className="text-sm font-semibold text-white mb-1">{m.quickCheckInScan}</h3>
+                <p className="text-xs text-slate-400 mb-3">{m.quickCheckInScanHint}</p>
+                <button type="button" onClick={handleQuickCheckInScan} className="px-4 py-2.5 rounded-xl text-sm font-medium bg-emerald-500 text-slate-900 hover:bg-emerald-400">
+                  {m.scanQr} — {m.quickCheckInScan}
+                </button>
+              </div>
+              <div className="rounded-2xl bg-white/80 border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.07)] p-4 md:p-6">
+                <h3 className="text-sm font-semibold text-slate-800 mb-2">{locale === "vi" ? "Tra cứu / Check-in thành viên" : "Member lookup & check-in"}</h3>
+                <p className="text-xs text-slate-600 mb-2">{locale === "vi" ? "Nhập ID, tên hoặc quét QR (leo-member:... hoặc leo-staff:...)." : "Enter ID, name, or scan QR (leo-member:... or leo-staff:...)."}</p>
+                <div className="flex flex-wrap gap-2 items-end">
+                  <input
+                    type="text"
+                    className="flex-1 min-w-[200px] px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900"
+                    placeholder={searchMode === "name" ? t.enterMemberName : searchMode === "qr" ? t.scanOrPasteQr : t.enterMemberId}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  <button type="button" onClick={handleSearch} className="px-4 py-2 rounded-full text-sm font-medium bg-slate-900 text-white hover:bg-slate-800">{t.search}</button>
+                  <button type="button" onClick={handleScanQr} className="px-4 py-2 rounded-full text-sm font-medium border border-slate-300 text-slate-800 bg-white hover:bg-slate-50">{t.scanQr}</button>
+                </div>
+                {searchError && <p className="text-xs text-red-500 mt-2">{searchError}</p>}
+                {actionMessage && !searchError && <p className="text-xs text-emerald-600 mt-2">{actionMessage}</p>}
+              </div>
+              <div className="rounded-2xl bg-white border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.07)] p-4 md:p-6">
+                <h3 className="text-sm font-semibold text-slate-900 mb-3">{m.recentCheckins} (7 {m.day}s)</h3>
+                {!checkinsData && <p className="text-sm text-slate-500">{m.loading}</p>}
+                {checkinsData && Object.keys(checkinsData.byDay).length === 0 && <p className="text-sm text-slate-500">{m.noCheckins7Days}</p>}
+                {checkinsData && Object.keys(checkinsData.byDay).length > 0 && (
+                  <div className="space-y-4 max-h-[320px] overflow-y-auto">
+                    {Object.entries(checkinsData.byDay).sort(([a], [b]) => b.localeCompare(a)).map(([date, items]) => (
+                      <div key={date}>
+                        <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+                          {formatInGymTZ(date + "T12:00:00.000Z", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                        </p>
+                        <ul className="space-y-1.5">
+                          {items.map((c) => (
+                            <li key={(c as { id?: string }).id ?? c.timestamp} className="flex justify-between items-center text-sm py-1.5 px-3 rounded-lg bg-slate-50">
+                              <span className="font-medium text-slate-800">{c.member_name}</span>
+                              <span className="text-slate-500 text-xs">
+                                {formatInGymTZ(c.timestamp, { hour: "numeric", minute: "2-digit" })}
+                                {c.member_code && ` • ${c.member_code}`}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* FRONT DESK → Member tab (lookup + profile) */}
+          {adminArea === "front_desk" && frontDeskTab === "member" && (
           <>
           {/* MEMBER LOOKUP */}
           <section className="rounded-2xl bg-white/80 border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.07)] p-4 md:p-6">
@@ -1482,8 +1558,8 @@ export default function AdminPage() {
           </>
           )}
 
-          {/* TAB: SALES */}
-          {adminTab === "sales" && (
+          {/* FRONT DESK → Sales tab */}
+          {adminArea === "front_desk" && frontDeskTab === "sales" && (
           <section className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-6">
             {!foundMember ? (
               <p className="text-slate-400 text-sm">{m.salesPanelHidden}</p>
@@ -1600,8 +1676,30 @@ export default function AdminPage() {
           </section>
           )}
 
-          {/* TAB: INVENTORY */}
-          {adminTab === "inventory" && (
+          {/* MANAGEMENT: inner tabs */}
+          {adminArea === "management" && (
+            <nav className="rounded-xl p-1 mb-4 bg-slate-100 border border-slate-200 overflow-x-auto" aria-label="Management tabs">
+              <div className="flex gap-1 min-w-max">
+                {(["inventory", "reporting", "admin_tools"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setManagementTab(tab)}
+                    className={`flex-none whitespace-nowrap py-2 px-3 rounded-lg text-sm font-medium ${
+                      managementTab === tab ? "bg-white shadow border border-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {tab === "inventory" ? m.inventoryModule : null}
+                    {tab === "reporting" ? (locale === "vi" ? "Báo cáo" : "Reporting") : null}
+                    {tab === "admin_tools" ? (locale === "vi" ? "Công cụ" : "Admin Tools") : null}
+                  </button>
+                ))}
+              </div>
+            </nav>
+          )}
+
+          {/* MANAGEMENT → Inventory tab */}
+          {adminArea === "management" && managementTab === "inventory" && (
           <section className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-6 space-y-6">
             {inventoryActionMessage && <p className="text-sm text-emerald-600">{inventoryActionMessage}</p>}
             {inventoryCreateError && <p className="text-sm text-red-600">{inventoryCreateError}</p>}
@@ -1856,8 +1954,58 @@ export default function AdminPage() {
           </section>
           )}
 
-          {/* TAB: ADMIN TOOLS */}
-          {adminTab === "admin_tools" && (
+          {/* MANAGEMENT → Reporting tab (revenue inline) */}
+          {adminArea === "management" && managementTab === "reporting" && (
+            <section className="rounded-2xl bg-white border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.12)] p-4 md:p-6">
+              <h2 className="text-lg font-semibold text-slate-900">{m.revenue}</h2>
+              <div className="mt-4 flex gap-2">
+                {(["day", "week", "month"] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setRevenuePeriod(p)}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium ${
+                      revenuePeriod === p ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    {p === "day" ? m.today : p === "week" ? m.thisWeek : m.thisMonth}
+                  </button>
+                ))}
+              </div>
+              {!revenueData && <p className="text-sm text-slate-500 mt-4">{m.loading}</p>}
+              {revenueData && (
+                <div className="mt-4 space-y-4">
+                  <p className="text-2xl font-bold text-slate-900">{revenueData.total.toLocaleString("vi-VN")} VND</p>
+                  {Object.keys(revenueData.byPlan).length > 0 && (
+                    <div className="space-y-1.5 text-sm">
+                      <p className="font-medium text-slate-600">{m.byPlan}</p>
+                      {Object.entries(revenueData.byPlan).map(([plan, amt]) => (
+                        <div key={plan} className="flex justify-between">
+                          <span className="text-slate-700">{plan}</span>
+                          <span className="font-medium">{amt.toLocaleString("vi-VN")} VND</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="border-t pt-3 mt-3">
+                    <p className="text-xs font-semibold text-slate-700 uppercase mb-2">{m.payments}</p>
+                    {revenueData.payments.length === 0 && <p className="text-sm text-slate-500">{m.noPaymentsInPeriod}</p>}
+                    <ul className="space-y-1 max-h-40 overflow-y-auto">
+                      {revenueData.payments.map((p) => (
+                        <li key={p.id ?? p.created_at} className="flex justify-between text-xs py-1">
+                          <span>{p.plan_name} — {p.method}</span>
+                          <span>{p.amount.toLocaleString("vi-VN")} VND</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* MANAGEMENT → Admin Tools tab */}
+          {adminArea === "management" && managementTab === "admin_tools" && (
           <section className="grid md:grid-cols-[minmax(0,1.4fr)_minmax(0,2fr)] gap-8 items-start">
             <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-5">
               <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-3">
@@ -1891,14 +2039,14 @@ export default function AdminPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setToolsModal("checkins")}
+                  onClick={() => { setAdminArea("front_desk"); setFrontDeskTab("checkin"); }}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
                 >
                   {m.recentCheckins}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setToolsModal("occupancy")}
+                  onClick={() => { setAdminArea("front_desk"); setFrontDeskTab("checkin"); }}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
                 >
                   {m.viewGymOccupancy}
@@ -1912,7 +2060,7 @@ export default function AdminPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setToolsModal("revenue")}
+                  onClick={() => { setManagementTab("reporting"); }}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
                 >
                   {m.revenue}
@@ -1984,8 +2132,8 @@ export default function AdminPage() {
           </section>
           )}
 
-          {/* TAB: OPERATIONS (Staff Operations inline) */}
-          {adminTab === "operations" && (
+          {/* OPERATIONS area (Staff Operations inline) */}
+          {adminArea === "operations" && (
             <section className="rounded-2xl bg-white border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.12)] p-4 md:p-6">
               <h2 className="text-lg font-semibold text-slate-900">{m.staffOperations}</h2>
               <p className="text-sm text-slate-600 mt-1">
@@ -2618,244 +2766,6 @@ export default function AdminPage() {
           )}
         </div>
       </main>
-
-      {/* Admin Tools Modals */}
-      {toolsModal === "occupancy" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-slate-900">{m.gymOccupancy}</h3>
-              <button type="button" onClick={() => setToolsModal(null)} className="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
-            </div>
-            <p className="text-4xl font-bold text-slate-900">{gymOccupancy}</p>
-            <p className="text-sm text-slate-500 mt-1">{m.climbersInsideLast2h}</p>
-          </div>
-        </div>
-      )}
-
-      {toolsModal === "checkins" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
-            <div className="flex justify-between items-center p-4 border-b">
-              <h3 className="text-lg font-semibold text-slate-900">{m.recentCheckins} (7 {m.day}s)</h3>
-              <button type="button" onClick={() => setToolsModal(null)} className="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
-            </div>
-            <div className="overflow-y-auto p-4 space-y-4">
-              {!checkinsData && <p className="text-sm text-slate-500">{m.loading}</p>}
-              {checkinsData && Object.keys(checkinsData.byDay).length === 0 && (
-                <p className="text-sm text-slate-500">{m.noCheckins7Days}</p>
-              )}
-              {checkinsData && Object.entries(checkinsData.byDay)
-                .sort(([a], [b]) => b.localeCompare(a))
-                .map(([date, items]) => (
-                  <div key={date}>
-                    <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                      {formatInGymTZ(date + "T12:00:00.000Z", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
-                    </p>
-                    <ul className="space-y-1.5">
-                      {items.map((c) => (
-                        <li key={(c as { id?: string }).id ?? c.timestamp} className="flex justify-between items-center text-sm py-1.5 px-3 rounded-lg bg-slate-50">
-                          <span className="font-medium text-slate-800">{c.member_name}</span>
-                          <span className="text-slate-500 text-xs">
-                            {formatInGymTZ(c.timestamp, { hour: "numeric", minute: "2-digit" })}
-                            {c.member_code && ` • ${c.member_code}`}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {toolsModal === "revenue" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
-            <div className="flex justify-between items-center p-4 border-b">
-              <h3 className="text-lg font-semibold text-slate-900">{m.revenue}</h3>
-              <button type="button" onClick={() => setToolsModal(null)} className="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
-            </div>
-            <div className="p-4 space-y-4">
-              <div className="flex gap-2">
-                {(["day", "week", "month"] as const).map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setRevenuePeriod(p)}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium ${
-                      revenuePeriod === p ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                    }`}
-                  >
-                    {p === "day" ? m.today : p === "week" ? m.thisWeek : m.thisMonth}
-                  </button>
-                ))}
-              </div>
-              {!revenueData && <p className="text-sm text-slate-500">{m.loading}</p>}
-              {revenueData && (
-                <>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {revenueData.total.toLocaleString("vi-VN")} VND
-                  </p>
-                  {Object.keys(revenueData.byPlan).length > 0 && (
-                    <div className="space-y-1.5 text-sm">
-                      <p className="font-medium text-slate-600">{m.byPlan}</p>
-                      {Object.entries(revenueData.byPlan).map(([plan, amt]) => (
-                        <div key={plan} className="flex justify-between">
-                          <span className="text-slate-700">{plan}</span>
-                          <span className="font-medium">{amt.toLocaleString("vi-VN")} VND</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="border-t pt-3 mt-3">
-                    <p className="text-xs font-semibold text-slate-700 uppercase mb-2">{m.payments}</p>
-                    {revenueData.payments.length === 0 && (
-                      <p className="text-sm text-slate-500">{m.noPaymentsInPeriod}</p>
-                    )}
-                    <ul className="space-y-1 max-h-40 overflow-y-auto">
-                      {revenueData.payments.map((p) => (
-                        <li key={p.id ?? p.created_at} className="flex justify-between text-xs py-1">
-                          <span>{p.plan_name} — {p.method}</span>
-                          <span>{p.amount.toLocaleString("vi-VN")} VND</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {toolsModal === "inventory" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
-            <div className="flex justify-between items-center p-4 border-b">
-              <h3 className="text-lg font-semibold text-slate-900">{m.inventoryModule}</h3>
-              <button type="button" onClick={() => setToolsModal(null)} className="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
-            </div>
-            <div className="overflow-y-auto p-4 space-y-6">
-              {inventoryActionMessage && <p className="text-sm text-emerald-600">{inventoryActionMessage}</p>}
-              {inventoryCreateError && <p className="text-sm text-red-600">{inventoryCreateError}</p>}
-              <div>
-                <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.viewInventory}</h4>
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {(["all", "shoes", "merch"] as const).map((cat) => (
-                    <button key={cat} type="button" onClick={() => setInventoryCategoryFilter(cat)} className={`px-2.5 py-1 rounded-lg text-xs font-medium ${inventoryCategoryFilter === cat ? "bg-slate-700 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"}`}>
-                      {cat === "all" ? (locale === "vi" ? "Tất cả" : "All") : cat.charAt(0).toUpperCase() + cat.slice(1)}
-                    </button>
-                  ))}
-                </div>
-                {inventoryList.length === 0 && <p className="text-sm text-slate-500">{m.loading}</p>}
-                <div className="border border-slate-200 rounded-lg overflow-hidden text-sm">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                        <th className="px-3 py-2 border-b border-slate-200">{locale === "vi" ? "Loại" : "Type"}</th>
-                        <th className="px-3 py-2 border-b border-slate-200">{locale === "vi" ? "SKU / Tên / Size" : "SKU / Name / Size"}</th>
-                        <th className="px-3 py-2 border-b border-slate-200 text-right">{m.quantity}</th>
-                        <th className="px-3 py-2 border-b border-slate-200 text-right">{m.price}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[...inventoryList]
-                        .sort((a, b) => (b.quantity * (b.variant?.price ?? 0)) - (a.quantity * (a.variant?.price ?? 0)))
-                        .map((inv) => (
-                          <tr
-                            key={inv.id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => { setToolsModal(null); setProductDetailProductId(inv.product?.id ?? null); setProductDetailData(null); }}
-                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setToolsModal(null); setProductDetailProductId(inv.product?.id ?? null); setProductDetailData(null); } }}
-                            className="hover:bg-slate-50 cursor-pointer border-b border-slate-200 last:border-b-0"
-                          >
-                            <td className="px-3 py-2 text-slate-700">{inv.product?.category === "shoes" ? (locale === "vi" ? "Giày" : "Shoes") : inv.product?.category === "merch" ? "Merch" : (inv.product?.category ? inv.product.category.charAt(0).toUpperCase() + inv.product.category.slice(1) : "—")}</td>
-                            <td className="px-3 py-2">
-                              <span className="flex items-center gap-2">
-                                {inv.product?.image ? <img src={inv.product.image} alt="" className="w-8 h-8 object-cover rounded flex-shrink-0" /> : null}
-                                <span>{(inv.variant?.sku ?? "")} — {inv.product?.name ?? ""}{inv.variant?.size ? ` (${inv.variant.size})` : ""}</span>
-                              </span>
-                            </td>
-                            <td className="px-3 py-2 text-right font-medium">{inv.quantity}</td>
-                            <td className="px-3 py-2 text-right text-slate-600">{(inv.variant?.price ?? 0).toLocaleString("vi-VN")} VND</td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              <p className="text-xs text-slate-600">Use the Inventory tab for scan-first workflow and creating products with variants. Click a row to view or edit product details.</p>
-              <div>
-                <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.stockIn}</h4>
-                <div className="flex gap-2 flex-wrap items-center">
-                  <select value={stockInSku} onChange={(e) => setStockInSku(e.target.value)} className="flex-1 min-w-0 max-w-xs px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400">
-                    <option value="">{locale === "vi" ? "Chọn SKU..." : "Select SKU..."}</option>
-                    {inventoryList.map((inv) => (
-                      <option key={inv.id} value={inv.variant?.barcode ?? inv.variant?.sku ?? ""}>
-                        {inv.variant?.sku ?? ""} — {inv.product?.name ?? ""}{inv.variant?.size ? ` (${inv.variant.size})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                  <input type="number" min={1} value={stockInQty} onChange={(e) => setStockInQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const v = stockInSku.trim();
-                      if (!v) return;
-                      const res = await adminFetch("/api/admin/inventory", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ barcode: v, quantity: parseInt(stockInQty, 10) || 1 }) });
-                      const d = await res.json();
-                      if (res.ok && d.ok) {
-                        setInventoryActionMessage(locale === "vi" ? "Đã nhập kho." : "Stock in recorded.");
-                        setStockInSku(""); setStockInQty("1");
-                        adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? []));
-                        setTimeout(() => setInventoryActionMessage(null), 3000);
-                      } else setInventoryCreateError(d?.error ?? "Failed");
-                    }}
-                    className="px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500"
-                  >
-                    {m.stockIn}
-                  </button>
-                </div>
-              </div>
-              <div>
-                <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.stockOut}</h4>
-                <div className="flex gap-2 flex-wrap items-center">
-                  <select value={stockOutSku} onChange={(e) => setStockOutSku(e.target.value)} className="flex-1 min-w-0 max-w-xs px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400">
-                    <option value="">{locale === "vi" ? "Chọn SKU..." : "Select SKU..."}</option>
-                    {inventoryList.map((inv) => (
-                      <option key={inv.id} value={inv.variant?.barcode ?? inv.variant?.sku ?? ""}>
-                        {inv.variant?.sku ?? ""} — {inv.product?.name ?? ""}{inv.variant?.size ? ` (${inv.variant.size})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                  <input type="number" min={1} value={stockOutQty} onChange={(e) => setStockOutQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const v = stockOutSku.trim();
-                      if (!v) return;
-                      const res = await adminFetch("/api/admin/inventory", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ barcode: v, quantity: parseInt(stockOutQty, 10) || 1 }) });
-                      const d = await res.json();
-                      if (res.ok && d.ok) {
-                        setInventoryActionMessage(locale === "vi" ? "Đã xuất kho." : "Stock out recorded.");
-                        setStockOutSku(""); setStockOutQty("1");
-                        adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? []));
-                        setTimeout(() => setInventoryActionMessage(null), 3000);
-                      } else setInventoryCreateError(d?.error ?? "Failed");
-                    }}
-                    className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-500"
-                  >
-                    {m.stockOut}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Product / Variant Detail Modal */}
       {productDetailProductId && (
