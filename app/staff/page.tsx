@@ -366,7 +366,8 @@ export default function StaffPage() {
   };
   const activeTasks = isRouteResetDay ? rawActiveTasks.filter((t) => isEssentialTask(t.title)) : rawActiveTasks;
   const overdueTasksList = [...preOpenTasks, ...duringTasks, ...closingTasks].filter((t) => t.status === "overdue");
-  const activePending = activeTasks.filter((t) => t.status === "pending");
+  // Show upcoming tasks as part of the active checklist (matches admin view of "pending" before start_time)
+  const activePending = activeTasks.filter((t) => t.status === "pending" || t.status === "upcoming");
   const activeCompleted = activeTasks.filter((t) => t.status === "completed");
   const phaseLabel = currentBlock === "pre_open" ? m.phasePreOpen : currentBlock === "closing" ? m.phaseClosing : m.phaseGymOpen;
   const phaseTimeWindow = currentBlock === "pre_open" ? m.timeWindow : currentBlock === "closing" ? m.timeWindowClosing : m.timeWindowOpen;
