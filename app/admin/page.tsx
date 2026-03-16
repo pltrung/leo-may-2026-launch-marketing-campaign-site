@@ -926,43 +926,41 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#BEE7FF] via-[#EAF6FF] to-white">
-      <header className="border-b border-white/60 bg-white/60 backdrop-blur-md">
-        <div className="max-w-[1100px] mx-auto px-4 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+    <div className="min-h-screen flex flex-col bg-slate-900 text-slate-50">
+      <header className="border-b border-slate-800 bg-slate-900/95 backdrop-blur">
+        <div className="max-w-[1100px] mx-auto px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-2xl bg-slate-900 flex items-center justify-center shadow-sm">
-              <img src="/logo-white.svg" alt="Leo Mây logo" className="h-6 w-6" />
-            </div>
+            <img src="/logo-white.svg" alt="Leo Mây logo" className="h-7 w-auto" />
             <div>
               <h1
-                className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight"
+                className="text-xl md:text-2xl font-bold text-white tracking-tight"
                 style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
               >
                 {t.title}
               </h1>
-              <p className="text-xs md:text-sm text-slate-600">{t.subtitle}</p>
+              <p className="text-xs md:text-sm text-slate-300">{t.subtitle}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 md:gap-4 text-xs md:text-sm text-slate-700">
-            <div className="flex gap-1 rounded-full border border-slate-200 bg-white/80 p-0.5">
+          <div className="flex items-center gap-3 md:gap-4 text-xs md:text-sm text-slate-200">
+            <div className="flex gap-1 rounded-full border border-slate-600 bg-slate-800/80 p-0.5">
               <button
                 type="button"
                 onClick={() => setLocaleAndStore("en")}
-                className={`px-3 py-1 rounded-full text-xs font-medium ${locale === "en" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                className={`px-3 py-1 rounded-full text-xs font-medium ${locale === "en" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}
               >
                 EN
               </button>
               <button
                 type="button"
                 onClick={() => setLocaleAndStore("vi")}
-                className={`px-3 py-1 rounded-full text-xs font-medium ${locale === "vi" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                className={`px-3 py-1 rounded-full text-xs font-medium ${locale === "vi" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}
               >
                 VN
               </button>
             </div>
-            <div className="border border-slate-200 rounded-xl px-3 py-1.5 bg-white/70 shadow-sm">
+            <div className="border border-slate-700 rounded-xl px-3 py-1.5 bg-slate-800/80 shadow-sm">
               <span className="font-medium">{t.gymOccupancy}</span>
-              <span className="ml-2 text-slate-900">
+              <span className="ml-2 text-slate-50">
                 {t.climbersInside.replace("{count}", String(gymOccupancy))}
               </span>
             </div>
@@ -980,7 +978,7 @@ export default function AdminPage() {
       <main className="flex-1">
         <div className="max-w-[1100px] mx-auto px-4 py-6 md:py-8 space-y-8 md:space-y-10">
           {/* QUICK CHECK-IN */}
-          <section className="rounded-2xl bg-slate-900/95 border border-slate-700 shadow-lg p-4 md:p-6">
+          <section className="rounded-2xl bg-slate-900/95 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-6">
             <h3 className="text-sm font-semibold text-white mb-1">{m.quickCheckInScan}</h3>
             <p className="text-xs text-slate-400 mb-3">{m.quickCheckInScanHint}</p>
             <button
@@ -1137,7 +1135,7 @@ export default function AdminPage() {
               )}
               {/* Profile + activity */}
               <div className="space-y-4 md:space-y-6">
-                <div className="rounded-2xl bg-white/90 border border-slate-200 shadow-[0_14px_40px_rgba(15,23,42,0.08)] p-4 md:p-6">
+                <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-6">
                   <div className="flex items-start gap-4 mb-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -1264,7 +1262,7 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl bg-white/90 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">
+                <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_16px_40px_rgba(15,23,42,0.7)] p-4 md:p-5">
                   <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
                     Activity
                   </h3>
@@ -1292,7 +1290,7 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl bg-white/90 border border-slate-200 shadow-[0_8px_28px_rgba(15,23,42,0.07)] p-4 md:p-5">
+                <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_16px_40px_rgba(15,23,42,0.7)] p-4 md:p-5">
                   <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
                     Recent Check-ins
                   </h3>
@@ -1303,7 +1301,7 @@ export default function AdminPage() {
                   </ul>
                 </div>
 
-                <div className="rounded-2xl bg-white/90 border border-slate-200 shadow-[0_8px_28px_rgba(15,23,42,0.07)] p-4 md:p-5">
+                <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_16px_40px_rgba(15,23,42,0.7)] p-4 md:p-5">
                   <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
                     {m.payments} / {m.purchaseHistory}
                   </h3>
@@ -1434,7 +1432,7 @@ export default function AdminPage() {
 
           {/* TAB: SALES */}
           {adminTab === "sales" && (
-          <section className="rounded-2xl bg-white/90 border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.07)] p-4 md:p-6">
+          <section className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-6">
             {!foundMember ? (
               <p className="text-slate-600 text-sm">{m.salesPanelHidden}</p>
             ) : (
@@ -1553,7 +1551,7 @@ export default function AdminPage() {
 
           {/* TAB: INVENTORY */}
           {adminTab === "inventory" && (
-          <section className="rounded-2xl bg-white/90 border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.07)] p-4 md:p-6 space-y-6">
+          <section className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-6 space-y-6">
             {inventoryActionMessage && <p className="text-sm text-emerald-600">{inventoryActionMessage}</p>}
             {inventoryCreateError && <p className="text-sm text-red-600">{inventoryCreateError}</p>}
             {/* 1) Scan Product — barcode triggers lookup or Create Product */}
@@ -1737,7 +1735,7 @@ export default function AdminPage() {
           {/* TAB: MANAGEMENT */}
           {adminTab === "management" && (
           <section className="grid md:grid-cols-[minmax(0,1.4fr)_minmax(0,2fr)] gap-8 items-start">
-            <div className="rounded-2xl bg-white/90 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">
+            <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-5">
               <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
                 {m.adminTools}
               </h3>

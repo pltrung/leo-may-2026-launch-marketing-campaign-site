@@ -325,7 +325,10 @@ export default function StaffPage() {
   return (
     <div className="min-h-screen bg-slate-900 text-white">
       <header className="sticky top-0 z-10 border-b border-slate-700 bg-slate-900/95 backdrop-blur px-4 py-3 flex justify-between items-center">
-        <h1 className="text-lg font-semibold">{m.title}</h1>
+        <div className="flex items-center gap-2">
+          <img src="/logo-white.svg" alt="Leo Mây logo" className="h-7 w-auto" />
+          <h1 className="text-lg font-semibold text-white">{m.title}</h1>
+        </div>
         <div className="flex items-center gap-2">
           <div className="flex gap-0.5 rounded-full border border-slate-600 bg-slate-800 p-0.5">
             <button
