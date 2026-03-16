@@ -104,6 +104,7 @@ export async function GET(request: NextRequest) {
     zonesRes,
     tasksRes,
     taskLogsRes,
+    resetTrackerRes,
   ] = await Promise.all([
     supabase
       .from("staff_attendance")
@@ -137,14 +138,25 @@ export async function GET(request: NextRequest) {
       .select("id, task_id, staff_id, date, completed_at, staff_tasks(title), staff_profiles(display_name, email)")
       .eq("date", today)
       .order("completed_at", { ascending: true }),
+    supabase.from("staff_daily_reset").select("last_reset_date").maybeSingle(),
   ]);
 
   const attendance = attendanceRes.data ?? [];
   const sessionsNext2h = sessionsNext2hRes.data ?? [];
   const sessionsToday = sessionsTodayRes.data ?? [];
   const zones = zonesRes.data ?? [];
-  const tasks = tasksRes.data ?? [];
+  let tasks = tasksRes.data ?? [];
   const taskLogs = taskLogsRes.data ?? [];
+
+  // When the gym date rolls over (midnight), reset staff_tasks so alerts/overview show a fresh day
+  const lastResetDate = resetTrackerRes.data?.last_reset_date ?? null;
+  if (!lastResetDate || today > lastResetDate) {
+    await supabase
+      .from("staff_tasks")
+      .update({ status: "pending", completed_at: null, completed_by: null });
+    await supabase.from("staff_daily_reset").update({ last_reset_date: today }).eq("id", 1);
+    tasks = tasks.map((t) => ({ ...t, status: "pending", completed_at: null, completed_by: null, completer: null }));
+  }
 
   const staffIn = attendance.filter((a) => a.status === "IN");
   const staffOut = attendance.filter((a) => a.status === "NOT_IN");
@@ -172,6 +184,20 @@ export async function GET(request: NextRequest) {
     newbie_count: newbieCountBySession[s.id] ?? 0,
   }));
 
+  // Booking count for today's sessions (for unassigned-alert: only alert when someone is registered but no coach)
+  const sessionIdsToday = sessionsToday.map((s) => s.id);
+  const newbieCountBySessionToday: Record<string, number> = {};
+  if (sessionIdsToday.length > 0) {
+    const { data: bookingsToday } = await supabase
+      .from("newbie_class_bookings")
+      .select("coaching_session_id")
+      .in("coaching_session_id", sessionIdsToday);
+    for (const b of bookingsToday ?? []) {
+      const id = b.coaching_session_id as string;
+      newbieCountBySessionToday[id] = (newbieCountBySessionToday[id] ?? 0) + 1;
+    }
+  }
+
   // Today's full sessions with location for Coaching tab
   const sessionsTodayWithLocation = sessionsToday.map((s) => ({
     ...s,
@@ -192,7 +218,10 @@ export async function GET(request: NextRequest) {
     return due ? compareHHMM(nowHHMM, due) > 0 : false;
   }).length;
 
-  const unassignedSessions = sessionsToday.filter((s) => !s.coach_id).length;
+  // Unassigned with alert: only sessions that have at least one member registered but no coach assigned
+  const unassignedSessions = sessionsToday.filter(
+    (s) => !s.coach_id && (newbieCountBySessionToday[s.id] ?? 0) > 0
+  ).length;
 
   // Timeline: task_logs with task title and staff name (Supabase returns relations as arrays)
   const timeline = taskLogs.map((log) => {
