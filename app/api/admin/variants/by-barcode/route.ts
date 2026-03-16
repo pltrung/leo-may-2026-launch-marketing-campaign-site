@@ -22,12 +22,36 @@ export async function GET(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!variant) return NextResponse.json({ error: "Variant not found", found: false }, { status: 404 });
 
-  const [{ data: product }, { data: invRows }] = await Promise.all([
-    supabase.from("products").select("id, name, brand, category, image").eq("id", variant.product_id).single(),
+  const productId = variant.product_id;
+
+  const [{ data: product }, { data: invRows }, { data: otherVariants }] = await Promise.all([
+    supabase.from("products").select("id, name, brand, category, image").eq("id", productId).single(),
     supabase.from("inventory").select("quantity").eq("variant_id", variant.id),
+    supabase.from("product_variants").select("id, sku, size, price").eq("product_id", productId),
   ]);
 
   const stockQuantity = (invRows ?? []).reduce((sum: number, r: { quantity: number }) => sum + (r.quantity ?? 0), 0);
+
+  // Other sizes (same product): variants with quantity > 0, for seller to suggest alternatives
+  const allVariantIds = (otherVariants ?? []).map((v: { id: string }) => v.id);
+  const { data: allInvRows } = allVariantIds.length
+    ? await supabase.from("inventory").select("variant_id, quantity").in("variant_id", allVariantIds)
+    : { data: [] };
+  const allQtyByVid: Record<string, number> = {};
+  for (const r of allInvRows ?? []) {
+    const vid = r.variant_id as string;
+    allQtyByVid[vid] = (allQtyByVid[vid] ?? 0) + (r.quantity as number);
+  }
+  const other_sizes_in_stock = (otherVariants ?? [])
+    .map((v: { id: string; sku: string; size: string | null; price: number }) => ({
+      variant_id: v.id,
+      sku: v.sku,
+      size: v.size,
+      price: v.price,
+      quantity: allQtyByVid[v.id] ?? 0,
+    }))
+    .filter((row: { variant_id: string; quantity: number }) => row.variant_id !== variant.id && row.quantity > 0)
+    .sort((a: { size: string | null }, b: { size: string | null }) => String(a.size ?? "").localeCompare(String(b.size ?? "")));
 
   return NextResponse.json({
     found: true,
@@ -42,5 +66,6 @@ export async function GET(req: NextRequest) {
     },
     product: product ? { id: product.id, name: product.name, brand: product.brand, category: product.category, image: product.image } : null,
     stock_quantity: stockQuantity,
+    other_sizes_in_stock: other_sizes_in_stock,
   });
 }

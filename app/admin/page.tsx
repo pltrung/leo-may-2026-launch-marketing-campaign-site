@@ -148,6 +148,8 @@ export default function AdminPage() {
   const [inventoryScannedBarcode, setInventoryScannedBarcode] = useState("");
   const [scannedVariant, setScannedVariant] = useState<{ id: string; product_id: string; sku: string; size: string | null; barcode: string | null; price: number; cost: number } | null>(null);
   const [scannedProduct, setScannedProduct] = useState<{ id: string; name: string; brand: string | null; category: string; image: string | null } | null>(null);
+  const [scannedStockQuantity, setScannedStockQuantity] = useState<number>(0);
+  const [scannedOtherSizesInStock, setScannedOtherSizesInStock] = useState<{ variant_id: string; sku: string; size: string | null; price: number; quantity: number }[]>([]);
   const [inventoryQty, setInventoryQty] = useState("1");
   const [newProductName, setNewProductName] = useState("");
   const [newProductBrand, setNewProductBrand] = useState("");
@@ -1663,12 +1665,16 @@ export default function AdminPage() {
                           if (d.found && d.variant && d.product) {
                             setScannedVariant(d.variant);
                             setScannedProduct(d.product);
+                            setScannedStockQuantity(typeof d.stock_quantity === "number" ? d.stock_quantity : 0);
+                            setScannedOtherSizesInStock(Array.isArray(d.other_sizes_in_stock) ? d.other_sizes_in_stock : []);
                             setNewProductBarcode("");
                             setInventoryScannedBarcode("");
                             setTimeout(() => inventoryQtyInputRef.current?.focus(), 100);
                           } else {
                             setScannedVariant(null);
                             setScannedProduct(null);
+                            setScannedStockQuantity(0);
+                            setScannedOtherSizesInStock([]);
                             setNewProductBarcode(b);
                             setNewProductCode(b);
                             setNewVariants((v) => v.length ? [{ ...v[0], barcode: b }, ...v.slice(1)] : [{ size: "", barcode: b, price: "", cost: "", quantity: "1" }]);
@@ -1691,6 +1697,23 @@ export default function AdminPage() {
                 <p className="text-sm font-medium text-slate-800">{scannedProduct.name}{scannedProduct.brand ? ` · ${scannedProduct.brand}` : ""} · {scannedProduct.category}</p>
                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{m.variantSize}</h4>
                 <p className="text-sm text-slate-700">SKU: {scannedVariant.sku}{scannedVariant.size ? ` · Size ${scannedVariant.size}` : ""} · {m.price}: {(scannedVariant.price ?? 0).toLocaleString()} VND</p>
+                <p className={`text-sm font-medium ${scannedStockQuantity > 0 ? "text-emerald-700" : "text-amber-700"}`}>
+                  {scannedStockQuantity > 0
+                    ? (locale === "vi" ? `Còn ${scannedStockQuantity} trong kho` : `${scannedStockQuantity} in stock`)
+                    : (locale === "vi" ? "Hết hàng (size này)" : "Out of stock (this size)")}
+                </p>
+                {scannedOtherSizesInStock.length > 0 && (
+                  <div className="rounded-lg border border-slate-200 bg-white p-3">
+                    <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">{locale === "vi" ? "Cùng model, size khác còn hàng" : "Same model, other sizes in stock"}</p>
+                    <ul className="flex flex-wrap gap-2">
+                      {scannedOtherSizesInStock.map((s) => (
+                        <li key={s.variant_id} className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 text-xs font-medium">
+                          {s.size ? (locale === "vi" ? `Size ${s.size}` : `Size ${s.size}`) : s.sku} — {s.quantity} {locale === "vi" ? "cái" : "in stock"} · {(s.price ?? 0).toLocaleString("vi-VN")} VND
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-2 items-center">
                   <label className="text-xs font-medium text-slate-700">{m.quantity}</label>
                   <input ref={inventoryQtyInputRef} type="number" min={1} value={inventoryQty} onChange={(e) => setInventoryQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border-2 border-slate-500 bg-slate-800 text-slate-100 text-sm font-medium focus:ring-2 focus:ring-slate-400 focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
@@ -1698,16 +1721,26 @@ export default function AdminPage() {
                     const qty = parseInt(inventoryQty, 10) || 1;
                     const res = await adminFetch("/api/admin/inventory", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ variant_id: scannedVariant.id, quantity: qty }) });
                     const d = await res.json();
-                    if (res.ok && d.ok) { setInventoryActionMessage(locale === "vi" ? "Đã nhập kho." : "Stock in recorded."); setInventoryQty("1"); adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? [])); setTimeout(() => setInventoryActionMessage(null), 3000); } else setInventoryCreateError(d?.error ?? "Failed");
+                    if (res.ok && d.ok) {
+                      setInventoryActionMessage(locale === "vi" ? "Đã nhập kho." : "Stock in recorded."); setInventoryQty("1");
+                      adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? []));
+                      if (scannedVariant.barcode) { adminFetch(`/api/admin/variants/by-barcode?barcode=${encodeURIComponent(scannedVariant.barcode)}`).then((r) => r.json()).then((data) => { if (data.found && typeof data.stock_quantity === "number") { setScannedStockQuantity(data.stock_quantity); setScannedOtherSizesInStock(Array.isArray(data.other_sizes_in_stock) ? data.other_sizes_in_stock : []); } }); }
+                      setTimeout(() => setInventoryActionMessage(null), 3000);
+                    } else setInventoryCreateError(d?.error ?? "Failed");
                   }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500">{m.stockIn}</button>
                   <button type="button" onClick={async () => {
                     if (!window.confirm(`${m.areYouSure}\n\n${m.confirmStockOut}`)) return;
                     const qty = parseInt(inventoryQty, 10) || 1;
                     const res = await adminFetch("/api/admin/inventory", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ variant_id: scannedVariant.id, quantity: qty }) });
                     const d = await res.json();
-                    if (res.ok && d.ok) { setInventoryActionMessage(locale === "vi" ? "Đã xuất kho." : "Stock out recorded."); setInventoryQty("1"); adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? [])); setTimeout(() => setInventoryActionMessage(null), 3000); } else setInventoryCreateError(d?.error ?? "Failed");
+                    if (res.ok && d.ok) {
+                      setInventoryActionMessage(locale === "vi" ? "Đã xuất kho." : "Stock out recorded."); setInventoryQty("1");
+                      adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? []));
+                      if (scannedVariant.barcode) { adminFetch(`/api/admin/variants/by-barcode?barcode=${encodeURIComponent(scannedVariant.barcode)}`).then((r) => r.json()).then((data) => { if (data.found && typeof data.stock_quantity === "number") { setScannedStockQuantity(data.stock_quantity); setScannedOtherSizesInStock(Array.isArray(data.other_sizes_in_stock) ? data.other_sizes_in_stock : []); } }); }
+                      setTimeout(() => setInventoryActionMessage(null), 3000);
+                    } else setInventoryCreateError(d?.error ?? "Failed");
                   }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-500">{m.stockOut}</button>
-                  <button type="button" onClick={() => { setScannedVariant(null); setScannedProduct(null); setInventoryQty("1"); }} className="text-xs text-slate-500 underline">{m.cancel}</button>
+                  <button type="button" onClick={() => { setScannedVariant(null); setScannedProduct(null); setScannedStockQuantity(0); setScannedOtherSizesInStock([]); setInventoryQty("1"); }} className="text-xs text-slate-500 underline">{m.cancel}</button>
                 </div>
               </div>
             )}
@@ -1800,12 +1833,16 @@ export default function AdminPage() {
                   if (d.found && d.variant && d.product) {
                     setScannedVariant(d.variant);
                     setScannedProduct(d.product);
+                    setScannedStockQuantity(typeof d.stock_quantity === "number" ? d.stock_quantity : 0);
+                    setScannedOtherSizesInStock(Array.isArray(d.other_sizes_in_stock) ? d.other_sizes_in_stock : []);
                     setNewProductBarcode("");
                     setInventoryScannedBarcode("");
                     setTimeout(() => inventoryQtyInputRef.current?.focus(), 100);
                   } else {
                     setScannedVariant(null);
                     setScannedProduct(null);
+                    setScannedStockQuantity(0);
+                    setScannedOtherSizesInStock([]);
                     setNewProductBarcode(b);
                     setNewProductCode(b);
                     setNewVariants((v) => v.length ? [{ ...v[0], barcode: b }, ...v.slice(1)] : [{ size: "", barcode: b, price: "", cost: "", quantity: "1" }]);
