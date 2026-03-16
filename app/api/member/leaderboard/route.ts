@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@/lib/supabaseServer";
+import { getGymStartOfDay, getGymStartOfMonth, getGymToday } from "@/lib/gymTimezone";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -49,18 +50,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
-    const now = new Date();
     const periodParam = request.nextUrl.searchParams.get("period")?.trim().toLowerCase();
     const period = periodParam === "week" || periodParam === "all" ? periodParam : "month";
 
-    let since: Date;
+    let since: string;
     if (period === "week") {
-      since = new Date(now);
-      since.setDate(since.getDate() - 7);
+      const gymToday = getGymToday();
+      const startToday = getGymStartOfDay(gymToday);
+      since = new Date(new Date(startToday).getTime() - 7 * 86400000).toISOString();
     } else if (period === "month") {
-      since = new Date(now.getFullYear(), now.getMonth(), 1);
+      since = getGymStartOfMonth();
     } else {
-      since = new Date(0);
+      since = new Date(0).toISOString();
     }
 
     const genderParam = request.nextUrl.searchParams.get("gender")?.trim().toLowerCase();
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
     const { data: checkins, error: checkinErr } = await supabase
       .from("gym_checkins")
       .select("member_id, member:member_profiles(full_name, instagram_handle, gender, profile_photo_url)")
-      .gte("timestamp", since.toISOString());
+      .gte("timestamp", since);
 
     if (checkinErr) {
       console.error("Leaderboard checkins error:", checkinErr);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getGymStartOfDay, getGymStartOfWeek, getGymStartOfMonth } from "@/lib/gymTimezone";
 
 const PLAN_LABELS: Record<string, string> = {
   day_pass: "1 Day Pass",
@@ -28,18 +29,13 @@ export async function GET(req: NextRequest) {
   const p = validPeriods.includes(period) ? period : "day";
 
   try {
-    const now = new Date();
     let since: Date;
     if (p === "day") {
-      since = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      since = new Date(getGymStartOfDay());
     } else if (p === "week") {
-      const day = now.getDay();
-      const start = new Date(now);
-      start.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
-      start.setHours(0, 0, 0, 0);
-      since = start;
+      since = new Date(getGymStartOfWeek());
     } else {
-      since = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+      since = new Date(getGymStartOfMonth());
     }
 
     const { data: rows, error } = await supabase

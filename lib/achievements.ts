@@ -4,6 +4,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getGymDateFromISO, getGymStartOfDay } from "@/lib/gymTimezone";
 
 export type AchievementRow = {
   id: string;
@@ -55,7 +56,7 @@ export function qualifiesForAchievement(
 
 /**
  * Update member_profiles streak columns from the new check-in timestamp and previous state.
- * Returns the new current_streak and new best_streak.
+ * Uses gym timezone (America/Los_Angeles) for "today" / "yesterday" so streaks align with gym day.
  */
 export function computeStreakUpdate(
   lastCheckinDate: string | null,
@@ -63,16 +64,13 @@ export function computeStreakUpdate(
   bestStreak: number,
   newCheckinTimestamp: string
 ): { newCurrentStreak: number; newBestStreak: number; newLastCheckinDate: string } {
-  const newDate = new Date(newCheckinTimestamp);
-  const today = new Date(Date.UTC(newDate.getUTCFullYear(), newDate.getUTCMonth(), newDate.getUTCDate())).toISOString().slice(0, 10);
+  const today = getGymDateFromISO(newCheckinTimestamp);
+  const startToday = getGymStartOfDay(today);
+  const yesterdayStr = getGymDateFromISO(new Date(new Date(startToday).getTime() - 1).toISOString());
 
   if (!lastCheckinDate) {
     return { newCurrentStreak: 1, newBestStreak: Math.max(1, bestStreak), newLastCheckinDate: today };
   }
-
-  const yesterday = new Date(newDate);
-  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-  const yesterdayStr = yesterday.toISOString().slice(0, 10);
 
   let newCurrent = currentStreak;
   if (lastCheckinDate === today) {

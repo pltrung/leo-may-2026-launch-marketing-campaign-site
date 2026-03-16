@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getGymStartOfMonth } from "@/lib/gymTimezone";
 
 function formatRecent(timestamp: string): string {
   const d = new Date(timestamp);
@@ -118,16 +119,14 @@ export async function GET(req: NextRequest) {
       .select("id", { count: "exact", head: true })
       .eq("member_id", memberId);
 
-    // Check-ins this month
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+    // Check-ins this month (gym TZ = America/Los_Angeles)
+    const startOfMonth = getGymStartOfMonth();
 
     const { count: checkinsThisMonth } = await supabase
       .from("gym_checkins")
       .select("id", { count: "exact", head: true })
       .eq("member_id", memberId)
-      .gte("timestamp", startOfMonth.toISOString());
+      .gte("timestamp", startOfMonth);
 
     // Recent check-ins (latest 5)
     const { data: recent, error: recentErr } = await supabase

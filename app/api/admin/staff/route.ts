@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getGymToday } from "@/lib/gymTimezone";
 
 /**
  * GET /api/admin/staff
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = createServerClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getGymToday();
   const now = new Date();
   const nowIso = now.toISOString();
   const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();

@@ -1,27 +1,20 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { parseGymDateTime } from "@/lib/gymTimezone";
 
-// Gym 9am–11pm: 30-min slots from 09:00 to 22:30 (last session ends 23:00)
+// Gym 9am–11pm (America/Los_Angeles): 30-min slots from 09:00 to 22:30 (last session ends 23:00)
 const SLOT_TIMES = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00", "22:30"];
 const MAX_SESSIONS_PER_SLOT = 2;
 const DEFAULT_LOCATION = "Main Wall - Beginner Area";
 
 /**
- * Ensures coaching session slots exist for a given date (YYYY-MM-DD): up to 2 rows per 30-min slot.
+ * Ensures coaching session slots exist for a given date (YYYY-MM-DD in gym TZ): up to 2 rows per 30-min slot.
+ * Slot times are in America/Los_Angeles (e.g. 09:00 = 9am PDT/PST).
  */
 export async function ensureCoachingSlotsForDate(supabase: SupabaseClient, dateStr: string): Promise<void> {
   for (const time of SLOT_TIMES) {
-    const [h, m] = time.split(":").map(Number);
-    const startTime = new Date(Date.UTC(
-      new Date(dateStr + "Z").getUTCFullYear(),
-      new Date(dateStr + "Z").getUTCMonth(),
-      new Date(dateStr + "Z").getUTCDate(),
-      h,
-      m,
-      0,
-      0
-    ));
+    const startIso = parseGymDateTime(dateStr, time);
+    const startTime = new Date(startIso);
     const endTime = new Date(startTime.getTime() + 30 * 60 * 1000);
-    const startIso = startTime.toISOString();
     const endIso = endTime.toISOString();
 
     const { count } = await supabase
@@ -46,10 +39,11 @@ export async function ensureCoachingSlotsForDate(supabase: SupabaseClient, dateS
 }
 
 /**
- * Ensures today's coaching session slots exist: up to 2 rows per 30-min slot (09:00–22:30, gym 9am–11pm).
+ * Ensures today's coaching session slots exist (today = gym TZ America/Los_Angeles).
  */
 export async function ensureTodayCoachingSlots(supabase: SupabaseClient): Promise<void> {
-  const today = new Date().toISOString().slice(0, 10);
+  const { getGymToday } = await import("@/lib/gymTimezone");
+  const today = getGymToday();
   await ensureCoachingSlotsForDate(supabase, today);
 }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getRouteSetterFromRequest } from "@/lib/routeSetterAuth";
+import { getGymToday, getGymStartOfDay, getGymEndOfDay } from "@/lib/gymTimezone";
 
 /**
  * GET /api/route-setter/attendance
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
     .single();
   if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getGymToday();
   const { data: record } = await supabase
     .from("staff_attendance")
     .select("id, date, status, created_at")
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
     .single();
   if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getGymToday();
   const { error } = await supabase
     .from("staff_attendance")
     .upsert(
@@ -65,8 +66,8 @@ export async function POST(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   if (status === "NOT_IN") {
-    const startOfDay = `${today}T00:00:00.000Z`;
-    const endOfDay = `${today}T23:59:59.999Z`;
+    const startOfDay = getGymStartOfDay(today);
+    const endOfDay = getGymEndOfDay(today);
     await supabase
       .from("coaching_sessions")
       .update({ coach_id: null, updated_at: new Date().toISOString() })

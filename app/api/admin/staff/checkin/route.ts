@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getGymToday } from "@/lib/gymTimezone";
 
 /**
  * POST /api/admin/staff/checkin
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
 
   if (staffErr || !staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getGymToday();
   const { error: upsertErr } = await supabase
     .from("staff_attendance")
     .upsert(

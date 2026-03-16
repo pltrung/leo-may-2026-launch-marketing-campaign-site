@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getGymStartOfDay, getGymToday, getGymDateFromISO } from "@/lib/gymTimezone";
 
 /**
  * GET /api/admin/checkins
@@ -17,10 +18,11 @@ export async function GET(req: NextRequest) {
   try {
     let since: string;
     if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
-      const d = new Date(dateParam + "T00:00:00Z");
-      since = d.toISOString();
+      since = getGymStartOfDay(dateParam);
     } else {
-      since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      const gymToday = getGymToday();
+      const startOfToday = getGymStartOfDay(gymToday);
+      since = new Date(new Date(startOfToday).getTime() - days * 24 * 60 * 60 * 1000).toISOString();
     }
 
     const { data: rows, error } = await supabase
@@ -62,7 +64,7 @@ export async function GET(req: NextRequest) {
 
     const byDay: Record<string, typeof checkins> = {};
     for (const c of checkins) {
-      const date = (c.timestamp as string).slice(0, 10);
+      const date = getGymDateFromISO(c.timestamp as string);
       if (!byDay[date]) byDay[date] = [];
       byDay[date].push(c);
     }

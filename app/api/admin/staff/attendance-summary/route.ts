@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getGymMonthBoundaries, getGymWeekBoundaries } from "@/lib/gymTimezone";
 
 /**
  * GET /api/admin/staff/attendance-summary?period=month&year=2026&month=3
@@ -21,20 +22,16 @@ export async function GET(request: NextRequest) {
   let endDate: string;
   let label: string;
 
-  if (period === "week" && !isNaN(year) && !isNaN(week)) {
-    const d = new Date(year, 0, 1);
-    const firstMonday = d.getDay() === 0 ? 2 : d.getDay() === 1 ? 1 : 9 - d.getDay();
-    d.setDate(firstMonday + (week - 1) * 7);
-    startDate = d.toISOString().slice(0, 10);
-    d.setDate(d.getDate() + 6);
-    endDate = d.toISOString().slice(0, 10);
-    label = `Week ${week}, ${year}`;
+  if (period === "week") {
+    const bounds = getGymWeekBoundaries(year, week);
+    startDate = bounds.start;
+    endDate = bounds.end;
+    label = !isNaN(year) && !isNaN(week) ? `Week ${week}, ${year}` : "This week (gym TZ)";
   } else {
-    const y = isNaN(year) ? new Date().getFullYear() : year;
-    const m = isNaN(month) ? new Date().getMonth() + 1 : month;
-    startDate = `${y}-${String(m).padStart(2, "0")}-01`;
-    const lastDay = new Date(y, m, 0).getDate();
-    endDate = `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    const bounds = getGymMonthBoundaries(isNaN(year) ? undefined : year, isNaN(month) ? undefined : month);
+    startDate = bounds.start;
+    endDate = bounds.end;
+    const [y, m] = startDate.split("-").map(Number);
     label = new Date(y, m - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
   }
 

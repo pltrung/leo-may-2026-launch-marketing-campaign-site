@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getRouteSetterFromRequest } from "@/lib/routeSetterAuth";
+import { getGymToday } from "@/lib/gymTimezone";
 
 /**
  * POST /api/route-setter/sessions/assign
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
     .single();
   if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getGymToday();
   const { data: attendance } = await supabase
     .from("staff_attendance")
     .select("status")
