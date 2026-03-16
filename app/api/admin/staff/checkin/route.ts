@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
 import { getGymToday } from "@/lib/gymTimezone";
 import { verifyQrToken } from "@/lib/qrTokens";
+import { insertAdminAuditLog, getStaffIdFromAuthId } from "@/lib/auditLog";
 
 /**
  * POST /api/admin/staff/checkin
@@ -50,6 +51,14 @@ export async function POST(request: NextRequest) {
     );
 
   if (upsertErr) return NextResponse.json({ error: upsertErr.message }, { status: 500 });
+
+  const adminStaffId = await getStaffIdFromAuthId(supabase, admin.id);
+  await insertAdminAuditLog(supabase, {
+    adminAuthId: admin.id,
+    staffId: adminStaffId,
+    actionType: "staff_checkin",
+    entityId: staff.id,
+  });
 
   return NextResponse.json({
     ok: true,

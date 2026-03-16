@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
+import { insertAdminAuditLog, getStaffIdFromAuthId } from "@/lib/auditLog";
 
 type MembershipAction = "extend" | "freeze" | "cancel" | "upgrade";
 
@@ -75,6 +76,14 @@ export async function POST(req: NextRequest) {
     if (!updated) {
       return NextResponse.json({ error: "Failed to update membership" }, { status: 500 });
     }
+
+    const staffId = await getStaffIdFromAuthId(supabase, admin.id);
+    await insertAdminAuditLog(supabase, {
+      adminAuthId: admin.id,
+      staffId,
+      actionType: action === "extend" ? "membership_extend" : action === "freeze" ? "membership_freeze" : action === "cancel" ? "membership_cancel" : "membership_upgrade",
+      entityId: memberId,
+    });
 
     const statusLabel =
       updated.membership_status === "frozen"

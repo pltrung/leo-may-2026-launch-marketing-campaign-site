@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getRouteSetterFromRequest } from "@/lib/routeSetterAuth";
 import { getGymToday } from "@/lib/gymTimezone";
+import { insertAdminAuditLog } from "@/lib/auditLog";
 
 /**
  * PATCH /api/route-setter/tasks/[id]
@@ -54,6 +55,11 @@ export async function PATCH(
       staff_id: staff.id,
       date: today,
       completed_at: nowIso,
+    });
+    await insertAdminAuditLog(supabase, {
+      staffId: staff.id,
+      actionType: "staff_task_complete",
+      entityId: id,
     });
     // Update staff_tasks only if not already completed (first completer sets it)
     if (task.status !== "completed") {

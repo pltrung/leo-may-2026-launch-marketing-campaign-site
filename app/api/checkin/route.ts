@@ -3,7 +3,7 @@ import { createServerClient } from "@/lib/supabaseServer";
 import { verifyQrToken } from "@/lib/qrTokens";
 import { computeStreakUpdate, evaluateAndGrantAchievements } from "@/lib/achievements";
 
-async function performCheckIn(memberId: string, location: string | null): Promise<NextResponse> {
+export async function performCheckIn(memberId: string, location: string | null): Promise<NextResponse> {
   try {
     const supabase = createServerClient();
     const { data: profile, error: profileErr } = await supabase

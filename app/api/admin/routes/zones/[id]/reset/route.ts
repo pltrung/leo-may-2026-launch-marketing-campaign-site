@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
+import { insertAdminAuditLog } from "@/lib/auditLog";
 
 /**
  * POST /api/admin/routes/zones/[id]/reset
@@ -52,6 +53,13 @@ export async function POST(
     completed_at: now.toISOString(),
   });
   await supabase.from("route_reset_assignments").delete().eq("zone_id", id);
+
+  await insertAdminAuditLog(supabase, {
+    adminAuthId: admin.id,
+    staffId: staff?.id ?? null,
+    actionType: "route_reset_complete",
+    entityId: id,
+  });
 
   return NextResponse.json({
     ok: true,

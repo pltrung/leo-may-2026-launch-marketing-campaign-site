@@ -106,6 +106,7 @@ export default function AdminPage() {
   const lastPaymentCountRef = React.useRef<number | null>(null);
   const [adminArea, setAdminArea] = useState<"front_desk" | "operations" | "management">("front_desk");
   const [frontDeskTab, setFrontDeskTab] = useState<"checkin" | "member">("checkin");
+  const [memberProfileSubTab, setMemberProfileSubTab] = useState<"summary" | "membership" | "sales" | "history">("summary");
   const [managementTab, setManagementTab] = useState<"inventory" | "reporting" | "admin_tools">("inventory");
   const [staffModalTab, setStaffModalTab] = useState<"overview" | "tasks" | "attendance" | "coaching" | "routes">("overview");
   const [staffResetLoading, setStaffResetLoading] = useState(false);
@@ -217,6 +218,11 @@ export default function AdminPage() {
       .then((d) => setPlans(d.plans ?? []))
       .catch(() => {});
   }, [adminFetch]);
+
+  // Reset member profile sub-tab when loading a new member
+  useEffect(() => {
+    if (foundMember) setMemberProfileSubTab("summary");
+  }, [foundMember?.id]);
 
   // Fetch member purchase history when member is loaded
   useEffect(() => {
@@ -599,22 +605,23 @@ export default function AdminPage() {
     setActionError(null);
     setActionMessage(null);
     try {
-      const res = await fetch("/api/checkin", {
+      const res = await adminFetch("/api/admin/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ member_id: foundMember.id, location: "front_desk" }),
       });
       if (!res.ok) {
-        throw new Error("Failed to record check-in");
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error ?? "Failed to record check-in");
       }
       setActionMessage(m.checkinRecorded);
       loadMemberById(foundMember.id);
     } catch (e) {
-      setActionError(m.unableToRecordCheckinVerify);
+      setActionError((e as Error).message ?? m.unableToRecordCheckinVerify);
     } finally {
       setActionLoading(null);
     }
-  }, [foundMember, loadMemberById, m]);
+  }, [foundMember, loadMemberById, m, adminFetch]);
 
   const handleManualCheckIn = useCallback(async () => {
     if (!foundMember) return;
@@ -622,13 +629,14 @@ export default function AdminPage() {
     setActionError(null);
     setActionMessage(null);
     try {
-      const res = await fetch("/api/checkin", {
+      const res = await adminFetch("/api/admin/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ member_id: foundMember.id, location: "front_desk_manual" }),
       });
       if (!res.ok) {
-        throw new Error("Failed to record manual check-in");
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error ?? "Failed to record manual check-in");
       }
       setActionMessage(m.manualCheckinRecorded);
       loadMemberById(foundMember.id);
@@ -637,10 +645,11 @@ export default function AdminPage() {
     } finally {
       setActionLoading(null);
     }
-  }, [foundMember, loadMemberById, m]);
+  }, [foundMember, loadMemberById, m, adminFetch]);
 
   const handleUndoCheckIn = useCallback(() => {
     if (!foundMember) return;
+    if (!window.confirm(`${m.areYouSure}\n\n${m.confirmUndoCheckIn}`)) return;
     setActionLoading("undo");
     setActionError(null);
     setActionMessage(null);
@@ -699,6 +708,7 @@ export default function AdminPage() {
 
   const handleFreeze = useCallback(() => {
     if (!foundMember) return;
+    if (!window.confirm(`${m.areYouSure}\n\n${m.confirmFreeze}`)) return;
     setActionLoading("freeze");
     setActionError(null);
     setActionMessage(null);
@@ -720,6 +730,7 @@ export default function AdminPage() {
 
   const handleCancel = useCallback(() => {
     if (!foundMember) return;
+    if (!window.confirm(`${m.areYouSure}\n\n${m.confirmCancel}`)) return;
     setActionLoading("cancel");
     setActionError(null);
     setActionMessage(null);
@@ -1075,20 +1086,21 @@ export default function AdminPage() {
             </nav>
           )}
 
-          {/* FRONT DESK → Check-in: occupancy, quick check-in, lookup, recent check-ins */}
+          {/* FRONT DESK → Check-in: quick check-in primary, occupancy, recent check-ins */}
           {adminArea === "front_desk" && frontDeskTab === "checkin" && (
             <section className="space-y-6">
+              {/* Primary CTA: Quick Check-In — clear hierarchy and separation */}
+              <div className="rounded-2xl border-2 border-emerald-400/60 bg-gradient-to-br from-emerald-500/20 to-slate-800/95 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-5 md:p-7 ring-2 ring-emerald-400/30">
+                <h2 className="text-base md:text-lg font-bold text-white mb-1">{m.scanToCheckIn}</h2>
+                <p className="text-xs md:text-sm text-slate-300 mb-4">{m.quickCheckInScanHint}</p>
+                <button type="button" onClick={handleQuickCheckInScan} className="w-full sm:w-auto min-w-[200px] px-6 py-4 rounded-xl text-base font-bold bg-emerald-500 text-slate-900 hover:bg-emerald-400 active:scale-[0.98] transition shadow-lg shadow-emerald-900/30">
+                  {m.scanToCheckIn}
+                </button>
+              </div>
               <div className="rounded-2xl bg-slate-900/95 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-6">
                 <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{m.gymOccupancy}</h3>
                 <p className="text-3xl font-bold text-white">{gymOccupancy}</p>
                 <p className="text-sm text-slate-400 mt-0.5">{m.climbersInsideLast2h}</p>
-              </div>
-              <div className="rounded-2xl bg-slate-900/95 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-6">
-                <h3 className="text-sm font-semibold text-white mb-1">{m.quickCheckInScan}</h3>
-                <p className="text-xs text-slate-400 mb-3">{m.quickCheckInScanHint}</p>
-                <button type="button" onClick={handleQuickCheckInScan} className="px-4 py-2.5 rounded-xl text-sm font-medium bg-emerald-500 text-slate-900 hover:bg-emerald-400">
-                  {m.scanQr} — {m.quickCheckInScan}
-                </button>
               </div>
               <div className="rounded-2xl bg-white border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.07)] p-4 md:p-6">
                 <h3 className="text-sm font-semibold text-slate-900 mb-3">{m.recentCheckins} (7 {m.day}s)</h3>
@@ -1238,154 +1250,64 @@ export default function AdminPage() {
 
           {/* MEMBER PROFILE & ACTIONS */}
           {foundMember && (
-            <section className="grid md:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)] gap-8 items-start">
+            <section className="space-y-4">
               {paymentReceived && (
-                <div className="md:col-span-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-emerald-800 text-sm font-medium">
+                <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-emerald-800 text-sm font-medium">
                   Payment received! Membership updated.
                 </div>
               )}
-              {/* Profile + activity */}
-              <div className="space-y-4 md:space-y-6">
-                <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-6">
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-lg font-semibold text-white">
-                          {foundMember.name}
-                        </h2>
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 ${
-                            foundMember.status === "Active"
-                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/50"
-                              : foundMember.status === "Frozen"
-                              ? "bg-amber-500/20 text-amber-300 border border-amber-400/50"
-                              : "bg-rose-500/20 text-rose-300 border border-rose-400/50"
-                          }`}
-                        >
-                          {foundMember.status === "Active"
-                            ? m.statusActive
-                            : foundMember.status === "Inactive"
-                            ? m.statusInactive
-                            : foundMember.status === "Frozen"
-                            ? m.statusFrozen
-                            : m.statusCancelled}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        {foundMember.email || foundMember.phone}
-                      </p>
+              {/* Member header: always visible */}
+              <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-6">
+                <div className="flex items-center gap-4">
+                  {foundMember.profile_photo_url ? (
+                    <img src={foundMember.profile_photo_url} alt="" className="w-14 h-14 md:w-16 md:h-16 rounded-full object-cover border-2 border-slate-600 shrink-0" />
+                  ) : (
+                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-slate-600 flex items-center justify-center text-slate-300 text-lg font-semibold shrink-0">{foundMember.name.charAt(0).toUpperCase()}</div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-lg font-semibold text-white truncate">{foundMember.name}</h2>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 ${foundMember.status === "Active" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/50" : foundMember.status === "Frozen" ? "bg-amber-500/20 text-amber-300 border border-amber-400/50" : "bg-rose-500/20 text-rose-300 border border-rose-400/50"}`}>
+                        {foundMember.status === "Active" ? m.statusActive : foundMember.status === "Inactive" ? m.statusInactive : foundMember.status === "Frozen" ? m.statusFrozen : m.statusCancelled}
+                      </span>
                     </div>
-                    <div className="shrink-0">
-                      {foundMember.profile_photo_url ? (
-                        <img
-                          src={foundMember.profile_photo_url}
-                          alt=""
-                          className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border-2 border-slate-600"
-                        />
-                      ) : (
-                        <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-slate-600 flex items-center justify-center text-slate-300 text-lg font-semibold">
-                          {foundMember.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-xs md:text-sm">
-                    <div>
-                      <p className="text-slate-400">{t.memberId}</p>
-                      <p className="font-medium text-slate-100">{foundMember.displayId}</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-400">{m.membershipLabel}</p>
-                      <p className="font-medium text-slate-100">
-                        {foundMember.membershipType === "Founder Member"
-                          ? m.founderMember
-                          : foundMember.membershipType === "Standard"
-                          ? m.standard
-                          : foundMember.membershipType === "Day Pass"
-                          ? m.dayPass
-                          : foundMember.membershipType}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-slate-400">{m.validUntil}</p>
-                      <p className="font-medium text-slate-100">
-                        {foundMember.validUntil}
-                      </p>
-                    </div>
-                    {foundMember.gender && (
-                      <div>
-                        <p className="text-slate-400">{m.genderLabel}</p>
-                        <p className="font-medium text-slate-100">{foundMember.gender === "male" ? m.male : m.female}</p>
-                      </div>
-                    )}
-                    {foundMember.instagram_handle && (
-                      <div>
-                        <p className="text-slate-400">Instagram</p>
-                        <a
-                          href={`https://www.instagram.com/${foundMember.instagram_handle.replace(/^@/, "")}/`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-medium text-sky-300 hover:text-sky-200 hover:underline"
-                        >
-                          @{foundMember.instagram_handle.replace(/^@/, "")}
-                        </a>
-                      </div>
-                    )}
-                    {foundMember.id_number && (
-                      <div>
-                        <p className="text-slate-400">{m.govtId}</p>
-                        <p className="font-medium text-slate-100">{foundMember.id_number}</p>
-                      </div>
-                    )}
-                    {foundMember.date_of_birth && (
-                      <div>
-                        <p className="text-slate-400">{m.dateOfBirth}</p>
-                        <p className="font-medium text-slate-100">
-                          {new Date(foundMember.date_of_birth).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </p>
-                      </div>
-                    )}
-                    <div className="col-span-2">
-                      <p className="text-slate-400">{m.waiverSigned}</p>
-                      {foundMember.waiver_signed && foundMember.waiver_signed_at ? (
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-slate-100">
-                            {new Date(foundMember.waiver_signed_at).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                              hour: "numeric",
-                              minute: "2-digit",
-                            })}
-                          </p>
-                          {foundMember.waiver && (
-                            <button
-                              type="button"
-                              onClick={() => setWaiverModalOpen(true)}
-                              className="text-xs font-medium text-sky-300 hover:text-sky-200 underline"
-                            >
-                              {m.viewWaiver}
-                            </button>
-                          )}
-                        </div>
-                      ) : (
-                        <p className="font-medium text-slate-400">{m.notSigned}</p>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-slate-400">{m.internalId}</p>
-                      <p className="font-mono text-[11px] text-slate-300 break-all">
-                        {foundMember.id}
-                      </p>
-                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5 truncate">{foundMember.email || foundMember.phone}</p>
+                    <p className="text-xs text-slate-500 mt-1"><span className="text-slate-400">{t.memberId}:</span> <span className="font-medium text-slate-200">{foundMember.displayId}</span></p>
                   </div>
                 </div>
+              </div>
 
-                <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_16px_40px_rgba(15,23,42,0.7)] p-4 md:p-5">
+              {/* Sub-tabs to reduce scroll */}
+              <nav className="flex gap-1 p-1 rounded-xl bg-slate-800/80 border border-slate-700 overflow-x-auto" aria-label="Member sections">
+                {(["summary", "membership", "sales", "history"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setMemberProfileSubTab(tab)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap shrink-0 ${memberProfileSubTab === tab ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700 hover:text-white"}`}
+                  >
+                    {tab === "summary" ? m.memberTabSummary : tab === "membership" ? m.memberTabMembership : tab === "sales" ? m.memberTabSales : m.memberTabHistory}
+                  </button>
+                ))}
+              </nav>
+
+              {/* Tab content */}
+              {memberProfileSubTab === "summary" && (
+                <div className="space-y-4 md:space-y-6">
+                  <div className="rounded-2xl bg-slate-800/90 border border-slate-700 p-4 md:p-6">
+                    <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Profile</h3>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-xs md:text-sm">
+                      <div><p className="text-slate-400">{m.membershipLabel}</p><p className="font-medium text-slate-100">{foundMember.membershipType === "Founder Member" ? m.founderMember : foundMember.membershipType === "Standard" ? m.standard : foundMember.membershipType === "Day Pass" ? m.dayPass : foundMember.membershipType}</p></div>
+                      <div><p className="text-slate-400">{m.validUntil}</p><p className="font-medium text-slate-100">{foundMember.validUntil}</p></div>
+                      {foundMember.gender && <div><p className="text-slate-400">{m.genderLabel}</p><p className="font-medium text-slate-100">{foundMember.gender === "male" ? m.male : m.female}</p></div>}
+                      {foundMember.instagram_handle && <div><p className="text-slate-400">Instagram</p><a href={`https://www.instagram.com/${foundMember.instagram_handle.replace(/^@/, "")}/`} target="_blank" rel="noopener noreferrer" className="font-medium text-sky-300 hover:underline">@{foundMember.instagram_handle.replace(/^@/, "")}</a></div>}
+                      {foundMember.id_number && <div><p className="text-slate-400">{m.govtId}</p><p className="font-medium text-slate-100">{foundMember.id_number}</p></div>}
+                      {foundMember.date_of_birth && <div><p className="text-slate-400">{m.dateOfBirth}</p><p className="font-medium text-slate-100">{new Date(foundMember.date_of_birth).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", { year: "numeric", month: "short", day: "numeric" })}</p></div>}
+                      <div className="col-span-2"><p className="text-slate-400">{m.waiverSigned}</p>{foundMember.waiver_signed && foundMember.waiver_signed_at ? <div className="flex items-center gap-2"><p className="font-medium text-slate-100">{new Date(foundMember.waiver_signed_at).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>{foundMember.waiver && <button type="button" onClick={() => setWaiverModalOpen(true)} className="text-xs font-medium text-sky-300 hover:underline">{m.viewWaiver}</button>}</div> : <p className="font-medium text-slate-400">{m.notSigned}</p>}</div>}
+                      <div><p className="text-slate-400">{m.internalId}</p><p className="font-mono text-[11px] text-slate-300 break-all">{foundMember.id}</p></div>
+                    </div>
+                  </div>
+                  <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_16px_40px_rgba(15,23,42,0.7)] p-4 md:p-5">
                   <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-3">
                     {m.activity}
                   </h3>
@@ -1423,7 +1345,10 @@ export default function AdminPage() {
                     ))}
                   </ul>
                 </div>
+              </div>
+              )}
 
+              {memberProfileSubTab === "history" && (
                 <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_16px_40px_rgba(15,23,42,0.7)] p-4 md:p-5">
                   <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-3">
                     {m.payments} / {m.purchaseHistory}
@@ -1440,12 +1365,12 @@ export default function AdminPage() {
                         .map((entry) => (
                           <li key={`${entry.type}-${entry.id}`} className="flex flex-col gap-0.5">
                             <div className="flex justify-between items-start">
-                          <div>
+                              <div>
                                 <span className="font-medium text-slate-100">{entry.label}</span>
-                            <span className="text-slate-400 ml-2">
+                                <span className="text-slate-400 ml-2">
                                   {new Date(entry.date).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", { month: "short", day: "numeric", year: "numeric" })}
-                            </span>
-                          </div>
+                                </span>
+                              </div>
                               <span className="font-medium text-slate-100">{entry.amount.toLocaleString("vi-VN")} VND</span>
                             </div>
                             {entry.items && entry.items.length > 0 && (
@@ -1455,14 +1380,14 @@ export default function AdminPage() {
                                 ))}
                               </ul>
                             )}
-                        </li>
-                      ))}
+                          </li>
+                        ))}
                     </ul>
                   )}
                 </div>
-              </div>
+              )}
 
-              {/* Check-in + membership controls */}
+              {memberProfileSubTab === "membership" && (
               <div className="space-y-4 md:space-y-6">
                 <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_50px_rgba(15,23,42,0.75)] p-4 md:p-6">
                   <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-200 uppercase mb-4">
@@ -1503,7 +1428,7 @@ export default function AdminPage() {
 
                 <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_16px_40px_rgba(15,23,42,0.7)] p-4 md:p-5">
                   <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-3">
-                    Membership Controls
+                    {m.membershipControls}
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     <button
@@ -1511,7 +1436,7 @@ export default function AdminPage() {
                       onClick={handleCollectPayment}
                       className="px-4 py-2 rounded-full text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-500"
                     >
-                      Collect Payment
+                      {m.collectPayment}
                     </button>
                     <button
                       type="button"
@@ -1548,9 +1473,11 @@ export default function AdminPage() {
                   </div>
                 </div>
               </div>
+              </div>
+              )}
 
-              {/* Front Desk Sales — same flow: add to cart, checkout for this member */}
-              <div className="md:col-span-2 mt-6 md:mt-8 rounded-2xl bg-white/95 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">
+              {memberProfileSubTab === "sales" && (
+              <div className="rounded-2xl bg-white/95 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">
                 <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">{m.frontDeskSales}</h3>
                 <div className="space-y-3">
                   <div className="flex flex-wrap gap-2">
@@ -1655,6 +1582,8 @@ export default function AdminPage() {
                   )}
                 </div>
               </div>
+              </div>
+              )}
             </section>
           )}
           </>
@@ -1745,6 +1674,7 @@ export default function AdminPage() {
                     if (res.ok && d.ok) { setInventoryActionMessage(locale === "vi" ? "Đã nhập kho." : "Stock in recorded."); setInventoryQty("1"); adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? [])); setTimeout(() => setInventoryActionMessage(null), 3000); } else setInventoryCreateError(d?.error ?? "Failed");
                   }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500">{m.stockIn}</button>
                   <button type="button" onClick={async () => {
+                    if (!window.confirm(`${m.areYouSure}\n\n${m.confirmStockOut}`)) return;
                     const qty = parseInt(inventoryQty, 10) || 1;
                     const res = await adminFetch("/api/admin/inventory", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ variant_id: scannedVariant.id, quantity: qty }) });
                     const d = await res.json();
@@ -1932,7 +1862,7 @@ export default function AdminPage() {
                   ))}
                 </select>
                 <input type="number" min={1} value={stockOutQty} onChange={(e) => setStockOutQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-500 bg-slate-700 text-white text-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                <button type="button" onClick={async () => { const v = stockOutSku.trim(); if (!v) return; const res = await adminFetch("/api/admin/inventory", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ barcode: v, quantity: parseInt(stockOutQty, 10) || 1 }) }); const d = await res.json(); if (res.ok && d.ok) { setInventoryActionMessage(locale === "vi" ? "Đã xuất kho." : "Stock out recorded."); setStockOutSku(""); setStockOutQty("1"); adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? [])); setTimeout(() => setInventoryActionMessage(null), 3000); } else setInventoryCreateError(d?.error ?? "Failed"); }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-500">{m.stockOut}</button>
+                <button type="button" onClick={async () => { const v = stockOutSku.trim(); if (!v) return; if (!window.confirm(`${m.areYouSure}\n\n${m.confirmStockOut}`)) return; const res = await adminFetch("/api/admin/inventory", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ barcode: v, quantity: parseInt(stockOutQty, 10) || 1 }) }); const d = await res.json(); if (res.ok && d.ok) { setInventoryActionMessage(locale === "vi" ? "Đã xuất kho." : "Stock out recorded."); setStockOutSku(""); setStockOutQty("1"); adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? [])); setTimeout(() => setInventoryActionMessage(null), 3000); } else setInventoryCreateError(d?.error ?? "Failed"); }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-500">{m.stockOut}</button>
               </div>
             </div>
           </section>
@@ -2655,8 +2585,8 @@ export default function AdminPage() {
 
                   {/* TAB 5 — ROUTES */}
                   {staffModalTab === "routes" && staffOpsData && (
-                    <div className="rounded-lg border border-slate-200 overflow-hidden">
-                      <table className="w-full text-sm">
+                    <div className="rounded-lg border border-slate-200 overflow-x-auto overflow-y-visible">
+                      <table className="w-full text-sm min-w-[640px]">
                         <thead>
                           <tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase">
                             <th className="px-3 py-2">{m.wallZone}</th>
@@ -2680,13 +2610,13 @@ export default function AdminPage() {
                                 <td className="px-3 py-2 text-slate-700">{setters || "—"}</td>
                                 <td className="px-3 py-2">
                                   {status === "completed" ? (
-                                    <span className="text-emerald-700 font-semibold">Completed</span>
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">Completed</span>
                                   ) : status === "overdue" ? (
-                                    <span className="text-red-700 font-semibold">⚠ {m.overdue}</span>
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-200">⚠ {m.overdue}</span>
                                   ) : status === "in_progress" ? (
-                                    <span className="text-amber-700 font-semibold">In Progress</span>
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">In Progress</span>
                                   ) : (
-                                    <span className="text-slate-600 font-semibold">Pending</span>
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">Pending</span>
                                   )}
                                 </td>
                                 <td className="px-3 py-2">
@@ -2734,6 +2664,7 @@ export default function AdminPage() {
                                     <button
                                       type="button"
                                       onClick={async () => {
+                                        if (!window.confirm(`${m.areYouSure}\n\n${m.confirmMarkResetComplete}`)) return;
                                         const res = await adminFetch(`/api/admin/routes/zones/${z.id}/reset`, { method: "POST" });
                                         const d = await res.json();
                                         if (res.ok && d?.ok) {

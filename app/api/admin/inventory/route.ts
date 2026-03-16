@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
+import { insertAdminAuditLog, getStaffIdFromAuthId } from "@/lib/auditLog";
 
 const CATEGORIES = ["shoes", "chalk", "merch", "rental"] as const;
 
@@ -97,6 +98,8 @@ export async function POST(req: NextRequest) {
     if (existing) {
       const newQty = (existing.quantity as number) + quantity;
       await supabase.from("inventory").update({ quantity: newQty, updated_at: new Date().toISOString() }).eq("id", existing.id);
+      const staffId = await getStaffIdFromAuthId(supabase, admin.id);
+      await insertAdminAuditLog(supabase, { adminAuthId: admin.id, staffId, actionType: "inventory_stock_in", entityId: variantId, metadata: { quantity: newQty } });
       return NextResponse.json({ ok: true, quantity: newQty });
     }
     const { data: inserted, error: insErr } = await supabase
@@ -105,6 +108,8 @@ export async function POST(req: NextRequest) {
       .select("id, quantity")
       .single();
     if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });
+    const staffId = await getStaffIdFromAuthId(supabase, admin.id);
+    await insertAdminAuditLog(supabase, { adminAuthId: admin.id, staffId, actionType: "inventory_stock_in", entityId: variantId, metadata: { quantity: inserted?.quantity ?? quantity } });
     return NextResponse.json({ ok: true, quantity: inserted?.quantity ?? quantity });
   } catch (e) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -149,6 +154,8 @@ export async function PATCH(req: NextRequest) {
       else await supabase.from("inventory").update({ quantity: newQty, updated_at: new Date().toISOString() }).eq("id", row.id);
     }
     if (remaining > 0) return NextResponse.json({ error: "Insufficient quantity" }, { status: 400 });
+    const staffId = await getStaffIdFromAuthId(supabase, admin.id);
+    await insertAdminAuditLog(supabase, { adminAuthId: admin.id, staffId, actionType: "inventory_stock_out", entityId: variantId, metadata: { quantity } });
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
