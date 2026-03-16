@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { ensureCoachingSlotsForDate } from "./coachingSessions";
 
 const MAX_NEWBIES_PER_SESSION = 5;
+const MAX_SESSIONS_PER_SLOT = 2; // 2 sessions x 5 newbies = 10 per 30-min slot
+const SLOT_LENGTH_MINUTES = 30;
 
 /**
  * If the session has no coach and at least one person is signed up, assign a route setter
@@ -62,11 +63,15 @@ async function tryAutoAssignCoach(
 }
 
 /**
- * After a member pays for newbie_class, assign them to the next available coaching session
- * (max 5 newbies per session; 2 sessions per 30-min slot = max 10 per slot).
- * If the session has no coach and at least one person is now signed up, a route setter
- * who is IN today is auto-assigned (one with fewest sessions today).
- * Returns the booking id or null if no slot available.
+ * After a member pays for newbie_class, create/assign them into a 30-min coaching session bucket.
+ * Behaviour:
+ * - Slot is determined by purchase time: round up to the next :00 or :30 (e.g. buy at 11:45 → 12:00 slot).
+ * - Each 30-min slot can have up to 2 sessions, each with max 5 newbies (total 10 per slot).
+ * - Sessions are created on demand only when there is at least one booking.
+ * - If the chosen slot is full (2 sessions x 5 newbies), it rolls forward to the next 30‑min slot.
+ * - If the session has no coach and at least one person is now signed up, a route setter
+ *   who is IN today is auto-assigned (one with fewest sessions today).
+ * Returns the booking id and session id, or null if no slot available.
  */
 export async function bookNewbieClass(
   supabase: SupabaseClient,
@@ -75,47 +80,83 @@ export async function bookNewbieClass(
 ): Promise<{ bookingId: string; sessionId: string } | null> {
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
-  const tomorrow = new Date(now.getTime() + 86400000).toISOString().slice(0, 10);
 
-  await ensureCoachingSlotsForDate(supabase, today);
-  await ensureCoachingSlotsForDate(supabase, tomorrow);
+  // Helper: get next 30-min slot start (rounded up from now)
+  const getNextSlotStart = (from: Date): Date => {
+    const d = new Date(from.getTime());
+    const minutes = d.getMinutes();
+    const addMinutes = minutes === 0 || minutes === 30 ? 0 : minutes < 30 ? 30 - minutes : 60 - minutes;
+    if (addMinutes > 0) d.setMinutes(minutes + addMinutes, 0, 0);
+    return d;
+  };
 
-  const { data: sessions, error: sessionsErr } = await supabase
-    .from("coaching_sessions")
-    .select("id, start_time, coach_id")
-    .gt("start_time", now.toISOString())
-    .in("status", ["scheduled"])
-    .order("start_time", { ascending: true })
-    .limit(100);
+  let slotStart = getNextSlotStart(now);
 
-  if (sessionsErr || !sessions?.length) return null;
+  // Try this slot and a bounded number of future slots (e.g. next 12 = 6 hours) to avoid infinite loops
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const slotEnd = new Date(slotStart.getTime() + SLOT_LENGTH_MINUTES * 60 * 1000);
+    const startIso = slotStart.toISOString();
+    const endIso = slotEnd.toISOString();
 
-  for (const session of sessions) {
-    const { count } = await supabase
-      .from("newbie_class_bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("coaching_session_id", session.id);
+    // Load or lazily create up to MAX_SESSIONS_PER_SLOT sessions for this exact slot
+    const { data: existingSessions, error: sessionsErr } = await supabase
+      .from("coaching_sessions")
+      .select("id, start_time, end_time, coach_id")
+      .eq("start_time", startIso)
+      .in("status", ["scheduled"])
+      .order("id", { ascending: true });
 
-    if ((count ?? 0) >= MAX_NEWBIES_PER_SESSION) continue;
+    if (sessionsErr) return null;
 
-    const { data: inserted, error: insertErr } = await supabase
-      .from("newbie_class_bookings")
-      .insert({
-        member_id: memberId,
-        coaching_session_id: session.id,
-        payment_id: paymentId,
-      })
-      .select("id")
-      .single();
+    const sessions = [...(existingSessions ?? [])];
 
-    if (insertErr || !inserted) return null;
-
-    if (!session.coach_id) {
-      await tryAutoAssignCoach(supabase, session.id, today);
+    if (sessions.length < MAX_SESSIONS_PER_SLOT) {
+      const { data: inserted } = await supabase
+        .from("coaching_sessions")
+        .insert({
+          start_time: startIso,
+          end_time: endIso,
+          session_type: "beginner",
+          status: "scheduled",
+          location: "Main Wall - Beginner Area",
+        })
+        .select("id, start_time, end_time, coach_id")
+        .single();
+      if (inserted) sessions.push(inserted);
     }
 
-    return { bookingId: inserted.id, sessionId: session.id };
+    // Try to place the booking into one of this slot's sessions
+    for (const session of sessions) {
+      const { count } = await supabase
+        .from("newbie_class_bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("coaching_session_id", session.id);
+
+      if ((count ?? 0) >= MAX_NEWBIES_PER_SESSION) continue;
+
+      const { data: insertedBooking, error: insertErr } = await supabase
+        .from("newbie_class_bookings")
+        .insert({
+          member_id: memberId,
+          coaching_session_id: session.id,
+          payment_id: paymentId,
+        })
+        .select("id")
+        .single();
+
+      if (insertErr || !insertedBooking) return null;
+
+      if (!session.coach_id) {
+        await tryAutoAssignCoach(supabase, session.id, today);
+      }
+
+      return { bookingId: insertedBooking.id, sessionId: session.id };
+    }
+
+    // Slot full (2 sessions x 5 newbies) — move to next 30-min slot
+    slotStart = new Date(slotStart.getTime() + SLOT_LENGTH_MINUTES * 60 * 1000);
   }
 
+  // No available slot within the checked window
   return null;
 }

@@ -609,7 +609,7 @@ export default function StaffPage() {
                     <thead>
                       <tr className="text-left text-xs font-semibold text-slate-400 uppercase border-b border-slate-600">
                         <th className="py-2 pr-2">{m.wallZone}</th>
-                        <th className="py-2 pr-2">{m.nextResetDate}</th>
+                        <th className="py-2 pr-2">{m.next}</th>
                         <th className="py-2 pr-2">{m.assignedSetters}</th>
                         <th className="py-2 pr-2">{m.resetProgress}</th>
                         <th className="py-2 w-28" />
