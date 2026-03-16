@@ -333,15 +333,6 @@ export default function AdminPage() {
       .catch(() => setStaffOpsData(null));
   }, [adminTab, adminFetch]);
 
-  // Keep Staff Operations visible inside the Operations tab
-  useEffect(() => {
-    if (adminTab === "operations") {
-      setToolsModal("staff");
-      return;
-    }
-    if (toolsModal === "staff") setToolsModal(null);
-  }, [adminTab]);
-
   useEffect(() => {
     if (adminTab !== "operations" || staffModalTab !== "attendance") return;
     const now = new Date();
