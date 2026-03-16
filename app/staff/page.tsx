@@ -343,13 +343,19 @@ export default function StaffPage() {
 
   // Current time window: 9:00–10:00 pre_open, 10:00–22:00 during_hours, 22:00–23:00 closing (gym TZ)
   const getCurrentBlock = (): "pre_open" | "during_hours" | "closing" => {
-    const t = new Date().toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", timeZone: "America/Los_Angeles" });
+    const t = new Date().toLocaleTimeString("en-GB", {
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "America/Los_Angeles",
+    });
     const [h, m] = t.slice(0, 5).split(":").map(Number);
     const mins = h * 60 + m;
+    if (mins < 9 * 60) return "pre_open";
     if (mins >= 9 * 60 && mins < 10 * 60) return "pre_open";
     if (mins >= 10 * 60 && mins < 22 * 60) return "during_hours";
     if (mins >= 22 * 60 && mins < 23 * 60) return "closing";
-    return "during_hours";
+    return "closing";
   };
   const currentBlock = getCurrentBlock();
   const rawActiveTasks = currentBlock === "pre_open" ? preOpenTasks : currentBlock === "closing" ? closingTasks : duringTasks;

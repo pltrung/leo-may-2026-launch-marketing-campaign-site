@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getRouteSetterFromRequest } from "@/lib/routeSetterAuth";
-import { ensureTodayCoachingSlots } from "@/lib/coachingSessions";
+import { getGymToday, parseGymDateTime, getGymEndOfDay } from "@/lib/gymTimezone";
 
 /**
  * GET /api/route-setter/sessions
@@ -20,17 +20,20 @@ export async function GET(request: NextRequest) {
     .single();
   if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
 
-  await ensureTodayCoachingSlots(supabase);
-
   const now = new Date();
   const nowIso = now.toISOString();
   const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
+  const today = getGymToday();
+  const openStartIso = parseGymDateTime(today, "10:00");
+  const todayEndIso = getGymEndOfDay(today);
 
   const { data: sessions, error } = await supabase
     .from("coaching_sessions")
     .select("id, start_time, end_time, coach_id, session_type, status, location, staff_profiles(email, display_name)")
     .gt("start_time", nowIso)
+    .gte("start_time", openStartIso)
     .lte("start_time", twoHoursLater)
+    .lte("start_time", todayEndIso)
     .in("status", ["scheduled"])
     .order("start_time", { ascending: true });
 
@@ -54,7 +57,7 @@ export async function GET(request: NextRequest) {
     ...s,
     location: (s.location as string) ?? "Main Wall - Beginner Area",
     newbie_count: newbieCountBySession[s.id] ?? 0,
-  }));
+  })).filter((s) => (s.newbie_count ?? 0) > 0);
 
   const mySessions = listWithMeta.filter((s) => s.coach_id === staff.id);
   const unassigned = listWithMeta.filter((s) => !s.coach_id);

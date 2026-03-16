@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
-import { getGymToday, getGymStartOfDay, getGymEndOfDay, getGymDateFromISO } from "@/lib/gymTimezone";
+import { getGymToday, getGymStartOfDay, getGymEndOfDay, getGymDateFromISO, parseGymDateTime } from "@/lib/gymTimezone";
 
 const STAFF_REQUIRED_DEFAULT = 3;
 const GYM_TZ = "America/Los_Angeles";
@@ -24,20 +24,20 @@ function compareHHMM(a: string, b: string): number {
   return (ah * 60 + am) - (bh * 60 + bm);
 }
 
-/** Determine current shift phase: 9:00–10:00 pre_open, 10:00–22:00 gym_open, 22:00–23:00 closing. */
+/** Determine current shift phase in gym TZ.
+ *  <09:00 → pre_open
+ *  09:00–10:00 → pre_open
+ *  10:00–22:00 → gym_open
+ *  22:00–23:00 → closing
+ *  ≥23:00 → closing
+ */
 function getCurrentPhase(): ShiftPhase {
-  const t = new Date().toLocaleTimeString("en-GB", {
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: GYM_TZ,
-  }).slice(0, 5);
-  const [h, m] = t.split(":").map(Number);
-  const mins = h * 60 + m;
+  const mins = getGymMinutesFromMidnight();
+  if (mins < 9 * 60) return "pre_open";
   if (mins >= 9 * 60 && mins < 10 * 60) return "pre_open";
   if (mins >= 10 * 60 && mins < 22 * 60) return "gym_open";
   if (mins >= 22 * 60 && mins < 23 * 60) return "closing";
-  return "gym_open";
+  return "closing";
 }
 
 /** Minutes from midnight in gym TZ for current moment. */
@@ -93,6 +93,7 @@ export async function GET(request: NextRequest) {
   const today = getGymToday();
   const now = new Date();
   const nowIso = now.toISOString();
+  const openStartIso = parseGymDateTime(today, "10:00");
   const todayStart = getGymStartOfDay(today);
   const todayEnd = getGymEndOfDay(today);
   const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
@@ -116,13 +117,14 @@ export async function GET(request: NextRequest) {
       .from("coaching_sessions")
       .select("id, start_time, end_time, coach_id, session_type, status, location, staff_profiles(email, display_name)")
       .gt("start_time", nowIso)
+      .gte("start_time", openStartIso)
       .lte("start_time", twoHoursLater)
       .in("status", ["scheduled"])
       .order("start_time"),
     supabase
       .from("coaching_sessions")
       .select("id, start_time, end_time, coach_id, session_type, status, location, staff_profiles(email, display_name)")
-      .gte("start_time", todayStart)
+      .gte("start_time", openStartIso)
       .lte("start_time", todayEnd)
       .in("status", ["scheduled"])
       .order("start_time"),
@@ -205,7 +207,7 @@ export async function GET(request: NextRequest) {
     ...s,
     location: (s.location as string) ?? "Main Wall - Beginner Area",
     newbie_count: newbieCountBySession[s.id] ?? 0,
-  }));
+  })).filter((s) => (s.newbie_count ?? 0) > 0);
 
   // Booking count for today's sessions (for unassigned-alert: only alert when someone is registered but no coach)
   const sessionIdsToday = sessionsToday.map((s) => s.id);
@@ -222,10 +224,13 @@ export async function GET(request: NextRequest) {
   }
 
   // Today's full sessions with location for Coaching tab
-  const sessionsTodayWithLocation = sessionsToday.map((s) => ({
-    ...s,
-    location: (s.location as string) ?? "Main Wall - Beginner Area",
-  }));
+  const sessionsTodayWithLocation = sessionsToday
+    .map((s) => ({
+      ...s,
+      location: (s.location as string) ?? "Main Wall - Beginner Area",
+      newbie_count: newbieCountBySessionToday[s.id] ?? 0,
+    }))
+    .filter((s) => (s.newbie_count ?? 0) > 0);
 
   const totalNewbieAttendance = Object.values(newbieCountBySession).reduce((a, b) => a + b, 0);
 
