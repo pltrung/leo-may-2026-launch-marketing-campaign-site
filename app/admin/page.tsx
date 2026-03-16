@@ -273,8 +273,11 @@ export default function AdminPage() {
 
   const loadMemberById = useCallback(async (id: string) => {
     setSearchError(null);
-    setActionError(null);
-    setActionMessage(null);
+    // Only clear action feedback when switching to a different member so success messages (e.g. check-in recorded) stay visible after refresh
+    if (id !== foundMember?.id) {
+      setActionError(null);
+      setActionMessage(null);
+    }
     try {
       const res = await adminFetch(`/api/admin/members?id=${encodeURIComponent(id)}`);
       const data = await res.json();
@@ -287,7 +290,7 @@ export default function AdminPage() {
     } catch {
       setSearchError(m.unableToLoadMember);
     }
-  }, [adminFetch, m]);
+  }, [adminFetch, m, foundMember?.id]);
 
   // Fetch and poll recent payments when member found; detect new payment for auto webhook
   useEffect(() => {
@@ -1254,6 +1257,16 @@ export default function AdminPage() {
               {paymentReceived && (
                 <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-emerald-800 text-sm font-medium">
                   Payment received! Membership updated.
+                </div>
+              )}
+              {actionMessage && (
+                <div className="rounded-xl bg-emerald-500/20 border border-emerald-400/50 px-4 py-3 text-emerald-200 text-sm font-medium">
+                  {actionMessage}
+                </div>
+              )}
+              {actionError && (
+                <div className="rounded-xl bg-rose-500/20 border border-rose-400/50 px-4 py-3 text-rose-200 text-sm font-medium">
+                  {actionError}
                 </div>
               )}
               {/* Member header: always visible */}
