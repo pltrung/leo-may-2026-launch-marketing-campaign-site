@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
-import { performCheckIn } from "@/app/api/checkin/route";
+import { performCheckIn } from "@/lib/performCheckIn";
 import { insertAdminAuditLog, getStaffIdFromAuthId } from "@/lib/auditLog";
 
 /**

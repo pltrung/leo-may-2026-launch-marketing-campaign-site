@@ -1303,7 +1303,21 @@ export default function AdminPage() {
                       {foundMember.instagram_handle && <div><p className="text-slate-400">Instagram</p><a href={`https://www.instagram.com/${foundMember.instagram_handle.replace(/^@/, "")}/`} target="_blank" rel="noopener noreferrer" className="font-medium text-sky-300 hover:underline">@{foundMember.instagram_handle.replace(/^@/, "")}</a></div>}
                       {foundMember.id_number && <div><p className="text-slate-400">{m.govtId}</p><p className="font-medium text-slate-100">{foundMember.id_number}</p></div>}
                       {foundMember.date_of_birth && <div><p className="text-slate-400">{m.dateOfBirth}</p><p className="font-medium text-slate-100">{new Date(foundMember.date_of_birth).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", { year: "numeric", month: "short", day: "numeric" })}</p></div>}
-                      <div className="col-span-2"><p className="text-slate-400">{m.waiverSigned}</p>{foundMember.waiver_signed && foundMember.waiver_signed_at ? <div className="flex items-center gap-2"><p className="font-medium text-slate-100">{new Date(foundMember.waiver_signed_at).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>{foundMember.waiver && <button type="button" onClick={() => setWaiverModalOpen(true)} className="text-xs font-medium text-sky-300 hover:underline">{m.viewWaiver}</button>}</div> : <p className="font-medium text-slate-400">{m.notSigned}</p>}</div>}
+                      <div className="col-span-2">
+                        <p className="text-slate-400">{m.waiverSigned}</p>
+                        {foundMember.waiver_signed && foundMember.waiver_signed_at ? (
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-slate-100">
+                              {new Date(foundMember.waiver_signed_at).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                            </p>
+                            {foundMember.waiver && (
+                              <button type="button" onClick={() => setWaiverModalOpen(true)} className="text-xs font-medium text-sky-300 hover:underline">{m.viewWaiver}</button>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="font-medium text-slate-400">{m.notSigned}</p>
+                        )}
+                      </div>
                       <div><p className="text-slate-400">{m.internalId}</p><p className="font-mono text-[11px] text-slate-300 break-all">{foundMember.id}</p></div>
                     </div>
                   </div>
@@ -1473,7 +1487,6 @@ export default function AdminPage() {
                   </div>
                 </div>
               </div>
-              </div>
               )}
 
               {memberProfileSubTab === "sales" && (
@@ -1581,7 +1594,6 @@ export default function AdminPage() {
                     </>
                   )}
                 </div>
-              </div>
               </div>
               )}
             </section>
