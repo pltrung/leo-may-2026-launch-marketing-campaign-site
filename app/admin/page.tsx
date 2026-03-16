@@ -1817,7 +1817,7 @@ export default function AdminPage() {
                           return;
                         }
                         if (upRes.ok && upData.url) imageUrl = upData.url;
-                        else if (!upRes.ok) { setInventoryCreateError(upData?.error ?? upText.slice(0, 150) || `Upload failed ${upRes.status}`); return; }
+                        else if (!upRes.ok) { setInventoryCreateError((upData?.error ?? upText.slice(0, 150)) || `Upload failed ${upRes.status}`); return; }
                       }
                       const res = await adminFetch("/api/admin/products/with-variants", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newProductName.trim(), brand: newProductBrand.trim() || null, category: newProductCategory, image: imageUrl, product_code: newProductCode.trim().toUpperCase(), variants: variantsToCreate }) });
                       const text = await res.text();
