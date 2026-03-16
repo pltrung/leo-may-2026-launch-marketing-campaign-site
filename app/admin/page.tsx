@@ -273,15 +273,15 @@ export default function AdminPage() {
       const res = await adminFetch(`/api/admin/members?id=${encodeURIComponent(id)}`);
       const data = await res.json();
       if (!res.ok || !data.member) {
-        setSearchError(data.error || "Member not found.");
+        setSearchError(data.error || m.memberNotFound);
         return;
       }
       setFoundMember(data.member as AdminMember);
       setNameResults([]);
     } catch {
-      setSearchError("Unable to load member.");
+      setSearchError(m.unableToLoadMember);
     }
-  }, [adminFetch]);
+  }, [adminFetch, m]);
 
   // Fetch and poll recent payments when member found; detect new payment for auto webhook
   useEffect(() => {
@@ -386,14 +386,14 @@ export default function AdminPage() {
 
     const raw = searchQuery.trim();
     if (!raw) {
-      setSearchError("Enter a Member ID, name, or scan QR.");
+      setSearchError(m.enterMemberIdNameOrScan);
       return;
     }
 
     if (raw.startsWith("leo-staff:")) {
       const staffId = raw.split(":")[1]?.trim();
       if (!staffId) {
-        setSearchError("Could not read staff QR payload.");
+        setSearchError(m.couldNotReadStaffQr);
         return;
       }
       try {
@@ -405,13 +405,13 @@ export default function AdminPage() {
         const data = await res.json();
         if (res.ok && data?.staff) {
           const name = (data.staff.display_name || data.staff.email) ?? "Staff";
-          setActionMessage(locale === "vi" ? `Nhân viên ${name} đã chấm công.` : `${name} checked in for today.`);
+          setActionMessage(m.staffCheckinSuccess.replace("{name}", name));
           setSearchQuery("");
         } else {
-          setSearchError(data?.error || (locale === "vi" ? "Chấm công thất bại." : "Staff check-in failed."));
+          setSearchError(data?.error || m.staffCheckinFailed);
         }
       } catch {
-        setSearchError(locale === "vi" ? "Không thể chấm công." : "Unable to record staff check-in.");
+        setSearchError(m.unableToRecordStaffCheckin);
       }
       return;
     }
@@ -428,7 +428,7 @@ export default function AdminPage() {
         memberId = (match?.[1] ?? "").trim();
       }
       if (!memberId) {
-        setSearchError("Could not read QR payload or URL.");
+        setSearchError(m.couldNotReadQrPayload);
         return;
       }
       params.set("id", memberId);
@@ -445,26 +445,26 @@ export default function AdminPage() {
       if (searchMode === "name") {
         const results = (data.members as NameSearchResult[] | undefined) ?? [];
         if (!res.ok) {
-          setSearchError(data.error || "Unable to search members.");
+          setSearchError(data.error || m.unableToSearchMembers);
           return;
         }
         if (results.length === 0) {
-          setSearchError("No members found with that name.");
+          setSearchError(m.noMembersFound);
           return;
         }
         setNameResults(results);
         setSearchError(null);
       } else {
         if (!res.ok || !data.member) {
-          setSearchError(data.error || "Member not found.");
+          setSearchError(data.error || m.memberNotFound);
           return;
         }
         setFoundMember(data.member as AdminMember);
       }
     } catch {
-      setSearchError("Unable to search members right now.");
+      setSearchError(m.unableToSearchMembersRightNow);
     }
-  }, [searchMode, searchQuery, adminFetch, locale]);
+  }, [searchMode, searchQuery, adminFetch, locale, m]);
 
   const doPosLookup = useCallback(
     async (
@@ -552,12 +552,12 @@ export default function AdminPage() {
           const data = await res.json();
           if (res.ok && data?.staff) {
             const name = (data.staff.display_name || data.staff.email) ?? "Staff";
-            setActionMessage(locale === "vi" ? `Nhân viên ${name} đã chấm công.` : `${name} checked in for today.`);
+            setActionMessage(m.staffCheckinSuccess.replace("{name}", name));
           } else {
-            setActionError(data?.error || (locale === "vi" ? "Chấm công thất bại." : "Staff check-in failed."));
+            setActionError(data?.error || m.staffCheckinFailed);
           }
         } catch {
-          setActionError(locale === "vi" ? "Không thể chấm công." : "Unable to record staff check-in.");
+          setActionError(m.unableToRecordStaffCheckin);
         }
         return;
       }
@@ -569,23 +569,23 @@ export default function AdminPage() {
             body: JSON.stringify({ qr: result.raw, member_id: result.id, location: "turnstile" }),
           });
         if (res.ok) {
-            setActionMessage(locale === "vi" ? "Đã check-in thành công." : "Check-in recorded.");
+            setActionMessage(m.checkinRecorded);
         } else {
           const data = await res.json().catch(() => ({}));
-            setActionError(data?.error || "Check-in failed.");
+            setActionError(data?.error || m.checkinFailed);
         }
       } catch {
-        setActionError("Unable to record check-in.");
+        setActionError(m.unableToRecordCheckin);
       }
         return;
       }
       if (result.id) {
         loadMemberById(result.id);
       } else {
-        setSearchError(locale === "vi" ? "Không đọc được ID thành viên từ QR." : "Could not read member ID from QR.");
+        setSearchError(m.noMemberIdFromQr);
       }
     },
-    [loadMemberById, adminFetch, locale, scannerIntent]
+    [loadMemberById, adminFetch, scannerIntent, m]
   );
 
   const canCheckIn = useMemo(
@@ -607,14 +607,14 @@ export default function AdminPage() {
       if (!res.ok) {
         throw new Error("Failed to record check-in");
       }
-      setActionMessage("Check-in recorded.");
+      setActionMessage(m.checkinRecorded);
       loadMemberById(foundMember.id);
     } catch (e) {
-      setActionError("Unable to record check-in. Please verify member ID and try again.");
+      setActionError(m.unableToRecordCheckinVerify);
     } finally {
       setActionLoading(null);
     }
-  }, [foundMember, loadMemberById]);
+  }, [foundMember, loadMemberById, m]);
 
   const handleManualCheckIn = useCallback(async () => {
     if (!foundMember) return;
@@ -630,14 +630,14 @@ export default function AdminPage() {
       if (!res.ok) {
         throw new Error("Failed to record manual check-in");
       }
-      setActionMessage("Manual check-in recorded.");
+      setActionMessage(m.manualCheckinRecorded);
       loadMemberById(foundMember.id);
     } catch {
-      setActionError("Unable to record manual check-in.");
+      setActionError(m.unableToRecordManualCheckin);
     } finally {
       setActionLoading(null);
     }
-  }, [foundMember, loadMemberById]);
+  }, [foundMember, loadMemberById, m]);
 
   const handleUndoCheckIn = useCallback(() => {
     if (!foundMember) return;
@@ -655,8 +655,8 @@ export default function AdminPage() {
     );
     setGymOccupancy((n) => Math.max(0, n - 1));
     setActionLoading(null);
-    setActionMessage("Last check-in adjusted locally.");
-  }, [foundMember]);
+    setActionMessage(m.lastCheckinAdjusted);
+  }, [foundMember, m]);
 
   const updateStatus = useCallback(
     (status: AdminMember["status"], message: string) => {
@@ -689,13 +689,13 @@ export default function AdminPage() {
               }
             : prev
         );
-        setActionMessage("Membership extended by 1 month.");
+        setActionMessage(m.membershipExtended);
       })
       .catch(() => {
-        setActionError("Unable to extend membership.");
+        setActionError(m.unableToExtend);
       })
       .finally(() => setActionLoading(null));
-  }, [foundMember]);
+  }, [foundMember, m]);
 
   const handleFreeze = useCallback(() => {
     if (!foundMember) return;
@@ -710,13 +710,13 @@ export default function AdminPage() {
       .then((res) => res.json())
       .then((data) => {
         if (!data.member) throw new Error(data.error || "Failed");
-        updateStatus("Frozen", "Membership frozen.");
+        updateStatus("Frozen", m.membershipFrozen);
       })
       .catch(() => {
-        setActionError("Unable to freeze membership.");
+        setActionError(m.unableToFreeze);
       })
       .finally(() => setActionLoading(null));
-  }, [foundMember, updateStatus]);
+  }, [foundMember, updateStatus, m]);
 
   const handleCancel = useCallback(() => {
     if (!foundMember) return;
@@ -731,13 +731,13 @@ export default function AdminPage() {
       .then((res) => res.json())
       .then((data) => {
         if (!data.member) throw new Error(data.error || "Failed");
-        updateStatus("Cancelled", "Membership cancelled.");
+        updateStatus("Cancelled", m.membershipCancelled);
       })
       .catch(() => {
-        setActionError("Unable to cancel membership.");
+        setActionError(m.unableToCancel);
       })
       .finally(() => setActionLoading(null));
-  }, [foundMember, updateStatus]);
+  }, [foundMember, updateStatus, m]);
 
     const handleCollectPayment = useCallback(() => {
     if (!foundMember) return;
@@ -786,20 +786,20 @@ export default function AdminPage() {
       if (res.ok && data.ok) {
         setPosCart([]);
         setPosPaymentModalOpen(false);
-        setActionMessage(locale === "vi" ? "Đã ghi nhận thanh toán tiền mặt." : "Cash payment recorded.");
+        setActionMessage(m.cashPaymentRecorded);
         adminFetch(`/api/admin/members/purchases?member_id=${encodeURIComponent(foundMember.id)}`)
           .then((r) => r.json())
           .then((d) => setMemberPurchases(d.purchases ?? []))
           .catch(() => {});
       } else {
-        setActionError(data?.error || "Checkout failed.");
+        setActionError(data?.error || m.checkoutFailed);
       }
     } catch {
-      setActionError("Checkout failed.");
+      setActionError(m.checkoutFailed);
     } finally {
       setPosCheckoutLoading(false);
     }
-  }, [foundMember, posCart, adminFetch, locale]);
+  }, [foundMember, posCart, adminFetch, locale, m]);
 
   const handlePosCheckoutVietqr = useCallback(async () => {
     if (!foundMember || posCart.length === 0) return;
@@ -820,14 +820,14 @@ export default function AdminPage() {
         setPosQrUrl(data.url);
         setPosPendingTransactionId(data.transaction_id);
       } else {
-        setActionError(data?.error || "Checkout failed.");
+        setActionError(data?.error || m.checkoutFailed);
       }
     } catch {
-      setActionError("Checkout failed.");
+      setActionError(m.checkoutFailed);
     } finally {
       setPosCheckoutLoading(false);
     }
-  }, [foundMember, posCart, adminFetch]);
+  }, [foundMember, posCart, adminFetch, m]);
 
   const handlePosConfirmPayment = useCallback(async () => {
     if (!posPendingTransactionId) return;
@@ -845,7 +845,7 @@ export default function AdminPage() {
         setPosPaymentModalOpen(false);
         setPosQrUrl(null);
         setPosPendingTransactionId(null);
-        setActionMessage(locale === "vi" ? "Đã xác nhận thanh toán VietQR." : "VietQR payment confirmed.");
+        setActionMessage(m.vietQrConfirmed);
         if (foundMember) {
           adminFetch(`/api/admin/members/purchases?member_id=${encodeURIComponent(foundMember.id)}`)
             .then((r) => r.json())
@@ -853,14 +853,14 @@ export default function AdminPage() {
             .catch(() => {});
         }
       } else {
-        setActionError(data?.error || "Confirm failed.");
+        setActionError(data?.error || m.confirmFailed);
       }
     } catch {
-      setActionError("Confirm failed.");
+      setActionError(m.confirmFailed);
     } finally {
       setPosConfirmLoading(false);
     }
-  }, [posPendingTransactionId, foundMember, adminFetch, locale]);
+  }, [posPendingTransactionId, foundMember, adminFetch, locale, m]);
 
   const handlePaymentPlanChange = useCallback(
     (planId: string) => {
@@ -912,13 +912,13 @@ export default function AdminPage() {
         ...prev,
       ]);
       setPaymentModalOpen(false);
-      setActionMessage("Payment confirmed. Membership extended.");
+      setActionMessage(m.paymentConfirmedExtended);
     } catch (e) {
-      setActionError((e as Error).message ?? "Unable to confirm payment.");
+      setActionError((e as Error).message ?? m.unableToConfirmPayment);
     } finally {
       setActionLoading(null);
     }
-  }, [foundMember, paymentPlanId, paymentPlanName, paymentPrice, paymentMethod]);
+  }, [foundMember, paymentPlanId, paymentPlanName, paymentPrice, paymentMethod, m]);
 
   const handleUpgrade = useCallback(() => {
     if (!foundMember) return;
@@ -943,13 +943,13 @@ export default function AdminPage() {
               }
             : prev
         );
-        setActionMessage("Membership upgraded.");
+        setActionMessage(m.membershipUpgraded);
       })
       .catch(() => {
-        setActionError("Unable to upgrade membership.");
+        setActionError(m.unableToUpgrade);
       })
       .finally(() => setActionLoading(null));
-  }, [foundMember]);
+  }, [foundMember, m]);
 
   const handleCreateMember = useCallback(
     (e: React.FormEvent) => {
@@ -957,16 +957,16 @@ export default function AdminPage() {
       setActionError(null);
       setActionMessage(null);
       if (!newMemberName.trim()) {
-        setActionError("Name is required to create a member.");
+        setActionError(m.nameRequiredToCreateMember);
         return;
       }
-      setActionMessage("New member created (demo only).");
+      setActionMessage(m.newMemberCreatedDemo);
       setNewMemberName("");
       setNewMemberEmail("");
       setNewMemberPhone("");
       setNewMemberType("Founder Member");
     },
-    [newMemberName]
+    [newMemberName, m]
   );
 
   const t = getMessages(locale).admin;
@@ -974,7 +974,7 @@ export default function AdminPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#BEE7FF] via-[#EAF6FF] to-white">
-        <p className="text-slate-600">Loading…</p>
+        <p className="text-slate-600">{m.loading}</p>
       </div>
     );
   }
@@ -1262,7 +1262,13 @@ export default function AdminPage() {
                               : "bg-rose-500/20 text-rose-300 border border-rose-400/50"
                           }`}
                         >
-                          {foundMember.status}
+                          {foundMember.status === "Active"
+                            ? m.statusActive
+                            : foundMember.status === "Inactive"
+                            ? m.statusInactive
+                            : foundMember.status === "Frozen"
+                            ? m.statusFrozen
+                            : m.statusCancelled}
                         </span>
                       </div>
                       <p className="text-xs text-slate-400 mt-0.5">
@@ -1285,25 +1291,31 @@ export default function AdminPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-xs md:text-sm">
                     <div>
-                      <p className="text-slate-400">Member ID</p>
+                      <p className="text-slate-400">{t.memberId}</p>
                       <p className="font-medium text-slate-100">{foundMember.displayId}</p>
                     </div>
                     <div>
-                      <p className="text-slate-400">Membership</p>
+                      <p className="text-slate-400">{m.membershipLabel}</p>
                       <p className="font-medium text-slate-100">
-                        {foundMember.membershipType}
+                        {foundMember.membershipType === "Founder Member"
+                          ? m.founderMember
+                          : foundMember.membershipType === "Standard"
+                          ? m.standard
+                          : foundMember.membershipType === "Day Pass"
+                          ? m.dayPass
+                          : foundMember.membershipType}
                       </p>
                     </div>
                     <div>
-                      <p className="text-slate-400">Valid until</p>
+                      <p className="text-slate-400">{m.validUntil}</p>
                       <p className="font-medium text-slate-100">
                         {foundMember.validUntil}
                       </p>
                     </div>
                     {foundMember.gender && (
                       <div>
-                        <p className="text-slate-400">Gender</p>
-                        <p className="font-medium text-slate-100">{foundMember.gender === "male" ? "Male" : "Female"}</p>
+                        <p className="text-slate-400">{m.genderLabel}</p>
+                        <p className="font-medium text-slate-100">{foundMember.gender === "male" ? m.male : m.female}</p>
                       </div>
                     )}
                     {foundMember.instagram_handle && (
@@ -1321,15 +1333,15 @@ export default function AdminPage() {
                     )}
                     {foundMember.id_number && (
                       <div>
-                        <p className="text-slate-400">Govt ID</p>
+                        <p className="text-slate-400">{m.govtId}</p>
                         <p className="font-medium text-slate-100">{foundMember.id_number}</p>
                       </div>
                     )}
                     {foundMember.date_of_birth && (
                       <div>
-                        <p className="text-slate-400">Date of birth</p>
+                        <p className="text-slate-400">{m.dateOfBirth}</p>
                         <p className="font-medium text-slate-100">
-                          {new Date(foundMember.date_of_birth).toLocaleDateString("en-US", {
+                          {new Date(foundMember.date_of_birth).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", {
                             year: "numeric",
                             month: "short",
                             day: "numeric",
@@ -1338,11 +1350,11 @@ export default function AdminPage() {
                       </div>
                     )}
                     <div className="col-span-2">
-                      <p className="text-slate-400">Waiver Signed</p>
+                      <p className="text-slate-400">{m.waiverSigned}</p>
                       {foundMember.waiver_signed && foundMember.waiver_signed_at ? (
                         <div className="flex items-center gap-2">
                           <p className="font-medium text-slate-100">
-                            {new Date(foundMember.waiver_signed_at).toLocaleDateString("en-US", {
+                            {new Date(foundMember.waiver_signed_at).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", {
                               year: "numeric",
                               month: "short",
                               day: "numeric",
@@ -1356,16 +1368,16 @@ export default function AdminPage() {
                               onClick={() => setWaiverModalOpen(true)}
                               className="text-xs font-medium text-sky-300 hover:text-sky-200 underline"
                             >
-                              View waiver
+                              {m.viewWaiver}
                             </button>
                           )}
                         </div>
                       ) : (
-                        <p className="font-medium text-slate-400">Not signed</p>
+                        <p className="font-medium text-slate-400">{m.notSigned}</p>
                       )}
                     </div>
                     <div>
-                      <p className="text-slate-400">Internal ID</p>
+                      <p className="text-slate-400">{m.internalId}</p>
                       <p className="font-mono text-[11px] text-slate-300 break-all">
                         {foundMember.id}
                       </p>
@@ -1375,26 +1387,26 @@ export default function AdminPage() {
 
                 <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_16px_40px_rgba(15,23,42,0.7)] p-4 md:p-5">
                   <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-3">
-                    Activity
+                    {m.activity}
                   </h3>
                   <div className="grid grid-cols-2 gap-4 text-xs md:text-sm">
                     <div className="rounded-xl bg-slate-700/50 border border-slate-600 px-3 py-3">
-                      <p className="text-slate-400 mb-1">Check-ins this month</p>
+                      <p className="text-slate-400 mb-1">{m.checkinsThisMonth}</p>
                       <p className="text-lg font-semibold text-white">
                         {foundMember.checkinsThisMonth}
                       </p>
                     </div>
                     <div className="rounded-xl bg-slate-700/50 border border-slate-600 px-3 py-3">
-                      <p className="text-slate-400 mb-1">Total visits</p>
+                      <p className="text-slate-400 mb-1">{m.totalVisits}</p>
                       <p className="text-lg font-semibold text-white">
                         {foundMember.totalVisits}
                       </p>
                     </div>
                     {(foundMember.visits_remaining ?? 0) > 0 && (
                       <div className="col-span-2 rounded-xl bg-emerald-500/20 border border-emerald-400/50 px-3 py-3">
-                        <p className="text-slate-300 mb-1">Visits remaining (check-ins left)</p>
+                        <p className="text-slate-300 mb-1">{m.visitsRemaining}</p>
                         <p className="text-xl font-semibold text-emerald-300">
-                          {foundMember.visits_remaining} visits
+                          {foundMember.visits_remaining} {m.visitsLabel}
                         </p>
                       </div>
                     )}
@@ -1403,7 +1415,7 @@ export default function AdminPage() {
 
                 <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_16px_40px_rgba(15,23,42,0.7)] p-4 md:p-5">
                   <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-3">
-                    Recent Check-ins
+                    {m.recentCheckins}
                   </h3>
                   <ul className="space-y-1.5 text-xs md:text-sm text-slate-200">
                     {foundMember.recentCheckins.map((c) => (
@@ -1422,7 +1434,7 @@ export default function AdminPage() {
                     <ul className="space-y-2 text-xs md:text-sm text-slate-200">
                       {[
                         ...recentPayments.map((p) => ({ type: "membership" as const, id: p.id, date: p.created_at, amount: p.amount, label: p.plan_name, items: null })),
-                        ...memberPurchases.map((tx) => ({ type: "retail" as const, id: tx.id, date: tx.created_at, amount: tx.total, label: "Retail", items: tx.items })),
+                        ...memberPurchases.map((tx) => ({ type: "retail" as const, id: tx.id, date: tx.created_at, amount: tx.total, label: m.retail, items: tx.items })),
                       ]
                         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                         .map((entry) => (
@@ -1431,7 +1443,7 @@ export default function AdminPage() {
                           <div>
                                 <span className="font-medium text-slate-100">{entry.label}</span>
                             <span className="text-slate-400 ml-2">
-                                  {new Date(entry.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                                  {new Date(entry.date).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", { month: "short", day: "numeric", year: "numeric" })}
                             </span>
                           </div>
                               <span className="font-medium text-slate-100">{entry.amount.toLocaleString("vi-VN")} VND</span>
@@ -1454,11 +1466,11 @@ export default function AdminPage() {
               <div className="space-y-4 md:space-y-6">
                 <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_50px_rgba(15,23,42,0.75)] p-4 md:p-6">
                   <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-200 uppercase mb-4">
-                    Check-in Actions
+                    {m.checkInActions}
                   </h3>
                   {!canCheckIn && foundMember?.status === "Inactive" && (
                     <p className="text-amber-300/90 text-sm mb-3">
-                      Collect payment first to enable check-in.
+                      {m.collectPaymentFirst}
                     </p>
                   )}
                   <div className="flex flex-wrap gap-2">
@@ -1515,7 +1527,7 @@ export default function AdminPage() {
                       disabled={actionLoading === "freeze"}
                       className="px-4 py-2 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 disabled:opacity-60"
                     >
-                      {actionLoading === "freeze" ? "Freezing..." : "Freeze membership"}
+                      {actionLoading === "freeze" ? m.freezing : m.freezeMembership}
                     </button>
                     <button
                       type="button"
@@ -1523,7 +1535,7 @@ export default function AdminPage() {
                       disabled={actionLoading === "cancel"}
                       className="px-4 py-2 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 disabled:opacity-60"
                     >
-                      {actionLoading === "cancel" ? "Cancelling..." : "Cancel membership"}
+                      {actionLoading === "cancel" ? m.cancelling : m.cancelMembership}
                     </button>
                     <button
                       type="button"
@@ -1531,7 +1543,7 @@ export default function AdminPage() {
                       disabled={actionLoading === "upgrade"}
                       className="px-4 py-2 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 disabled:opacity-60"
                     >
-                      {actionLoading === "upgrade" ? "Upgrading..." : "Upgrade membership"}
+                      {actionLoading === "upgrade" ? m.upgrading : m.upgradeMembership}
                     </button>
                   </div>
                 </div>
@@ -1584,7 +1596,7 @@ export default function AdminPage() {
                       {posLookupResult.found && posLookupResult.product && posLookupResult.variant ? (
                         <>
                           <div className="flex items-start gap-3">
-                            {posLookupResult.product.image ? <img src={posLookupResult.product.image} alt="" className="w-16 h-16 object-cover rounded-lg flex-shrink-0 border border-slate-200" /> : <div className="w-16 h-16 rounded-lg bg-slate-200 flex items-center justify-center text-slate-500 text-xs flex-shrink-0">No photo</div>}
+                            {posLookupResult.product.image ? <img src={posLookupResult.product.image} alt="" className="w-16 h-16 object-cover rounded-lg flex-shrink-0 border border-slate-200" /> : <div className="w-16 h-16 rounded-lg bg-slate-200 flex items-center justify-center text-slate-500 text-xs flex-shrink-0">{m.noPhoto}</div>}
                             <div className="min-w-0 flex-1">
                               <p className="font-medium text-slate-800">{posLookupResult.product.name}</p>
                               <p className="text-slate-600 mt-0.5">
@@ -1623,7 +1635,7 @@ export default function AdminPage() {
                 </div>
                 <div className="mt-3 border-t border-slate-200 pt-3">
                   <p className="text-xs font-medium text-slate-600 mb-2">{m.cart}</p>
-                  {posCart.length === 0 ? <p className="text-xs text-slate-500">Empty</p> : (
+                  {posCart.length === 0 ? <p className="text-xs text-slate-500">{m.empty}</p> : (
                     <ul className="space-y-1.5 mb-3 max-h-32 overflow-y-auto">
                       {posCart.map((item, i) => (
                         <li key={`${item.sku}-${i}`} className="flex items-center gap-2 text-xs text-slate-800">
@@ -3034,7 +3046,7 @@ export default function AdminPage() {
                             })
                           : "—"}
                       </span>
-                      <span className="text-slate-500">{paymentVisitsAdded ? "Adds visits" : "After purchase"}</span>
+                      <span className="text-slate-500">{paymentVisitsAdded ? m.addsVisits : m.afterPurchase}</span>
                       <span className="font-medium text-emerald-600">
                         {paymentVisitsAdded != null
                           ? `+${paymentVisitsAdded} visits`
