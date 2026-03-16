@@ -147,6 +147,7 @@ export default function AdminPage() {
   const [inventoryActionMessage, setInventoryActionMessage] = useState<string | null>(null);
   const [inventoryCreateError, setInventoryCreateError] = useState<string | null>(null);
   const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
+  const [adminTab, setAdminTab] = useState<"member" | "sales" | "inventory" | "management">("member");
   const [staffOpsData, setStaffOpsData] = useState<{
     attendance: { in: { staff_id: string; status: string; staff_profiles?: { email?: string } | { email?: string }[] }[]; out: { staff_id: string; status: string; staff_profiles?: { email?: string } | { email?: string }[] }[] };
     sessions: { id: string; start_time: string; coach_id: string | null; session_type: string; staff_profiles?: { email?: string } | { email?: string }[] }[];
@@ -179,21 +180,21 @@ export default function AdminPage() {
 
   // Fetch products for front desk and inventory
   useEffect(() => {
-    if (!foundMember && toolsModal !== "inventory") return;
+    if (!foundMember && toolsModal !== "inventory" && adminTab !== "inventory") return;
     adminFetch("/api/admin/products")
       .then((r) => r.json())
       .then((d) => setProducts(d.products ?? []))
       .catch(() => setProducts([]));
-  }, [foundMember, toolsModal, adminFetch]);
+  }, [foundMember, toolsModal, adminTab, adminFetch]);
 
   // Fetch inventory when inventory modal opens
   useEffect(() => {
-    if (toolsModal !== "inventory") return;
+    if (toolsModal !== "inventory" && adminTab !== "inventory") return;
     adminFetch("/api/admin/inventory")
       .then((r) => r.json())
       .then((d) => setInventoryList(d.inventory ?? []))
       .catch(() => setInventoryList([]));
-  }, [toolsModal, adminFetch]);
+  }, [toolsModal, adminTab, adminFetch]);
 
   const loadMemberById = useCallback(async (id: string) => {
     setSearchError(null);
@@ -913,6 +914,28 @@ export default function AdminPage() {
             </button>
           </section>
 
+          {/* STICKY TAB NAV */}
+          <nav className="sticky top-0 z-20 flex gap-1 rounded-xl p-1 mb-4 bg-white/95 border border-slate-200 shadow-md backdrop-blur-md" aria-label="Admin tabs">
+            {(["member", "sales", "inventory", "management"] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setAdminTab(tab)}
+                className={`flex-1 min-w-0 py-2.5 px-3 rounded-lg text-[13px] font-medium transition-all ${
+                  adminTab === tab ? "bg-slate-900 text-white shadow" : "text-slate-700 hover:bg-slate-100 border border-transparent"
+                }`}
+              >
+                {tab === "member" ? (locale === "vi" ? "Thành viên" : "Member") : null}
+                {tab === "sales" ? (locale === "vi" ? "Bán hàng" : "Sales") : null}
+                {tab === "inventory" ? m.inventoryModule : null}
+                {tab === "management" ? (locale === "vi" ? "Quản lý" : "Management") : null}
+              </button>
+            ))}
+          </nav>
+
+          {/* TAB: MEMBER */}
+          {adminTab === "member" && (
+          <>
           {/* MEMBER LOOKUP */}
           <section className="rounded-2xl bg-white/80 border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.07)] p-4 md:p-6">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-6">
@@ -1325,95 +1348,35 @@ export default function AdminPage() {
                     </button>
                   </div>
                 </div>
+              </div>
+            </section>
+          )}
+          </>
+          )}
 
-                {/* Front Desk Sales */}
+          {/* TAB: SALES */}
+          {adminTab === "sales" && (
+          <section className="rounded-2xl bg-white/90 border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.07)] p-4 md:p-6">
+            {!foundMember ? (
+              <p className="text-slate-600 text-sm">{m.salesPanelHidden}</p>
+            ) : (
+              <>
+                <p className="text-xs text-slate-500 mb-3">{foundMember.name} — {foundMember.displayId ?? foundMember.id}</p>
                 <div className="rounded-2xl bg-white/95 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">
-                  <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
-                    {m.frontDeskSales}
-                  </h3>
+                  <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">{m.frontDeskSales}</h3>
                   <div className="space-y-3">
                     <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const p = products.find((x) => x.sku === "RENTAL_SHOES" || x.category === "rental");
-                          const price = p?.price ?? 50000;
-                          const name = p?.name ?? "Rental Shoes";
-                          setPosCart((c) => [...c, { sku: p?.sku ?? "RENTAL_SHOES", name, quantity: 1, price }]);
-                        }}
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200"
-                      >
-                        + {m.shoeRental} (50,000 VND)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const p = products.find((x) => x.sku === "CHALK_BAG" || x.category === "chalk");
-                          const price = p?.price ?? 20000;
-                          const name = p?.name ?? "Chalk (bag, return after session)";
-                          setPosCart((c) => [...c, { sku: p?.sku ?? "CHALK_BAG", name, quantity: 1, price }]);
-                        }}
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200"
-                      >
-                        + {m.buyChalk} (20,000 VND)
-                      </button>
+                      <button type="button" onClick={() => { const p = products.find((x) => x.sku === "RENTAL_SHOES" || x.category === "rental"); const price = p?.price ?? 50000; const name = p?.name ?? "Rental Shoes"; setPosCart((c) => [...c, { sku: p?.sku ?? "RENTAL_SHOES", name, quantity: 1, price }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.shoeRental} (50,000 VND)</button>
+                      <button type="button" onClick={() => { const p = products.find((x) => x.sku === "CHALK_BAG" || x.category === "chalk"); const price = p?.price ?? 20000; const name = p?.name ?? "Chalk (bag, return after session)"; setPosCart((c) => [...c, { sku: p?.sku ?? "CHALK_BAG", name, quantity: 1, price }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.buyChalk} (20,000 VND)</button>
                     </div>
                     <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder={m.skuOrBarcode}
-                        value={posSkuInput}
-                        onChange={(e) => setPosSkuInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            const v = posSkuInput.trim();
-                            if (!v) return;
-                            adminFetch(`/api/admin/products?sku=${encodeURIComponent(v)}`).then((r) => r.json()).then((d) => {
-                              if (d.product) setPosCart((c) => [...c, { sku: d.product.sku, name: d.product.name, quantity: 1, price: d.product.price }]);
-                              else adminFetch(`/api/admin/products?barcode=${encodeURIComponent(v)}`).then((r2) => r2.json()).then((d2) => {
-                                if (d2.product) setPosCart((c) => [...c, { sku: d2.product.sku, name: d2.product.name, quantity: 1, price: d2.product.price }]);
-                              });
-                            });
-                            setPosSkuInput("");
-                          }
-                        }}
-                        className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-slate-200 text-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const v = posSkuInput.trim();
-                          if (!v) return;
-                          adminFetch(`/api/admin/products?sku=${encodeURIComponent(v)}`)
-                            .then((r) => r.json())
-                            .then((d) => {
-                              if (d.product) {
-                                setPosCart((c) => [...c, { sku: d.product.sku, name: d.product.name, quantity: 1, price: d.product.price }]);
-                                setPosSkuInput("");
-                              } else {
-                                return adminFetch(`/api/admin/products?barcode=${encodeURIComponent(v)}`).then((r2) => r2.json());
-                              }
-                            })
-                            .then((d2) => {
-                              if (d2?.product) {
-                                setPosCart((c) => [...c, { sku: d2.product.sku, name: d2.product.name, quantity: 1, price: d2.product.price }]);
-                                setPosSkuInput("");
-                              }
-                            })
-                            .catch(() => {});
-                        }}
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-white hover:bg-slate-700"
-                      >
-                        {m.addToCart}
-                      </button>
+                      <input placeholder={m.skuOrBarcode} value={posSkuInput} onChange={(e) => setPosSkuInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = posSkuInput.trim(); if (!v) return; adminFetch(`/api/admin/products?sku=${encodeURIComponent(v)}`).then((r) => r.json()).then((d) => { if (d.product) setPosCart((c) => [...c, { sku: d.product.sku, name: d.product.name, quantity: 1, price: d.product.price }]); else adminFetch(`/api/admin/products?barcode=${encodeURIComponent(v)}`).then((r2) => r2.json()).then((d2) => { if (d2.product) setPosCart((c) => [...c, { sku: d2.product.sku, name: d2.product.name, quantity: 1, price: d2.product.price }]); }); }); setPosSkuInput(""); } }} className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                      <button type="button" onClick={() => { const v = posSkuInput.trim(); if (!v) return; adminFetch(`/api/admin/products?sku=${encodeURIComponent(v)}`).then((r) => r.json()).then((d) => { if (d.product) { setPosCart((c) => [...c, { sku: d.product.sku, name: d.product.name, quantity: 1, price: d.product.price }]); setPosSkuInput(""); } else return adminFetch(`/api/admin/products?barcode=${encodeURIComponent(v)}`).then((r2) => r2.json()); }).then((d2) => { if (d2?.product) { setPosCart((c) => [...c, { sku: d2.product.sku, name: d2.product.name, quantity: 1, price: d2.product.price }]); setPosSkuInput(""); } }).catch(() => {}); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-white hover:bg-slate-700">{m.addToCart}</button>
                     </div>
                   </div>
                   <div className="mt-3 border-t border-slate-200 pt-3">
                     <p className="text-xs font-medium text-slate-600 mb-2">{m.cart}</p>
-                    {posCart.length === 0 ? (
-                      <p className="text-xs text-slate-500">Empty</p>
-                    ) : (
+                    {posCart.length === 0 ? <p className="text-xs text-slate-500">Empty</p> : (
                       <ul className="space-y-1.5 mb-3 max-h-32 overflow-y-auto">
                         {posCart.map((item, i) => (
                           <li key={`${item.sku}-${i}`} className="flex items-center justify-between gap-2 text-xs">
@@ -1426,31 +1389,76 @@ export default function AdminPage() {
                     )}
                     {posCart.length > 0 && (
                       <>
-                        <p className="text-sm font-semibold text-slate-900">
-                          {m.total}: {posCart.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString("vi-VN")} VND
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPosPaymentModalOpen(true);
-                            setPosPaymentMethod("vietqr");
-                            setPosQrUrl(null);
-                            setPosPendingTransactionId(null);
-                          }}
-                          disabled={posCheckoutLoading}
-                          className="mt-2 w-full px-3 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60"
-                        >
-                          {m.checkout}
-                        </button>
+                        <p className="text-sm font-semibold text-slate-900">{m.total}: {posCart.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString("vi-VN")} VND</p>
+                        <button type="button" onClick={() => { setPosPaymentModalOpen(true); setPosPaymentMethod("vietqr"); setPosQrUrl(null); setPosPendingTransactionId(null); }} disabled={posCheckoutLoading} className="mt-2 w-full px-3 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60">{m.checkout}</button>
                       </>
                     )}
                   </div>
                 </div>
-              </div>
-            </section>
+              </>
+            )}
+          </section>
           )}
 
-          {/* ADMIN TOOLS + NEW MEMBER FORM */}
+          {/* TAB: INVENTORY */}
+          {adminTab === "inventory" && (
+          <section className="rounded-2xl bg-white/90 border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.07)] p-4 md:p-6 space-y-6">
+            {inventoryActionMessage && <p className="text-sm text-emerald-600">{inventoryActionMessage}</p>}
+            {inventoryCreateError && <p className="text-sm text-red-600">{inventoryCreateError}</p>}
+            <div>
+              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.viewInventory}</h4>
+              {inventoryList.length === 0 && <p className="text-sm text-slate-500">{m.loading}</p>}
+              <ul className="space-y-1 text-sm border rounded-lg divide-y divide-slate-200">
+                {inventoryList.map((inv) => (
+                  <li key={inv.id} className="flex justify-between items-center px-3 py-2">
+                    <span>{(inv.products as { name?: string; sku?: string })?.name ?? inv.product_id} ({(inv.products as { sku?: string })?.sku ?? ""}) {inv.size ? ` size ${inv.size}` : ""}</span>
+                    <span className="font-medium">{inv.quantity}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.createSku}</h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <input placeholder={m.productName} value={newProductName} onChange={(e) => setNewProductName(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
+                <input placeholder={m.sku} value={newProductSku} onChange={(e) => setNewProductSku(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
+                <select value={newProductCategory} onChange={(e) => setNewProductCategory(e.target.value as "shoes" | "chalk" | "merch" | "rental")} className="px-2 py-1.5 rounded-lg border border-slate-200">
+                  <option value="shoes">Shoes</option>
+                  <option value="chalk">Chalk</option>
+                  <option value="merch">Merch</option>
+                  <option value="rental">Rental</option>
+                </select>
+                <input placeholder={m.price} value={newProductPrice} onChange={(e) => setNewProductPrice(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" type="number" />
+                <input placeholder={m.cost} value={newProductCost} onChange={(e) => setNewProductCost(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" type="number" />
+                <div className="col-span-2 flex gap-2">
+                  <input placeholder={m.barcode} value={newProductBarcode} onChange={(e) => setNewProductBarcode(e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200" />
+                  <button type="button" onClick={() => { setInventoryCreateError(null); setBarcodeScannerOpen(true); }} className="shrink-0 px-3 py-1.5 rounded-lg border border-slate-300 bg-slate-100 text-slate-800 text-sm font-medium hover:bg-slate-200">{m.scanBarcode}</button>
+                </div>
+              </div>
+              <button type="button" onClick={async () => { if (!newProductName.trim() || !newProductSku.trim()) { setInventoryCreateError(locale === "vi" ? "Nhập tên và SKU." : "Enter name and SKU."); return; } setInventoryCreateError(null); try { const res = await adminFetch("/api/admin/products", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newProductName.trim(), sku: newProductSku.trim(), category: newProductCategory, price: parseInt(newProductPrice, 10) || 0, cost: parseInt(newProductCost, 10) || 0, barcode: newProductBarcode.trim() || null }) }); const d = await res.json(); if (res.ok && d.product) { setInventoryActionMessage(locale === "vi" ? "Đã tạo SKU." : "SKU created."); setNewProductName(""); setNewProductSku(""); setNewProductPrice(""); setNewProductCost(""); setNewProductBarcode(""); adminFetch("/api/admin/products").then((r) => r.json()).then((x) => setProducts(x.products ?? [])); setTimeout(() => setInventoryActionMessage(null), 3000); } else { setInventoryCreateError(d?.error ?? "Failed to create SKU."); } } catch (e) { setInventoryCreateError("Request failed. Run migration 030_pos_inventory.sql if tables are missing."); } }} className="mt-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-800 text-white hover:bg-slate-700">{m.createSku}</button>
+            </div>
+            <div>
+              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.stockIn}</h4>
+              <div className="flex gap-2">
+                <input placeholder={m.skuOrBarcode} value={stockInSku} onChange={(e) => setStockInSku(e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                <input type="number" min={1} value={stockInQty} onChange={(e) => setStockInQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                <button type="button" onClick={async () => { const v = stockInSku.trim(); if (!v) return; const res = await adminFetch("/api/admin/inventory", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sku: v, quantity: parseInt(stockInQty, 10) || 1 }) }); const d = await res.json(); if (res.ok && d.ok) { setInventoryActionMessage(locale === "vi" ? "Đã nhập kho." : "Stock in recorded."); setStockInSku(""); setStockInQty("1"); adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? [])); setTimeout(() => setInventoryActionMessage(null), 3000); } else setActionError(d?.error ?? "Failed"); }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500">{m.stockIn}</button>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.stockOut}</h4>
+              <div className="flex gap-2">
+                <input placeholder={m.sku} value={stockOutSku} onChange={(e) => setStockOutSku(e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                <input type="number" min={1} value={stockOutQty} onChange={(e) => setStockOutQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                <button type="button" onClick={async () => { const v = stockOutSku.trim(); if (!v) return; const res = await adminFetch("/api/admin/inventory", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sku: v, quantity: parseInt(stockOutQty, 10) || 1 }) }); const d = await res.json(); if (res.ok && d.ok) { setInventoryActionMessage(locale === "vi" ? "Đã xuất kho." : "Stock out recorded."); setStockOutSku(""); setStockOutQty("1"); adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? [])); setTimeout(() => setInventoryActionMessage(null), 3000); } else setActionError(d?.error ?? "Failed"); }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-500">{m.stockOut}</button>
+              </div>
+            </div>
+            <BarcodeScannerModal open={barcodeScannerOpen} onClose={() => setBarcodeScannerOpen(false)} onScanned={(raw) => { setBarcodeScannerOpen(false); const parts = raw.split("|").map((p) => p.trim()); if (parts.length >= 5) { setNewProductName(parts[0] ?? ""); setNewProductSku(parts[1] ?? ""); setNewProductBarcode(parts[2] ?? ""); const cat = (parts[3] ?? "").toLowerCase(); if (["shoes", "chalk", "merch", "rental"].includes(cat)) setNewProductCategory(cat as "shoes" | "chalk" | "merch" | "rental"); const priceNum = parseInt(parts[4] ?? "0", 10); if (!isNaN(priceNum)) setNewProductPrice(String(priceNum)); } else if (parts.length === 4) { setNewProductName(parts[0] ?? ""); setNewProductSku(parts[1] ?? ""); setNewProductBarcode(parts[2] ?? ""); const priceNum = parseInt(parts[3] ?? "0", 10); if (!isNaN(priceNum)) setNewProductPrice(String(priceNum)); } else { setNewProductBarcode(raw); } }} onError={(msg) => setInventoryCreateError(msg)} title={m.scanBarcode} hint={m.scanBarcodeHint} />
+          </section>
+          )}
+
+          {/* TAB: MANAGEMENT */}
+          {adminTab === "management" && (
           <section className="grid md:grid-cols-[minmax(0,1.4fr)_minmax(0,2fr)] gap-8 items-start">
             <div className="rounded-2xl bg-white/90 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">
               <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
@@ -1514,14 +1522,7 @@ export default function AdminPage() {
                 >
                   {m.staffOperations}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => { setToolsModal("inventory"); setInventoryCreateError(null); setInventoryActionMessage(null); }}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
-                >
-                  {m.inventoryModule}
-                </button>
-              </div>
+                </div>
             </div>
 
             <div id="new-member-form" className="rounded-2xl bg-white/95 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">
@@ -1584,6 +1585,7 @@ export default function AdminPage() {
               </form>
             </div>
           </section>
+          )}
         </div>
       </main>
 

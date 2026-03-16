@@ -151,6 +151,7 @@ export default function DashboardPage() {
     currentUser: { rank: number | null; visits: number; full_name: string };
   } | null>(null);
   const [leaderboardGender, setLeaderboardGender] = useState<"all" | "male" | "female">("all");
+  const [dashboardTab, setDashboardTab] = useState<"membership" | "activity" | "events" | "leaderboard">("membership");
   const [passFilter, setPassFilter] = useState<"all" | "day" | "visit">("all");
   const [plans, setPlans] = useState<Plan[]>([]);
   const [payments, setPayments] = useState<{ id: string; plan_name: string; amount: number; created_at: string }[]>([]);
@@ -1079,7 +1080,33 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          {/* MEMBERSHIP + PAYMENT + FREEZE */}
+          {/* STICKY TAB NAV */}
+          <nav
+            className="sticky top-14 z-20 flex gap-1 rounded-xl p-1 mb-4"
+            style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 4px 20px rgba(0,0,0,0.3)" }}
+            aria-label={isVi ? "Điều hướng dashboard" : "Dashboard tabs"}
+          >
+            {(["membership", "activity", "events", "leaderboard"] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setDashboardTab(tab)}
+                className={`flex-1 min-w-0 py-2.5 px-3 rounded-lg text-[13px] font-medium transition-all ${
+                  dashboardTab === tab
+                    ? "bg-white text-slate-900 shadow"
+                    : "text-white/80 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                {tab === "membership" ? (isVi ? "Thẻ thành viên" : "Membership") : null}
+                {tab === "activity" ? (isVi ? "Hoạt động" : "Activity") : null}
+                {tab === "events" ? (isVi ? "Sự kiện" : "Events") : null}
+                {tab === "leaderboard" ? (isVi ? "Bảng xếp hạng" : "Leaderboard") : null}
+              </button>
+            ))}
+          </nav>
+
+          {/* TAB: MEMBERSHIP */}
+          {dashboardTab === "membership" && (
           <section>
             <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               <h2 className="text-[22px] font-semibold text-white/90 mb-4">
@@ -1305,8 +1332,10 @@ export default function DashboardPage() {
               </div>
             </div>
           </section>
+          )}
 
-          {/* CLIMBING PROGRESS — Level, streak, achievements, upcoming rewards */}
+          {/* TAB: ACTIVITY — Climbing Progress */}
+          {dashboardTab === "activity" && (
           <section>
             <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               <h2 className="text-[22px] font-semibold text-white/90 mb-4">
@@ -1385,8 +1414,10 @@ export default function DashboardPage() {
               )}
             </div>
           </section>
+          )}
 
-          {/* EVENTS — Featured card + carousel */}
+          {/* TAB: EVENTS */}
+          {dashboardTab === "events" && (
           <section
             className="rounded-[18px] p-6 transition-transform duration-200 hover:-translate-y-0.5"
             style={{
@@ -1481,8 +1512,10 @@ export default function DashboardPage() {
               <style>{`[data-events-carousel]::-webkit-scrollbar { display: none; }`}</style>
             </div>
           </section>
+          )}
 
-          {/* COMMUNITY LEADERBOARD */}
+          {/* TAB: LEADERBOARD */}
+          {dashboardTab === "leaderboard" && (
           <section>
             <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
@@ -1605,6 +1638,7 @@ export default function DashboardPage() {
               )}
             </div>
           </section>
+          )}
         </div>
       </main>
 
