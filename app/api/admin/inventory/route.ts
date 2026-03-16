@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
 
+const CATEGORIES = ["shoes", "chalk", "merch", "rental"] as const;
+
 /**
  * GET /api/admin/inventory
  * GET /api/admin/inventory?variant_id=xxx
+ * GET /api/admin/inventory?category=shoes|chalk|merch|rental
  * Returns all product variants with their stock (quantity). Variants with no inventory row show quantity 0
  * so newly created products appear in View Inventory.
  */
@@ -13,6 +16,7 @@ export async function GET(req: NextRequest) {
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServerClient();
   const variantIdParam = req.nextUrl.searchParams.get("variant_id")?.trim();
+  const categoryParam = req.nextUrl.searchParams.get("category")?.trim().toLowerCase();
 
   const { data: allVariants, error: varErr } = await supabase
     .from("product_variants")
@@ -43,7 +47,7 @@ export async function GET(req: NextRequest) {
     return acc;
   }, {});
 
-  const inventory = variants.map((v: { id: string; product_id: string }) => ({
+  let inventory = variants.map((v: { id: string; product_id: string }) => ({
     id: v.id,
     variant_id: v.id,
     quantity: qtyByVariant[v.id] ?? 0,
@@ -51,6 +55,10 @@ export async function GET(req: NextRequest) {
     variant: v,
     product: productMap[v.product_id] ?? null,
   }));
+
+  if (categoryParam && CATEGORIES.includes(categoryParam as (typeof CATEGORIES)[number])) {
+    inventory = inventory.filter((inv: { product: { category?: string } | null }) => inv.product?.category === categoryParam);
+  }
 
   return NextResponse.json({ inventory });
 }

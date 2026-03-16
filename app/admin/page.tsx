@@ -124,10 +124,10 @@ export default function AdminPage() {
   const [revenuePeriod, setRevenuePeriod] = useState<"day" | "week" | "month">("day");
   const [waiverModalOpen, setWaiverModalOpen] = useState(false);
   const [scannerModalOpen, setScannerModalOpen] = useState(false);
-  const [posCart, setPosCart] = useState<{ sku: string; name: string; quantity: number; price: number; variant_id?: string }[]>([]);
+  const [posCart, setPosCart] = useState<{ sku: string; name: string; quantity: number; price: number; variant_id?: string; image?: string | null }[]>([]);
   const [posSkuInput, setPosSkuInput] = useState("");
   const [posBarcodeScannerOpen, setPosBarcodeScannerOpen] = useState(false);
-  const [posLookupResult, setPosLookupResult] = useState<{ found: boolean; product?: { name: string }; variant?: { id: string; sku: string; price: number; size?: string | null }; stock_quantity?: number } | null>(null);
+  const [posLookupResult, setPosLookupResult] = useState<{ found: boolean; product?: { name: string; image?: string | null }; variant?: { id: string; sku: string; price: number; size?: string | null }; stock_quantity?: number } | null>(null);
   const [posCheckoutLoading, setPosCheckoutLoading] = useState(false);
   const [posPaymentModalOpen, setPosPaymentModalOpen] = useState(false);
   const [posPaymentMethod, setPosPaymentMethod] = useState<"vietqr" | "cash">("vietqr");
@@ -159,6 +159,13 @@ export default function AdminPage() {
   const [inventoryCreateError, setInventoryCreateError] = useState<string | null>(null);
   const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
   const inventoryQtyInputRef = React.useRef<HTMLInputElement>(null);
+  const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState<"all" | "shoes" | "chalk" | "merch" | "rental">("all");
+  const [productDetailProductId, setProductDetailProductId] = useState<string | null>(null);
+  const [productDetailData, setProductDetailData] = useState<{ product: InvProduct; variants: (InvVariant & { stock_quantity: number })[] } | null>(null);
+  const [productDetailEditProduct, setProductDetailEditProduct] = useState<{ name: string; brand: string | null; category: string; image: string | null } | null>(null);
+  const [productDetailEditVariantId, setProductDetailEditVariantId] = useState<string | null>(null);
+  const [productDetailEditVariant, setProductDetailEditVariant] = useState<{ sku: string; size: string | null; barcode: string | null; price: number; cost: number } | null>(null);
+  const [newProductImage, setNewProductImage] = useState("");
   const [adminTab, setAdminTab] = useState<"member" | "sales" | "inventory" | "management">("member");
   const [staffOpsData, setStaffOpsData] = useState<{
     attendance: { in: { staff_id: string; status: string; staff_profiles?: { email?: string } | { email?: string }[] }[]; out: { staff_id: string; status: string; staff_profiles?: { email?: string } | { email?: string }[] }[] };
@@ -199,14 +206,30 @@ export default function AdminPage() {
       .catch(() => setProducts([]));
   }, [foundMember, toolsModal, adminTab, adminFetch]);
 
-  // Fetch inventory when inventory modal opens
+  // Fetch inventory when inventory modal opens or category filter changes
   useEffect(() => {
     if (toolsModal !== "inventory" && adminTab !== "inventory") return;
-    adminFetch("/api/admin/inventory")
+    const url = inventoryCategoryFilter === "all" ? "/api/admin/inventory" : `/api/admin/inventory?category=${encodeURIComponent(inventoryCategoryFilter)}`;
+    adminFetch(url)
       .then((r) => r.json())
       .then((d) => setInventoryList(d.inventory ?? []))
       .catch(() => setInventoryList([]));
-  }, [toolsModal, adminTab, adminFetch]);
+  }, [toolsModal, adminTab, inventoryCategoryFilter, adminFetch]);
+
+  // Load product detail when opening product detail modal
+  useEffect(() => {
+    if (!productDetailProductId) {
+      setProductDetailData(null);
+      return;
+    }
+    adminFetch(`/api/admin/products/${productDetailProductId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.product && d.variants) setProductDetailData({ product: d.product, variants: d.variants });
+        else setProductDetailData(null);
+      })
+      .catch(() => setProductDetailData(null));
+  }, [productDetailProductId, adminFetch]);
 
   const loadMemberById = useCallback(async (id: string) => {
     setSearchError(null);
@@ -414,8 +437,8 @@ export default function AdminPage() {
       val: string
     ): Promise<{
       found: boolean;
-      product?: { name: string };
-      variant?: { id: string; sku: string; price: number };
+      product?: { name: string; image?: string | null };
+      variant?: { id: string; sku: string; price: number; size?: string | null };
       stock_quantity?: number;
     }> => {
       const v = val.trim();
@@ -1442,8 +1465,8 @@ export default function AdminPage() {
                   <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">{m.frontDeskSales}</h3>
                   <div className="space-y-3">
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={() => { const p = products.find((x) => x.category === "rental"); const v = p?.variants?.[0]; const price = v?.price ?? 50000; const name = p?.name ?? "Rental Shoes"; const sku = v?.sku ?? "RENTAL_SHOES"; setPosCart((c) => [...c, { sku, name, quantity: 1, price, variant_id: v?.id }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.shoeRental} (50,000 VND)</button>
-                      <button type="button" onClick={() => { const p = products.find((x) => x.category === "chalk"); const v = p?.variants?.[0]; const price = v?.price ?? 20000; const name = p?.name ?? "Chalk (bag, return after session)"; const sku = v?.sku ?? "CHALK_BAG"; setPosCart((c) => [...c, { sku, name, quantity: 1, price, variant_id: v?.id }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.buyChalk} (20,000 VND)</button>
+                      <button type="button" onClick={() => { const p = products.find((x) => x.category === "rental"); const v = p?.variants?.[0]; const price = v?.price ?? 50000; const name = p?.name ?? "Rental Shoes"; const sku = v?.sku ?? "RENTAL_SHOES"; setPosCart((c) => [...c, { sku, name, quantity: 1, price, variant_id: v?.id, image: p?.image ?? undefined }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.shoeRental} (50,000 VND)</button>
+                      <button type="button" onClick={() => { const p = products.find((x) => x.category === "chalk"); const v = p?.variants?.[0]; const price = v?.price ?? 20000; const name = p?.name ?? "Chalk (bag, return after session)"; const sku = v?.sku ?? "CHALK_BAG"; setPosCart((c) => [...c, { sku, name, quantity: 1, price, variant_id: v?.id, image: p?.image ?? undefined }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.buyChalk} (20,000 VND)</button>
                     </div>
                     <div className="flex flex-wrap gap-2 items-center">
                       <input
@@ -1457,7 +1480,7 @@ export default function AdminPage() {
                             if (!val) return;
                             doPosLookup(val).then((r) => {
                               if (r.found && r.product && r.variant) {
-                                setPosCart((c) => [...c, { sku: r.variant!.sku, name: r.product!.name, quantity: 1, price: r.variant!.price, variant_id: r.variant!.id }]);
+                                setPosCart((c) => [...c, { sku: r.variant!.sku, name: r.product!.name, quantity: 1, price: r.variant!.price, variant_id: r.variant!.id, image: r.product!.image ?? undefined }]);
                                 setPosSkuInput("");
                                 setPosLookupResult(null);
                               }
@@ -1480,7 +1503,7 @@ export default function AdminPage() {
                           if (!val) return;
                           doPosLookup(val).then((r) => {
                             if (r.found && r.product && r.variant) {
-                              setPosCart((c) => [...c, { sku: r.variant!.sku, name: r.product!.name, quantity: 1, price: r.variant!.price, variant_id: r.variant!.id }]);
+                              setPosCart((c) => [...c, { sku: r.variant!.sku, name: r.product!.name, quantity: 1, price: r.variant!.price, variant_id: r.variant!.id, image: r.product!.image ?? undefined }]);
                               setPosSkuInput("");
                               setPosLookupResult(null);
                             }
@@ -1495,6 +1518,9 @@ export default function AdminPage() {
                       <div className={`rounded-lg border p-3 text-sm ${posLookupResult.found ? "border-emerald-200 bg-emerald-50/80" : "border-amber-200 bg-amber-50/80"}`}>
                         {posLookupResult.found && posLookupResult.product && posLookupResult.variant ? (
                           <>
+                            <div className="flex items-start gap-2">
+                              {posLookupResult.product.image && <img src={posLookupResult.product.image} alt="" className="w-12 h-12 object-cover rounded flex-shrink-0" />}
+                              <div className="min-w-0 flex-1">
                             <p className="font-medium text-slate-800">{posLookupResult.product.name}</p>
                             <p className="text-slate-600 mt-0.5">
                               {posLookupResult.variant.sku}
@@ -1508,7 +1534,7 @@ export default function AdminPage() {
                             <button
                               type="button"
                               onClick={() => {
-                                setPosCart((c) => [...c, { sku: posLookupResult.variant!.sku, name: posLookupResult.product!.name, quantity: 1, price: posLookupResult.variant!.price, variant_id: posLookupResult.variant!.id }]);
+                                setPosCart((c) => [...c, { sku: posLookupResult.variant!.sku, name: posLookupResult.product!.name, quantity: 1, price: posLookupResult.variant!.price, variant_id: posLookupResult.variant!.id, image: posLookupResult.product!.image ?? undefined }]);
                                 setPosSkuInput("");
                                 setPosLookupResult(null);
                               }}
@@ -1516,6 +1542,8 @@ export default function AdminPage() {
                             >
                               {m.addToCart}
                             </button>
+                              </div>
+                            </div>
                           </>
                         ) : (
                           <p className="text-amber-800">{m.skuOrBarcodeNotFound}</p>
@@ -1528,8 +1556,9 @@ export default function AdminPage() {
                     {posCart.length === 0 ? <p className="text-xs text-slate-500">Empty</p> : (
                       <ul className="space-y-1.5 mb-3 max-h-32 overflow-y-auto">
                         {posCart.map((item, i) => (
-                          <li key={`${item.sku}-${i}`} className="flex items-center justify-between gap-2 text-xs">
-                            <span className="truncate">{item.name} × {item.quantity}</span>
+                          <li key={`${item.sku}-${i}`} className="flex items-center gap-2 text-xs">
+                            {item.image ? <img src={item.image} alt="" className="w-8 h-8 object-cover rounded flex-shrink-0" /> : null}
+                            <span className="truncate flex-1">{item.name} × {item.quantity}</span>
                             <span className="font-medium">{(item.quantity * item.price).toLocaleString("vi-VN")} VND</span>
                             <button type="button" onClick={() => setPosCart((c) => c.filter((_, j) => j !== i))} className="text-red-600 hover:underline">{m.remove}</button>
                           </li>
@@ -1632,6 +1661,7 @@ export default function AdminPage() {
                   <input placeholder={m.productName} value={newProductName} onChange={(e) => setNewProductName(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
                   <input placeholder={m.brand} value={newProductBrand} onChange={(e) => setNewProductBrand(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
                   <input placeholder={m.productCode} value={newProductCode} onChange={(e) => setNewProductCode(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
+                  <input placeholder={locale === "vi" ? "URL hình ảnh" : "Image URL"} value={newProductImage} onChange={(e) => setNewProductImage(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200 col-span-full" />
                   <select value={newProductCategory} onChange={(e) => setNewProductCategory(e.target.value as "shoes" | "chalk" | "merch" | "rental")} className="px-2 py-1.5 rounded-lg border border-slate-200">
                     <option value="shoes">Shoes</option>
                     <option value="chalk">Chalk</option>
@@ -1660,18 +1690,18 @@ export default function AdminPage() {
                     if (variantsToCreate.length === 0) { setInventoryCreateError(locale === "vi" ? "Thêm ít nhất một size/phiên bản." : "Add at least one variant."); return; }
                     setInventoryCreateError(null);
                     try {
-                      const res = await adminFetch("/api/admin/products/with-variants", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newProductName.trim(), brand: newProductBrand.trim() || null, category: newProductCategory, product_code: newProductCode.trim().toUpperCase(), variants: variantsToCreate }) });
+                      const res = await adminFetch("/api/admin/products/with-variants", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newProductName.trim(), brand: newProductBrand.trim() || null, category: newProductCategory, image: newProductImage.trim() || null, product_code: newProductCode.trim().toUpperCase(), variants: variantsToCreate }) });
                       const d = await res.json();
                       if (res.ok && d.product) {
                         setInventoryActionMessage(locale === "vi" ? "Đã tạo sản phẩm và các phiên bản." : "Product and variants created.");
-                        setNewProductName(""); setNewProductBrand(""); setNewProductCode(""); setNewProductBarcode(""); setNewVariants([{ size: "", barcode: "", price: "", cost: "", quantity: "1" }]);
+                        setNewProductName(""); setNewProductBrand(""); setNewProductCode(""); setNewProductBarcode(""); setNewProductImage(""); setNewVariants([{ size: "", barcode: "", price: "", cost: "", quantity: "1" }]);
                         adminFetch("/api/admin/products").then((r) => r.json()).then((x) => setProducts(x.products ?? []));
                         adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? []));
                         setTimeout(() => setInventoryActionMessage(null), 3000);
                       } else setInventoryCreateError(d?.error ?? "Failed");
                     } catch (e) { setInventoryCreateError("Request failed. Run migration 031_product_variants_barcode_first.sql if needed."); }
                   }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-800 text-white hover:bg-slate-700">{m.createProduct}</button>
-                  <button type="button" onClick={() => { setNewProductBarcode(""); setNewProductName(""); setNewProductBrand(""); setNewProductCode(""); setNewVariants([{ size: "", barcode: "", price: "", cost: "", quantity: "1" }]); setInventoryCreateError(null); }} className="px-3 py-1.5 rounded-lg text-sm border border-slate-300 text-slate-700">{m.cancel}</button>
+                  <button type="button" onClick={() => { setNewProductBarcode(""); setNewProductName(""); setNewProductBrand(""); setNewProductCode(""); setNewProductImage(""); setNewVariants([{ size: "", barcode: "", price: "", cost: "", quantity: "1" }]); setInventoryCreateError(null); }} className="px-3 py-1.5 rounded-lg text-sm border border-slate-300 text-slate-700">{m.cancel}</button>
                 </div>
               </div>
             )}
@@ -1701,14 +1731,36 @@ export default function AdminPage() {
                 .catch(() => setInventoryCreateError("Lookup failed."));
             }} onError={(msg) => setInventoryCreateError(msg)} title={m.scanProduct} hint={m.scanProductHint} />
 
-            {/* 4) View Inventory list */}
+            {/* 4) View Inventory list with category filter */}
             <div>
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.viewInventory}</h4>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {(["all", "shoes", "chalk", "merch", "rental"] as const).map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setInventoryCategoryFilter(cat)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium ${inventoryCategoryFilter === cat ? "bg-slate-600 text-white" : "bg-slate-700/60 text-slate-300 hover:bg-slate-600/80"}`}
+                  >
+                    {cat === "all" ? (locale === "vi" ? "Tất cả" : "All") : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  </button>
+                ))}
+              </div>
               {inventoryList.length === 0 && <p className="text-sm text-slate-500">{m.loading}</p>}
-              <ul className="space-y-1 text-sm border rounded-lg divide-y divide-slate-200">
+              <ul className="space-y-1 text-sm border border-slate-600 rounded-lg divide-y divide-slate-600">
                 {inventoryList.map((inv) => (
-                  <li key={inv.id} className="flex justify-between items-center px-3 py-2">
-                    <span>{inv.product?.name ?? ""} ({inv.variant?.sku ?? ""}){inv.variant?.size ? ` size ${inv.variant.size}` : ""}{inv.location ? ` · ${inv.location}` : ""}</span>
+                  <li
+                    key={inv.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => { setProductDetailProductId(inv.product?.id ?? null); setProductDetailData(null); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setProductDetailProductId(inv.product?.id ?? null); setProductDetailData(null); } }}
+                    className="flex justify-between items-center px-3 py-2 hover:bg-slate-700/50 cursor-pointer rounded"
+                  >
+                    <span className="flex items-center gap-2">
+                      {inv.product?.image ? <img src={inv.product.image} alt="" className="w-8 h-8 object-cover rounded" /> : null}
+                      {inv.product?.name ?? ""} ({inv.variant?.sku ?? ""}){inv.variant?.size ? ` size ${inv.variant.size}` : ""}{inv.location ? ` · ${inv.location}` : ""}
+                    </span>
                     <span className="font-medium">{inv.quantity}</span>
                   </li>
                 ))}
@@ -2110,17 +2162,24 @@ export default function AdminPage() {
               {inventoryCreateError && <p className="text-sm text-red-600">{inventoryCreateError}</p>}
               <div>
                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.viewInventory}</h4>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {(["all", "shoes", "chalk", "merch", "rental"] as const).map((cat) => (
+                    <button key={cat} type="button" onClick={() => setInventoryCategoryFilter(cat)} className={`px-2.5 py-1 rounded-lg text-xs font-medium ${inventoryCategoryFilter === cat ? "bg-slate-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                      {cat === "all" ? (locale === "vi" ? "Tất cả" : "All") : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </button>
+                  ))}
+                </div>
                 {inventoryList.length === 0 && <p className="text-sm text-slate-500">{m.loading}</p>}
                 <ul className="space-y-1 text-sm border rounded-lg divide-y divide-slate-200">
                   {inventoryList.map((inv) => (
-                    <li key={inv.id} className="flex justify-between items-center px-3 py-2">
-                      <span>{inv.product?.name ?? ""} ({inv.variant?.sku ?? ""}){inv.variant?.size ? ` size ${inv.variant.size}` : ""}{inv.location ? ` · ${inv.location}` : ""}</span>
+                    <li key={inv.id} role="button" tabIndex={0} onClick={() => { setToolsModal(null); setProductDetailProductId(inv.product?.id ?? null); setProductDetailData(null); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setToolsModal(null); setProductDetailProductId(inv.product?.id ?? null); setProductDetailData(null); } }} className="flex justify-between items-center px-3 py-2 hover:bg-slate-50 cursor-pointer">
+                      <span className="flex items-center gap-2">{inv.product?.image ? <img src={inv.product.image} alt="" className="w-8 h-8 object-cover rounded" /> : null}{inv.product?.name ?? ""} ({inv.variant?.sku ?? ""}){inv.variant?.size ? ` size ${inv.variant.size}` : ""}{inv.location ? ` · ${inv.location}` : ""}</span>
                       <span className="font-medium">{inv.quantity}</span>
                     </li>
                   ))}
                 </ul>
               </div>
-              <p className="text-xs text-slate-500">Use the Inventory tab for scan-first workflow and creating products with variants.</p>
+              <p className="text-xs text-slate-500">Use the Inventory tab for scan-first workflow and creating products with variants. Click a row to view or edit product details.</p>
               <div>
                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.stockIn}</h4>
                 <div className="flex gap-2">
@@ -2179,6 +2238,80 @@ export default function AdminPage() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Product / Variant Detail Modal */}
+      {productDetailProductId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-slate-800 rounded-2xl border border-slate-600 shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b border-slate-600">
+              <h3 className="text-lg font-semibold text-white">{locale === "vi" ? "Chi tiết sản phẩm" : "Product details"}</h3>
+              <button type="button" onClick={() => { setProductDetailProductId(null); setProductDetailEditProduct(null); setProductDetailEditVariantId(null); setProductDetailEditVariant(null); }} className="text-slate-400 hover:text-white text-xl">&times;</button>
+            </div>
+            <div className="overflow-y-auto p-4 space-y-4">
+              {!productDetailData ? (
+                <p className="text-slate-400">{m.loading}</p>
+              ) : (
+                <>
+                  {/* Product section */}
+                  <div className="rounded-lg border border-slate-600 p-4 space-y-3">
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{m.productName}</h4>
+                    {productDetailEditProduct ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                        <input value={productDetailEditProduct.name} onChange={(e) => setProductDetailEditProduct((p) => p ? { ...p, name: e.target.value } : null)} className="px-2 py-1.5 rounded-lg border border-slate-500 bg-slate-700 text-white" placeholder={m.productName} />
+                        <input value={productDetailEditProduct.brand ?? ""} onChange={(e) => setProductDetailEditProduct((p) => p ? { ...p, brand: e.target.value || null } : null)} className="px-2 py-1.5 rounded-lg border border-slate-500 bg-slate-700 text-white" placeholder={m.brand} />
+                        <select value={productDetailEditProduct.category} onChange={(e) => setProductDetailEditProduct((p) => p ? { ...p, category: e.target.value } : null)} className="px-2 py-1.5 rounded-lg border border-slate-500 bg-slate-700 text-white">
+                          <option value="shoes">Shoes</option><option value="chalk">Chalk</option><option value="merch">Merch</option><option value="rental">Rental</option>
+                        </select>
+                        <input value={productDetailEditProduct.image ?? ""} onChange={(e) => setProductDetailEditProduct((p) => p ? { ...p, image: e.target.value || null } : null)} className="col-span-full px-2 py-1.5 rounded-lg border border-slate-500 bg-slate-700 text-white" placeholder="Image URL" />
+                        <div className="col-span-full flex gap-2">
+                          <button type="button" onClick={async () => { if (!productDetailEditProduct || !productDetailProductId) return; const res = await adminFetch(`/api/admin/products/${productDetailProductId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(productDetailEditProduct) }); if (res.ok) { const r = await adminFetch(`/api/admin/products/${productDetailProductId}`).then((x) => x.json()); if (r.product && r.variants) setProductDetailData({ product: r.product, variants: r.variants }); setProductDetailEditProduct(null); const url = inventoryCategoryFilter === "all" ? "/api/admin/inventory" : `/api/admin/inventory?category=${inventoryCategoryFilter}`; adminFetch(url).then((x) => x.json()).then((d) => setInventoryList(d.inventory ?? [])); } }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white">{locale === "vi" ? "Lưu" : "Save"}</button>
+                          <button type="button" onClick={() => setProductDetailEditProduct(null)} className="px-3 py-1.5 rounded-lg text-sm border border-slate-500 text-slate-300">{m.cancel}</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start gap-3">
+                        {productDetailData.product.image && <img src={productDetailData.product.image} alt="" className="w-16 h-16 object-cover rounded-lg" />}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-white">{productDetailData.product.name}</p>
+                          <p className="text-sm text-slate-400">{productDetailData.product.brand ?? ""} · {productDetailData.product.category}</p>
+                        </div>
+                        <button type="button" onClick={() => setProductDetailEditProduct({ name: productDetailData.product.name, brand: productDetailData.product.brand, category: productDetailData.product.category, image: productDetailData.product.image })} className="text-xs text-amber-400 hover:underline">{locale === "vi" ? "Sửa" : "Edit"}</button>
+                      </div>
+                    )}
+                  </div>
+                  {/* Variants */}
+                  <div className="rounded-lg border border-slate-600 p-4 space-y-2">
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{m.variantSizes}</h4>
+                    {productDetailData.variants.map((v) => (
+                      <div key={v.id} className="flex flex-wrap items-center gap-2 py-2 border-b border-slate-600 last:border-0">
+                        {productDetailEditVariantId === v.id && productDetailEditVariant ? (
+                          <>
+                            <input value={productDetailEditVariant.sku} onChange={(e) => setProductDetailEditVariant((x) => x ? { ...x, sku: e.target.value } : null)} className="w-24 px-2 py-1 rounded border border-slate-500 bg-slate-700 text-white text-sm" placeholder="SKU" />
+                            <input value={productDetailEditVariant.size ?? ""} onChange={(e) => setProductDetailEditVariant((x) => x ? { ...x, size: e.target.value || null } : null)} className="w-16 px-2 py-1 rounded border border-slate-500 bg-slate-700 text-white text-sm" placeholder="Size" />
+                            <input value={productDetailEditVariant.barcode ?? ""} onChange={(e) => setProductDetailEditVariant((x) => x ? { ...x, barcode: e.target.value || null } : null)} className="w-28 px-2 py-1 rounded border border-slate-500 bg-slate-700 text-white text-sm" placeholder="Barcode" />
+                            <input type="number" value={productDetailEditVariant.price} onChange={(e) => setProductDetailEditVariant((x) => x ? { ...x, price: parseInt(e.target.value, 10) || 0 } : null)} className="w-20 px-2 py-1 rounded border border-slate-500 bg-slate-700 text-white text-sm" />
+                            <input type="number" value={productDetailEditVariant.cost} onChange={(e) => setProductDetailEditVariant((x) => x ? { ...x, cost: parseInt(e.target.value, 10) || 0 } : null)} className="w-20 px-2 py-1 rounded border border-slate-500 bg-slate-700 text-white text-sm" />
+                            <button type="button" onClick={async () => { if (!productDetailEditVariant) return; const res = await adminFetch(`/api/admin/variants/${v.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(productDetailEditVariant) }); if (res.ok) { const r = await adminFetch(`/api/admin/products/${productDetailProductId}`).then((x) => x.json()); if (r.product && r.variants) setProductDetailData({ product: r.product, variants: r.variants }); setProductDetailEditVariantId(null); setProductDetailEditVariant(null); const url = inventoryCategoryFilter === "all" ? "/api/admin/inventory" : `/api/admin/inventory?category=${inventoryCategoryFilter}`; adminFetch(url).then((x) => x.json()).then((d) => setInventoryList(d.inventory ?? [])); } }} className="px-2 py-1 rounded text-xs bg-emerald-600 text-white">{locale === "vi" ? "Lưu" : "Save"}</button>
+                            <button type="button" onClick={() => { setProductDetailEditVariantId(null); setProductDetailEditVariant(null); }} className="px-2 py-1 rounded text-xs border border-slate-500 text-slate-400">{m.cancel}</button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-sm text-white">{v.sku}</span>
+                            {v.size && <span className="text-slate-400 text-sm">size {v.size}</span>}
+                            <span className="text-slate-400 text-sm">{(v.price ?? 0).toLocaleString("vi-VN")} VND</span>
+                            <span className="text-slate-500 text-xs">qty: {v.stock_quantity ?? 0}</span>
+                            <button type="button" onClick={() => { setProductDetailEditVariantId(v.id); setProductDetailEditVariant({ sku: v.sku, size: v.size, barcode: v.barcode, price: v.price, cost: v.cost }); }} className="text-xs text-amber-400 hover:underline">{locale === "vi" ? "Sửa" : "Edit"}</button>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
