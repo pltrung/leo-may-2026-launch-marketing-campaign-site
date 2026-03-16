@@ -107,6 +107,7 @@ export default function AdminPage() {
   const [toolsModal, setToolsModal] = useState<"occupancy" | "checkins" | "revenue" | "staff" | "inventory" | null>(null);
   const [staffModalTab, setStaffModalTab] = useState<"overview" | "tasks" | "attendance" | "coaching" | "routes">("overview");
   const [staffResetLoading, setStaffResetLoading] = useState(false);
+  const [showNewMemberForm, setShowNewMemberForm] = useState(false);
   const [monthlyAttendanceData, setMonthlyAttendanceData] = useState<{
     label: string;
     staff: { staff_id: string; display_name: string | null; email: string | null; in_days: number }[];
@@ -169,7 +170,7 @@ export default function AdminPage() {
   const newProductPhotoInputRef = React.useRef<HTMLInputElement>(null);
   const [posAddQty, setPosAddQty] = useState(1);
   const productDetailPhotoInputRef = React.useRef<HTMLInputElement>(null);
-  const [adminTab, setAdminTab] = useState<"member" | "sales" | "inventory" | "management">("member");
+  const [adminTab, setAdminTab] = useState<"member" | "sales" | "inventory" | "operations" | "admin_tools">("member");
   type StaffTaskRow = { id: string; title: string; status: string; block?: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | { display_name?: string | null; email?: string | null }[] | null };
   const [staffOpsData, setStaffOpsData] = useState<{
     attendance: { in: { staff_id: string; status: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[]; out: { staff_id: string; status: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[] };
@@ -312,17 +313,26 @@ export default function AdminPage() {
       .catch(() => setRevenueData(null));
   }, [toolsModal, revenuePeriod, adminFetch]);
 
-  // Fetch staff operations when modal opens
+  // Fetch staff operations when Operations tab opens
   useEffect(() => {
-    if (toolsModal !== "staff") return;
+    if (adminTab !== "operations") return;
     adminFetch("/api/admin/staff")
       .then((r) => r.json())
       .then((d) => setStaffOpsData(d))
       .catch(() => setStaffOpsData(null));
-  }, [toolsModal, adminFetch]);
+  }, [adminTab, adminFetch]);
+
+  // Keep Staff Operations visible inside the Operations tab
+  useEffect(() => {
+    if (adminTab === "operations") {
+      setToolsModal("staff");
+      return;
+    }
+    if (toolsModal === "staff") setToolsModal(null);
+  }, [adminTab]);
 
   useEffect(() => {
-    if (toolsModal !== "staff" || staffModalTab !== "attendance") return;
+    if (adminTab !== "operations" || staffModalTab !== "attendance") return;
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
@@ -330,7 +340,7 @@ export default function AdminPage() {
       .then((r) => r.json())
       .then((d) => setMonthlyAttendanceData({ label: d.label, staff: d.staff ?? [] }))
       .catch(() => setMonthlyAttendanceData(null));
-  }, [toolsModal, staffModalTab, adminFetch]);
+  }, [adminTab, staffModalTab, adminFetch]);
 
   // Poll real-time-ish occupancy from backend.
   useEffect(() => {
@@ -1028,22 +1038,25 @@ export default function AdminPage() {
           </section>
 
           {/* STICKY TAB NAV */}
-          <nav className="sticky top-0 z-20 flex gap-1 rounded-xl p-1 mb-4 bg-white/95 border border-slate-200 shadow-md backdrop-blur-md" aria-label="Admin tabs">
-            {(["member", "sales", "inventory", "management"] as const).map((tab) => (
+          <nav className="sticky top-0 z-20 rounded-xl p-1 mb-4 bg-white/95 border border-slate-200 shadow-md backdrop-blur-md overflow-x-auto" aria-label="Admin tabs">
+            <div className="flex gap-1 min-w-max">
+            {(["member", "sales", "inventory", "operations", "admin_tools"] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
                 onClick={() => setAdminTab(tab)}
-                className={`flex-1 min-w-0 py-2.5 px-3 rounded-lg text-[13px] font-medium transition-all ${
+                className={`flex-none whitespace-nowrap py-2.5 px-3 rounded-lg text-[13px] font-medium transition-all ${
                   adminTab === tab ? "bg-slate-900 text-white shadow" : "text-slate-700 hover:bg-slate-100 border border-transparent"
                 }`}
               >
                 {tab === "member" ? (locale === "vi" ? "Thành viên" : "Member") : null}
                 {tab === "sales" ? (locale === "vi" ? "Bán hàng" : "Sales") : null}
                 {tab === "inventory" ? m.inventoryModule : null}
-                {tab === "management" ? (locale === "vi" ? "Quản lý" : "Management") : null}
+                {tab === "operations" ? (locale === "vi" ? "Vận hành" : "Operations") : null}
+                {tab === "admin_tools" ? (locale === "vi" ? "Công cụ" : "Admin Tools") : null}
               </button>
             ))}
+            </div>
           </nav>
 
           {/* TAB: MEMBER */}
@@ -1841,8 +1854,8 @@ export default function AdminPage() {
           </section>
           )}
 
-          {/* TAB: MANAGEMENT */}
-          {adminTab === "management" && (
+          {/* TAB: ADMIN TOOLS */}
+          {adminTab === "admin_tools" && (
           <section className="grid md:grid-cols-[minmax(0,1.4fr)_minmax(0,2fr)] gap-8 items-start">
             <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-5">
               <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-3">
@@ -1851,7 +1864,10 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <button
                   type="button"
-                  onClick={() => document.getElementById("new-member-form")?.scrollIntoView({ behavior: "smooth" })}
+                  onClick={() => {
+                    setShowNewMemberForm(true);
+                    setTimeout(() => document.getElementById("new-member-form")?.scrollIntoView({ behavior: "smooth" }), 50);
+                  }}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
                 >
                   {m.addNewMember}
@@ -1899,16 +1915,10 @@ export default function AdminPage() {
                 >
                   {m.revenue}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setToolsModal("staff")}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
-                >
-                  {m.staffOperations}
-                </button>
               </div>
             </div>
 
+            {showNewMemberForm && (
             <div id="new-member-form" className="rounded-2xl bg-white/95 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">
               <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
                 {m.newMember}
@@ -1968,7 +1978,16 @@ export default function AdminPage() {
                 </div>
               </form>
             </div>
+            )}
           </section>
+          )}
+
+          {/* TAB: OPERATIONS (Staff Operations) */}
+          {adminTab === "operations" && (
+            <section className="rounded-2xl bg-white/80 border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.07)] p-4 md:p-6">
+              <h2 className="text-lg font-semibold text-slate-900">{m.staffOperations}</h2>
+              <p className="text-sm text-slate-600 mt-1">{locale === "vi" ? "Xem bảng Staff Operations phía trên." : "Staff Operations is open above."}</p>
+            </section>
           )}
         </div>
       </main>
@@ -2085,11 +2104,13 @@ export default function AdminPage() {
       )}
 
       {toolsModal === "staff" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+        <div className={`fixed inset-0 z-50 flex items-center justify-center ${adminTab === "operations" ? "bg-transparent p-0" : "bg-black/50 p-4"}`}>
+          <div className={`bg-white rounded-2xl shadow-xl w-full max-h-[90vh] flex flex-col ${adminTab === "operations" ? "max-w-[1100px] h-[calc(100vh-96px)] mt-24" : "max-w-2xl"}`}>
             <div className="flex justify-between items-center p-4 border-b">
               <h3 className="text-lg font-semibold text-slate-900">{m.staffOperations}</h3>
-              <button type="button" onClick={() => setToolsModal(null)} className="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
+              {adminTab !== "operations" && (
+                <button type="button" onClick={() => setToolsModal(null)} className="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
+              )}
             </div>
             <div className="flex gap-1 p-2 border-b bg-slate-50 flex-wrap">
               {(["overview", "tasks", "attendance", "coaching", "routes"] as const).map((tab) => (
