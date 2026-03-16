@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
-import { getGymToday, getGymStartOfDay, getGymEndOfDay } from "@/lib/gymTimezone";
+import { getGymToday, getGymStartOfDay, getGymEndOfDay, getGymDateFromISO } from "@/lib/gymTimezone";
 
 const STAFF_REQUIRED_DEFAULT = 3;
+const GYM_TZ = "America/Los_Angeles";
+
+type ShiftPhase = "pre_open" | "gym_open" | "closing";
 
 /** Current time in gym TZ as HH:MM for comparison with DB time. */
 function getGymNowHHMM(): string {
@@ -11,7 +14,7 @@ function getGymNowHHMM(): string {
     hour12: false,
     hour: "2-digit",
     minute: "2-digit",
-    timeZone: "America/Los_Angeles",
+    timeZone: GYM_TZ,
   }).slice(0, 5);
 }
 
@@ -19,6 +22,62 @@ function compareHHMM(a: string, b: string): number {
   const [ah, am] = a.split(":").map((n) => parseInt(n, 10) || 0);
   const [bh, bm] = b.split(":").map((n) => parseInt(n, 10) || 0);
   return (ah * 60 + am) - (bh * 60 + bm);
+}
+
+/** Determine current shift phase: 9:00–10:00 pre_open, 10:00–22:00 gym_open, 22:00–23:00 closing. */
+function getCurrentPhase(): ShiftPhase {
+  const t = new Date().toLocaleTimeString("en-GB", {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: GYM_TZ,
+  }).slice(0, 5);
+  const [h, m] = t.split(":").map(Number);
+  const mins = h * 60 + m;
+  if (mins >= 9 * 60 && mins < 10 * 60) return "pre_open";
+  if (mins >= 10 * 60 && mins < 22 * 60) return "gym_open";
+  if (mins >= 22 * 60 && mins < 23 * 60) return "closing";
+  return "gym_open";
+}
+
+/** Minutes from midnight in gym TZ for current moment. */
+function getGymMinutesFromMidnight(): number {
+  const t = new Date().toLocaleTimeString("en-GB", {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: GYM_TZ,
+  }).slice(0, 5);
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+/** Minutes until next phase (in gym TZ). */
+function getMinutesUntilNextPhase(phase: ShiftPhase): number {
+  const nowMins = getGymMinutesFromMidnight();
+  const next: Record<ShiftPhase, number> = {
+    pre_open: 10 * 60,
+    gym_open: 22 * 60,
+    closing: 23 * 60,
+  };
+  const nextMins = next[phase];
+  if (nowMins < nextMins) return nextMins - nowMins;
+  if (phase === "closing") return 24 * 60 - nowMins + 9 * 60;
+  return 24 * 60 - nowMins + next[phase];
+}
+
+/** Human-readable countdown message. */
+function getCountdownMessage(phase: ShiftPhase, minutes: number): string {
+  if (phase === "pre_open") {
+    if (minutes <= 0) return "Gym is opening.";
+    return `Gym opens in ${minutes} minute${minutes !== 1 ? "s" : ""}`;
+  }
+  if (phase === "gym_open") {
+    if (minutes <= 0) return "Closing phase starts.";
+    return `Closing in ${minutes} minute${minutes !== 1 ? "s" : ""}`;
+  }
+  if (minutes <= 0) return "All tasks due soon.";
+  return `Closing tasks due in ${minutes} minute${minutes !== 1 ? "s" : ""}`;
 }
 
 /**
@@ -181,6 +240,37 @@ export async function GET(request: NextRequest) {
   const staffRequired = STAFF_REQUIRED_DEFAULT;
   const zonesOverdueCount = zonesWithStatus.filter((z) => z.overdue).length;
 
+  const currentPhase = getCurrentPhase();
+  const minutesUntilNext = getMinutesUntilNextPhase(currentPhase);
+  const phaseLabel =
+    currentPhase === "pre_open" ? "Pre-Open" : currentPhase === "gym_open" ? "Gym Open" : "Closing";
+  const countdownMessage = getCountdownMessage(currentPhase, minutesUntilNext);
+
+  const blockToPhase: Record<string, ShiftPhase> = {
+    pre_open: "pre_open",
+    during_hours: "gym_open",
+    closing: "closing",
+  };
+  const currentPhaseTasks = tasks.filter(
+    (t) => blockToPhase[(t as { block?: string }).block ?? ""] === currentPhase
+  );
+
+  const SAFETY_TASK_TITLES = ["Inspect anchors", "Inspect crash pads", "Check rental shoes"];
+  const safetyTasks = preOpen.filter((t) =>
+    SAFETY_TASK_TITLES.some((title) => (t.title ?? "").trim().toLowerCase() === title.toLowerCase())
+  );
+  const gymReady =
+    currentPhase === "pre_open" &&
+    safetyTasks.length >= 3 &&
+    safetyTasks.every((t) => t.status === "completed");
+
+  const todayGym = getGymToday();
+  const routeResetDay =
+    zonesWithStatus.some((z) => {
+      if (!z.next_reset_at) return false;
+      return getGymDateFromISO(z.next_reset_at) === todayGym;
+    }) || zonesOverdueCount > 0;
+
   return NextResponse.json({
     attendance: { in: staffIn, out: staffOut, all: attendance },
     sessions: sessionsWithNewbieCount,
@@ -192,6 +282,15 @@ export async function GET(request: NextRequest) {
     closing,
     timeline,
     staffTaskPerformance,
+    phase: {
+      current_phase: currentPhase,
+      phase_label: phaseLabel,
+      countdown_message: countdownMessage,
+      minutes_until_next_phase: minutesUntilNext,
+    },
+    currentPhaseTasks,
+    gym_ready: gymReady,
+    route_reset_day: routeResetDay,
     summary: {
       staff_in_today: staffIn.length,
       staff_out_today: staffOut.length,
