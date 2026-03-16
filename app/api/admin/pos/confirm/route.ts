@@ -26,24 +26,21 @@ export async function POST(req: NextRequest) {
 
     const { data: items } = await supabase
       .from("transaction_items")
-      .select("product_id, quantity")
+      .select("variant_id, quantity")
       .eq("transaction_id", transactionId);
     for (const it of items ?? []) {
-      if (!it.product_id) continue;
-      const { data: inv } = await supabase
-        .from("inventory")
-        .select("id, quantity")
-        .eq("product_id", it.product_id)
-        .or("size.is.null")
-        .maybeSingle();
-      if (inv && (inv.quantity as number) >= (it.quantity as number)) {
-        await supabase
-          .from("inventory")
-          .update({
-            quantity: (inv.quantity as number) - (it.quantity as number),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", inv.id);
+      const vid = (it as { variant_id: string | null }).variant_id;
+      if (!vid) continue;
+      const { data: invRows } = await supabase.from("inventory").select("id, quantity").eq("variant_id", vid).order("quantity", { ascending: false });
+      let remaining = it.quantity as number;
+      for (const row of invRows ?? []) {
+        if (remaining <= 0) break;
+        const current = row.quantity as number;
+        const deduct = Math.min(current, remaining);
+        const newQty = current - deduct;
+        remaining -= deduct;
+        if (newQty === 0) await supabase.from("inventory").delete().eq("id", row.id);
+        else await supabase.from("inventory").update({ quantity: newQty, updated_at: new Date().toISOString() }).eq("id", row.id);
       }
     }
 

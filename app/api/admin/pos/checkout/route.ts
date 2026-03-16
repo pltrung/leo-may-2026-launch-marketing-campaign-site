@@ -3,13 +3,12 @@ import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
 import { getVietQRUrl } from "@/lib/vietqr";
 
-type CartItem = { sku: string; name?: string; quantity: number; price: number };
+type CartItem = { sku: string; name?: string; quantity: number; price: number; variant_id?: string };
 
 /**
  * POST /api/admin/pos/checkout
- * Body: { member_id, items: [{ sku, name?, quantity, price }], payment_method: "vietqr" | "cash" }
- * Cash: create transaction success, deduct inventory, return { ok: true }.
- * VietQR: create transaction pending, return { url, memo, transaction_id } for QR display; staff confirms later via /pos/confirm.
+ * Body: { member_id, items: [{ sku, name?, quantity, price, variant_id? }], payment_method: "vietqr" | "cash" }
+ * Resolves sku to variant_id; stores variant_id in transaction_items; deducts inventory by variant_id.
  */
 export async function POST(req: NextRequest) {
   const admin = await getAdminFromRequest(req);
@@ -28,19 +27,40 @@ export async function POST(req: NextRequest) {
     if (!member) return NextResponse.json({ error: "Member not found" }, { status: 404 });
 
     let total = 0;
-    const lineItems: { sku: string; name: string; quantity: number; price: number; product_id: string | null }[] = [];
+    const lineItems: { sku: string; name: string; quantity: number; price: number; product_id: string | null; variant_id: string | null }[] = [];
     for (const it of items) {
       const sku = typeof it.sku === "string" ? it.sku.trim() : "";
       const quantity = Math.max(1, parseInt(String(it.quantity), 10) || 1);
       const price = Math.max(0, parseInt(String(it.price), 10) || 0);
       if (!sku) continue;
-      const { data: product } = await supabase.from("products").select("id, name").eq("sku", sku).maybeSingle();
+      const variantId = typeof it.variant_id === "string" ? it.variant_id.trim() : null;
+      let productId: string | null = null;
+      let variantIdResolved = variantId;
+      let productName: string | null = null;
+      if (variantIdResolved) {
+        const { data: v } = await supabase.from("product_variants").select("id, product_id, sku").eq("id", variantIdResolved).maybeSingle();
+        if (v) {
+          productId = v.product_id;
+          const { data: p } = await supabase.from("products").select("name").eq("id", v.product_id).single();
+          productName = p?.name ?? null;
+        }
+      }
+      if (!variantIdResolved) {
+        const { data: v } = await supabase.from("product_variants").select("id, product_id").eq("sku", sku).maybeSingle();
+        if (v) {
+          variantIdResolved = v.id;
+          productId = v.product_id;
+          const { data: p } = await supabase.from("products").select("name").eq("id", v.product_id).single();
+          productName = p?.name ?? null;
+        }
+      }
       lineItems.push({
         sku,
-        name: (typeof it.name === "string" ? it.name.trim() : null) ?? (product?.name as string) ?? sku,
+        name: (typeof it.name === "string" ? it.name.trim() : null) ?? productName ?? sku,
         quantity,
         price,
-        product_id: product?.id ?? null,
+        product_id: productId,
+        variant_id: variantIdResolved,
       });
       total += quantity * price;
     }
@@ -66,6 +86,7 @@ export async function POST(req: NextRequest) {
       await supabase.from("transaction_items").insert({
         transaction_id: tx.id,
         product_id: it.product_id,
+        variant_id: it.variant_id,
         sku: it.sku,
         name: it.name,
         quantity: it.quantity,
@@ -73,19 +94,19 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (paymentMethod === "cash") {
+    if (paymentMethod === "cash" && lineItems.some((i) => i.variant_id)) {
       for (const it of lineItems) {
-        const { data: inv } = await supabase
-          .from("inventory")
-          .select("id, quantity")
-          .eq("product_id", it.product_id)
-          .or("size.is.null")
-          .maybeSingle();
-        if (inv && (inv.quantity as number) >= it.quantity) {
-          await supabase
-            .from("inventory")
-            .update({ quantity: (inv.quantity as number) - it.quantity, updated_at: new Date().toISOString() })
-            .eq("id", inv.id);
+        if (!it.variant_id) continue;
+        const { data: invRows } = await supabase.from("inventory").select("id, quantity").eq("variant_id", it.variant_id).order("quantity", { ascending: false });
+        let remaining = it.quantity;
+        for (const row of invRows ?? []) {
+          if (remaining <= 0) break;
+          const current = row.quantity as number;
+          const deduct = Math.min(current, remaining);
+          const newQty = current - deduct;
+          remaining -= deduct;
+          if (newQty === 0) await supabase.from("inventory").delete().eq("id", row.id);
+          else await supabase.from("inventory").update({ quantity: newQty, updated_at: new Date().toISOString() }).eq("id", row.id);
         }
       }
       return NextResponse.json({ ok: true, transaction_id: tx.id });

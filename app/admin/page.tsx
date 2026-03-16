@@ -123,7 +123,7 @@ export default function AdminPage() {
   const [revenuePeriod, setRevenuePeriod] = useState<"day" | "week" | "month">("day");
   const [waiverModalOpen, setWaiverModalOpen] = useState(false);
   const [scannerModalOpen, setScannerModalOpen] = useState(false);
-  const [posCart, setPosCart] = useState<{ sku: string; name: string; quantity: number; price: number }[]>([]);
+  const [posCart, setPosCart] = useState<{ sku: string; name: string; quantity: number; price: number; variant_id?: string }[]>([]);
   const [posSkuInput, setPosSkuInput] = useState("");
   const [posCheckoutLoading, setPosCheckoutLoading] = useState(false);
   const [posPaymentModalOpen, setPosPaymentModalOpen] = useState(false);
@@ -132,13 +132,21 @@ export default function AdminPage() {
   const [posPendingTransactionId, setPosPendingTransactionId] = useState<string | null>(null);
   const [posConfirmLoading, setPosConfirmLoading] = useState(false);
   const [memberPurchases, setMemberPurchases] = useState<{ id: string; total: number; payment_method: string; created_at: string; items: { sku: string; name: string | null; quantity: number; price: number }[] }[]>([]);
-  const [products, setProducts] = useState<{ id: string; name: string; sku: string; category: string; price: number; cost: number; barcode: string | null; image: string | null }[]>([]);
-  const [inventoryList, setInventoryList] = useState<{ id: string; product_id: string; size: string | null; quantity: number; location: string | null; products: { id: string; name: string; sku: string; category: string } | null }[]>([]);
+  type ProductVariant = { id: string; product_id: string; sku: string; size: string | null; barcode: string | null; price: number; cost: number };
+  type ProductWithVariants = { id: string; name: string; brand: string | null; category: string; image: string | null; variants: ProductVariant[] };
+  const [products, setProducts] = useState<ProductWithVariants[]>([]);
+  type InvVariant = { id: string; product_id: string; sku: string; size: string | null; barcode: string | null; price: number; cost: number };
+  type InvProduct = { id: string; name: string; brand: string | null; category: string; image: string | null };
+  const [inventoryList, setInventoryList] = useState<{ id: string; variant_id: string; quantity: number; location: string | null; variant: InvVariant | null; product: InvProduct | null }[]>([]);
+  const [inventoryScannedBarcode, setInventoryScannedBarcode] = useState("");
+  const [scannedVariant, setScannedVariant] = useState<{ id: string; product_id: string; sku: string; size: string | null; barcode: string | null; price: number; cost: number } | null>(null);
+  const [scannedProduct, setScannedProduct] = useState<{ id: string; name: string; brand: string | null; category: string; image: string | null } | null>(null);
+  const [inventoryQty, setInventoryQty] = useState("1");
   const [newProductName, setNewProductName] = useState("");
-  const [newProductSku, setNewProductSku] = useState("");
+  const [newProductBrand, setNewProductBrand] = useState("");
+  const [newProductCode, setNewProductCode] = useState("");
   const [newProductCategory, setNewProductCategory] = useState<"shoes" | "chalk" | "merch" | "rental">("merch");
-  const [newProductPrice, setNewProductPrice] = useState("");
-  const [newProductCost, setNewProductCost] = useState("");
+  const [newVariants, setNewVariants] = useState<{ size: string; barcode: string; price: string; cost: string }[]>([{ size: "", barcode: "", price: "", cost: "" }]);
   const [newProductBarcode, setNewProductBarcode] = useState("");
   const [stockInSku, setStockInSku] = useState("");
   const [stockInQty, setStockInQty] = useState("1");
@@ -147,6 +155,7 @@ export default function AdminPage() {
   const [inventoryActionMessage, setInventoryActionMessage] = useState<string | null>(null);
   const [inventoryCreateError, setInventoryCreateError] = useState<string | null>(null);
   const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
+  const inventoryQtyInputRef = React.useRef<HTMLInputElement>(null);
   const [adminTab, setAdminTab] = useState<"member" | "sales" | "inventory" | "management">("member");
   const [staffOpsData, setStaffOpsData] = useState<{
     attendance: { in: { staff_id: string; status: string; staff_profiles?: { email?: string } | { email?: string }[] }[]; out: { staff_id: string; status: string; staff_profiles?: { email?: string } | { email?: string }[] }[] };
@@ -648,7 +657,7 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           member_id: foundMember.id,
-          items: posCart.map((i) => ({ sku: i.sku, name: i.name, quantity: i.quantity, price: i.price })),
+          items: posCart.map((i) => ({ sku: i.sku, name: i.name, quantity: i.quantity, price: i.price, variant_id: i.variant_id })),
           payment_method: "cash",
         }),
       });
@@ -681,7 +690,7 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           member_id: foundMember.id,
-          items: posCart.map((i) => ({ sku: i.sku, name: i.name, quantity: i.quantity, price: i.price })),
+          items: posCart.map((i) => ({ sku: i.sku, name: i.name, quantity: i.quantity, price: i.price, variant_id: i.variant_id })),
           payment_method: "vietqr",
         }),
       });
@@ -1366,12 +1375,12 @@ export default function AdminPage() {
                   <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">{m.frontDeskSales}</h3>
                   <div className="space-y-3">
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={() => { const p = products.find((x) => x.sku === "RENTAL_SHOES" || x.category === "rental"); const price = p?.price ?? 50000; const name = p?.name ?? "Rental Shoes"; setPosCart((c) => [...c, { sku: p?.sku ?? "RENTAL_SHOES", name, quantity: 1, price }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.shoeRental} (50,000 VND)</button>
-                      <button type="button" onClick={() => { const p = products.find((x) => x.sku === "CHALK_BAG" || x.category === "chalk"); const price = p?.price ?? 20000; const name = p?.name ?? "Chalk (bag, return after session)"; setPosCart((c) => [...c, { sku: p?.sku ?? "CHALK_BAG", name, quantity: 1, price }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.buyChalk} (20,000 VND)</button>
+                      <button type="button" onClick={() => { const p = products.find((x) => x.category === "rental"); const v = p?.variants?.[0]; const price = v?.price ?? 50000; const name = p?.name ?? "Rental Shoes"; const sku = v?.sku ?? "RENTAL_SHOES"; setPosCart((c) => [...c, { sku, name, quantity: 1, price, variant_id: v?.id }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.shoeRental} (50,000 VND)</button>
+                      <button type="button" onClick={() => { const p = products.find((x) => x.category === "chalk"); const v = p?.variants?.[0]; const price = v?.price ?? 20000; const name = p?.name ?? "Chalk (bag, return after session)"; const sku = v?.sku ?? "CHALK_BAG"; setPosCart((c) => [...c, { sku, name, quantity: 1, price, variant_id: v?.id }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.buyChalk} (20,000 VND)</button>
                     </div>
                     <div className="flex gap-2">
-                      <input placeholder={m.skuOrBarcode} value={posSkuInput} onChange={(e) => setPosSkuInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = posSkuInput.trim(); if (!v) return; adminFetch(`/api/admin/products?sku=${encodeURIComponent(v)}`).then((r) => r.json()).then((d) => { if (d.product) setPosCart((c) => [...c, { sku: d.product.sku, name: d.product.name, quantity: 1, price: d.product.price }]); else adminFetch(`/api/admin/products?barcode=${encodeURIComponent(v)}`).then((r2) => r2.json()).then((d2) => { if (d2.product) setPosCart((c) => [...c, { sku: d2.product.sku, name: d2.product.name, quantity: 1, price: d2.product.price }]); }); }); setPosSkuInput(""); } }} className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
-                      <button type="button" onClick={() => { const v = posSkuInput.trim(); if (!v) return; adminFetch(`/api/admin/products?sku=${encodeURIComponent(v)}`).then((r) => r.json()).then((d) => { if (d.product) { setPosCart((c) => [...c, { sku: d.product.sku, name: d.product.name, quantity: 1, price: d.product.price }]); setPosSkuInput(""); } else return adminFetch(`/api/admin/products?barcode=${encodeURIComponent(v)}`).then((r2) => r2.json()); }).then((d2) => { if (d2?.product) { setPosCart((c) => [...c, { sku: d2.product.sku, name: d2.product.name, quantity: 1, price: d2.product.price }]); setPosSkuInput(""); } }).catch(() => {}); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-white hover:bg-slate-700">{m.addToCart}</button>
+                      <input placeholder={m.skuOrBarcode} value={posSkuInput} onChange={(e) => setPosSkuInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const val = posSkuInput.trim(); if (!val) return; adminFetch(`/api/admin/products?sku=${encodeURIComponent(val)}`).then((r) => r.json()).then((d) => { if (d.product && d.variant) setPosCart((c) => [...c, { sku: d.variant.sku, name: d.product.name, quantity: 1, price: d.variant.price, variant_id: d.variant.id }]); else adminFetch(`/api/admin/products?barcode=${encodeURIComponent(val)}`).then((r2) => r2.json()).then((d2) => { if (d2?.product && d2?.variant) setPosCart((c) => [...c, { sku: d2.variant.sku, name: d2.product.name, quantity: 1, price: d2.variant.price, variant_id: d2.variant.id }]); }); setPosSkuInput(""); }); } }} className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                      <button type="button" onClick={() => { const val = posSkuInput.trim(); if (!val) return; adminFetch(`/api/admin/products?sku=${encodeURIComponent(val)}`).then((r) => r.json()).then((d) => { if (d.product && d.variant) { setPosCart((c) => [...c, { sku: d.variant.sku, name: d.product.name, quantity: 1, price: d.variant.price, variant_id: d.variant.id }]); setPosSkuInput(""); } else return adminFetch(`/api/admin/products?barcode=${encodeURIComponent(val)}`).then((r2) => r2.json()); }).then((d2) => { if (d2?.product && d2?.variant) { setPosCart((c) => [...c, { sku: d2.variant.sku, name: d2.product.name, quantity: 1, price: d2.variant.price, variant_id: d2.variant.id }]); setPosSkuInput(""); } }).catch(() => {}); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-white hover:bg-slate-700">{m.addToCart}</button>
                     </div>
                   </div>
                   <div className="mt-3 border-t border-slate-200 pt-3">
@@ -1405,55 +1414,178 @@ export default function AdminPage() {
           <section className="rounded-2xl bg-white/90 border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.07)] p-4 md:p-6 space-y-6">
             {inventoryActionMessage && <p className="text-sm text-emerald-600">{inventoryActionMessage}</p>}
             {inventoryCreateError && <p className="text-sm text-red-600">{inventoryCreateError}</p>}
+            {/* 1) Scan Product — barcode triggers lookup or Create Product */}
+            <div>
+              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.scanProduct}</h4>
+              <p className="text-xs text-slate-500 mb-2">{m.scanProductHint}</p>
+              <div className="flex gap-2">
+                <input
+                  placeholder={m.barcode}
+                  value={inventoryScannedBarcode}
+                  onChange={(e) => setInventoryScannedBarcode(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const b = inventoryScannedBarcode.trim();
+                      if (!b) return;
+                      setInventoryCreateError(null);
+                      adminFetch(`/api/admin/variants/by-barcode?barcode=${encodeURIComponent(b)}`)
+                        .then((r) => r.json())
+                        .then((d) => {
+                          if (d.found && d.variant && d.product) {
+                            setScannedVariant(d.variant);
+                            setScannedProduct(d.product);
+                            setNewProductBarcode("");
+                            setInventoryScannedBarcode("");
+                            setTimeout(() => inventoryQtyInputRef.current?.focus(), 100);
+                          } else {
+                            setScannedVariant(null);
+                            setScannedProduct(null);
+                            setNewProductBarcode(b);
+                            setInventoryScannedBarcode("");
+                          }
+                        })
+                        .catch(() => setInventoryCreateError("Lookup failed."));
+                    }
+                  }}
+                  className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 text-sm"
+                />
+                <button type="button" onClick={() => { setInventoryCreateError(null); setBarcodeScannerOpen(true); }} className="shrink-0 px-3 py-1.5 rounded-lg border border-slate-300 bg-slate-100 text-slate-800 text-sm font-medium hover:bg-slate-200">{m.scanBarcode}</button>
+              </div>
+            </div>
+
+            {/* 2) Product Info + Variant + Quantity + Stock In/Out — when barcode found */}
+            {scannedVariant && scannedProduct && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{m.productInfo}</h4>
+                <p className="text-sm font-medium text-slate-800">{scannedProduct.name}{scannedProduct.brand ? ` · ${scannedProduct.brand}` : ""} · {scannedProduct.category}</p>
+                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{m.variantSize}</h4>
+                <p className="text-sm text-slate-700">SKU: {scannedVariant.sku}{scannedVariant.size ? ` · Size ${scannedVariant.size}` : ""} · {m.price}: {(scannedVariant.price ?? 0).toLocaleString()} VND</p>
+                <div className="flex flex-wrap gap-2 items-center">
+                  <label className="text-xs text-slate-600">{m.quantity}</label>
+                  <input ref={inventoryQtyInputRef} type="number" min={1} value={inventoryQty} onChange={(e) => setInventoryQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                  <button type="button" onClick={async () => {
+                    const qty = parseInt(inventoryQty, 10) || 1;
+                    const res = await adminFetch("/api/admin/inventory", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ variant_id: scannedVariant.id, quantity: qty }) });
+                    const d = await res.json();
+                    if (res.ok && d.ok) { setInventoryActionMessage(locale === "vi" ? "Đã nhập kho." : "Stock in recorded."); setInventoryQty("1"); adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? [])); setTimeout(() => setInventoryActionMessage(null), 3000); } else setInventoryCreateError(d?.error ?? "Failed");
+                  }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500">{m.stockIn}</button>
+                  <button type="button" onClick={async () => {
+                    const qty = parseInt(inventoryQty, 10) || 1;
+                    const res = await adminFetch("/api/admin/inventory", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ variant_id: scannedVariant.id, quantity: qty }) });
+                    const d = await res.json();
+                    if (res.ok && d.ok) { setInventoryActionMessage(locale === "vi" ? "Đã xuất kho." : "Stock out recorded."); setInventoryQty("1"); adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? [])); setTimeout(() => setInventoryActionMessage(null), 3000); } else setInventoryCreateError(d?.error ?? "Failed");
+                  }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-500">{m.stockOut}</button>
+                  <button type="button" onClick={() => { setScannedVariant(null); setScannedProduct(null); setInventoryQty("1"); }} className="text-xs text-slate-500 underline">{m.cancel}</button>
+                </div>
+              </div>
+            )}
+
+            {/* 3) Create Product — when barcode not found */}
+            {!scannedVariant && newProductBarcode && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4 space-y-3">
+                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{m.createProduct}</h4>
+                <p className="text-xs text-slate-600">{m.createProductHint}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                  <input placeholder={m.barcode} value={newProductBarcode} onChange={(e) => setNewProductBarcode(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
+                  <input placeholder={m.productName} value={newProductName} onChange={(e) => setNewProductName(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
+                  <input placeholder={m.brand} value={newProductBrand} onChange={(e) => setNewProductBrand(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
+                  <input placeholder={m.productCode} value={newProductCode} onChange={(e) => setNewProductCode(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
+                  <select value={newProductCategory} onChange={(e) => setNewProductCategory(e.target.value as "shoes" | "chalk" | "merch" | "rental")} className="px-2 py-1.5 rounded-lg border border-slate-200">
+                    <option value="shoes">Shoes</option>
+                    <option value="chalk">Chalk</option>
+                    <option value="merch">Merch</option>
+                    <option value="rental">Rental</option>
+                  </select>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-600 mb-2">{m.variantSizes}</p>
+                  {newVariants.map((nv, idx) => (
+                    <div key={idx} className="flex gap-2 items-center mb-2">
+                      <input placeholder="Size" value={nv.size} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, size: e.target.value } : x))} className="w-16 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                      <input placeholder={m.barcode} value={nv.barcode} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, barcode: e.target.value } : x))} className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                      <input placeholder={m.price} value={nv.price} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, price: e.target.value } : x))} className="w-24 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" type="number" />
+                      <input placeholder={m.cost} value={nv.cost} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, cost: e.target.value } : x))} className="w-24 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" type="number" />
+                      <button type="button" onClick={() => setNewVariants((v) => v.filter((_, i) => i !== idx))} className="text-slate-500 hover:text-red-600 text-xs">{m.remove}</button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setNewVariants((v) => [...v, { size: "", barcode: "", price: "", cost: "" }])} className="text-xs text-slate-600 underline">{m.addSize}</button>
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={async () => {
+                    if (!newProductName.trim() || !newProductCode.trim()) { setInventoryCreateError(locale === "vi" ? "Nhập tên và mã sản phẩm." : "Enter name and product code."); return; }
+                    const variantsToCreate = newVariants.filter((v) => v.size.trim() || v.price.trim() || v.barcode.trim()).map((v) => ({ size: v.size.trim() || null, barcode: v.barcode.trim() || null, price: parseInt(v.price, 10) || 0, cost: parseInt(v.cost, 10) || 0 }));
+                    if (variantsToCreate.length === 0) { setInventoryCreateError(locale === "vi" ? "Thêm ít nhất một size/phiên bản." : "Add at least one variant."); return; }
+                    setInventoryCreateError(null);
+                    try {
+                      const res = await adminFetch("/api/admin/products/with-variants", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newProductName.trim(), brand: newProductBrand.trim() || null, category: newProductCategory, product_code: newProductCode.trim().toUpperCase().replace(/-/g, ""), variants: variantsToCreate }) });
+                      const d = await res.json();
+                      if (res.ok && d.product) {
+                        setInventoryActionMessage(locale === "vi" ? "Đã tạo sản phẩm và các phiên bản." : "Product and variants created.");
+                        setNewProductName(""); setNewProductBrand(""); setNewProductCode(""); setNewProductBarcode(""); setNewVariants([{ size: "", barcode: "", price: "", cost: "" }]);
+                        adminFetch("/api/admin/products").then((r) => r.json()).then((x) => setProducts(x.products ?? []));
+                        adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? []));
+                        setTimeout(() => setInventoryActionMessage(null), 3000);
+                      } else setInventoryCreateError(d?.error ?? "Failed");
+                    } catch (e) { setInventoryCreateError("Request failed. Run migration 031_product_variants_barcode_first.sql if needed."); }
+                  }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-800 text-white hover:bg-slate-700">{m.createProduct}</button>
+                  <button type="button" onClick={() => { setNewProductBarcode(""); setNewProductName(""); setNewProductBrand(""); setNewProductCode(""); setNewVariants([{ size: "", barcode: "", price: "", cost: "" }]); setInventoryCreateError(null); }} className="px-3 py-1.5 rounded-lg text-sm border border-slate-300 text-slate-700">{m.cancel}</button>
+                </div>
+              </div>
+            )}
+
+            <BarcodeScannerModal open={barcodeScannerOpen} onClose={() => setBarcodeScannerOpen(false)} onScanned={(raw) => {
+              setBarcodeScannerOpen(false);
+              const b = raw.trim();
+              if (!b) return;
+              setInventoryCreateError(null);
+              adminFetch(`/api/admin/variants/by-barcode?barcode=${encodeURIComponent(b)}`)
+                .then((r) => r.json())
+                .then((d) => {
+                  if (d.found && d.variant && d.product) {
+                    setScannedVariant(d.variant);
+                    setScannedProduct(d.product);
+                    setNewProductBarcode("");
+                    setInventoryScannedBarcode("");
+                    setTimeout(() => inventoryQtyInputRef.current?.focus(), 100);
+                  } else {
+                    setScannedVariant(null);
+                    setScannedProduct(null);
+                    setNewProductBarcode(b);
+                    setInventoryScannedBarcode("");
+                  }
+                })
+                .catch(() => setInventoryCreateError("Lookup failed."));
+            }} onError={(msg) => setInventoryCreateError(msg)} title={m.scanProduct} hint={m.scanProductHint} />
+
+            {/* 4) View Inventory list */}
             <div>
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.viewInventory}</h4>
               {inventoryList.length === 0 && <p className="text-sm text-slate-500">{m.loading}</p>}
               <ul className="space-y-1 text-sm border rounded-lg divide-y divide-slate-200">
                 {inventoryList.map((inv) => (
                   <li key={inv.id} className="flex justify-between items-center px-3 py-2">
-                    <span>{(inv.products as { name?: string; sku?: string })?.name ?? inv.product_id} ({(inv.products as { sku?: string })?.sku ?? ""}) {inv.size ? ` size ${inv.size}` : ""}</span>
+                    <span>{inv.product?.name ?? ""} ({inv.variant?.sku ?? ""}){inv.variant?.size ? ` size ${inv.variant.size}` : ""}{inv.location ? ` · ${inv.location}` : ""}</span>
                     <span className="font-medium">{inv.quantity}</span>
                   </li>
                 ))}
               </ul>
             </div>
-            <div>
-              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.createSku}</h4>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <input placeholder={m.productName} value={newProductName} onChange={(e) => setNewProductName(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
-                <input placeholder={m.sku} value={newProductSku} onChange={(e) => setNewProductSku(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
-                <select value={newProductCategory} onChange={(e) => setNewProductCategory(e.target.value as "shoes" | "chalk" | "merch" | "rental")} className="px-2 py-1.5 rounded-lg border border-slate-200">
-                  <option value="shoes">Shoes</option>
-                  <option value="chalk">Chalk</option>
-                  <option value="merch">Merch</option>
-                  <option value="rental">Rental</option>
-                </select>
-                <input placeholder={m.price} value={newProductPrice} onChange={(e) => setNewProductPrice(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" type="number" />
-                <input placeholder={m.cost} value={newProductCost} onChange={(e) => setNewProductCost(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" type="number" />
-                <div className="col-span-2 flex gap-2">
-                  <input placeholder={m.barcode} value={newProductBarcode} onChange={(e) => setNewProductBarcode(e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200" />
-                  <button type="button" onClick={() => { setInventoryCreateError(null); setBarcodeScannerOpen(true); }} className="shrink-0 px-3 py-1.5 rounded-lg border border-slate-300 bg-slate-100 text-slate-800 text-sm font-medium hover:bg-slate-200">{m.scanBarcode}</button>
-                </div>
-              </div>
-              <button type="button" onClick={async () => { if (!newProductName.trim() || !newProductSku.trim()) { setInventoryCreateError(locale === "vi" ? "Nhập tên và SKU." : "Enter name and SKU."); return; } setInventoryCreateError(null); try { const res = await adminFetch("/api/admin/products", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newProductName.trim(), sku: newProductSku.trim(), category: newProductCategory, price: parseInt(newProductPrice, 10) || 0, cost: parseInt(newProductCost, 10) || 0, barcode: newProductBarcode.trim() || null }) }); const d = await res.json(); if (res.ok && d.product) { setInventoryActionMessage(locale === "vi" ? "Đã tạo SKU." : "SKU created."); setNewProductName(""); setNewProductSku(""); setNewProductPrice(""); setNewProductCost(""); setNewProductBarcode(""); adminFetch("/api/admin/products").then((r) => r.json()).then((x) => setProducts(x.products ?? [])); setTimeout(() => setInventoryActionMessage(null), 3000); } else { setInventoryCreateError(d?.error ?? "Failed to create SKU."); } } catch (e) { setInventoryCreateError("Request failed. Run migration 030_pos_inventory.sql if tables are missing."); } }} className="mt-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-800 text-white hover:bg-slate-700">{m.createSku}</button>
-            </div>
-            <div>
-              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.stockIn}</h4>
-              <div className="flex gap-2">
-                <input placeholder={m.skuOrBarcode} value={stockInSku} onChange={(e) => setStockInSku(e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+
+            {/* Stock In/Out by barcode (optional) */}
+            <div className="border-t border-slate-200 pt-4 space-y-3">
+              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{m.stockIn} / {m.stockOut}</h4>
+              <div className="flex gap-2 flex-wrap">
+                <input placeholder={m.skuOrBarcode} value={stockInSku} onChange={(e) => setStockInSku(e.target.value)} className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
                 <input type="number" min={1} value={stockInQty} onChange={(e) => setStockInQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
-                <button type="button" onClick={async () => { const v = stockInSku.trim(); if (!v) return; const res = await adminFetch("/api/admin/inventory", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sku: v, quantity: parseInt(stockInQty, 10) || 1 }) }); const d = await res.json(); if (res.ok && d.ok) { setInventoryActionMessage(locale === "vi" ? "Đã nhập kho." : "Stock in recorded."); setStockInSku(""); setStockInQty("1"); adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? [])); setTimeout(() => setInventoryActionMessage(null), 3000); } else setActionError(d?.error ?? "Failed"); }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500">{m.stockIn}</button>
+                <button type="button" onClick={async () => { const v = stockInSku.trim(); if (!v) return; const res = await adminFetch("/api/admin/inventory", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ barcode: v, quantity: parseInt(stockInQty, 10) || 1 }) }); const d = await res.json(); if (res.ok && d.ok) { setInventoryActionMessage(locale === "vi" ? "Đã nhập kho." : "Stock in recorded."); setStockInSku(""); setStockInQty("1"); adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? [])); setTimeout(() => setInventoryActionMessage(null), 3000); } else setInventoryCreateError(d?.error ?? "Failed"); }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500">{m.stockIn}</button>
               </div>
-            </div>
-            <div>
-              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.stockOut}</h4>
-              <div className="flex gap-2">
-                <input placeholder={m.sku} value={stockOutSku} onChange={(e) => setStockOutSku(e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+              <div className="flex gap-2 flex-wrap">
+                <input placeholder={m.skuOrBarcode} value={stockOutSku} onChange={(e) => setStockOutSku(e.target.value)} className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
                 <input type="number" min={1} value={stockOutQty} onChange={(e) => setStockOutQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
-                <button type="button" onClick={async () => { const v = stockOutSku.trim(); if (!v) return; const res = await adminFetch("/api/admin/inventory", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sku: v, quantity: parseInt(stockOutQty, 10) || 1 }) }); const d = await res.json(); if (res.ok && d.ok) { setInventoryActionMessage(locale === "vi" ? "Đã xuất kho." : "Stock out recorded."); setStockOutSku(""); setStockOutQty("1"); adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? [])); setTimeout(() => setInventoryActionMessage(null), 3000); } else setActionError(d?.error ?? "Failed"); }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-500">{m.stockOut}</button>
+                <button type="button" onClick={async () => { const v = stockOutSku.trim(); if (!v) return; const res = await adminFetch("/api/admin/inventory", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ barcode: v, quantity: parseInt(stockOutQty, 10) || 1 }) }); const d = await res.json(); if (res.ok && d.ok) { setInventoryActionMessage(locale === "vi" ? "Đã xuất kho." : "Stock out recorded."); setStockOutSku(""); setStockOutQty("1"); adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? [])); setTimeout(() => setInventoryActionMessage(null), 3000); } else setInventoryCreateError(d?.error ?? "Failed"); }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-500">{m.stockOut}</button>
               </div>
             </div>
-            <BarcodeScannerModal open={barcodeScannerOpen} onClose={() => setBarcodeScannerOpen(false)} onScanned={(raw) => { setBarcodeScannerOpen(false); const parts = raw.split("|").map((p) => p.trim()); if (parts.length >= 5) { setNewProductName(parts[0] ?? ""); setNewProductSku(parts[1] ?? ""); setNewProductBarcode(parts[2] ?? ""); const cat = (parts[3] ?? "").toLowerCase(); if (["shoes", "chalk", "merch", "rental"].includes(cat)) setNewProductCategory(cat as "shoes" | "chalk" | "merch" | "rental"); const priceNum = parseInt(parts[4] ?? "0", 10); if (!isNaN(priceNum)) setNewProductPrice(String(priceNum)); } else if (parts.length === 4) { setNewProductName(parts[0] ?? ""); setNewProductSku(parts[1] ?? ""); setNewProductBarcode(parts[2] ?? ""); const priceNum = parseInt(parts[3] ?? "0", 10); if (!isNaN(priceNum)) setNewProductPrice(String(priceNum)); } else { setNewProductBarcode(raw); } }} onError={(msg) => setInventoryCreateError(msg)} title={m.scanBarcode} hint={m.scanBarcodeHint} />
           </section>
           )}
 
@@ -1839,103 +1971,13 @@ export default function AdminPage() {
                 <ul className="space-y-1 text-sm border rounded-lg divide-y divide-slate-200">
                   {inventoryList.map((inv) => (
                     <li key={inv.id} className="flex justify-between items-center px-3 py-2">
-                      <span>{(inv.products as { name?: string; sku?: string })?.name ?? inv.product_id} ({(inv.products as { sku?: string })?.sku ?? ""}) {inv.size ? ` size ${inv.size}` : ""}</span>
+                      <span>{inv.product?.name ?? ""} ({inv.variant?.sku ?? ""}){inv.variant?.size ? ` size ${inv.variant.size}` : ""}{inv.location ? ` · ${inv.location}` : ""}</span>
                       <span className="font-medium">{inv.quantity}</span>
                     </li>
                   ))}
                 </ul>
               </div>
-              <div>
-                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.createSku}</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <input placeholder={m.productName} value={newProductName} onChange={(e) => setNewProductName(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
-                  <input placeholder={m.sku} value={newProductSku} onChange={(e) => setNewProductSku(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
-                  <select value={newProductCategory} onChange={(e) => setNewProductCategory(e.target.value as "shoes" | "chalk" | "merch" | "rental")} className="px-2 py-1.5 rounded-lg border border-slate-200">
-                    <option value="shoes">Shoes</option>
-                    <option value="chalk">Chalk</option>
-                    <option value="merch">Merch</option>
-                    <option value="rental">Rental</option>
-                  </select>
-                  <input placeholder={m.price} value={newProductPrice} onChange={(e) => setNewProductPrice(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" type="number" />
-                  <input placeholder={m.cost} value={newProductCost} onChange={(e) => setNewProductCost(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" type="number" />
-                  <div className="col-span-2 flex gap-2">
-                    <input placeholder={m.barcode} value={newProductBarcode} onChange={(e) => setNewProductBarcode(e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200" />
-                    <button
-                      type="button"
-                      onClick={() => { setInventoryCreateError(null); setBarcodeScannerOpen(true); }}
-                      className="shrink-0 px-3 py-1.5 rounded-lg border border-slate-300 bg-slate-100 text-slate-800 text-sm font-medium hover:bg-slate-200"
-                    >
-                      {m.scanBarcode}
-                    </button>
-                  </div>
-                </div>
-                <BarcodeScannerModal
-                  open={barcodeScannerOpen}
-                  onClose={() => setBarcodeScannerOpen(false)}
-                  onScanned={(raw) => {
-                    setBarcodeScannerOpen(false);
-                    const parts = raw.split("|").map((p) => p.trim());
-                    if (parts.length >= 5) {
-                      setNewProductName(parts[0] ?? "");
-                      setNewProductSku(parts[1] ?? "");
-                      setNewProductBarcode(parts[2] ?? "");
-                      const cat = (parts[3] ?? "").toLowerCase();
-                      if (["shoes", "chalk", "merch", "rental"].includes(cat)) setNewProductCategory(cat as "shoes" | "chalk" | "merch" | "rental");
-                      const priceNum = parseInt(parts[4] ?? "0", 10);
-                      if (!isNaN(priceNum)) setNewProductPrice(String(priceNum));
-                    } else if (parts.length === 4) {
-                      setNewProductName(parts[0] ?? "");
-                      setNewProductSku(parts[1] ?? "");
-                      setNewProductBarcode(parts[2] ?? "");
-                      const priceNum = parseInt(parts[3] ?? "0", 10);
-                      if (!isNaN(priceNum)) setNewProductPrice(String(priceNum));
-                    } else {
-                      setNewProductBarcode(raw);
-                    }
-                  }}
-                  onError={(msg) => setInventoryCreateError(msg)}
-                  title={m.scanBarcode}
-                  hint={m.scanBarcodeHint}
-                />
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!newProductName.trim() || !newProductSku.trim()) {
-                      setInventoryCreateError(locale === "vi" ? "Nhập tên và SKU." : "Enter name and SKU.");
-                      return;
-                    }
-                    setInventoryCreateError(null);
-                    try {
-                      const res = await adminFetch("/api/admin/products", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          name: newProductName.trim(),
-                          sku: newProductSku.trim(),
-                          category: newProductCategory,
-                          price: parseInt(newProductPrice, 10) || 0,
-                          cost: parseInt(newProductCost, 10) || 0,
-                          barcode: newProductBarcode.trim() || null,
-                        }),
-                      });
-                      const d = await res.json();
-                      if (res.ok && d.product) {
-                        setInventoryActionMessage(locale === "vi" ? "Đã tạo SKU." : "SKU created.");
-                        setNewProductName(""); setNewProductSku(""); setNewProductPrice(""); setNewProductCost(""); setNewProductBarcode("");
-                        adminFetch("/api/admin/products").then((r) => r.json()).then((x) => setProducts(x.products ?? []));
-                        setTimeout(() => setInventoryActionMessage(null), 3000);
-                      } else {
-                        setInventoryCreateError(d?.error ?? "Failed to create SKU.");
-                      }
-                    } catch (e) {
-                      setInventoryCreateError("Request failed. Run migration 030_pos_inventory.sql if tables are missing.");
-                    }
-                  }}
-                  className="mt-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-800 text-white hover:bg-slate-700"
-                >
-                  {m.createSku}
-                </button>
-              </div>
+              <p className="text-xs text-slate-500">Use the Inventory tab for scan-first workflow and creating products with variants.</p>
               <div>
                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.stockIn}</h4>
                 <div className="flex gap-2">
@@ -1949,7 +1991,7 @@ export default function AdminPage() {
                       const res = await adminFetch("/api/admin/inventory", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ sku: v, quantity: parseInt(stockInQty, 10) || 1 }),
+                        body: JSON.stringify({ barcode: v, quantity: parseInt(stockInQty, 10) || 1 }),
                       });
                       const d = await res.json();
                       if (res.ok && d.ok) {
@@ -1957,7 +1999,7 @@ export default function AdminPage() {
                         setStockInSku(""); setStockInQty("1");
                         adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? []));
                         setTimeout(() => setInventoryActionMessage(null), 3000);
-                      } else setActionError(d?.error ?? "Failed");
+                      } else setInventoryCreateError(d?.error ?? "Failed");
                     }}
                     className="px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500"
                   >
@@ -1968,7 +2010,7 @@ export default function AdminPage() {
               <div>
                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.stockOut}</h4>
                 <div className="flex gap-2">
-                  <input placeholder={m.sku} value={stockOutSku} onChange={(e) => setStockOutSku(e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                  <input placeholder={m.skuOrBarcode} value={stockOutSku} onChange={(e) => setStockOutSku(e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
                   <input type="number" min={1} value={stockOutQty} onChange={(e) => setStockOutQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
                   <button
                     type="button"
@@ -1978,7 +2020,7 @@ export default function AdminPage() {
                       const res = await adminFetch("/api/admin/inventory", {
                         method: "PATCH",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ sku: v, quantity: parseInt(stockOutQty, 10) || 1 }),
+                        body: JSON.stringify({ barcode: v, quantity: parseInt(stockOutQty, 10) || 1 }),
                       });
                       const d = await res.json();
                       if (res.ok && d.ok) {
@@ -1986,7 +2028,7 @@ export default function AdminPage() {
                         setStockOutSku(""); setStockOutQty("1");
                         adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? []));
                         setTimeout(() => setInventoryActionMessage(null), 3000);
-                      } else setActionError(d?.error ?? "Failed");
+                      } else setInventoryCreateError(d?.error ?? "Failed");
                     }}
                     className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-500"
                   >

@@ -6,8 +6,8 @@ const CATEGORIES = ["shoes", "chalk", "merch", "rental"] as const;
 
 /**
  * GET /api/admin/products
- * GET /api/admin/products?sku=xxx
- * GET /api/admin/products?barcode=xxx
+ * GET /api/admin/products?sku=xxx  -> returns product + matching variant(s)
+ * GET /api/admin/products?barcode=xxx -> returns product + matching variant (for lookup)
  */
 export async function GET(req: NextRequest) {
   const admin = await getAdminFromRequest(req);
@@ -16,36 +16,49 @@ export async function GET(req: NextRequest) {
   const sku = req.nextUrl.searchParams.get("sku")?.trim();
   const barcode = req.nextUrl.searchParams.get("barcode")?.trim();
 
-  if (sku) {
-    const { data, error } = await supabase
-      .from("products")
-      .select("id, name, sku, category, price, cost, barcode, image")
-      .eq("sku", sku)
-      .maybeSingle();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ product: data });
-  }
   if (barcode) {
-    const { data, error } = await supabase
-      .from("products")
-      .select("id, name, sku, category, price, cost, barcode, image")
+    const { data: variant } = await supabase
+      .from("product_variants")
+      .select("id, product_id, sku, size, barcode, price, cost")
       .eq("barcode", barcode)
       .maybeSingle();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ product: data });
+    if (!variant) return NextResponse.json({ product: null, variant: null });
+    const { data: product } = await supabase.from("products").select("id, name, brand, category, image").eq("id", variant.product_id).single();
+    return NextResponse.json({ product, variant });
   }
 
-  const { data, error } = await supabase
+  if (sku) {
+    const { data: variant } = await supabase
+      .from("product_variants")
+      .select("id, product_id, sku, size, barcode, price, cost")
+      .eq("sku", sku)
+      .maybeSingle();
+    if (!variant) return NextResponse.json({ product: null, variant: null });
+    const { data: product } = await supabase.from("products").select("id, name, brand, category, image").eq("id", variant.product_id).single();
+    return NextResponse.json({ product, variant });
+  }
+
+  const { data: products, error } = await supabase
     .from("products")
-    .select("id, name, sku, category, price, cost, barcode, image")
+    .select("id, name, brand, category, image")
     .order("name");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ products: data ?? [] });
+
+  const { data: allVariants } = await supabase.from("product_variants").select("id, product_id, sku, size, barcode, price, cost");
+  const byProduct = (allVariants ?? []).reduce((acc: Record<string, { id: string; product_id: string; sku: string; size: string | null; barcode: string | null; price: number; cost: number }[]>, v: { id: string; product_id: string; sku: string; size: string | null; barcode: string | null; price: number; cost: number }) => {
+    const arr = acc[v.product_id] ?? [];
+    arr.push(v);
+    acc[v.product_id] = arr;
+    return acc;
+  }, {} as Record<string, { id: string; product_id: string; sku: string; size: string | null; barcode: string | null; price: number; cost: number }[]>);
+
+  const withVariants = (products ?? []).map((p) => ({ ...p, variants: byProduct[p.id] ?? [] }));
+  return NextResponse.json({ products: withVariants });
 }
 
 /**
- * POST /api/admin/products - Create SKU
- * Body: { name, sku, category, price, cost?, barcode?, image? }
+ * POST /api/admin/products - Create product only (no variants)
+ * Body: { name, brand?, category, image? }
  */
 export async function POST(req: NextRequest) {
   const admin = await getAdminFromRequest(req);
@@ -54,26 +67,18 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const name = typeof body.name === "string" ? body.name.trim() : "";
-    const sku = typeof body.sku === "string" ? body.sku.trim() : "";
+    const brand = typeof body.brand === "string" ? body.brand.trim() || null : null;
     const category = CATEGORIES.includes(body.category) ? body.category : null;
-    const price = typeof body.price === "number" ? Math.max(0, Math.round(body.price)) : typeof body.price === "string" ? Math.max(0, parseInt(body.price, 10) || 0) : 0;
-    const cost = typeof body.cost === "number" ? Math.max(0, Math.round(body.cost)) : typeof body.cost === "string" ? Math.max(0, parseInt(body.cost, 10) || 0) : 0;
-    const barcode = typeof body.barcode === "string" ? body.barcode.trim() || null : null;
     const image = typeof body.image === "string" ? body.image.trim() || null : null;
 
-    if (!name || !sku || !category) {
-      return NextResponse.json({ error: "name, sku, and category required" }, { status: 400 });
-    }
+    if (!name || !category) return NextResponse.json({ error: "name and category required" }, { status: 400 });
 
     const { data, error } = await supabase
       .from("products")
-      .insert({ name, sku, category, price, cost, barcode, image })
-      .select("id, name, sku, category, price, cost, barcode, image")
+      .insert({ name, brand, category, image })
+      .select("id, name, brand, category, image")
       .single();
-    if (error) {
-      if (error.code === "23505") return NextResponse.json({ error: "SKU already exists" }, { status: 400 });
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ product: data });
   } catch (e) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
