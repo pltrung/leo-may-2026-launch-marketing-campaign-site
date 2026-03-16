@@ -51,8 +51,12 @@ export default function RouteSetterLoginForm({ locale, onLocaleChange }: RouteSe
         </div>
       )}
       <div className="w-full max-w-sm rounded-2xl bg-slate-800 border border-slate-700 shadow-xl p-6">
+        <div className="mb-4 flex items-center gap-2">
+          <img src="/logo-white.svg" alt="Leo Mây logo" className="h-8 w-auto" />
+          <span className="text-sm font-semibold text-slate-100 tracking-wide">Leo Mây Staff</span>
+        </div>
         <h1 className="text-xl font-bold text-white mb-1" style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}>
-          Leo Mây — {m.title}
+          {m.title}
         </h1>
         <p className="text-sm text-slate-400 mb-6">{m.signInSubtitle}</p>
         <form onSubmit={handleSubmit} className="space-y-4">

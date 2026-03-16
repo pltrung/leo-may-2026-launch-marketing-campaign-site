@@ -51,6 +51,12 @@ export default function AdminLoginForm({ locale, onLocaleChange }: AdminLoginFor
         </div>
       )}
       <div className="w-full max-w-sm rounded-2xl bg-white/90 border border-slate-200 shadow-xl p-6">
+        <div className="mb-4 flex items-center gap-2">
+          <div className="h-9 w-9 rounded-2xl bg-slate-900 flex items-center justify-center shadow-sm">
+            <img src="/logo-white.svg" alt="Leo Mây logo" className="h-6 w-6" />
+          </div>
+          <span className="text-sm font-semibold text-slate-800 tracking-wide">Leo Mây Admin</span>
+        </div>
         <h1 className="text-xl font-bold text-slate-900 mb-1" style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}>
           {m.loginTitle}
         </h1>

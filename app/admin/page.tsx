@@ -929,14 +929,19 @@ export default function AdminPage() {
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#BEE7FF] via-[#EAF6FF] to-white">
       <header className="border-b border-white/60 bg-white/60 backdrop-blur-md">
         <div className="max-w-[1100px] mx-auto px-4 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-          <div>
-            <h1
-              className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight"
-              style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
-            >
-              {t.title}
-            </h1>
-            <p className="text-xs md:text-sm text-slate-600">{t.subtitle}</p>
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-2xl bg-slate-900 flex items-center justify-center shadow-sm">
+              <img src="/logo-white.svg" alt="Leo Mây logo" className="h-6 w-6" />
+            </div>
+            <div>
+              <h1
+                className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight"
+                style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
+              >
+                {t.title}
+              </h1>
+              <p className="text-xs md:text-sm text-slate-600">{t.subtitle}</p>
+            </div>
           </div>
           <div className="flex items-center gap-3 md:gap-4 text-xs md:text-sm text-slate-700">
             <div className="flex gap-1 rounded-full border border-slate-200 bg-white/80 p-0.5">
