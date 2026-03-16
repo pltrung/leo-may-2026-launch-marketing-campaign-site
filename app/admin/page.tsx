@@ -75,6 +75,7 @@ export default function AdminPage() {
     if (typeof window !== "undefined") localStorage.setItem(ADMIN_LOCALE_KEY, l);
   }, []);
   const [searchMode, setSearchMode] = useState<"id" | "name" | "qr">("id");
+  const [scannerIntent, setScannerIntent] = useState<"quick_checkin" | "member_lookup" | null>(null);
   const [foundMember, setFoundMember] = useState<AdminMember | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -101,7 +102,7 @@ export default function AdminPage() {
   const [nameResults, setNameResults] = useState<NameSearchResult[]>([]);
   const [paymentReceived, setPaymentReceived] = useState(false);
   const lastPaymentCountRef = React.useRef<number | null>(null);
-  const [toolsModal, setToolsModal] = useState<"occupancy" | "checkins" | "revenue" | "staff" | null>(null);
+  const [toolsModal, setToolsModal] = useState<"occupancy" | "checkins" | "revenue" | "staff" | "inventory" | null>(null);
   const [staffModalTab, setStaffModalTab] = useState<"overview" | "monthly">("overview");
   const [staffResetLoading, setStaffResetLoading] = useState(false);
   const [monthlyAttendanceData, setMonthlyAttendanceData] = useState<{
@@ -121,6 +122,28 @@ export default function AdminPage() {
   const [revenuePeriod, setRevenuePeriod] = useState<"day" | "week" | "month">("day");
   const [waiverModalOpen, setWaiverModalOpen] = useState(false);
   const [scannerModalOpen, setScannerModalOpen] = useState(false);
+  const [posCart, setPosCart] = useState<{ sku: string; name: string; quantity: number; price: number }[]>([]);
+  const [posSkuInput, setPosSkuInput] = useState("");
+  const [posCheckoutLoading, setPosCheckoutLoading] = useState(false);
+  const [posPaymentModalOpen, setPosPaymentModalOpen] = useState(false);
+  const [posPaymentMethod, setPosPaymentMethod] = useState<"vietqr" | "cash">("vietqr");
+  const [posQrUrl, setPosQrUrl] = useState<string | null>(null);
+  const [posPendingTransactionId, setPosPendingTransactionId] = useState<string | null>(null);
+  const [posConfirmLoading, setPosConfirmLoading] = useState(false);
+  const [memberPurchases, setMemberPurchases] = useState<{ id: string; total: number; payment_method: string; created_at: string; items: { sku: string; name: string | null; quantity: number; price: number }[] }[]>([]);
+  const [products, setProducts] = useState<{ id: string; name: string; sku: string; category: string; price: number; cost: number; barcode: string | null; image: string | null }[]>([]);
+  const [inventoryList, setInventoryList] = useState<{ id: string; product_id: string; size: string | null; quantity: number; location: string | null; products: { id: string; name: string; sku: string; category: string } | null }[]>([]);
+  const [newProductName, setNewProductName] = useState("");
+  const [newProductSku, setNewProductSku] = useState("");
+  const [newProductCategory, setNewProductCategory] = useState<"shoes" | "chalk" | "merch" | "rental">("merch");
+  const [newProductPrice, setNewProductPrice] = useState("");
+  const [newProductCost, setNewProductCost] = useState("");
+  const [newProductBarcode, setNewProductBarcode] = useState("");
+  const [stockInSku, setStockInSku] = useState("");
+  const [stockInQty, setStockInQty] = useState("1");
+  const [stockOutSku, setStockOutSku] = useState("");
+  const [stockOutQty, setStockOutQty] = useState("1");
+  const [inventoryActionMessage, setInventoryActionMessage] = useState<string | null>(null);
   const [staffOpsData, setStaffOpsData] = useState<{
     attendance: { in: { staff_id: string; status: string; staff_profiles?: { email?: string } | { email?: string }[] }[]; out: { staff_id: string; status: string; staff_profiles?: { email?: string } | { email?: string }[] }[] };
     sessions: { id: string; start_time: string; coach_id: string | null; session_type: string; staff_profiles?: { email?: string } | { email?: string }[] }[];
@@ -138,6 +161,36 @@ export default function AdminPage() {
       .then((d) => setPlans(d.plans ?? []))
       .catch(() => {});
   }, [adminFetch]);
+
+  // Fetch member purchase history when member is loaded
+  useEffect(() => {
+    if (!foundMember?.id) {
+      setMemberPurchases([]);
+      return;
+    }
+    adminFetch(`/api/admin/members/purchases?member_id=${encodeURIComponent(foundMember.id)}`)
+      .then((r) => r.json())
+      .then((d) => setMemberPurchases(d.purchases ?? []))
+      .catch(() => setMemberPurchases([]));
+  }, [foundMember?.id, adminFetch]);
+
+  // Fetch products for front desk and inventory
+  useEffect(() => {
+    if (!foundMember && toolsModal !== "inventory") return;
+    adminFetch("/api/admin/products")
+      .then((r) => r.json())
+      .then((d) => setProducts(d.products ?? []))
+      .catch(() => setProducts([]));
+  }, [foundMember, toolsModal, adminFetch]);
+
+  // Fetch inventory when inventory modal opens
+  useEffect(() => {
+    if (toolsModal !== "inventory") return;
+    adminFetch("/api/admin/inventory")
+      .then((r) => r.json())
+      .then((d) => setInventoryList(d.inventory ?? []))
+      .catch(() => setInventoryList([]));
+  }, [toolsModal, adminFetch]);
 
   const loadMemberById = useCallback(async (id: string) => {
     setSearchError(null);
@@ -342,7 +395,16 @@ export default function AdminPage() {
 
   const handleScanQr = useCallback(() => {
     setSearchMode("qr");
+    setScannerIntent("member_lookup");
     setSearchError(null);
+    setScannerModalOpen(true);
+  }, []);
+
+  const handleQuickCheckInScan = useCallback(() => {
+    setScannerIntent("quick_checkin");
+    setSearchError(null);
+    setActionError(null);
+    setActionMessage(null);
     setScannerModalOpen(true);
   }, []);
 
@@ -369,20 +431,27 @@ export default function AdminPage() {
         }
         return;
       }
-      try {
-        const res = await fetch(`/api/checkin?member_id=${encodeURIComponent(result.id)}`);
-        if (res.ok) {
-          setActionMessage("Check-in recorded from QR scan.");
-        } else {
-          const data = await res.json().catch(() => ({}));
-          setActionError(data.error || "Check-in failed.");
+      if (scannerIntent === "quick_checkin") {
+        try {
+          const res = await fetch("/api/checkin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ member_id: result.id, location: "turnstile" }),
+          });
+          if (res.ok) {
+            setActionMessage(locale === "vi" ? "Đã check-in thành công." : "Check-in recorded.");
+          } else {
+            const data = await res.json().catch(() => ({}));
+            setActionError(data?.error || "Check-in failed.");
+          }
+        } catch {
+          setActionError("Unable to record check-in.");
         }
-      } catch {
-        setActionError("Unable to record check-in.");
+        return;
       }
       loadMemberById(result.id);
     },
-    [loadMemberById, adminFetch, locale]
+    [loadMemberById, adminFetch, locale, scannerIntent]
   );
 
   const canCheckIn = useMemo(
@@ -565,6 +634,100 @@ export default function AdminPage() {
       .catch(() => setPaymentQrUrl(null));
   }, [foundMember]);
 
+  const handlePosCheckoutCash = useCallback(async () => {
+    if (!foundMember || posCart.length === 0) return;
+    setPosCheckoutLoading(true);
+    setActionError(null);
+    try {
+      const res = await adminFetch("/api/admin/pos/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          member_id: foundMember.id,
+          items: posCart.map((i) => ({ sku: i.sku, name: i.name, quantity: i.quantity, price: i.price })),
+          payment_method: "cash",
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setPosCart([]);
+        setPosPaymentModalOpen(false);
+        setActionMessage(locale === "vi" ? "Đã ghi nhận thanh toán tiền mặt." : "Cash payment recorded.");
+        adminFetch(`/api/admin/members/purchases?member_id=${encodeURIComponent(foundMember.id)}`)
+          .then((r) => r.json())
+          .then((d) => setMemberPurchases(d.purchases ?? []))
+          .catch(() => {});
+      } else {
+        setActionError(data?.error || "Checkout failed.");
+      }
+    } catch {
+      setActionError("Checkout failed.");
+    } finally {
+      setPosCheckoutLoading(false);
+    }
+  }, [foundMember, posCart, adminFetch, locale]);
+
+  const handlePosCheckoutVietqr = useCallback(async () => {
+    if (!foundMember || posCart.length === 0) return;
+    setPosCheckoutLoading(true);
+    setActionError(null);
+    try {
+      const res = await adminFetch("/api/admin/pos/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          member_id: foundMember.id,
+          items: posCart.map((i) => ({ sku: i.sku, name: i.name, quantity: i.quantity, price: i.price })),
+          payment_method: "vietqr",
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok && data.url && data.transaction_id) {
+        setPosQrUrl(data.url);
+        setPosPendingTransactionId(data.transaction_id);
+      } else {
+        setActionError(data?.error || "Checkout failed.");
+      }
+    } catch {
+      setActionError("Checkout failed.");
+    } finally {
+      setPosCheckoutLoading(false);
+    }
+  }, [foundMember, posCart, adminFetch]);
+
+  const handlePosConfirmPayment = useCallback(async () => {
+    if (!posPendingTransactionId) return;
+    setPosConfirmLoading(true);
+    setActionError(null);
+    try {
+      const res = await adminFetch("/api/admin/pos/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transaction_id: posPendingTransactionId }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setPosCart([]);
+        setPosPaymentModalOpen(false);
+        setPosQrUrl(null);
+        setPosPendingTransactionId(null);
+        setActionMessage(locale === "vi" ? "Đã xác nhận thanh toán VietQR." : "VietQR payment confirmed.");
+        if (foundMember) {
+          adminFetch(`/api/admin/members/purchases?member_id=${encodeURIComponent(foundMember.id)}`)
+            .then((r) => r.json())
+            .then((d) => setMemberPurchases(d.purchases ?? []))
+            .catch(() => {});
+        }
+      } else {
+        setActionError(data?.error || "Confirm failed.");
+      }
+    } catch {
+      setActionError("Confirm failed.");
+    } finally {
+      setPosConfirmLoading(false);
+    }
+  }, [posPendingTransactionId, foundMember, adminFetch, locale]);
+
   const handlePaymentPlanChange = useCallback(
     (planId: string) => {
       if (!foundMember) return;
@@ -734,6 +897,19 @@ export default function AdminPage() {
 
       <main className="flex-1">
         <div className="max-w-[1100px] mx-auto px-4 py-6 md:py-8 space-y-8 md:space-y-10">
+          {/* QUICK CHECK-IN */}
+          <section className="rounded-2xl bg-slate-900/95 border border-slate-700 shadow-lg p-4 md:p-6">
+            <h3 className="text-sm font-semibold text-white mb-1">{m.quickCheckInScan}</h3>
+            <p className="text-xs text-slate-400 mb-3">{m.quickCheckInScanHint}</p>
+            <button
+              type="button"
+              onClick={handleQuickCheckInScan}
+              className="px-4 py-2.5 rounded-xl text-sm font-medium bg-emerald-500 text-slate-900 hover:bg-emerald-400"
+            >
+              {m.scanQr} — {m.quickCheckInScan}
+            </button>
+          </section>
+
           {/* MEMBER LOOKUP */}
           <section className="rounded-2xl bg-white/80 border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.07)] p-4 md:p-6">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-6">
@@ -1048,6 +1224,28 @@ export default function AdminPage() {
                     </ul>
                   )}
                 </div>
+
+                <div className="rounded-2xl bg-white/90 border border-slate-200 shadow-[0_8px_28px_rgba(15,23,42,0.07)] p-4 md:p-5">
+                  <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
+                    {m.purchaseHistory}
+                  </h3>
+                  {memberPurchases.length === 0 ? (
+                    <p className="text-xs text-slate-500">{m.noPurchases}</p>
+                  ) : (
+                    <ul className="space-y-2 text-xs md:text-sm text-slate-800">
+                      {memberPurchases.map((tx) => (
+                        <li key={tx.id} className="flex flex-col gap-0.5">
+                          <span className="font-medium">{new Date(tx.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} — {tx.total.toLocaleString("vi-VN")} VND</span>
+                          <ul className="list-disc list-inside text-slate-600">
+                            {tx.items.map((it, j) => (
+                              <li key={j}>{it.name ?? it.sku} × {it.quantity}</li>
+                            ))}
+                          </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
 
               {/* Check-in + membership controls */}
@@ -1135,6 +1333,123 @@ export default function AdminPage() {
                     </button>
                   </div>
                 </div>
+
+                {/* Front Desk Sales */}
+                <div className="rounded-2xl bg-white/95 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">
+                  <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
+                    {m.frontDeskSales}
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const p = products.find((x) => x.sku === "RENTAL_SHOES" || x.category === "rental");
+                          if (p) setPosCart((c) => [...c, { sku: p.sku, name: p.name, quantity: 1, price: p.price }]);
+                        }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200"
+                      >
+                        + {m.shoeRental}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const p = products.find((x) => x.sku === "CHALK_BAG" || x.category === "chalk");
+                          if (p) setPosCart((c) => [...c, { sku: p.sku, name: p.name, quantity: 1, price: p.price }]);
+                        }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200"
+                      >
+                        + {m.buyChalk}
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder={m.skuOrBarcode}
+                        value={posSkuInput}
+                        onChange={(e) => setPosSkuInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            const v = posSkuInput.trim();
+                            if (!v) return;
+                            adminFetch(`/api/admin/products?sku=${encodeURIComponent(v)}`).then((r) => r.json()).then((d) => {
+                              if (d.product) setPosCart((c) => [...c, { sku: d.product.sku, name: d.product.name, quantity: 1, price: d.product.price }]);
+                              else adminFetch(`/api/admin/products?barcode=${encodeURIComponent(v)}`).then((r2) => r2.json()).then((d2) => {
+                                if (d2.product) setPosCart((c) => [...c, { sku: d2.product.sku, name: d2.product.name, quantity: 1, price: d2.product.price }]);
+                              });
+                            });
+                            setPosSkuInput("");
+                          }
+                        }}
+                        className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-slate-200 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const v = posSkuInput.trim();
+                          if (!v) return;
+                          adminFetch(`/api/admin/products?sku=${encodeURIComponent(v)}`)
+                            .then((r) => r.json())
+                            .then((d) => {
+                              if (d.product) {
+                                setPosCart((c) => [...c, { sku: d.product.sku, name: d.product.name, quantity: 1, price: d.product.price }]);
+                                setPosSkuInput("");
+                              } else {
+                                return adminFetch(`/api/admin/products?barcode=${encodeURIComponent(v)}`).then((r2) => r2.json());
+                              }
+                            })
+                            .then((d2) => {
+                              if (d2?.product) {
+                                setPosCart((c) => [...c, { sku: d2.product.sku, name: d2.product.name, quantity: 1, price: d2.product.price }]);
+                                setPosSkuInput("");
+                              }
+                            })
+                            .catch(() => {});
+                        }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-white hover:bg-slate-700"
+                      >
+                        {m.addToCart}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mt-3 border-t border-slate-200 pt-3">
+                    <p className="text-xs font-medium text-slate-600 mb-2">{m.cart}</p>
+                    {posCart.length === 0 ? (
+                      <p className="text-xs text-slate-500">Empty</p>
+                    ) : (
+                      <ul className="space-y-1.5 mb-3 max-h-32 overflow-y-auto">
+                        {posCart.map((item, i) => (
+                          <li key={`${item.sku}-${i}`} className="flex items-center justify-between gap-2 text-xs">
+                            <span className="truncate">{item.name} × {item.quantity}</span>
+                            <span className="font-medium">{(item.quantity * item.price).toLocaleString("vi-VN")} VND</span>
+                            <button type="button" onClick={() => setPosCart((c) => c.filter((_, j) => j !== i))} className="text-red-600 hover:underline">{m.remove}</button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {posCart.length > 0 && (
+                      <>
+                        <p className="text-sm font-semibold text-slate-900">
+                          {m.total}: {posCart.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString("vi-VN")} VND
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPosPaymentModalOpen(true);
+                            setPosPaymentMethod("vietqr");
+                            setPosQrUrl(null);
+                            setPosPendingTransactionId(null);
+                          }}
+                          disabled={posCheckoutLoading}
+                          className="mt-2 w-full px-3 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60"
+                        >
+                          {m.checkout}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
             </section>
           )}
@@ -1202,6 +1517,13 @@ export default function AdminPage() {
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
                 >
                   {m.staffOperations}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setToolsModal("inventory")}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
+                >
+                  {m.inventoryModule}
                 </button>
               </div>
             </div>
@@ -1503,6 +1825,134 @@ export default function AdminPage() {
         </div>
       )}
 
+      {toolsModal === "inventory" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="text-lg font-semibold text-slate-900">{m.inventoryModule}</h3>
+              <button type="button" onClick={() => setToolsModal(null)} className="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
+            </div>
+            <div className="overflow-y-auto p-4 space-y-6">
+              {inventoryActionMessage && <p className="text-sm text-emerald-600">{inventoryActionMessage}</p>}
+              <div>
+                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.viewInventory}</h4>
+                {inventoryList.length === 0 && <p className="text-sm text-slate-500">{m.loading}</p>}
+                <ul className="space-y-1 text-sm border rounded-lg divide-y divide-slate-200">
+                  {inventoryList.map((inv) => (
+                    <li key={inv.id} className="flex justify-between items-center px-3 py-2">
+                      <span>{(inv.products as { name?: string; sku?: string })?.name ?? inv.product_id} ({(inv.products as { sku?: string })?.sku ?? ""}) {inv.size ? ` size ${inv.size}` : ""}</span>
+                      <span className="font-medium">{inv.quantity}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.createSku}</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <input placeholder={m.productName} value={newProductName} onChange={(e) => setNewProductName(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
+                  <input placeholder={m.sku} value={newProductSku} onChange={(e) => setNewProductSku(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
+                  <select value={newProductCategory} onChange={(e) => setNewProductCategory(e.target.value as "shoes" | "chalk" | "merch" | "rental")} className="px-2 py-1.5 rounded-lg border border-slate-200">
+                    <option value="shoes">Shoes</option>
+                    <option value="chalk">Chalk</option>
+                    <option value="merch">Merch</option>
+                    <option value="rental">Rental</option>
+                  </select>
+                  <input placeholder={m.price} value={newProductPrice} onChange={(e) => setNewProductPrice(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" type="number" />
+                  <input placeholder={m.cost} value={newProductCost} onChange={(e) => setNewProductCost(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" type="number" />
+                  <input placeholder={m.barcode} value={newProductBarcode} onChange={(e) => setNewProductBarcode(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!newProductName.trim() || !newProductSku.trim()) return;
+                    const res = await adminFetch("/api/admin/products", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        name: newProductName.trim(),
+                        sku: newProductSku.trim(),
+                        category: newProductCategory,
+                        price: parseInt(newProductPrice, 10) || 0,
+                        cost: parseInt(newProductCost, 10) || 0,
+                        barcode: newProductBarcode.trim() || null,
+                      }),
+                    });
+                    const d = await res.json();
+                    if (res.ok && d.product) {
+                      setInventoryActionMessage(locale === "vi" ? "Đã tạo SKU." : "SKU created.");
+                      setNewProductName(""); setNewProductSku(""); setNewProductPrice(""); setNewProductCost(""); setNewProductBarcode("");
+                      adminFetch("/api/admin/products").then((r) => r.json()).then((x) => setProducts(x.products ?? []));
+                      setTimeout(() => setInventoryActionMessage(null), 3000);
+                    } else setActionError(d?.error ?? "Failed");
+                  }}
+                  className="mt-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-800 text-white hover:bg-slate-700"
+                >
+                  {m.createSku}
+                </button>
+              </div>
+              <div>
+                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.stockIn}</h4>
+                <div className="flex gap-2">
+                  <input placeholder={m.skuOrBarcode} value={stockInSku} onChange={(e) => setStockInSku(e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                  <input type="number" min={1} value={stockInQty} onChange={(e) => setStockInQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const v = stockInSku.trim();
+                      if (!v) return;
+                      const res = await adminFetch("/api/admin/inventory", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ sku: v, quantity: parseInt(stockInQty, 10) || 1 }),
+                      });
+                      const d = await res.json();
+                      if (res.ok && d.ok) {
+                        setInventoryActionMessage(locale === "vi" ? "Đã nhập kho." : "Stock in recorded.");
+                        setStockInSku(""); setStockInQty("1");
+                        adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? []));
+                        setTimeout(() => setInventoryActionMessage(null), 3000);
+                      } else setActionError(d?.error ?? "Failed");
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500"
+                  >
+                    {m.stockIn}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.stockOut}</h4>
+                <div className="flex gap-2">
+                  <input placeholder={m.sku} value={stockOutSku} onChange={(e) => setStockOutSku(e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                  <input type="number" min={1} value={stockOutQty} onChange={(e) => setStockOutQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const v = stockOutSku.trim();
+                      if (!v) return;
+                      const res = await adminFetch("/api/admin/inventory", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ sku: v, quantity: parseInt(stockOutQty, 10) || 1 }),
+                      });
+                      const d = await res.json();
+                      if (res.ok && d.ok) {
+                        setInventoryActionMessage(locale === "vi" ? "Đã xuất kho." : "Stock out recorded.");
+                        setStockOutSku(""); setStockOutQty("1");
+                        adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? []));
+                        setTimeout(() => setInventoryActionMessage(null), 3000);
+                      } else setActionError(d?.error ?? "Failed");
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-500"
+                  >
+                    {m.stockOut}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Waiver View Modal */}
       {waiverModalOpen && foundMember?.waiver && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -1554,6 +2004,64 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* POS Payment Modal */}
+      {posPaymentModalOpen && foundMember && posCart.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900">{m.checkout}</h3>
+            <p className="text-sm text-slate-600">
+              {m.total}: {posCart.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString("vi-VN")} VND
+            </p>
+            {!posQrUrl ? (
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={handlePosCheckoutCash}
+                  disabled={posCheckoutLoading}
+                  className="w-full px-4 py-2 rounded-lg text-sm font-medium bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-60"
+                >
+                  {posCheckoutLoading ? "..." : m.payCash}
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePosCheckoutVietqr}
+                  disabled={posCheckoutLoading}
+                  className="w-full px-4 py-2 rounded-lg text-sm font-medium border border-slate-300 text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+                >
+                  {posCheckoutLoading ? "..." : m.payWithVietqr}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-slate-500">{m.payWithVietqr}</p>
+                <div className="flex justify-center">
+                  <img src={getVietQrProxyUrl(posQrUrl) ?? posQrUrl} alt="VietQR" className="w-48 h-48 object-contain border border-slate-200 rounded-lg" />
+                </div>
+                <button
+                  type="button"
+                  onClick={handlePosConfirmPayment}
+                  disabled={posConfirmLoading}
+                  className="w-full px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60"
+                >
+                  {posConfirmLoading ? "..." : m.confirmPosPayment}
+                </button>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setPosPaymentModalOpen(false);
+                setPosQrUrl(null);
+                setPosPendingTransactionId(null);
+              }}
+              className="w-full px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-700 hover:bg-slate-50"
+            >
+              {m.cancel}
+            </button>
           </div>
         </div>
       )}

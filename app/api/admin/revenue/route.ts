@@ -51,14 +51,36 @@ export async function GET(req: NextRequest) {
 
     if (error) throw error;
 
-    const payments = (rows ?? []).map((r) => ({
+    const { data: posRows } = await supabase
+      .from("pos_transactions")
+      .select("id, total, payment_method, created_at")
+      .gte("created_at", since.toISOString())
+      .eq("payment_status", "success")
+      .order("created_at", { ascending: false });
+
+    const payments = (rows ?? []).map((r: { id: string; plan_id: string; amount: number; method: string; created_at: string }) => ({
       id: r.id,
       plan_id: r.plan_id,
-      plan_name: PLAN_LABELS[r.plan_id as string] ?? r.plan_id,
+      plan_name: PLAN_LABELS[r.plan_id] ?? r.plan_id,
       amount: r.amount,
       method: r.method,
       created_at: r.created_at,
+      revenue_type: "membership_pass",
     }));
+
+    const retailPayments = (posRows ?? []).map((r: { id: string; total: number; payment_method: string; created_at: string }) => ({
+      id: r.id,
+      plan_id: "retail",
+      plan_name: "Retail",
+      amount: r.total,
+      method: r.payment_method,
+      created_at: r.created_at,
+      revenue_type: "retail",
+    }));
+
+    const allPayments = [...payments, ...retailPayments].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
 
     let total = 0;
     const byPlan: Record<string, number> = {};
@@ -67,10 +89,14 @@ export async function GET(req: NextRequest) {
       const key = pay.plan_id as string;
       byPlan[key] = (byPlan[key] ?? 0) + pay.amount;
     }
+    for (const pay of retailPayments) {
+      total += pay.amount;
+      byPlan["retail"] = (byPlan["retail"] ?? 0) + pay.amount;
+    }
 
     const byPlanLabel: Record<string, number> = {};
     for (const [planId, amt] of Object.entries(byPlan)) {
-      byPlanLabel[PLAN_LABELS[planId] ?? planId] = amt;
+      byPlanLabel[planId === "retail" ? "Retail" : (PLAN_LABELS[planId] ?? planId)] = amt;
     }
 
     return NextResponse.json(
@@ -78,7 +104,7 @@ export async function GET(req: NextRequest) {
         period: p,
         total,
         byPlan: byPlanLabel,
-        payments,
+        payments: allPayments,
         since: since.toISOString(),
       },
       { headers: { "Cache-Control": "no-store, max-age=0" } }
