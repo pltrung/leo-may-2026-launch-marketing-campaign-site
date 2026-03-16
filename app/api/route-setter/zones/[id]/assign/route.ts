@@ -30,9 +30,7 @@ export async function POST(
 
   const { error: insertErr } = await supabase
     .from("route_zone_setters")
-    .insert({ zone_id: id, staff_id: staff.id, date: today })
-    .onConflict("zone_id,staff_id,date")
-    .ignore();
+    .upsert({ zone_id: id, staff_id: staff.id, date: today }, { onConflict: "zone_id,staff_id,date" });
 
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
 
