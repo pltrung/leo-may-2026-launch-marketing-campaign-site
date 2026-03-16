@@ -1,11 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getRouteSetterFromRequest } from "@/lib/routeSetterAuth";
+import { getGymToday } from "@/lib/gymTimezone";
+
+type ShiftBlock = "pre_open" | "during_hours" | "closing";
+type TaskStatus = "upcoming" | "pending" | "completed" | "overdue";
+
+function getGymNowHHMM(): string {
+  const now = new Date();
+  const parts = now.toLocaleTimeString("en-GB", {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Los_Angeles",
+  });
+  return parts.slice(0, 5); // HH:MM
+}
+
+function compareHHMM(a: string, b: string): number {
+  // returns a - b in minutes
+  const [ah, am] = a.split(":").map((n) => parseInt(n, 10) || 0);
+  const [bh, bm] = b.split(":").map((n) => parseInt(n, 10) || 0);
+  return (ah * 60 + am) - (bh * 60 + bm);
+}
 
 /**
  * GET /api/route-setter/tasks
- * Returns staff tasks (all or filtered by due_date). For route setters we show
- * tasks that are unassigned or assigned to the current staff.
+ * Returns today's shift tasks for staff, with computed status:
+ * - upcoming (before start_time)
+ * - pending (between start_time and due_time, not completed)
+ * - overdue (after due_time, not completed)
+ * - completed (completed_at set)
  */
 export async function GET(request: NextRequest) {
   const user = await getRouteSetterFromRequest(request);
@@ -14,22 +39,63 @@ export async function GET(request: NextRequest) {
   const supabase = createServerClient();
   const { data: staff } = await supabase
     .from("staff_profiles")
-    .select("id")
+    .select("id, display_name")
     .eq("auth_id", user.id)
     .single();
   if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
 
+  // Daily reset: if due_date is not today, reset status/completion. This simulates
+  // midnight reset in-app using gym timezone.
+  const today = getGymToday();
+  await supabase
+    .from("staff_tasks")
+    .update({ status: "pending", completed_at: null, completed_by: null, due_date: today, updated_at: new Date().toISOString() })
+    .or(`due_date.is.null,due_date.neq.${today}`);
+
   const { data: tasks, error } = await supabase
     .from("staff_tasks")
-    .select("id, title, description, assigned_to, due_date, status, completed_at")
-    .or(`assigned_to.is.null,assigned_to.eq.${staff.id}`)
-    .order("due_date", { ascending: true, nullsFirst: false })
+    .select("id, title, description, block, start_time, due_time, status, completed_at, completed_by")
+    .order("start_time", { ascending: true })
     .order("created_at", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const pending = (tasks ?? []).filter((t) => t.status === "pending");
-  const completed = (tasks ?? []).filter((t) => t.status === "completed");
+  const nowHHMM = getGymNowHHMM();
 
-  return NextResponse.json({ tasks: tasks ?? [], pending, completed });
+  const withStatus = (tasks ?? []).map((t) => {
+    let computed: TaskStatus;
+    if (t.completed_at) {
+      computed = "completed";
+    } else if (!t.start_time || !t.due_time) {
+      computed = "pending";
+    } else {
+      const start = String(t.start_time).slice(0, 5);
+      const due = String(t.due_time).slice(0, 5);
+      if (compareHHMM(nowHHMM, start) < 0) {
+        computed = "upcoming";
+      } else if (compareHHMM(nowHHMM, due) <= 0) {
+        computed = "pending";
+      } else {
+        computed = "overdue";
+      }
+    }
+    return {
+      id: t.id as string,
+      title: t.title as string,
+      description: (t.description as string | null) ?? null,
+      block: (t.block as ShiftBlock) ?? "during_hours",
+      start_time: t.start_time as string | null,
+      due_time: t.due_time as string | null,
+      status: computed,
+      completed_at: t.completed_at as string | null,
+      completed_by_name: t.completed_by ? staff.display_name ?? "Staff" : null,
+    };
+  });
+
+  const preOpen = withStatus.filter((t) => t.block === "pre_open");
+  const during = withStatus.filter((t) => t.block === "during_hours");
+  const closing = withStatus.filter((t) => t.block === "closing");
+
+  return NextResponse.json({ tasks: withStatus, preOpen, during, closing });
 }
+

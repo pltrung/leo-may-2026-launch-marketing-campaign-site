@@ -37,8 +37,8 @@ export async function GET(request: NextRequest) {
       .order("next_reset_at", { ascending: true, nullsFirst: false }),
     supabase
       .from("staff_tasks")
-      .select("id, title, status, due_date, completed_at, staff_profiles(email)")
-      .order("due_date", { ascending: true, nullsFirst: true }),
+      .select("id, title, description, block, start_time, due_time, status, completed_at, completed_by, completer:staff_profiles!completed_by(display_name, email)")
+      .order("start_time", { ascending: true, nullsFirst: true }),
   ]);
 
   const attendance = attendanceRes.data ?? [];
@@ -74,11 +74,19 @@ export async function GET(request: NextRequest) {
 
   const totalNewbieAttendance = Object.values(newbieCountBySession).reduce((a, b) => a + b, 0);
 
+  // Group tasks by shift block (same structure as staff /api/route-setter/tasks)
+  const preOpen = tasks.filter((t) => (t as { block?: string }).block === "pre_open");
+  const during = tasks.filter((t) => (t as { block?: string }).block === "during_hours");
+  const closing = tasks.filter((t) => (t as { block?: string }).block === "closing");
+
   return NextResponse.json({
     attendance: { in: staffIn, out: staffOut, all: attendance },
     sessions: sessionsWithNewbieCount,
     zones: zonesWithStatus,
     tasks,
+    preOpen,
+    during,
+    closing,
     summary: {
       staff_in_today: staffIn.length,
       staff_out_today: staffOut.length,

@@ -50,13 +50,18 @@ interface RouteZone {
   status: "overdue" | "due" | "recent" | "upcoming";
 }
 
+type TaskStatus = "upcoming" | "pending" | "completed" | "overdue";
+
 interface StaffTask {
   id: string;
   title: string;
   description: string | null;
-  due_date: string | null;
-  status: string;
+  block: "pre_open" | "during_hours" | "closing";
+  start_time: string | null;
+  due_time: string | null;
+  status: TaskStatus;
   completed_at: string | null;
+  completed_by_name?: string | null;
 }
 
 export default function StaffPage() {
@@ -79,6 +84,9 @@ export default function StaffPage() {
   const [zones, setZones] = useState<RouteZone[]>([]);
   const [overdueZones, setOverdueZones] = useState<RouteZone[]>([]);
   const [tasks, setTasks] = useState<StaffTask[]>([]);
+  const [preOpenTasks, setPreOpenTasks] = useState<StaffTask[]>([]);
+  const [duringTasks, setDuringTasks] = useState<StaffTask[]>([]);
+  const [closingTasks, setClosingTasks] = useState<StaffTask[]>([]);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [resettingZoneId, setResettingZoneId] = useState<string | null>(null);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
@@ -116,7 +124,12 @@ export default function StaffPage() {
   const loadTasks = useCallback(async () => {
     const res = await staffFetch("/api/route-setter/tasks");
     const data = await res.json();
-    if (res.ok) setTasks(data.tasks ?? []);
+    if (res.ok) {
+      setTasks(data.tasks ?? []);
+      setPreOpenTasks(data.preOpen ?? []);
+      setDuringTasks(data.during ?? []);
+      setClosingTasks(data.closing ?? []);
+    }
   }, [staffFetch]);
 
   useEffect(() => {
@@ -459,38 +472,221 @@ export default function StaffPage() {
               </p>
             </section>
 
-        {tasks.length > 0 && (
+        {(preOpenTasks.length + duringTasks.length + closingTasks.length) > 0 && (
           <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
             <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
-              {m.dailyOperationsTasks}
+              {locale === "vi" ? "Công việc ca hôm nay" : "Today''s Shift Tasks"}
             </h2>
-            <ul className="space-y-2">
-              {tasks.map((t) => (
-                <li key={t.id} className="flex items-center justify-between gap-2 py-2 border-b border-slate-700 last:border-0">
-                  <div className="flex-1 min-w-0">
-                    <span className={t.status === "completed" ? "line-through text-slate-500" : "text-slate-200"}>
-                      {t.title}
-                    </span>
-                    {t.description && (
-                      <p className="text-xs text-slate-500 mt-0.5">{t.description}</p>
-                    )}
-                  </div>
-                  {t.status === "pending" && (
-                    <button
-                      type="button"
-                      disabled={completingTaskId === t.id}
-                      onClick={() => handleCompleteTask(t.id)}
-                      className="shrink-0 px-3 py-1.5 rounded bg-emerald-600 text-white text-sm hover:bg-emerald-500 disabled:opacity-50"
+
+            {/* Pre-open */}
+            {preOpenTasks.length > 0 && (
+              <div className="mb-4">
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  {locale === "vi" ? "Trước giờ mở cửa (9:00–10:00)" : "Pre-open Tasks (9:00–10:00)"}
+                </h3>
+                <ul className="space-y-2">
+                  {preOpenTasks.map((t) => (
+                    <li
+                      key={t.id}
+                      className={`flex flex-col gap-1 py-2 border-b border-slate-700 last:border-0 ${
+                        t.status === "overdue" ? "bg-red-900/20" : ""
+                      } ${t.status === "upcoming" ? "opacity-60" : ""}`}
                     >
-                      {completingTaskId === t.id ? "…" : m.complete}
-                    </button>
-                  )}
-                  {t.status === "completed" && (
-                    <span className="text-emerald-400 text-sm">{m.done}</span>
-                  )}
-                </li>
-              ))}
-            </ul>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <span
+                            className={
+                              t.status === "completed"
+                                ? "text-emerald-400 line-through"
+                                : "text-slate-200"
+                            }
+                          >
+                            {t.title}
+                          </span>
+                          {t.description && (
+                            <p className="text-xs text-slate-500 mt-0.5">{t.description}</p>
+                          )}
+                        </div>
+                        <div className="shrink-0 flex items-center gap-2">
+                          {t.status === "completed" && (
+                            <span className="text-emerald-400 text-xs font-semibold">✓ {m.done}</span>
+                          )}
+                          {t.status === "overdue" && (
+                            <span className="text-red-400 text-xs font-semibold">
+                              {m.overdue}
+                            </span>
+                          )}
+                          {t.status === "pending" && (
+                            <button
+                              type="button"
+                              disabled={completingTaskId === t.id}
+                              onClick={() => handleCompleteTask(t.id)}
+                              className="px-3 py-1.5 rounded bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-500 disabled:opacity-50"
+                            >
+                              {completingTaskId === t.id ? "…" : m.complete}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {t.completed_at && (
+                        <p className="text-[11px] text-slate-500">
+                          {locale === "vi" ? "Hoàn thành bởi" : "Completed by"}{" "}
+                          <span className="font-medium text-slate-300">
+                            {t.completed_by_name ?? (locale === "vi" ? "Nhân viên" : "Staff")}
+                          </span>{" "}
+                          <span>
+                            {new Date(t.completed_at).toLocaleTimeString("en-US", {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* During hours */}
+            {duringTasks.length > 0 && (
+              <div className="mb-4">
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  {locale === "vi" ? "Trong giờ mở cửa (10:00–22:00)" : "During Gym Hours (10:00–22:00)"}
+                </h3>
+                <ul className="space-y-2">
+                  {duringTasks.map((t) => (
+                    <li
+                      key={t.id}
+                      className={`flex flex-col gap-1 py-2 border-b border-slate-700 last:border-0 ${
+                        t.status === "overdue" ? "bg-red-900/20" : ""
+                      } ${t.status === "upcoming" ? "opacity-60" : ""}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <span
+                            className={
+                              t.status === "completed"
+                                ? "text-emerald-400 line-through"
+                                : "text-slate-200"
+                            }
+                          >
+                            {t.title}
+                          </span>
+                          {t.description && (
+                            <p className="text-xs text-slate-500 mt-0.5">{t.description}</p>
+                          )}
+                        </div>
+                        <div className="shrink-0 flex items-center gap-2">
+                          {t.status === "completed" && (
+                            <span className="text-emerald-400 text-xs font-semibold">✓ {m.done}</span>
+                          )}
+                          {t.status === "overdue" && (
+                            <span className="text-red-400 text-xs font-semibold">
+                              {m.overdue}
+                            </span>
+                          )}
+                          {t.status === "pending" && (
+                            <button
+                              type="button"
+                              disabled={completingTaskId === t.id}
+                              onClick={() => handleCompleteTask(t.id)}
+                              className="px-3 py-1.5 rounded bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-500 disabled:opacity-50"
+                            >
+                              {completingTaskId === t.id ? "…" : m.complete}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {t.completed_at && (
+                        <p className="text-[11px] text-slate-500">
+                          {locale === "vi" ? "Hoàn thành bởi" : "Completed by"}{" "}
+                          <span className="font-medium text-slate-300">
+                            {t.completed_by_name ?? (locale === "vi" ? "Nhân viên" : "Staff")}
+                          </span>{" "}
+                          <span>
+                            {new Date(t.completed_at).toLocaleTimeString("en-US", {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Closing tasks */}
+            {closingTasks.length > 0 && (
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  {locale === "vi" ? "Đóng cửa (22:00–23:00)" : "Closing Tasks (22:00–23:00)"}
+                </h3>
+                <ul className="space-y-2">
+                  {closingTasks.map((t) => (
+                    <li
+                      key={t.id}
+                      className={`flex flex-col gap-1 py-2 border-b border-slate-700 last:border-0 ${
+                        t.status === "overdue" ? "bg-red-900/20" : ""
+                      } ${t.status === "upcoming" ? "opacity-60" : ""}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <span
+                            className={
+                              t.status === "completed"
+                                ? "text-emerald-400 line-through"
+                                : "text-slate-200"
+                            }
+                          >
+                            {t.title}
+                          </span>
+                          {t.description && (
+                            <p className="text-xs text-slate-500 mt-0.5">{t.description}</p>
+                          )}
+                        </div>
+                        <div className="shrink-0 flex items-center gap-2">
+                          {t.status === "completed" && (
+                            <span className="text-emerald-400 text-xs font-semibold">✓ {m.done}</span>
+                          )}
+                          {t.status === "overdue" && (
+                            <span className="text-red-400 text-xs font-semibold">
+                              {m.overdue}
+                            </span>
+                          )}
+                          {t.status === "pending" && (
+                            <button
+                              type="button"
+                              disabled={completingTaskId === t.id}
+                              onClick={() => handleCompleteTask(t.id)}
+                              className="px-3 py-1.5 rounded bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-500 disabled:opacity-50"
+                            >
+                              {completingTaskId === t.id ? "…" : m.complete}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {t.completed_at && (
+                        <p className="text-[11px] text-slate-500">
+                          {locale === "vi" ? "Hoàn thành bởi" : "Completed by"}{" "}
+                          <span className="font-medium text-slate-300">
+                            {t.completed_by_name ?? (locale === "vi" ? "Nhân viên" : "Staff")}
+                          </span>{" "}
+                          <span>
+                            {new Date(t.completed_at).toLocaleTimeString("en-US", {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </section>
         )}
 

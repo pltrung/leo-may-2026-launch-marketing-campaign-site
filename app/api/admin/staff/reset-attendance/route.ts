@@ -22,10 +22,11 @@ export async function POST(request: NextRequest) {
 
   if (attendanceErr) return NextResponse.json({ error: attendanceErr.message }, { status: 500 });
 
-  // Reset daily tasks: set status = pending, completed_at = null for tasks due today or with no due_date
+  // Reset daily shift tasks: set status = pending, completed_at = null, completed_by = null
+  // (works for both due_date-based and block/start_time/due_time-based tasks)
   const { error: tasksErr } = await supabase
     .from("staff_tasks")
-    .update({ status: "pending", completed_at: null, updated_at: new Date().toISOString() })
+    .update({ status: "pending", completed_at: null, completed_by: null, updated_at: new Date().toISOString() })
     .or(`due_date.eq.${today},due_date.is.null`);
 
   if (tasksErr) {

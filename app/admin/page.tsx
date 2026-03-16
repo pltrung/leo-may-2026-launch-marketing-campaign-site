@@ -171,10 +171,13 @@ export default function AdminPage() {
   const productDetailPhotoInputRef = React.useRef<HTMLInputElement>(null);
   const [adminTab, setAdminTab] = useState<"member" | "sales" | "inventory" | "management">("member");
   const [staffOpsData, setStaffOpsData] = useState<{
-    attendance: { in: { staff_id: string; status: string; staff_profiles?: { email?: string } | { email?: string }[] }[]; out: { staff_id: string; status: string; staff_profiles?: { email?: string } | { email?: string }[] }[] };
-    sessions: { id: string; start_time: string; coach_id: string | null; session_type: string; staff_profiles?: { email?: string } | { email?: string }[] }[];
+    attendance: { in: { staff_id: string; status: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[]; out: { staff_id: string; status: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[] };
+    sessions: { id: string; start_time: string; coach_id: string | null; session_type: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[];
     zones: { id: string; name: string; next_reset_at: string | null; overdue?: boolean }[];
-    tasks: { id: string; title: string; status: string; completed_at: string | null }[];
+    tasks: { id: string; title: string; status: string; block?: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | null }[];
+    preOpen?: { id: string; title: string; status: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | null }[];
+    during?: { id: string; title: string; status: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | null }[];
+    closing?: { id: string; title: string; status: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | null }[];
     summary: { staff_in_today: number; staff_out_today: number; sessions_today: number; newbie_attendance_today?: number; zones_overdue: number; tasks_pending: number };
   } | null>(null);
 
@@ -1484,7 +1487,7 @@ export default function AdminPage() {
                             doPosLookup(val).then(() => setPosAddQty(1));
                           }
                         }}
-                        className="flex-1 min-w-[120px] px-2 py-1.5 rounded-lg border border-slate-200 text-sm"
+                        className="flex-1 min-w-[120px] px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder-slate-500 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
                       />
                       <button
                         type="button"
@@ -1581,8 +1584,8 @@ export default function AdminPage() {
             {inventoryCreateError && <p className="text-sm text-red-600">{inventoryCreateError}</p>}
             {/* 1) Scan Product — barcode triggers lookup or Create Product */}
             <div>
-              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.scanProduct}</h4>
-              <p className="text-xs text-slate-500 mb-2">{m.scanProductHint}</p>
+              <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">{m.scanProduct}</h4>
+              <p className="text-xs text-slate-400 mb-2">{m.scanProductHint}</p>
               <div className="flex gap-2">
                 <input
                   placeholder={m.barcode}
@@ -1614,9 +1617,9 @@ export default function AdminPage() {
                         .catch(() => setInventoryCreateError("Lookup failed."));
                     }
                   }}
-                  className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 text-sm"
+                  className="flex-1 px-2 py-1.5 rounded-lg border border-slate-500 bg-slate-700 text-white placeholder-slate-400 text-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                 />
-                <button type="button" onClick={() => { setInventoryCreateError(null); setBarcodeScannerOpen(true); }} className="shrink-0 px-3 py-1.5 rounded-lg border border-slate-300 bg-slate-100 text-slate-800 text-sm font-medium hover:bg-slate-200">{m.scanBarcode}</button>
+                <button type="button" onClick={() => { setInventoryCreateError(null); setBarcodeScannerOpen(true); }} className="shrink-0 px-3 py-1.5 rounded-lg border border-slate-500 bg-slate-600 text-slate-100 text-sm font-medium hover:bg-slate-500">{m.scanBarcode}</button>
               </div>
             </div>
 
@@ -1628,8 +1631,8 @@ export default function AdminPage() {
                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{m.variantSize}</h4>
                 <p className="text-sm text-slate-700">SKU: {scannedVariant.sku}{scannedVariant.size ? ` · Size ${scannedVariant.size}` : ""} · {m.price}: {(scannedVariant.price ?? 0).toLocaleString()} VND</p>
                 <div className="flex flex-wrap gap-2 items-center">
-                  <label className="text-xs text-slate-600">{m.quantity}</label>
-                  <input ref={inventoryQtyInputRef} type="number" min={1} value={inventoryQty} onChange={(e) => setInventoryQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                  <label className="text-xs font-medium text-slate-700">{m.quantity}</label>
+                  <input ref={inventoryQtyInputRef} type="number" min={1} value={inventoryQty} onChange={(e) => setInventoryQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                   <button type="button" onClick={async () => {
                     const qty = parseInt(inventoryQty, 10) || 1;
                     const res = await adminFetch("/api/admin/inventory", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ variant_id: scannedVariant.id, quantity: qty }) });
@@ -1653,10 +1656,10 @@ export default function AdminPage() {
                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{m.createProduct}</h4>
                 <p className="text-xs text-slate-600">{m.createProductHint}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                  <input placeholder={m.barcode} value={newProductBarcode} onChange={(e) => setNewProductBarcode(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
-                  <input placeholder={m.productName} value={newProductName} onChange={(e) => setNewProductName(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
-                  <input placeholder={m.brand} value={newProductBrand} onChange={(e) => setNewProductBrand(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
-                  <input placeholder={m.productCode} value={newProductCode} onChange={(e) => setNewProductCode(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-200" />
+                  <input placeholder={m.barcode} value={newProductBarcode} onChange={(e) => setNewProductBarcode(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder-slate-500 focus:ring-2 focus:ring-slate-400 focus:border-slate-400" />
+                  <input placeholder={m.productName} value={newProductName} onChange={(e) => setNewProductName(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder-slate-500 focus:ring-2 focus:ring-slate-400 focus:border-slate-400" />
+                  <input placeholder={m.brand} value={newProductBrand} onChange={(e) => setNewProductBrand(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder-slate-500 focus:ring-2 focus:ring-slate-400 focus:border-slate-400" />
+                  <input placeholder={m.productCode} value={newProductCode} onChange={(e) => setNewProductCode(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder-slate-500 focus:ring-2 focus:ring-slate-400 focus:border-slate-400" />
                   <div className="col-span-full flex items-center gap-3">
                     <input ref={newProductPhotoInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (!f || !/^image\/(jpeg|png|webp)$/i.test(f.type)) return; const r = new FileReader(); r.onload = () => setNewProductImageDataUrl(r.result as string); r.readAsDataURL(f); e.target.value = ""; }} />
                     {newProductImageDataUrl ? (
@@ -1670,7 +1673,7 @@ export default function AdminPage() {
                       </button>
                     )}
                   </div>
-                  <select value={newProductCategory} onChange={(e) => setNewProductCategory(e.target.value as "shoes" | "chalk" | "merch" | "rental")} className="px-2 py-1.5 rounded-lg border border-slate-200">
+                  <select value={newProductCategory} onChange={(e) => setNewProductCategory(e.target.value as "shoes" | "chalk" | "merch" | "rental")} className="px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-slate-400 focus:border-slate-400">
                     <option value="shoes">Shoes</option>
                     <option value="chalk">Chalk</option>
                     <option value="merch">Merch</option>
@@ -1681,10 +1684,10 @@ export default function AdminPage() {
                   <p className="text-xs font-medium text-slate-600 mb-2">{m.variantSizes}</p>
                   {newVariants.map((nv, idx) => (
                     <div key={idx} className="flex flex-wrap gap-2 items-center mb-2">
-                      <input placeholder="Size" value={nv.size} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, size: e.target.value } : x))} className="w-16 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
-                      <input placeholder={m.barcode} value={nv.barcode} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, barcode: e.target.value } : x))} className="flex-1 min-w-[80px] px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
-                      <input placeholder={m.price} value={nv.price} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, price: e.target.value } : x))} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" type="number" />
-                      <input placeholder={m.cost} value={nv.cost} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, cost: e.target.value } : x))} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" type="number" />
+                      <input placeholder="Size" value={nv.size} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, size: e.target.value } : x))} className="w-16 px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400" />
+                      <input placeholder={m.barcode} value={nv.barcode} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, barcode: e.target.value } : x))} className="flex-1 min-w-[80px] px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400" />
+                      <input placeholder={m.price} value={nv.price} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, price: e.target.value } : x))} className="w-20 px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" type="number" />
+                      <input placeholder={m.cost} value={nv.cost} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, cost: e.target.value } : x))} className="w-20 px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" type="number" />
                       <input placeholder={m.quantity} value={nv.quantity} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, quantity: e.target.value } : x))} className="w-14 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" type="number" min="0" title={locale === "vi" ? "Số lượng nhập kho ngay" : "Initial stock (no separate Stock In needed)"} />
                       <button type="button" onClick={() => setNewVariants((v) => v.filter((_, i) => i !== idx))} className="text-slate-500 hover:text-red-600 text-xs">{m.remove}</button>
                     </div>
@@ -1747,7 +1750,7 @@ export default function AdminPage() {
 
             {/* 4) View Inventory — table, filter All/Shoes/Merch only, sorted by qty*price desc */}
             <div>
-              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.viewInventory}</h4>
+              <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">{m.viewInventory}</h4>
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {(["all", "shoes", "merch"] as const).map((cat) => (
                   <button
@@ -1800,10 +1803,10 @@ export default function AdminPage() {
             </div>
 
             {/* Stock In/Out — dropdown of SKUs */}
-            <div className="border-t border-slate-200 pt-4 space-y-3">
-              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{m.stockIn} / {m.stockOut}</h4>
+            <div className="border-t border-slate-600 pt-4 space-y-3">
+              <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">{m.stockIn} / {m.stockOut}</h4>
               <div className="flex gap-2 flex-wrap items-center">
-                <select value={stockInSku} onChange={(e) => setStockInSku(e.target.value)} className="flex-1 min-w-0 max-w-xs px-2 py-1.5 rounded-lg border border-slate-200 text-sm bg-white text-slate-900">
+                <select value={stockInSku} onChange={(e) => setStockInSku(e.target.value)} className="flex-1 min-w-0 max-w-xs px-2 py-1.5 rounded-lg border border-slate-500 bg-slate-700 text-white text-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500">
                   <option value="">{locale === "vi" ? "Chọn SKU..." : "Select SKU..."}</option>
                   {inventoryList.map((inv) => (
                     <option key={inv.id} value={inv.variant?.barcode ?? inv.variant?.sku ?? ""}>
@@ -1811,11 +1814,11 @@ export default function AdminPage() {
                     </option>
                   ))}
                 </select>
-                <input type="number" min={1} value={stockInQty} onChange={(e) => setStockInQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                <input type="number" min={1} value={stockInQty} onChange={(e) => setStockInQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-500 bg-slate-700 text-white text-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                 <button type="button" onClick={async () => { const v = stockInSku.trim(); if (!v) return; const res = await adminFetch("/api/admin/inventory", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ barcode: v, quantity: parseInt(stockInQty, 10) || 1 }) }); const d = await res.json(); if (res.ok && d.ok) { setInventoryActionMessage(locale === "vi" ? "Đã nhập kho." : "Stock in recorded."); setStockInSku(""); setStockInQty("1"); adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? [])); setTimeout(() => setInventoryActionMessage(null), 3000); } else setInventoryCreateError(d?.error ?? "Failed"); }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500">{m.stockIn}</button>
               </div>
               <div className="flex gap-2 flex-wrap items-center">
-                <select value={stockOutSku} onChange={(e) => setStockOutSku(e.target.value)} className="flex-1 min-w-0 max-w-xs px-2 py-1.5 rounded-lg border border-slate-200 text-sm bg-white text-slate-900">
+                <select value={stockOutSku} onChange={(e) => setStockOutSku(e.target.value)} className="flex-1 min-w-0 max-w-xs px-2 py-1.5 rounded-lg border border-slate-500 bg-slate-700 text-white text-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500">
                   <option value="">{locale === "vi" ? "Chọn SKU..." : "Select SKU..."}</option>
                   {inventoryList.map((inv) => (
                     <option key={inv.id} value={inv.variant?.barcode ?? inv.variant?.sku ?? ""}>
@@ -1823,7 +1826,7 @@ export default function AdminPage() {
                     </option>
                   ))}
                 </select>
-                <input type="number" min={1} value={stockOutQty} onChange={(e) => setStockOutQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                <input type="number" min={1} value={stockOutQty} onChange={(e) => setStockOutQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-500 bg-slate-700 text-white text-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                 <button type="button" onClick={async () => { const v = stockOutSku.trim(); if (!v) return; const res = await adminFetch("/api/admin/inventory", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ barcode: v, quantity: parseInt(stockOutQty, 10) || 1 }) }); const d = await res.json(); if (res.ok && d.ok) { setInventoryActionMessage(locale === "vi" ? "Đã xuất kho." : "Stock out recorded."); setStockOutSku(""); setStockOutQty("1"); adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? [])); setTimeout(() => setInventoryActionMessage(null), 3000); } else setInventoryCreateError(d?.error ?? "Failed"); }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-500">{m.stockOut}</button>
               </div>
             </div>
@@ -1834,7 +1837,7 @@ export default function AdminPage() {
           {adminTab === "management" && (
           <section className="grid md:grid-cols-[minmax(0,1.4fr)_minmax(0,2fr)] gap-8 items-start">
             <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-5">
-              <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
+              <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-3">
                 {m.adminTools}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
@@ -1992,7 +1995,7 @@ export default function AdminPage() {
                 .sort(([a], [b]) => b.localeCompare(a))
                 .map(([date, items]) => (
                   <div key={date}>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                    <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
                       {formatInGymTZ(date + "T12:00:00.000Z", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
                     </p>
                     <ul className="space-y-1.5">
@@ -2053,7 +2056,7 @@ export default function AdminPage() {
                     </div>
                   )}
                   <div className="border-t pt-3 mt-3">
-                    <p className="text-xs font-semibold text-slate-500 uppercase mb-2">{m.payments}</p>
+                    <p className="text-xs font-semibold text-slate-700 uppercase mb-2">{m.payments}</p>
                     {revenueData.payments.length === 0 && (
                       <p className="text-sm text-slate-500">{m.noPaymentsInPeriod}</p>
                     )}
@@ -2132,28 +2135,28 @@ export default function AdminPage() {
               {!staffOpsData && <p className="text-sm text-slate-500">{m.loading}</p>}
               {staffOpsData && (
                 <>
-                  <div>
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.todayAttendance}</h4>
-                    <p className="text-sm text-slate-600 mb-1"><strong>IN:</strong> {staffOpsData.summary.staff_in_today} — {staffOpsData.attendance.in.map((a: { staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }) => {
+                  <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
+                    <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.todayAttendance}</h4>
+                    <p className="text-sm text-slate-700 mb-1"><strong className="text-slate-800">IN:</strong> {staffOpsData.summary.staff_in_today} — {staffOpsData.attendance.in.map((a: { staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }) => {
                       const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles;
                       return (p?.display_name || p?.email) ?? "—";
                     }).join(", ") || "—"}</p>
-                    <p className="text-sm text-slate-600"><strong>NOT IN:</strong> {staffOpsData.summary.staff_out_today} — {staffOpsData.attendance.out.map((a: { staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }) => {
+                    <p className="text-sm text-slate-700"><strong className="text-slate-800">NOT IN:</strong> {staffOpsData.summary.staff_out_today} — {staffOpsData.attendance.out.map((a: { staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }) => {
                       const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles;
                       return (p?.display_name || p?.email) ?? "—";
                     }).join(", ") || "—"}</p>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                  <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
+                    <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
                       {m.coachingSessionsToday} ({staffOpsData.sessions.length})
                       {" — "}{m.newbieAttendanceToday}: {staffOpsData.summary.newbie_attendance_today ?? 0}
                     </h4>
-                    {staffOpsData.sessions.length === 0 && <p className="text-sm text-slate-500">{m.noSessions}</p>}
+                    {staffOpsData.sessions.length === 0 && <p className="text-sm text-slate-600">{m.noSessions}</p>}
                     <ul className="space-y-1 text-sm">
                       {staffOpsData.sessions.slice(0, 20).map((s: { id: string; start_time: string; coach_id: string | null; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[]; location?: string; newbie_count?: number }) => (
-                        <li key={s.id} className="flex justify-between items-start gap-2">
-                          <span>{new Date(s.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} {s.location && <span className="text-slate-500">· {s.location}</span>} {(s.newbie_count ?? 0) > 0 && <span className="text-emerald-600">({s.newbie_count} newbie{(s.newbie_count ?? 0) !== 1 ? "s" : ""})</span>}</span>
-                          <span className="text-slate-600 shrink-0">
+                        <li key={s.id} className="flex justify-between items-start gap-2 py-0.5">
+                          <span className="text-slate-800">{new Date(s.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} {s.location && <span className="text-slate-600">· {s.location}</span>} {(s.newbie_count ?? 0) > 0 && <span className="text-emerald-700 font-medium">({s.newbie_count} newbie{(s.newbie_count ?? 0) !== 1 ? "s" : ""})</span>}</span>
+                          <span className="text-slate-700 shrink-0 font-medium">
                             {s.coach_id ? (() => {
                               const p = Array.isArray(s.staff_profiles) ? s.staff_profiles[0] : s.staff_profiles;
                               return (p?.display_name || p?.email) ?? m.assigned;
@@ -2163,29 +2166,82 @@ export default function AdminPage() {
                       ))}
                     </ul>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.routeZonesOverdue} {staffOpsData.summary.zones_overdue})</h4>
+                  <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
+                    <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.routeZonesOverdue} {staffOpsData.summary.zones_overdue})</h4>
                     <ul className="space-y-1 text-sm">
                       {staffOpsData.zones.map((z: { id: string; name: string; next_reset_at: string | null; overdue?: boolean }) => (
-                        <li key={z.id} className="flex justify-between">
-                          <span>{z.name}</span>
-                          <span className={z.overdue ? "text-red-600" : "text-slate-600"}>
+                        <li key={z.id} className={`flex justify-between items-center py-1.5 px-2 rounded-lg ${z.overdue ? "bg-red-50 border border-red-200" : "bg-slate-50 border border-slate-100"}`}>
+                          <span className={z.overdue ? "font-medium text-slate-800" : "text-slate-700"}>{z.name}</span>
+                          <span className={z.overdue ? "font-semibold text-red-700" : "text-slate-600"}>
                             {z.overdue ? m.overdue : z.next_reset_at ? new Date(z.next_reset_at).toLocaleDateString() : "—"}
                           </span>
                         </li>
                       ))}
                     </ul>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.tasksPending} {staffOpsData.summary.tasks_pending})</h4>
-                    <ul className="space-y-1 text-sm">
-                      {staffOpsData.tasks.map((t: { id: string; title: string; status: string; completed_at: string | null }) => (
-                        <li key={t.id} className="flex justify-between">
-                          <span className={t.status === "completed" ? "line-through text-slate-500" : ""}>{t.title}</span>
-                          <span className="text-slate-600">{t.status === "completed" ? m.done : m.pending}</span>
-                        </li>
-                      ))}
-                    </ul>
+                  {/* Shift tasks by block (Pre-open, During hours, Closing) — mirrors staff layout */}
+                  <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
+                    <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.tasksPending} {staffOpsData.summary.tasks_pending})</h4>
+                    {(() => {
+                      const preOpen = staffOpsData.preOpen ?? staffOpsData.tasks.filter((t: { block?: string }) => t.block === "pre_open");
+                      const during = staffOpsData.during ?? staffOpsData.tasks.filter((t: { block?: string }) => t.block === "during_hours");
+                      const closing = staffOpsData.closing ?? staffOpsData.tasks.filter((t: { block?: string }) => t.block === "closing");
+                      const renderTask = (t: { id: string; title: string; status: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | { display_name?: string | null; email?: string | null }[] | null }) => {
+                        const timeStr = t.start_time != null && t.due_time != null
+                          ? `${String(t.start_time).slice(0, 5)}–${String(t.due_time).slice(0, 5)}`
+                          : "";
+                        const c = Array.isArray(t.completer) ? t.completer[0] : t.completer;
+                        const completerName = c ? (c.display_name || c.email) : null;
+                        return (
+                          <li key={t.id} className="flex justify-between items-start gap-2 py-1.5 border-b border-slate-100 last:border-0">
+                            <div className="min-w-0">
+                              <span className={t.status === "completed" ? "line-through text-slate-500" : "text-slate-800"}>{t.title}</span>
+                              {timeStr && <span className="ml-2 text-xs text-slate-500">{timeStr}</span>}
+                              {t.completed_at && completerName && (
+                                <p className="text-[11px] text-slate-500 mt-0.5">
+                                  {locale === "vi" ? "Hoàn thành bởi" : "Done by"} <span className="font-medium text-slate-600">{completerName}</span>
+                                  {" "}{new Date(t.completed_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                                </p>
+                              )}
+                            </div>
+                            <span className={`shrink-0 text-xs font-medium ${t.status === "completed" ? "text-emerald-700" : "text-amber-700"}`}>
+                              {t.status === "completed" ? m.done : m.pending}
+                            </span>
+                          </li>
+                        );
+                      };
+                      return (
+                        <div className="space-y-3">
+                          {preOpen.length > 0 && (
+                            <div>
+                              <p className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                                {locale === "vi" ? "Trước giờ mở cửa (9:00–10:00)" : "Pre-open (9:00–10:00)"}
+                              </p>
+                              <ul className="space-y-0 text-sm">{preOpen.map((t: { id: string; title: string; status: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | null }) => renderTask(t))}</ul>
+                            </div>
+                          )}
+                          {during.length > 0 && (
+                            <div>
+                              <p className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                                {locale === "vi" ? "Trong giờ mở cửa (10:00–22:00)" : "During hours (10:00–22:00)"}
+                              </p>
+                              <ul className="space-y-0 text-sm">{during.map((t: { id: string; title: string; status: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | null }) => renderTask(t))}</ul>
+                            </div>
+                          )}
+                          {closing.length > 0 && (
+                            <div>
+                              <p className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                                {locale === "vi" ? "Đóng cửa (22:00–23:00)" : "Closing (22:00–23:00)"}
+                              </p>
+                              <ul className="space-y-0 text-sm">{closing.map((t: { id: string; title: string; status: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | null }) => renderTask(t))}</ul>
+                            </div>
+                          )}
+                          {preOpen.length === 0 && during.length === 0 && closing.length === 0 && (
+                            <p className="text-sm text-slate-500">{locale === "vi" ? "Không có công việc ca." : "No shift tasks."}</p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </>
               )}
@@ -2207,10 +2263,10 @@ export default function AdminPage() {
               {inventoryActionMessage && <p className="text-sm text-emerald-600">{inventoryActionMessage}</p>}
               {inventoryCreateError && <p className="text-sm text-red-600">{inventoryCreateError}</p>}
               <div>
-                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.viewInventory}</h4>
+                <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.viewInventory}</h4>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {(["all", "shoes", "merch"] as const).map((cat) => (
-                    <button key={cat} type="button" onClick={() => setInventoryCategoryFilter(cat)} className={`px-2.5 py-1 rounded-lg text-xs font-medium ${inventoryCategoryFilter === cat ? "bg-slate-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                    <button key={cat} type="button" onClick={() => setInventoryCategoryFilter(cat)} className={`px-2.5 py-1 rounded-lg text-xs font-medium ${inventoryCategoryFilter === cat ? "bg-slate-700 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"}`}>
                       {cat === "all" ? (locale === "vi" ? "Tất cả" : "All") : cat.charAt(0).toUpperCase() + cat.slice(1)}
                     </button>
                   ))}
@@ -2253,11 +2309,11 @@ export default function AdminPage() {
                   </table>
                 </div>
               </div>
-              <p className="text-xs text-slate-500">Use the Inventory tab for scan-first workflow and creating products with variants. Click a row to view or edit product details.</p>
+              <p className="text-xs text-slate-600">Use the Inventory tab for scan-first workflow and creating products with variants. Click a row to view or edit product details.</p>
               <div>
-                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.stockIn}</h4>
+                <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.stockIn}</h4>
                 <div className="flex gap-2 flex-wrap items-center">
-                  <select value={stockInSku} onChange={(e) => setStockInSku(e.target.value)} className="flex-1 min-w-0 max-w-xs px-2 py-1.5 rounded-lg border border-slate-200 text-sm">
+                  <select value={stockInSku} onChange={(e) => setStockInSku(e.target.value)} className="flex-1 min-w-0 max-w-xs px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400">
                     <option value="">{locale === "vi" ? "Chọn SKU..." : "Select SKU..."}</option>
                     {inventoryList.map((inv) => (
                       <option key={inv.id} value={inv.variant?.barcode ?? inv.variant?.sku ?? ""}>
@@ -2265,7 +2321,7 @@ export default function AdminPage() {
                       </option>
                     ))}
                   </select>
-                  <input type="number" min={1} value={stockInQty} onChange={(e) => setStockInQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                  <input type="number" min={1} value={stockInQty} onChange={(e) => setStockInQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                   <button
                     type="button"
                     onClick={async () => {
@@ -2287,9 +2343,9 @@ export default function AdminPage() {
                 </div>
               </div>
               <div>
-                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.stockOut}</h4>
+                <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.stockOut}</h4>
                 <div className="flex gap-2 flex-wrap items-center">
-                  <select value={stockOutSku} onChange={(e) => setStockOutSku(e.target.value)} className="flex-1 min-w-0 max-w-xs px-2 py-1.5 rounded-lg border border-slate-200 text-sm">
+                  <select value={stockOutSku} onChange={(e) => setStockOutSku(e.target.value)} className="flex-1 min-w-0 max-w-xs px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400">
                     <option value="">{locale === "vi" ? "Chọn SKU..." : "Select SKU..."}</option>
                     {inventoryList.map((inv) => (
                       <option key={inv.id} value={inv.variant?.barcode ?? inv.variant?.sku ?? ""}>
@@ -2297,7 +2353,7 @@ export default function AdminPage() {
                       </option>
                     ))}
                   </select>
-                  <input type="number" min={1} value={stockOutQty} onChange={(e) => setStockOutQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                  <input type="number" min={1} value={stockOutQty} onChange={(e) => setStockOutQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                   <button
                     type="button"
                     onClick={async () => {

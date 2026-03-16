@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getRouteSetterFromRequest } from "@/lib/routeSetterAuth";
+import { getGymToday } from "@/lib/gymTimezone";
 
 /**
  * PATCH /api/route-setter/tasks/[id]
  * Body: { status?: "pending" | "completed" }
- * Updates task status. Setting status to "completed" sets completed_at.
+ * When marking completed, records completed_by and logs into task_logs.
  */
 export async function PATCH(
   request: NextRequest,
@@ -28,7 +29,7 @@ export async function PATCH(
   const supabase = createServerClient();
   const { data: staff } = await supabase
     .from("staff_profiles")
-    .select("id")
+    .select("id, display_name")
     .eq("auth_id", user.id)
     .single();
   if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
@@ -43,14 +44,37 @@ export async function PATCH(
     return NextResponse.json({ error: "Not assigned to you" }, { status: 403 });
   }
 
-  const update: { status: string; completed_at?: string; updated_at: string } = {
+  const nowIso = new Date().toISOString();
+  const today = getGymToday();
+
+  const update: { status: string; completed_at?: string; completed_by?: string | null; updated_at: string } = {
     status,
-    updated_at: new Date().toISOString(),
+    updated_at: nowIso,
   };
-  if (status === "completed") update.completed_at = new Date().toISOString();
+  if (status === "completed") {
+    update.completed_at = nowIso;
+    update.completed_by = staff.id as string;
+  } else {
+    update.completed_by = null;
+  }
 
   const { error } = await supabase.from("staff_tasks").update(update).eq("id", id);
-
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, status });
+
+  if (status === "completed") {
+    await supabase.from("task_logs").insert({
+      task_id: id,
+      staff_id: staff.id,
+      date: today,
+      completed_at: nowIso,
+    });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    status,
+    completed_at: status === "completed" ? nowIso : null,
+    completed_by_name: status === "completed" ? staff.display_name ?? "Staff" : null,
+  });
 }
+
