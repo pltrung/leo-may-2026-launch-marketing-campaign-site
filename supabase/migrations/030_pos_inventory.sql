@@ -26,11 +26,13 @@ CREATE TABLE IF NOT EXISTS inventory (
   quantity int NOT NULL DEFAULT 0 CHECK (quantity >= 0),
   location text,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz DEFAULT now(),
-  UNIQUE (product_id, COALESCE(size, ''))
+  updated_at timestamptz DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_inventory_product_id ON inventory (product_id);
+-- One row per (product_id, size) — use expression index since size can be NULL
+CREATE UNIQUE INDEX IF NOT EXISTS idx_inventory_product_size_unique
+  ON inventory (product_id, (COALESCE(size, '')));
 
 -- POS transactions (retail revenue)
 CREATE TABLE IF NOT EXISTS pos_transactions (
@@ -72,5 +74,5 @@ ALTER TABLE transaction_items ENABLE ROW LEVEL SECURITY;
 -- Seed default products for front desk (rental, chalk)
 INSERT INTO products (name, sku, category, price, cost, barcode) VALUES
   ('Rental Shoes', 'RENTAL_SHOES', 'rental', 50000, 0, NULL),
-  ('Chalk Bag', 'CHALK_BAG', 'chalk', 80000, 0, NULL)
-ON CONFLICT (sku) DO NOTHING;
+  ('Chalk (bag, return after session)', 'CHALK_BAG', 'chalk', 20000, 0, NULL)
+ON CONFLICT (sku) DO UPDATE SET name = EXCLUDED.name, price = EXCLUDED.price;

@@ -144,6 +144,7 @@ export default function AdminPage() {
   const [stockOutSku, setStockOutSku] = useState("");
   const [stockOutQty, setStockOutQty] = useState("1");
   const [inventoryActionMessage, setInventoryActionMessage] = useState<string | null>(null);
+  const [inventoryCreateError, setInventoryCreateError] = useState<string | null>(null);
   const [staffOpsData, setStaffOpsData] = useState<{
     attendance: { in: { staff_id: string; status: string; staff_profiles?: { email?: string } | { email?: string }[] }[]; out: { staff_id: string; status: string; staff_profiles?: { email?: string } | { email?: string }[] }[] };
     sessions: { id: string; start_time: string; coach_id: string | null; session_type: string; staff_profiles?: { email?: string } | { email?: string }[] }[];
@@ -1201,48 +1202,37 @@ export default function AdminPage() {
 
                 <div className="rounded-2xl bg-white/90 border border-slate-200 shadow-[0_8px_28px_rgba(15,23,42,0.07)] p-4 md:p-5">
                   <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
-                    Recent Payments
+                    {m.payments} / {m.purchaseHistory}
                   </h3>
-                  {recentPayments.length === 0 ? (
-                    <p className="text-xs text-slate-500">No payments yet</p>
+                  {recentPayments.length === 0 && memberPurchases.length === 0 ? (
+                    <p className="text-xs text-slate-500">{m.noPaymentsInPeriod}</p>
                   ) : (
                     <ul className="space-y-2 text-xs md:text-sm text-slate-800">
-                      {recentPayments.map((p) => (
-                        <li key={p.id} className="flex justify-between items-center">
-                          <div>
-                            <span className="font-medium">{p.plan_name}</span>
-                            <span className="text-slate-500 ml-2">
-                              {new Date(p.created_at).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                              })}
-                            </span>
-                          </div>
-                          <span className="font-medium">{p.amount.toLocaleString("vi-VN")} VND</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
-                <div className="rounded-2xl bg-white/90 border border-slate-200 shadow-[0_8px_28px_rgba(15,23,42,0.07)] p-4 md:p-5">
-                  <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
-                    {m.purchaseHistory}
-                  </h3>
-                  {memberPurchases.length === 0 ? (
-                    <p className="text-xs text-slate-500">{m.noPurchases}</p>
-                  ) : (
-                    <ul className="space-y-2 text-xs md:text-sm text-slate-800">
-                      {memberPurchases.map((tx) => (
-                        <li key={tx.id} className="flex flex-col gap-0.5">
-                          <span className="font-medium">{new Date(tx.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} — {tx.total.toLocaleString("vi-VN")} VND</span>
-                          <ul className="list-disc list-inside text-slate-600">
-                            {tx.items.map((it, j) => (
-                              <li key={j}>{it.name ?? it.sku} × {it.quantity}</li>
-                            ))}
-                          </ul>
-                        </li>
-                      ))}
+                      {[
+                        ...recentPayments.map((p) => ({ type: "membership" as const, id: p.id, date: p.created_at, amount: p.amount, label: p.plan_name, items: null })),
+                        ...memberPurchases.map((tx) => ({ type: "retail" as const, id: tx.id, date: tx.created_at, amount: tx.total, label: "Retail", items: tx.items })),
+                      ]
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                        .map((entry) => (
+                          <li key={`${entry.type}-${entry.id}`} className="flex flex-col gap-0.5">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <span className="font-medium">{entry.label}</span>
+                                <span className="text-slate-500 ml-2">
+                                  {new Date(entry.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                                </span>
+                              </div>
+                              <span className="font-medium">{entry.amount.toLocaleString("vi-VN")} VND</span>
+                            </div>
+                            {entry.items && entry.items.length > 0 && (
+                              <ul className="list-disc list-inside text-slate-600 ml-0.5">
+                                {entry.items.map((it, j) => (
+                                  <li key={j}>{it.name ?? it.sku} × {it.quantity}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </li>
+                        ))}
                     </ul>
                   )}
                 </div>
@@ -1345,21 +1335,25 @@ export default function AdminPage() {
                         type="button"
                         onClick={() => {
                           const p = products.find((x) => x.sku === "RENTAL_SHOES" || x.category === "rental");
-                          if (p) setPosCart((c) => [...c, { sku: p.sku, name: p.name, quantity: 1, price: p.price }]);
+                          const price = p?.price ?? 50000;
+                          const name = p?.name ?? "Rental Shoes";
+                          setPosCart((c) => [...c, { sku: p?.sku ?? "RENTAL_SHOES", name, quantity: 1, price }]);
                         }}
                         className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200"
                       >
-                        + {m.shoeRental}
+                        + {m.shoeRental} (50,000 VND)
                       </button>
                       <button
                         type="button"
                         onClick={() => {
                           const p = products.find((x) => x.sku === "CHALK_BAG" || x.category === "chalk");
-                          if (p) setPosCart((c) => [...c, { sku: p.sku, name: p.name, quantity: 1, price: p.price }]);
+                          const price = p?.price ?? 20000;
+                          const name = p?.name ?? "Chalk (bag, return after session)";
+                          setPosCart((c) => [...c, { sku: p?.sku ?? "CHALK_BAG", name, quantity: 1, price }]);
                         }}
                         className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200"
                       >
-                        + {m.buyChalk}
+                        + {m.buyChalk} (20,000 VND)
                       </button>
                     </div>
                     <div className="flex gap-2">
@@ -1520,7 +1514,7 @@ export default function AdminPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setToolsModal("inventory")}
+                  onClick={() => { setToolsModal("inventory"); setInventoryCreateError(null); setInventoryActionMessage(null); }}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
                 >
                   {m.inventoryModule}
@@ -1834,6 +1828,7 @@ export default function AdminPage() {
             </div>
             <div className="overflow-y-auto p-4 space-y-6">
               {inventoryActionMessage && <p className="text-sm text-emerald-600">{inventoryActionMessage}</p>}
+              {inventoryCreateError && <p className="text-sm text-red-600">{inventoryCreateError}</p>}
               <div>
                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.viewInventory}</h4>
                 {inventoryList.length === 0 && <p className="text-sm text-slate-500">{m.loading}</p>}
@@ -1864,26 +1859,36 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={async () => {
-                    if (!newProductName.trim() || !newProductSku.trim()) return;
-                    const res = await adminFetch("/api/admin/products", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        name: newProductName.trim(),
-                        sku: newProductSku.trim(),
-                        category: newProductCategory,
-                        price: parseInt(newProductPrice, 10) || 0,
-                        cost: parseInt(newProductCost, 10) || 0,
-                        barcode: newProductBarcode.trim() || null,
-                      }),
-                    });
-                    const d = await res.json();
-                    if (res.ok && d.product) {
-                      setInventoryActionMessage(locale === "vi" ? "Đã tạo SKU." : "SKU created.");
-                      setNewProductName(""); setNewProductSku(""); setNewProductPrice(""); setNewProductCost(""); setNewProductBarcode("");
-                      adminFetch("/api/admin/products").then((r) => r.json()).then((x) => setProducts(x.products ?? []));
-                      setTimeout(() => setInventoryActionMessage(null), 3000);
-                    } else setActionError(d?.error ?? "Failed");
+                    if (!newProductName.trim() || !newProductSku.trim()) {
+                      setInventoryCreateError(locale === "vi" ? "Nhập tên và SKU." : "Enter name and SKU.");
+                      return;
+                    }
+                    setInventoryCreateError(null);
+                    try {
+                      const res = await adminFetch("/api/admin/products", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          name: newProductName.trim(),
+                          sku: newProductSku.trim(),
+                          category: newProductCategory,
+                          price: parseInt(newProductPrice, 10) || 0,
+                          cost: parseInt(newProductCost, 10) || 0,
+                          barcode: newProductBarcode.trim() || null,
+                        }),
+                      });
+                      const d = await res.json();
+                      if (res.ok && d.product) {
+                        setInventoryActionMessage(locale === "vi" ? "Đã tạo SKU." : "SKU created.");
+                        setNewProductName(""); setNewProductSku(""); setNewProductPrice(""); setNewProductCost(""); setNewProductBarcode("");
+                        adminFetch("/api/admin/products").then((r) => r.json()).then((x) => setProducts(x.products ?? []));
+                        setTimeout(() => setInventoryActionMessage(null), 3000);
+                      } else {
+                        setInventoryCreateError(d?.error ?? "Failed to create SKU.");
+                      }
+                    } catch (e) {
+                      setInventoryCreateError("Request failed. Run migration 030_pos_inventory.sql if tables are missing.");
+                    }
                   }}
                   className="mt-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-800 text-white hover:bg-slate-700"
                 >
