@@ -856,16 +856,6 @@ export default function DashboardPage() {
             </p>
           </div>
         )}
-        {checkInSuccess && (
-          <div className="sticky top-0 z-30 w-full max-w-[720px] mb-6 rounded-[20px] px-6 py-4 flex flex-col gap-1 border-2 border-emerald-400/60 shadow-lg shadow-emerald-500/20 animate-in fade-in slide-in-from-top-2 duration-300" style={{ background: glassCard, backdropFilter: "blur(20px)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
-            <p className="text-[18px] font-medium text-emerald-200">
-              {isVi ? "Đã check-in thành công" : "Checked in successfully"}
-            </p>
-            <p className="text-[15px] text-emerald-100/90">
-              {isVi ? "Chào mừng bạn đến Leo Mây" : "Welcome to Leo Mây"}
-            </p>
-          </div>
-        )}
         <div className="w-full max-w-[720px] flex flex-col gap-12">
           {/* TOP LOGO */}
           <section className="flex justify-center">
@@ -1019,6 +1009,16 @@ export default function DashboardPage() {
           {/* CHECK IN - only show when all 3 steps (waiver, package, profile photo) are done */}
           {canShowQR && (
           <section>
+            {checkInSuccess && (
+              <div className="w-full mb-4 rounded-[20px] px-6 py-4 flex flex-col gap-1 border-2 border-emerald-400/60 shadow-lg shadow-emerald-500/20 animate-in fade-in slide-in-from-top-2 duration-300" style={{ background: glassCard, backdropFilter: "blur(20px)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
+                <p className="text-[18px] font-medium text-emerald-200">
+                  {isVi ? "Đã check-in thành công" : "Checked in successfully"}
+                </p>
+                <p className="text-[15px] text-emerald-100/90">
+                  {isVi ? "Chào mừng bạn đến Leo Mây" : "Welcome to Leo Mây"}
+                </p>
+              </div>
+            )}
             <div className="relative rounded-[20px] p-6 flex flex-col items-center transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               {/* Radial glow behind QR card */}
               <div className="absolute inset-0 rounded-[20px] pointer-events-none opacity-60" style={{ background: "radial-gradient(ellipse 80% 60% at 50% 40%, rgba(125,211,252,0.08) 0%, transparent 70%)" }} aria-hidden />

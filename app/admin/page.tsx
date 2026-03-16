@@ -105,7 +105,7 @@ export default function AdminPage() {
   const [paymentReceived, setPaymentReceived] = useState(false);
   const lastPaymentCountRef = React.useRef<number | null>(null);
   const [adminArea, setAdminArea] = useState<"front_desk" | "operations" | "management">("front_desk");
-  const [frontDeskTab, setFrontDeskTab] = useState<"checkin" | "sales" | "member">("checkin");
+  const [frontDeskTab, setFrontDeskTab] = useState<"checkin" | "member">("checkin");
   const [managementTab, setManagementTab] = useState<"inventory" | "reporting" | "admin_tools">("inventory");
   const [staffModalTab, setStaffModalTab] = useState<"overview" | "tasks" | "attendance" | "coaching" | "routes">("overview");
   const [staffResetLoading, setStaffResetLoading] = useState(false);
@@ -231,7 +231,7 @@ export default function AdminPage() {
 
   // Fetch products for front desk sales and management inventory
   useEffect(() => {
-    const needProducts = foundMember || (adminArea === "front_desk" && frontDeskTab === "sales") || isInventoryActive;
+    const needProducts = foundMember || isInventoryActive;
     if (!needProducts) return;
     adminFetch("/api/admin/products")
       .then((r) => r.json())
@@ -1057,7 +1057,7 @@ export default function AdminPage() {
           {adminArea === "front_desk" && (
             <nav className="rounded-xl p-1 mb-4 bg-slate-100 border border-slate-200 overflow-x-auto" aria-label="Front desk tabs">
               <div className="flex gap-1 min-w-max">
-                {(["checkin", "sales", "member"] as const).map((tab) => (
+                {(["checkin", "member"] as const).map((tab) => (
                   <button
                     key={tab}
                     type="button"
@@ -1067,7 +1067,6 @@ export default function AdminPage() {
                     }`}
                   >
                     {tab === "checkin" ? (locale === "vi" ? "Check-in" : "Check-in") : null}
-                    {tab === "sales" ? (locale === "vi" ? "Bán hàng" : "Sales") : null}
                     {tab === "member" ? (locale === "vi" ? "Thành viên" : "Member") : null}
                   </button>
                 ))}
@@ -1089,23 +1088,6 @@ export default function AdminPage() {
                 <button type="button" onClick={handleQuickCheckInScan} className="px-4 py-2.5 rounded-xl text-sm font-medium bg-emerald-500 text-slate-900 hover:bg-emerald-400">
                   {m.scanQr} — {m.quickCheckInScan}
                 </button>
-              </div>
-              <div className="rounded-2xl bg-white/80 border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.07)] p-4 md:p-6">
-                <h3 className="text-sm font-semibold text-slate-800 mb-2">{locale === "vi" ? "Tra cứu / Check-in thành viên" : "Member lookup & check-in"}</h3>
-                <p className="text-xs text-slate-600 mb-2">{locale === "vi" ? "Nhập ID, tên hoặc quét QR (leo-member:... hoặc leo-staff:...)." : "Enter ID, name, or scan QR (leo-member:... or leo-staff:...)."}</p>
-                <div className="flex flex-wrap gap-2 items-end">
-                  <input
-                    type="text"
-                    className="flex-1 min-w-[200px] px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900"
-                    placeholder={searchMode === "name" ? t.enterMemberName : searchMode === "qr" ? t.scanOrPasteQr : t.enterMemberId}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                  <button type="button" onClick={handleSearch} className="px-4 py-2 rounded-full text-sm font-medium bg-slate-900 text-white hover:bg-slate-800">{t.search}</button>
-                  <button type="button" onClick={handleScanQr} className="px-4 py-2 rounded-full text-sm font-medium border border-slate-300 text-slate-800 bg-white hover:bg-slate-50">{t.scanQr}</button>
-                </div>
-                {searchError && <p className="text-xs text-red-500 mt-2">{searchError}</p>}
-                {actionMessage && !searchError && <p className="text-xs text-emerald-600 mt-2">{actionMessage}</p>}
               </div>
               <div className="rounded-2xl bg-white border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.07)] p-4 md:p-6">
                 <h3 className="text-sm font-semibold text-slate-900 mb-3">{m.recentCheckins} (7 {m.day}s)</h3>
@@ -1553,127 +1535,116 @@ export default function AdminPage() {
                   </div>
                 </div>
               </div>
-            </section>
-          )}
-          </>
-          )}
 
-          {/* FRONT DESK → Sales tab */}
-          {adminArea === "front_desk" && frontDeskTab === "sales" && (
-          <section className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-6">
-            {!foundMember ? (
-              <p className="text-slate-400 text-sm">{m.salesPanelHidden}</p>
-            ) : (
-              <>
-                <p className="text-xs text-slate-300 mb-3">{foundMember.name} — {foundMember.displayId ?? foundMember.id}</p>
-                <div className="rounded-2xl bg-white/95 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">
-                  <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">{m.frontDeskSales}</h3>
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={() => { const p = products.find((x) => x.category === "rental"); const v = p?.variants?.[0]; const price = v?.price ?? 50000; const name = p?.name ?? "Rental Shoes"; const sku = v?.sku ?? "RENTAL_SHOES"; setPosCart((c) => [...c, { sku, name, quantity: 1, price, variant_id: v?.id, image: p?.image ?? undefined }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.shoeRental} (50,000 VND)</button>
-                      <button type="button" onClick={() => { const p = products.find((x) => x.category === "chalk"); const v = p?.variants?.[0]; const price = v?.price ?? 20000; const name = p?.name ?? "Chalk (bag, return after session)"; const sku = v?.sku ?? "CHALK_BAG"; setPosCart((c) => [...c, { sku, name, quantity: 1, price, variant_id: v?.id, image: p?.image ?? undefined }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.buyChalk} (20,000 VND)</button>
-                    </div>
-                    <div className="flex flex-wrap gap-2 items-center">
-                      <input
-                        placeholder={m.skuOrBarcode}
-                        value={posSkuInput}
-                        onChange={(e) => { setPosSkuInput(e.target.value); setPosLookupResult(null); }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            const val = posSkuInput.trim();
-                            if (!val) return;
-                            doPosLookup(val).then(() => setPosAddQty(1));
-                          }
-                        }}
-                        className="flex-1 min-w-[120px] px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder-slate-500 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setPosBarcodeScannerOpen(true)}
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200"
-                      >
-                        {m.scanBarcode}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
+              {/* Front Desk Sales — same flow: add to cart, checkout for this member */}
+              <div className="md:col-span-2 mt-6 md:mt-8 rounded-2xl bg-white/95 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">
+                <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">{m.frontDeskSales}</h3>
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => { const p = products.find((x) => x.category === "rental"); const v = p?.variants?.[0]; const price = v?.price ?? 50000; const name = p?.name ?? "Rental Shoes"; const sku = v?.sku ?? "RENTAL_SHOES"; setPosCart((c) => [...c, { sku, name, quantity: 1, price, variant_id: v?.id, image: p?.image ?? undefined }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.shoeRental} (50,000 VND)</button>
+                    <button type="button" onClick={() => { const p = products.find((x) => x.category === "chalk"); const v = p?.variants?.[0]; const price = v?.price ?? 20000; const name = p?.name ?? "Chalk (bag, return after session)"; const sku = v?.sku ?? "CHALK_BAG"; setPosCart((c) => [...c, { sku, name, quantity: 1, price, variant_id: v?.id, image: p?.image ?? undefined }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.buyChalk} (20,000 VND)</button>
+                  </div>
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <input
+                      placeholder={m.skuOrBarcode}
+                      value={posSkuInput}
+                      onChange={(e) => { setPosSkuInput(e.target.value); setPosLookupResult(null); }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
                           const val = posSkuInput.trim();
                           if (!val) return;
                           doPosLookup(val).then(() => setPosAddQty(1));
-                        }}
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-white hover:bg-slate-700"
-                      >
-                        {locale === "vi" ? "Tìm / Thêm" : "Lookup / Add"}
-                      </button>
-                    </div>
-                    {posLookupResult && (
-                      <div className={`rounded-lg border p-3 text-sm ${posLookupResult.found ? "border-emerald-200 bg-emerald-50/80" : "border-amber-200 bg-amber-50/80"}`}>
-                        {posLookupResult.found && posLookupResult.product && posLookupResult.variant ? (
-                          <>
-                            <div className="flex items-start gap-3">
-                              {posLookupResult.product.image ? <img src={posLookupResult.product.image} alt="" className="w-16 h-16 object-cover rounded-lg flex-shrink-0 border border-slate-200" /> : <div className="w-16 h-16 rounded-lg bg-slate-200 flex items-center justify-center text-slate-500 text-xs flex-shrink-0">No photo</div>}
-                              <div className="min-w-0 flex-1">
-                                <p className="font-medium text-slate-800">{posLookupResult.product.name}</p>
-                                <p className="text-slate-600 mt-0.5">
-                                  {posLookupResult.variant.sku}
-                                  {posLookupResult.variant.size != null ? ` — ${posLookupResult.variant.size}` : ""}
-                                </p>
-                                <p className="text-sm font-semibold text-slate-900 mt-0.5">{(posLookupResult.variant.price ?? 0).toLocaleString("vi-VN")} VND</p>
-                                <p className="text-xs text-slate-500 mt-0.5">
-                                  {(posLookupResult.stock_quantity ?? 0) > 0 ? `${m.inStock}: ${posLookupResult.stock_quantity}` : m.outOfStock}
-                                </p>
-                                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                  <label className="text-xs text-slate-600">{m.quantity}</label>
-                                  <input type="number" min={1} value={posAddQty} onChange={(e) => setPosAddQty(Math.max(1, parseInt(e.target.value, 10) || 1))} className="w-14 px-2 py-1 rounded border border-slate-200 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const qty = Math.max(1, posAddQty);
-                                      setPosCart((c) => [...c, { sku: posLookupResult.variant!.sku, name: posLookupResult.product!.name, quantity: qty, price: posLookupResult.variant!.price, variant_id: posLookupResult.variant!.id, image: posLookupResult.product!.image ?? undefined }]);
-                                      setPosSkuInput("");
-                                      setPosLookupResult(null);
-                                      setPosAddQty(1);
-                                    }}
-                                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-500"
-                                  >
-                                    {m.addToCart}
-                                  </button>
-                                </div>
+                        }
+                      }}
+                      className="flex-1 min-w-[120px] px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder-slate-500 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPosBarcodeScannerOpen(true)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200"
+                    >
+                      {m.scanBarcode}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = posSkuInput.trim();
+                        if (!val) return;
+                        doPosLookup(val).then(() => setPosAddQty(1));
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-white hover:bg-slate-700"
+                    >
+                      {locale === "vi" ? "Tìm / Thêm" : "Lookup / Add"}
+                    </button>
+                  </div>
+                  {posLookupResult && (
+                    <div className={`rounded-lg border p-3 text-sm ${posLookupResult.found ? "border-emerald-200 bg-emerald-50/80" : "border-amber-200 bg-amber-50/80"}`}>
+                      {posLookupResult.found && posLookupResult.product && posLookupResult.variant ? (
+                        <>
+                          <div className="flex items-start gap-3">
+                            {posLookupResult.product.image ? <img src={posLookupResult.product.image} alt="" className="w-16 h-16 object-cover rounded-lg flex-shrink-0 border border-slate-200" /> : <div className="w-16 h-16 rounded-lg bg-slate-200 flex items-center justify-center text-slate-500 text-xs flex-shrink-0">No photo</div>}
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-slate-800">{posLookupResult.product.name}</p>
+                              <p className="text-slate-600 mt-0.5">
+                                {posLookupResult.variant.sku}
+                                {posLookupResult.variant.size != null ? ` — ${posLookupResult.variant.size}` : ""}
+                              </p>
+                              <p className="text-sm font-semibold text-slate-900 mt-0.5">{(posLookupResult.variant.price ?? 0).toLocaleString("vi-VN")} VND</p>
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                {(posLookupResult.stock_quantity ?? 0) > 0 ? `${m.inStock}: ${posLookupResult.stock_quantity}` : m.outOfStock}
+                              </p>
+                              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                <label className="text-xs text-slate-600">{m.quantity}</label>
+                                <input type="number" min={1} value={posAddQty} onChange={(e) => setPosAddQty(Math.max(1, parseInt(e.target.value, 10) || 1))} className="w-14 px-2 py-1 rounded border border-slate-200 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const qty = Math.max(1, posAddQty);
+                                    setPosCart((c) => [...c, { sku: posLookupResult.variant!.sku, name: posLookupResult.product!.name, quantity: qty, price: posLookupResult.variant!.price, variant_id: posLookupResult.variant!.id, image: posLookupResult.product!.image ?? undefined }]);
+                                    setPosSkuInput("");
+                                    setPosLookupResult(null);
+                                    setPosAddQty(1);
+                                  }}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-500"
+                                >
+                                  {m.addToCart}
+                                </button>
                               </div>
                             </div>
-                          </>
-                        ) : (
-                          <p className="text-amber-800">{m.skuOrBarcodeNotFound}</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="mt-3 border-t border-slate-200 pt-3">
-                    <p className="text-xs font-medium text-slate-600 mb-2">{m.cart}</p>
-                    {posCart.length === 0 ? <p className="text-xs text-slate-500">Empty</p> : (
-                      <ul className="space-y-1.5 mb-3 max-h-32 overflow-y-auto">
-                        {posCart.map((item, i) => (
-                          <li key={`${item.sku}-${i}`} className="flex items-center gap-2 text-xs text-slate-800">
-                            {item.image ? <img src={item.image} alt="" className="w-8 h-8 object-cover rounded flex-shrink-0" /> : null}
-                            <span className="truncate flex-1">{item.name} × {item.quantity}</span>
-                            <span className="font-medium text-slate-900">{(item.quantity * item.price).toLocaleString("vi-VN")} VND</span>
-                            <button type="button" onClick={() => setPosCart((c) => c.filter((_, j) => j !== i))} className="text-red-600 hover:underline">{m.remove}</button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    {posCart.length > 0 && (
-                      <>
-                        <p className="text-sm font-semibold text-slate-900">{m.total}: {posCart.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString("vi-VN")} VND</p>
-                        <button type="button" onClick={() => { setPosPaymentModalOpen(true); setPosPaymentMethod("vietqr"); setPosQrUrl(null); setPosPendingTransactionId(null); }} disabled={posCheckoutLoading} className="mt-2 w-full px-3 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60">{m.checkout}</button>
-                      </>
-                    )}
-                  </div>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-amber-800">{m.skuOrBarcodeNotFound}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </>
-            )}
-          </section>
+                <div className="mt-3 border-t border-slate-200 pt-3">
+                  <p className="text-xs font-medium text-slate-600 mb-2">{m.cart}</p>
+                  {posCart.length === 0 ? <p className="text-xs text-slate-500">Empty</p> : (
+                    <ul className="space-y-1.5 mb-3 max-h-32 overflow-y-auto">
+                      {posCart.map((item, i) => (
+                        <li key={`${item.sku}-${i}`} className="flex items-center gap-2 text-xs text-slate-800">
+                          {item.image ? <img src={item.image} alt="" className="w-8 h-8 object-cover rounded flex-shrink-0" /> : null}
+                          <span className="truncate flex-1">{item.name} × {item.quantity}</span>
+                          <span className="font-medium text-slate-900">{(item.quantity * item.price).toLocaleString("vi-VN")} VND</span>
+                          <button type="button" onClick={() => setPosCart((c) => c.filter((_, j) => j !== i))} className="text-red-600 hover:underline">{m.remove}</button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {posCart.length > 0 && (
+                    <>
+                      <p className="text-sm font-semibold text-slate-900">{m.total}: {posCart.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString("vi-VN")} VND</p>
+                      <button type="button" onClick={() => { setPosPaymentModalOpen(true); setPosPaymentMethod("vietqr"); setPosQrUrl(null); setPosPendingTransactionId(null); }} disabled={posCheckoutLoading} className="mt-2 w-full px-3 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60">{m.checkout}</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
+          </>
           )}
 
           {/* MANAGEMENT: inner tabs */}
@@ -2426,7 +2397,11 @@ export default function AdminPage() {
                                 gymReady ? "text-emerald-700" : "text-red-700"
                               }`}
                             >
-                              {gymReady ? m.gymReady : m.gymNotReady}
+                              {phase.current_phase === "gym_open" || phase.current_phase === "closing"
+                                ? (m as { gymOperating?: string }).gymOperating ?? "Gym is operating great right now"
+                                : gymReady
+                                ? m.gymReady
+                                : m.gymNotReady}
                             </p>
                           </div>
                         </div>

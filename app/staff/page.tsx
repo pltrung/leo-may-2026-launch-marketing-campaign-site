@@ -98,6 +98,7 @@ export default function StaffPage() {
   const [profileName, setProfileName] = useState("");
   const [profileEditing, setProfileEditing] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [checkInSuccess, setCheckInSuccess] = useState(false);
   const [qrToken, setQrToken] = useState<string | null>(null);
   const [staffTab, setStaffTab] = useState<"routes" | "coaching">("routes");
   const [completedTasksExpanded, setCompletedTasksExpanded] = useState(false);
@@ -168,6 +169,8 @@ export default function StaffPage() {
           filter: `staff_id=eq.${staff.id}`,
         },
         () => {
+          setCheckInSuccess(true);
+          setTimeout(() => setCheckInSuccess(false), 20000);
           loadAttendance();
           loadSessions();
         }
@@ -432,6 +435,11 @@ export default function StaffPage() {
             <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
               {m.dailyAttendance}
             </h2>
+            {checkInSuccess && (
+              <div className="mb-4 rounded-lg px-4 py-3 bg-emerald-900/40 border border-emerald-500/50 text-emerald-200 text-sm font-medium">
+                {m.checkedInSuccess}
+              </div>
+            )}
             <p className="text-slate-200 font-medium mb-1">{m.checkInAtFrontDesk}</p>
             <p className="text-slate-400 text-sm mb-4">{m.checkInAtFrontDeskHint}</p>
             <div className="flex flex-col items-center gap-4">
@@ -463,6 +471,11 @@ export default function StaffPage() {
         {/* Checked in (IN): show full dashboard — no QR, profile + tasks + zones + sessions */}
         {isIn && (
           <>
+            {checkInSuccess && (
+              <div className="rounded-xl px-4 py-3 bg-emerald-900/40 border border-emerald-500/50 text-emerald-200 text-sm font-medium">
+                {m.checkedInSuccess}
+              </div>
+            )}
             <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
               <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
                 {m.profile}

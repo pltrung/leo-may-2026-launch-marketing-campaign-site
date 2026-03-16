@@ -337,9 +337,9 @@ export async function GET(request: NextRequest) {
     SAFETY_TASK_TITLES.some((title) => (t.title ?? "").trim().toLowerCase() === title.toLowerCase())
   );
   const gymReady =
-    currentPhase === "pre_open" &&
-    safetyTasks.length >= 3 &&
-    safetyTasks.every((t) => t.status === "completed");
+    currentPhase === "pre_open"
+      ? safetyTasks.length >= 3 && safetyTasks.every((t) => t.status === "completed")
+      : currentPhase === "gym_open" || currentPhase === "closing";
 
   const todayGym = getGymToday();
   const routeResetDay =
