@@ -60,11 +60,33 @@ export async function GET(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Fetch task_logs for today: completers per task + team completions (staff_name, task_title, timestamp)
+  const { data: logs } = await supabase
+    .from("task_logs")
+    .select("task_id, staff_id, completed_at, staff_profiles(display_name, email), staff_tasks(title)")
+    .eq("date", today)
+    .order("completed_at", { ascending: false });
+
+  const completersByTaskId: Record<string, string[]> = {};
+  const teamCompletions: { staff_name: string; task_title: string; completed_at: string }[] = [];
+  for (const log of logs ?? []) {
+    const taskId = log.task_id as string;
+    const p = Array.isArray(log.staff_profiles) ? log.staff_profiles[0] : log.staff_profiles;
+    const name = (p as { display_name?: string; email?: string })?.display_name || (p as { display_name?: string; email?: string })?.email || "Staff";
+    if (!completersByTaskId[taskId]) completersByTaskId[taskId] = [];
+    completersByTaskId[taskId].push(name);
+    const taskRow = Array.isArray(log.staff_tasks) ? log.staff_tasks[0] : log.staff_tasks;
+    const taskTitle = (taskRow as { title?: string })?.title ?? "Task";
+    teamCompletions.push({ staff_name: name, task_title: taskTitle, completed_at: log.completed_at as string });
+  }
+
   const nowHHMM = getGymNowHHMM();
 
   const withStatus = (tasks ?? []).map((t) => {
+    const completers = completersByTaskId[t.id as string] ?? [];
+    const hasCompletion = t.completed_at || completers.length > 0;
     let computed: TaskStatus;
-    if (t.completed_at) {
+    if (hasCompletion) {
       computed = "completed";
     } else if (!t.start_time || !t.due_time) {
       computed = "pending";
@@ -89,6 +111,7 @@ export async function GET(request: NextRequest) {
       status: computed,
       completed_at: t.completed_at as string | null,
       completed_by_name: t.completed_by ? staff.display_name ?? "Staff" : null,
+      completers,
     };
   });
 
@@ -96,6 +119,6 @@ export async function GET(request: NextRequest) {
   const during = withStatus.filter((t) => t.block === "during_hours");
   const closing = withStatus.filter((t) => t.block === "closing");
 
-  return NextResponse.json({ tasks: withStatus, preOpen, during, closing });
+  return NextResponse.json({ tasks: withStatus, preOpen, during, closing, teamCompletions });
 }
 

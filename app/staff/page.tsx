@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
-import { getGymToday } from "@/lib/gymTimezone";
+import { getGymToday, getGymDateFromISO } from "@/lib/gymTimezone";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { useRouteSetterAuth } from "@/components/route-setter/RouteSetterAuthContext";
 import RouteSetterLoginForm from "@/components/route-setter/RouteSetterLoginForm";
@@ -62,6 +62,7 @@ interface StaffTask {
   status: TaskStatus;
   completed_at: string | null;
   completed_by_name?: string | null;
+  completers?: string[];
 }
 
 export default function StaffPage() {
@@ -95,6 +96,9 @@ export default function StaffPage() {
   const [profileEditing, setProfileEditing] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [qrToken, setQrToken] = useState<string | null>(null);
+  const [staffTab, setStaffTab] = useState<"routes" | "coaching">("routes");
+  const [completedTasksExpanded, setCompletedTasksExpanded] = useState(false);
+  const [teamCompletions, setTeamCompletions] = useState<{ staff_name: string; task_title: string; completed_at: string }[]>([]);
 
   const loadAttendance = useCallback(async () => {
     const res = await staffFetch("/api/route-setter/attendance");
@@ -129,6 +133,7 @@ export default function StaffPage() {
       setPreOpenTasks(data.preOpen ?? []);
       setDuringTasks(data.during ?? []);
       setClosingTasks(data.closing ?? []);
+      setTeamCompletions(data.teamCompletions ?? []);
     }
   }, [staffFetch]);
 
@@ -335,6 +340,38 @@ export default function StaffPage() {
   const formatDate = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString(dateLocale, { month: "short", day: "numeric", year: "numeric" }) : "—";
 
+  // Current time window: 9:00–10:00 pre_open, 10:00–22:00 during_hours, 22:00–23:00 closing (gym TZ)
+  const getCurrentBlock = (): "pre_open" | "during_hours" | "closing" => {
+    const t = new Date().toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", timeZone: "America/Los_Angeles" });
+    const [h, m] = t.slice(0, 5).split(":").map(Number);
+    const mins = h * 60 + m;
+    if (mins >= 9 * 60 && mins < 10 * 60) return "pre_open";
+    if (mins >= 10 * 60 && mins < 22 * 60) return "during_hours";
+    if (mins >= 22 * 60 && mins < 23 * 60) return "closing";
+    return "during_hours";
+  };
+  const currentBlock = getCurrentBlock();
+  const rawActiveTasks = currentBlock === "pre_open" ? preOpenTasks : currentBlock === "closing" ? closingTasks : duringTasks;
+  const isRouteResetDay = zones.some((z) => z.status === "overdue" || (z.next_reset_at && getGymDateFromISO(z.next_reset_at) === today));
+  const isEssentialTask = (title: string): boolean => {
+    const lower = title.toLowerCase();
+    return /anchor|crash|rental|shoe|front desk|pos|bathroom|safety|check bathroom/i.test(lower);
+  };
+  const activeTasks = isRouteResetDay ? rawActiveTasks.filter((t) => isEssentialTask(t.title)) : rawActiveTasks;
+  const overdueTasksList = [...preOpenTasks, ...duringTasks, ...closingTasks].filter((t) => t.status === "overdue");
+  const activePending = activeTasks.filter((t) => t.status === "pending");
+  const activeCompleted = activeTasks.filter((t) => t.status === "completed");
+  const phaseLabel = currentBlock === "pre_open" ? m.phasePreOpen : currentBlock === "closing" ? m.phaseClosing : m.phaseGymOpen;
+  const phaseTimeWindow = currentBlock === "pre_open" ? m.timeWindow : currentBlock === "closing" ? m.timeWindowClosing : m.timeWindowOpen;
+  const minutesOverdue = (t: StaffTask): number => {
+    if (!t.due_time) return 0;
+    const due = String(t.due_time).slice(0, 5);
+    const [dh, dm] = due.split(":").map(Number);
+    const now = new Date().toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", timeZone: "America/Los_Angeles" }).slice(0, 5);
+    const [nh, nm] = now.split(":").map(Number);
+    return (nh * 60 + nm) - (dh * 60 + dm);
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 text-white">
       <header className="sticky top-0 z-10 border-b border-slate-700 bg-slate-900/95 backdrop-blur px-4 py-3 flex justify-between items-center">
@@ -464,342 +501,192 @@ export default function StaffPage() {
             </section>
 
             <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
-              <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
-                {m.dailyAttendance}
-              </h2>
-              <p className="text-slate-200">
-                <span className="text-emerald-400 font-medium">{m.youAreCheckedIn}</span>
-              </p>
+              <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">{m.dailyAttendance}</h2>
+              <p className="text-slate-200"><span className="text-emerald-400 font-medium">{m.youAreCheckedIn}</span></p>
             </section>
 
-        {(preOpenTasks.length + duringTasks.length + closingTasks.length) > 0 && (
-          <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
-            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
-              {locale === "vi" ? "Công việc ca hôm nay" : "Today''s Shift Tasks"}
-            </h2>
-
-            {/* Pre-open */}
-            {preOpenTasks.length > 0 && (
-              <div className="mb-4">
-                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                  {locale === "vi" ? "Trước giờ mở cửa (9:00–10:00)" : "Pre-open Tasks (9:00–10:00)"}
-                </h3>
-                <ul className="space-y-2">
-                  {preOpenTasks.map((t) => (
-                    <li
-                      key={t.id}
-                      className={`flex flex-col gap-1 py-2 border-b border-slate-700 last:border-0 ${
-                        t.status === "overdue" ? "bg-red-900/20" : ""
-                      } ${t.status === "upcoming" ? "opacity-60" : ""}`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <span
-                            className={
-                              t.status === "completed"
-                                ? "text-emerald-400 line-through"
-                                : "text-slate-200"
-                            }
-                          >
-                            {t.title}
-                          </span>
-                          {t.description && (
-                            <p className="text-xs text-slate-500 mt-0.5">{t.description}</p>
-                          )}
-                        </div>
-                        <div className="shrink-0 flex items-center gap-2">
-                          {t.status === "completed" && (
-                            <span className="text-emerald-400 text-xs font-semibold">✓ {m.done}</span>
-                          )}
-                          {t.status === "overdue" && (
-                            <span className="text-red-400 text-xs font-semibold">
-                              {m.overdue}
-                            </span>
-                          )}
-                          {t.status === "pending" && (
-                            <button
-                              type="button"
-                              disabled={completingTaskId === t.id}
-                              onClick={() => handleCompleteTask(t.id)}
-                              className="px-3 py-1.5 rounded bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-500 disabled:opacity-50"
-                            >
-                              {completingTaskId === t.id ? "…" : m.complete}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      {t.completed_at && (
-                        <p className="text-[11px] text-slate-500">
-                          {locale === "vi" ? "Hoàn thành bởi" : "Completed by"}{" "}
-                          <span className="font-medium text-slate-300">
-                            {t.completed_by_name ?? (locale === "vi" ? "Nhân viên" : "Staff")}
-                          </span>{" "}
-                          <span>
-                            {new Date(t.completed_at).toLocaleTimeString("en-US", {
-                              hour: "numeric",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                        </p>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+            {/* Route Reset Day banner */}
+            {isRouteResetDay && (
+              <div className="rounded-xl bg-amber-900/40 border border-amber-600 p-3">
+                <p className="text-sm font-semibold text-amber-200">⚠ {m.routeResetDay}</p>
+                <p className="text-xs text-amber-100/90 mt-0.5">{m.routeResetDayFocus}</p>
               </div>
             )}
 
-            {/* During hours */}
-            {duringTasks.length > 0 && (
-              <div className="mb-4">
-                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                  {locale === "vi" ? "Trong giờ mở cửa (10:00–22:00)" : "During Gym Hours (10:00–22:00)"}
-                </h3>
-                <ul className="space-y-2">
-                  {duringTasks.map((t) => (
-                    <li
-                      key={t.id}
-                      className={`flex flex-col gap-1 py-2 border-b border-slate-700 last:border-0 ${
-                        t.status === "overdue" ? "bg-red-900/20" : ""
-                      } ${t.status === "upcoming" ? "opacity-60" : ""}`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <span
-                            className={
-                              t.status === "completed"
-                                ? "text-emerald-400 line-through"
-                                : "text-slate-200"
-                            }
-                          >
-                            {t.title}
-                          </span>
-                          {t.description && (
-                            <p className="text-xs text-slate-500 mt-0.5">{t.description}</p>
-                          )}
-                        </div>
-                        <div className="shrink-0 flex items-center gap-2">
-                          {t.status === "completed" && (
-                            <span className="text-emerald-400 text-xs font-semibold">✓ {m.done}</span>
-                          )}
-                          {t.status === "overdue" && (
-                            <span className="text-red-400 text-xs font-semibold">
-                              {m.overdue}
-                            </span>
-                          )}
-                          {t.status === "pending" && (
-                            <button
-                              type="button"
-                              disabled={completingTaskId === t.id}
-                              onClick={() => handleCompleteTask(t.id)}
-                              className="px-3 py-1.5 rounded bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-500 disabled:opacity-50"
-                            >
-                              {completingTaskId === t.id ? "…" : m.complete}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      {t.completed_at && (
-                        <p className="text-[11px] text-slate-500">
-                          {locale === "vi" ? "Hoàn thành bởi" : "Completed by"}{" "}
-                          <span className="font-medium text-slate-300">
-                            {t.completed_by_name ?? (locale === "vi" ? "Nhân viên" : "Staff")}
-                          </span>{" "}
-                          <span>
-                            {new Date(t.completed_at).toLocaleTimeString("en-US", {
-                              hour: "numeric",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                        </p>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            {/* CURRENT SHIFT PHASE */}
+            <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
+              <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{m.currentShiftPhase}</h2>
+              <p className="text-lg font-semibold text-white">{phaseLabel}</p>
+              <p className="text-sm text-slate-400">{phaseTimeWindow}</p>
+            </section>
 
-            {/* Closing tasks */}
-            {closingTasks.length > 0 && (
-              <div>
-                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                  {locale === "vi" ? "Đóng cửa (22:00–23:00)" : "Closing Tasks (22:00–23:00)"}
-                </h3>
-                <ul className="space-y-2">
-                  {closingTasks.map((t) => (
-                    <li
-                      key={t.id}
-                      className={`flex flex-col gap-1 py-2 border-b border-slate-700 last:border-0 ${
-                        t.status === "overdue" ? "bg-red-900/20" : ""
-                      } ${t.status === "upcoming" ? "opacity-60" : ""}`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <span
-                            className={
-                              t.status === "completed"
-                                ? "text-emerald-400 line-through"
-                                : "text-slate-200"
-                            }
-                          >
-                            {t.title}
-                          </span>
-                          {t.description && (
-                            <p className="text-xs text-slate-500 mt-0.5">{t.description}</p>
-                          )}
-                        </div>
-                        <div className="shrink-0 flex items-center gap-2">
-                          {t.status === "completed" && (
-                            <span className="text-emerald-400 text-xs font-semibold">✓ {m.done}</span>
-                          )}
-                          {t.status === "overdue" && (
-                            <span className="text-red-400 text-xs font-semibold">
-                              {m.overdue}
-                            </span>
-                          )}
-                          {t.status === "pending" && (
-                            <button
-                              type="button"
-                              disabled={completingTaskId === t.id}
-                              onClick={() => handleCompleteTask(t.id)}
-                              className="px-3 py-1.5 rounded bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-500 disabled:opacity-50"
-                            >
-                              {completingTaskId === t.id ? "…" : m.complete}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      {t.completed_at && (
-                        <p className="text-[11px] text-slate-500">
-                          {locale === "vi" ? "Hoàn thành bởi" : "Completed by"}{" "}
-                          <span className="font-medium text-slate-300">
-                            {t.completed_by_name ?? (locale === "vi" ? "Nhân viên" : "Staff")}
-                          </span>{" "}
-                          <span>
-                            {new Date(t.completed_at).toLocaleTimeString("en-US", {
-                              hour: "numeric",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                        </p>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </section>
-        )}
-
-        <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
-          <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
-            {m.routeResetSchedule}
-          </h2>
-          {overdueZones.length > 0 && (
-            <div className="mb-3 p-2 rounded-lg bg-amber-900/30 border border-amber-700">
-              <p className="text-xs font-semibold text-amber-200 uppercase tracking-wider mb-2">{m.overdue}</p>
-              <ul className="space-y-1.5">
-                {overdueZones.map((z) => (
-                  <li key={z.id} className="flex justify-between items-center text-sm">
-                    <span>{z.name}</span>
-                    <button
-                      type="button"
-                      disabled={resettingZoneId === z.id}
-                      onClick={() => handleZoneReset(z.id)}
-                      className="px-2 py-1 rounded bg-amber-600 text-amber-100 text-xs font-medium hover:bg-amber-500 disabled:opacity-50"
-                    >
-                      {resettingZoneId === z.id ? "…" : m.markResetComplete}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <ul className="space-y-2">
-            {zones.map((z) => (
-              <li key={z.id} className="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-slate-700 last:border-0">
-                <div>
-                  <span className="font-medium">{z.name}</span>
-                  <span className={`ml-2 text-xs ${
-                    z.status === "overdue" ? "text-red-400" :
-                    z.status === "due" ? "text-amber-400" :
-                    z.status === "recent" ? "text-emerald-400" : "text-slate-500"
-                  }`}>
-                    {z.status === "overdue" && m.overdue}
-                    {z.status === "due" && m.dueSoon}
-                    {z.status === "recent" && m.recentlyReset}
-                    {z.status === "upcoming" && `${m.next}: ${formatDate(z.next_reset_at)}`}
-                  </span>
+            {/* ACTIVE TASKS — progress bar, overdue, pending, completed collapsed */}
+            <section className="rounded-xl bg-slate-800 border border-slate-700 p-4 space-y-3">
+              <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{m.activeTasks}</h2>
+              {activeTasks.length > 0 && (
+                <>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-300">{(m.tasksProgress as string).replace("{done}", String(activeCompleted.length)).replace("{total}", String(activeTasks.length))}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-700 overflow-hidden">
+                    <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${activeTasks.length ? (activeCompleted.length / activeTasks.length) * 100 : 0}%` }} />
+                  </div>
+                </>
+              )}
+              {overdueTasksList.filter((t) => !isRouteResetDay || isEssentialTask(t.title)).length > 0 && (
+                <div className="rounded-lg bg-red-900/30 border border-red-700 p-2">
+                  <p className="text-xs font-semibold text-red-200 uppercase tracking-wider mb-1">⚠ {m.overdueTasks}</p>
+                  <ul className="space-y-1">
+                    {overdueTasksList.filter((t) => !isRouteResetDay || isEssentialTask(t.title)).map((t) => (
+                      <li key={t.id} className="flex justify-between items-center gap-2 text-sm">
+                        <span className="text-slate-200">{t.title} — {(m.overdueByMinutes as string).replace("{n}", String(minutesOverdue(t)))}</span>
+                        <button type="button" disabled={completingTaskId === t.id} onClick={() => handleCompleteTask(t.id)} className="shrink-0 px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-500 disabled:opacity-50">{completingTaskId === t.id ? "…" : m.complete}</button>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                {z.status !== "recent" && (
-                  <button
-                    type="button"
-                    disabled={resettingZoneId === z.id}
-                    onClick={() => handleZoneReset(z.id)}
-                    className="px-3 py-1.5 rounded bg-slate-600 text-slate-200 text-sm hover:bg-slate-500 disabled:opacity-50"
-                  >
-                    {resettingZoneId === z.id ? "…" : m.markResetComplete}
+              )}
+              {activePending.length === 0 && activeCompleted.length === 0 && (
+                <p className="text-slate-500 text-sm">{locale === "vi" ? "Không có công việc trong ca này." : "No tasks in this phase."}</p>
+              )}
+              <ul className="space-y-1">
+                {activePending.map((t) => (
+                  <li key={t.id} className="flex justify-between items-center gap-2 py-1.5 border-b border-slate-700 last:border-b-0">
+                    <span className="text-slate-200 text-sm">{t.title}</span>
+                    <button type="button" disabled={completingTaskId === t.id} onClick={() => handleCompleteTask(t.id)} className="shrink-0 px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-500 disabled:opacity-50">{completingTaskId === t.id ? "…" : m.complete}</button>
+                  </li>
+                ))}
+              </ul>
+              {activeCompleted.length > 0 && (
+                <div>
+                  <button type="button" onClick={() => setCompletedTasksExpanded(!completedTasksExpanded)} className="w-full text-left text-xs font-semibold text-slate-400 uppercase tracking-wider py-0.5 flex items-center justify-between">
+                    {m.completedTasks} ({activeCompleted.length})
+                    <span className="text-slate-500">{completedTasksExpanded ? "▼" : "▶"}</span>
                   </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
+                  {completedTasksExpanded && (
+                    <ul className="space-y-0.5 mt-1">
+                      {activeCompleted.map((t) => (
+                        <li key={t.id} className="text-sm">
+                          <span className="text-emerald-400 line-through">{t.title}</span>
+                          <p className="text-[11px] text-slate-500">{(t.completers && t.completers.length > 0 ? t.completers : [t.completed_by_name ?? "Staff"].filter(Boolean)).join(", ")}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </section>
 
-        <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
-          <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
-            {m.todayCoachingSessions}
-          </h2>
-          {sessions.length === 0 && <p className="text-slate-500 text-sm">{m.noSessionsScheduled}</p>}
-          {mySessions.length > 0 && (
-            <div className="mb-3">
-              <p className="text-xs text-slate-400 mb-2">{m.yourSessions}</p>
-              <ul className="space-y-1.5">
-                {mySessions.map((s) => (
-                  <li key={s.id} className="py-2 px-3 rounded-lg bg-slate-700/50 text-sm space-y-1">
-                    <div className="flex justify-between items-center">
-                      <span>{formatTime(s.start_time)} – {formatTime(s.end_time)}</span>
-                      <span className="text-emerald-400">{m.assignedToYou}</span>
-                    </div>
-                    <div className="text-xs text-slate-400">
-                      {s.location && <span>{s.location}</span>}
-                      {(s.newbie_count ?? 0) > 0 && (
-                        <span className="ml-2">{s.newbie_count} {m.newbiesAttending}</span>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
+            {/* TEAM STATUS — who completed what */}
+            <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
+              <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{m.teamStatus}</h2>
+              {teamCompletions.length === 0 ? (
+                <p className="text-slate-500 text-sm">{locale === "vi" ? "Chưa có hoàn thành nào." : "No completions yet."}</p>
+              ) : (
+                <ul className="space-y-1 text-sm max-h-32 overflow-y-auto">
+                  {teamCompletions.slice(0, 20).map((c, i) => (
+                    <li key={i} className="flex justify-between gap-2 py-0.5 border-b border-slate-700/50 last:border-0">
+                      <span className="text-slate-200 truncate">{c.staff_name} — {c.task_title}</span>
+                      <span className="text-slate-500 shrink-0">{new Date(c.completed_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            {/* Tabs: Routes, Coaching */}
+            <div className="flex gap-1 p-1 rounded-xl bg-slate-800 border border-slate-700">
+              <button type="button" onClick={() => setStaffTab("routes")} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${staffTab === "routes" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>{m.tabRoutes}</button>
+              <button type="button" onClick={() => setStaffTab("coaching")} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${staffTab === "coaching" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>{m.tabCoaching}</button>
             </div>
-          )}
-          {unassignedSessions.length > 0 && (
-            <div>
-              <p className="text-xs text-slate-400 mb-2">{m.unassignedTapToTake}</p>
-              <ul className="space-y-1.5">
-                {unassignedSessions.map((s) => (
-                  <li key={s.id} className="py-2 px-3 rounded-lg bg-slate-700/50 text-sm space-y-1">
-                    <div className="flex justify-between items-center">
-                      <span>{formatTime(s.start_time)} – {formatTime(s.end_time)}</span>
-                      <button
-                        type="button"
-                        disabled={assigningId === s.id}
-                        onClick={() => handleAssignSession(s.id)}
-                        className="text-amber-400 hover:text-amber-300 text-sm font-medium disabled:opacity-50"
-                      >
-                        {assigningId === s.id ? "…" : m.assignToMe}
-                      </button>
-                    </div>
-                    <div className="text-xs text-slate-400">
-                      {s.location && <span>{s.location}</span>}
-                      {(s.newbie_count ?? 0) > 0 && (
-                        <span className="ml-2">{s.newbie_count} {m.newbiesAttending}</span>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </section>
+
+            {/* TAB: ROUTES — wall zone, assigned setters, reset progress, route setting tasks */}
+            {staffTab === "routes" && (
+              <section className="rounded-xl bg-slate-800 border border-slate-700 p-4 space-y-4">
+                <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">{m.routeResetSchedule}</h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs font-semibold text-slate-400 uppercase border-b border-slate-600">
+                        <th className="py-2 pr-2">{m.wallZone}</th>
+                        <th className="py-2 pr-2">{m.assignedSetters}</th>
+                        <th className="py-2 pr-2">{m.resetProgress}</th>
+                        <th className="py-2 w-24" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {zones.map((z) => {
+                        const resetComplete = z.last_reset_at && getGymDateFromISO(z.last_reset_at) === today;
+                        return (
+                          <tr key={z.id} className="border-b border-slate-700 last:border-0">
+                            <td className="py-2 pr-2 font-medium text-slate-200">{z.name}</td>
+                            <td className="py-2 pr-2 text-slate-500">{m.noAssignments}</td>
+                            <td className="py-2 pr-2">{resetComplete ? <span className="text-emerald-400">{m.resetProgressComplete}</span> : <span className="text-slate-400">{m.resetProgressPending}</span>}</td>
+                            <td className="py-2">
+                              {z.status !== "recent" && (
+                                <button type="button" disabled={resettingZoneId === z.id} onClick={() => handleZoneReset(z.id)} className="px-2 py-1 rounded bg-slate-600 text-slate-200 text-xs hover:bg-slate-500 disabled:opacity-50">{resettingZoneId === z.id ? "…" : m.markResetComplete}</button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-xs text-slate-500">{m.next}: {zones.map((z) => `${z.name} ${formatDate(z.next_reset_at)}`).join(" · ")}</p>
+                {isRouteResetDay && (
+                  <div>
+                    <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{m.routeSettingTasks}</h3>
+                    <p className="text-slate-400 text-sm mb-1">{locale === "vi" ? "Ưu tiên các công việc set tường. Chỉ hiển thị vận hành thiết yếu ở mục Active tasks." : "Route setting is the main focus. Essential operations only in Active tasks above."}</p>
+                    <ul className="space-y-0.5 text-sm text-slate-300">
+                      {[...preOpenTasks, ...duringTasks, ...closingTasks].filter((t) => isEssentialTask(t.title)).map((t) => (
+                        <li key={t.id} className={t.status === "completed" ? "line-through text-slate-500" : ""}>{t.title} {t.status === "completed" ? "✓" : ""}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* TAB: COACHING */}
+            {staffTab === "coaching" && (
+              <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
+                <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">{m.todayCoachingSessions}</h2>
+                {sessions.length === 0 && <p className="text-slate-500 text-sm">{m.noSessionsScheduled}</p>}
+                {mySessions.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-xs text-slate-400 mb-2">{m.yourSessions}</p>
+                    <ul className="space-y-1.5">
+                      {mySessions.map((s) => (
+                        <li key={s.id} className="py-2 px-3 rounded-lg bg-slate-700/50 text-sm space-y-1">
+                          <div className="flex justify-between items-center">
+                            <span>{formatTime(s.start_time)} – {formatTime(s.end_time)}</span>
+                            <span className="text-emerald-400">{m.assignedToYou}</span>
+                          </div>
+                          <div className="text-xs text-slate-400">{s.location && <span>{s.location}</span>}{(s.newbie_count ?? 0) > 0 && <span className="ml-2">{s.newbie_count} {m.newbiesAttending}</span>}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {unassignedSessions.length > 0 && (
+                  <div>
+                    <p className="text-xs text-slate-400 mb-2">{m.unassignedTapToTake}</p>
+                    <ul className="space-y-1.5">
+                      {unassignedSessions.map((s) => (
+                        <li key={s.id} className="py-2 px-3 rounded-lg bg-slate-700/50 text-sm space-y-1">
+                          <div className="flex justify-between items-center">
+                            <span>{formatTime(s.start_time)} – {formatTime(s.end_time)}</span>
+                            <button type="button" disabled={assigningId === s.id} onClick={() => handleAssignSession(s.id)} className="text-amber-400 hover:text-amber-300 text-sm font-medium disabled:opacity-50">{assigningId === s.id ? "…" : m.assignToMe}</button>
+                          </div>
+                          <div className="text-xs text-slate-400">{s.location && <span>{s.location}</span>}{(s.newbie_count ?? 0) > 0 && <span className="ml-2">{s.newbie_count} {m.newbiesAttending}</span>}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </section>
+            )}
           </>
         )}
       </main>

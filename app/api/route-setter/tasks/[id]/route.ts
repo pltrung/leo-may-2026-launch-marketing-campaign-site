@@ -36,7 +36,7 @@ export async function PATCH(
 
   const { data: task } = await supabase
     .from("staff_tasks")
-    .select("id, assigned_to")
+    .select("id, assigned_to, status")
     .eq("id", id)
     .single();
   if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
@@ -47,20 +47,7 @@ export async function PATCH(
   const nowIso = new Date().toISOString();
   const today = getGymToday();
 
-  const update: { status: string; completed_at?: string; completed_by?: string | null; updated_at: string } = {
-    status,
-    updated_at: nowIso,
-  };
-  if (status === "completed") {
-    update.completed_at = nowIso;
-    update.completed_by = staff.id as string;
-  } else {
-    update.completed_by = null;
-  }
-
-  const { error } = await supabase.from("staff_tasks").update(update).eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
+  // Always insert task_logs when marking completed (multiple staff can complete same task)
   if (status === "completed") {
     await supabase.from("task_logs").insert({
       task_id: id,
@@ -68,6 +55,20 @@ export async function PATCH(
       date: today,
       completed_at: nowIso,
     });
+    // Update staff_tasks only if not already completed (first completer sets it)
+    if (task.status !== "completed") {
+      const { error: updateErr } = await supabase
+        .from("staff_tasks")
+        .update({ status: "completed", completed_at: nowIso, completed_by: staff.id, updated_at: nowIso })
+        .eq("id", id);
+      if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+    }
+  } else {
+    const { error: updateErr } = await supabase
+      .from("staff_tasks")
+      .update({ status: "pending", completed_at: null, completed_by: null, updated_at: nowIso })
+      .eq("id", id);
+    if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
   }
 
   return NextResponse.json({
