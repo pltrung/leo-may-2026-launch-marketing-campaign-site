@@ -154,6 +154,7 @@ export default function DashboardPage() {
   const [passFilter, setPassFilter] = useState<"all" | "day" | "visit">("all");
   const [plans, setPlans] = useState<Plan[]>([]);
   const [payments, setPayments] = useState<{ id: string; plan_name: string; amount: number; created_at: string }[]>([]);
+  const [purchases, setPurchases] = useState<{ id: string; total: number; created_at: string; items: { sku: string; name: string | null; quantity: number; price: number }[] }[]>([]);
   const [packageDetailPlan, setPackageDetailPlan] = useState<Plan | null>(null);
   const [packageDetailOpen, setPackageDetailOpen] = useState(false);
   const [renewPlanId, setRenewPlanId] = useState<string | null>(null);
@@ -318,8 +319,14 @@ export default function DashboardPage() {
     if (!accessToken) return;
     fetch("/api/member/payments", { headers: { Authorization: `Bearer ${accessToken}` } })
       .then((r) => r.json())
-      .then((d) => setPayments(d.payments ?? []))
-      .catch(() => setPayments([]));
+      .then((d) => {
+        setPayments(d.payments ?? []);
+        setPurchases(d.purchases ?? []);
+      })
+      .catch(() => {
+        setPayments([]);
+        setPurchases([]);
+      });
   }, [accessToken, paymentSuccess]);
 
   // Subscribe to payments realtime for this member
@@ -1257,26 +1264,41 @@ export default function DashboardPage() {
                   );
                 })()}
                 <style>{`[data-passes-carousel]::-webkit-scrollbar { display: none; }`}</style>
-                {payments.length > 0 && (
+                {(payments.length > 0 || purchases.length > 0) && (
                   <div className="pt-3 border-t border-white/[0.08]">
                     <p className="text-xs font-medium text-white/70 uppercase tracking-wider mb-2">
                       {isVi ? "Lịch sử thanh toán" : "Payment history"}
                     </p>
                     <ul className="space-y-1.5">
-                      {payments.slice(0, 5).map((p) => (
-                        <li key={p.id} className="flex justify-between items-center text-sm">
-                          <span className="text-white/80">
-                            {new Date(p.created_at).toLocaleDateString(isVi ? "vi-VN" : "en-US", {
-                              month: "short",
-                              day: "numeric",
-                            })}{" "}
-                            {p.plan_name}
-                          </span>
-                          <span className="text-white/90 font-medium">
-                            {p.amount.toLocaleString("vi-VN")} VND
-                          </span>
-                        </li>
-                      ))}
+                      {[
+                        ...payments.map((p) => ({ type: "membership" as const, id: p.id, date: p.created_at, amount: p.amount, label: p.plan_name, items: null })),
+                        ...purchases.map((tx) => ({ type: "retail" as const, id: tx.id, date: tx.created_at, amount: tx.total, label: isVi ? "Mua hàng" : "Retail", items: tx.items })),
+                      ]
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                        .slice(0, 8)
+                        .map((entry) => (
+                          <li key={`${entry.type}-${entry.id}`} className="flex flex-col gap-0.5">
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-white/80">
+                                {new Date(entry.date).toLocaleDateString(isVi ? "vi-VN" : "en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                })}{" "}
+                                {entry.label}
+                              </span>
+                              <span className="text-white/90 font-medium">
+                                {entry.amount.toLocaleString("vi-VN")} VND
+                              </span>
+                            </div>
+                            {entry.items && entry.items.length > 0 && (
+                              <ul className="text-[11px] text-white/50 list-disc list-inside ml-1">
+                                {entry.items.map((it, j) => (
+                                  <li key={j}>{it.name ?? it.sku} × {it.quantity}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </li>
+                        ))}
                     </ul>
                   </div>
                 )}

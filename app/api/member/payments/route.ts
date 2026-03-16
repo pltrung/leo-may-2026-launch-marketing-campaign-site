@@ -67,7 +67,35 @@ export async function GET(req: NextRequest) {
       created_at: p.created_at,
     }));
 
-    return NextResponse.json({ payments });
+    const { data: posRows } = await supabase
+      .from("pos_transactions")
+      .select("id, total, payment_method, created_at")
+      .eq("member_id", member.id)
+      .eq("payment_status", "success")
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    const purchases: { id: string; total: number; payment_method: string; created_at: string; items: { sku: string; name: string | null; quantity: number; price: number }[] }[] = [];
+    for (const tx of posRows ?? []) {
+      const { data: items } = await supabase
+        .from("transaction_items")
+        .select("sku, name, quantity, price")
+        .eq("transaction_id", tx.id);
+      purchases.push({
+        id: tx.id,
+        total: tx.total as number,
+        payment_method: tx.payment_method as string,
+        created_at: tx.created_at as string,
+        items: (items ?? []).map((i) => ({
+          sku: i.sku,
+          name: i.name ?? null,
+          quantity: i.quantity as number,
+          price: i.price as number,
+        })),
+      });
+    }
+
+    return NextResponse.json({ payments, purchases });
   } catch (e) {
     console.error("member payments error", e);
     return NextResponse.json({ error: "Failed" }, { status: 500 });
