@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
 
-/** SKU pattern: PRODUCTCODE-SIZE e.g. SCA100-41. PRODUCTCODE alphanumeric, SIZE optional. */
-const SKU_PATTERN = /^[A-Za-z0-9]+(-[A-Za-z0-9]+)?$/;
+/** SKU pattern: PRODUCTCODE-SIZE e.g. SCA100-41 or code with brackets. PRODUCTCODE and SIZE can include [ ] and hyphen. */
+const SKU_PATTERN = /^[A-Za-z0-9\-\[\]]+(-[A-Za-z0-9\-\[\]]+)?$/;
 
 /**
  * POST /api/admin/variants

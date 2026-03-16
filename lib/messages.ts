@@ -643,6 +643,9 @@ const en = {
     variantSizes: "Variant sizes",
     addSize: "Add size",
     youAreCheckedIn: "You're checked in",
+    skuOrBarcodeNotFound: "SKU / barcode not found.",
+    inStock: "In stock",
+    outOfStock: "Out of stock",
   },
   staff: {
     title: "Staff Dashboard",
@@ -1341,6 +1344,9 @@ const vi: Messages = {
     variantSizes: "Các size",
     addSize: "Thêm size",
     youAreCheckedIn: "Bạn đã check-in",
+    skuOrBarcodeNotFound: "Không tìm thấy SKU / mã vạch.",
+    inStock: "Tồn kho",
+    outOfStock: "Hết hàng",
   },
   staff: {
     title: "Bảng điều khiển nhân sự",

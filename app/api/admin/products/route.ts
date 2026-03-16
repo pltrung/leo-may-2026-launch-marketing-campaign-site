@@ -22,9 +22,13 @@ export async function GET(req: NextRequest) {
       .select("id, product_id, sku, size, barcode, price, cost")
       .eq("barcode", barcode)
       .maybeSingle();
-    if (!variant) return NextResponse.json({ product: null, variant: null });
-    const { data: product } = await supabase.from("products").select("id, name, brand, category, image").eq("id", variant.product_id).single();
-    return NextResponse.json({ product, variant });
+    if (!variant) return NextResponse.json({ product: null, variant: null, stock_quantity: 0 });
+    const [{ data: product }, { data: invRows }] = await Promise.all([
+      supabase.from("products").select("id, name, brand, category, image").eq("id", variant.product_id).single(),
+      supabase.from("inventory").select("quantity").eq("variant_id", variant.id),
+    ]);
+    const stock_quantity = (invRows ?? []).reduce((s: number, r: { quantity: number }) => s + (r.quantity ?? 0), 0);
+    return NextResponse.json({ product, variant, stock_quantity });
   }
 
   if (sku) {
@@ -33,9 +37,13 @@ export async function GET(req: NextRequest) {
       .select("id, product_id, sku, size, barcode, price, cost")
       .eq("sku", sku)
       .maybeSingle();
-    if (!variant) return NextResponse.json({ product: null, variant: null });
-    const { data: product } = await supabase.from("products").select("id, name, brand, category, image").eq("id", variant.product_id).single();
-    return NextResponse.json({ product, variant });
+    if (!variant) return NextResponse.json({ product: null, variant: null, stock_quantity: 0 });
+    const [{ data: product }, { data: invRows }] = await Promise.all([
+      supabase.from("products").select("id, name, brand, category, image").eq("id", variant.product_id).single(),
+      supabase.from("inventory").select("quantity").eq("variant_id", variant.id),
+    ]);
+    const stock_quantity = (invRows ?? []).reduce((s: number, r: { quantity: number }) => s + (r.quantity ?? 0), 0);
+    return NextResponse.json({ product, variant, stock_quantity });
   }
 
   const { data: products, error } = await supabase

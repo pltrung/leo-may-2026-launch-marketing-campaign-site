@@ -125,6 +125,8 @@ export default function AdminPage() {
   const [scannerModalOpen, setScannerModalOpen] = useState(false);
   const [posCart, setPosCart] = useState<{ sku: string; name: string; quantity: number; price: number; variant_id?: string }[]>([]);
   const [posSkuInput, setPosSkuInput] = useState("");
+  const [posBarcodeScannerOpen, setPosBarcodeScannerOpen] = useState(false);
+  const [posLookupResult, setPosLookupResult] = useState<{ found: boolean; product?: { name: string }; variant?: { id: string; sku: string; price: number; size?: string | null }; stock_quantity?: number } | null>(null);
   const [posCheckoutLoading, setPosCheckoutLoading] = useState(false);
   const [posPaymentModalOpen, setPosPaymentModalOpen] = useState(false);
   const [posPaymentMethod, setPosPaymentMethod] = useState<"vietqr" | "cash">("vietqr");
@@ -146,7 +148,7 @@ export default function AdminPage() {
   const [newProductBrand, setNewProductBrand] = useState("");
   const [newProductCode, setNewProductCode] = useState("");
   const [newProductCategory, setNewProductCategory] = useState<"shoes" | "chalk" | "merch" | "rental">("merch");
-  const [newVariants, setNewVariants] = useState<{ size: string; barcode: string; price: string; cost: string }[]>([{ size: "", barcode: "", price: "", cost: "" }]);
+  const [newVariants, setNewVariants] = useState<{ size: string; barcode: string; price: string; cost: string; quantity: string }[]>([{ size: "", barcode: "", price: "", cost: "", quantity: "1" }]);
   const [newProductBarcode, setNewProductBarcode] = useState("");
   const [stockInSku, setStockInSku] = useState("");
   const [stockInQty, setStockInQty] = useState("1");
@@ -405,6 +407,63 @@ export default function AdminPage() {
       setSearchError("Unable to search members right now.");
     }
   }, [searchMode, searchQuery, adminFetch, locale]);
+
+  const doPosLookup = useCallback(
+    async (
+      val: string
+    ): Promise<{
+      found: boolean;
+      product?: { name: string };
+      variant?: { id: string; sku: string; price: number };
+      stock_quantity?: number;
+    }> => {
+      const v = val.trim();
+      if (!v) {
+        setPosLookupResult({ found: false });
+        return { found: false };
+      }
+      try {
+        const r = await adminFetch(`/api/admin/variants/by-barcode?barcode=${encodeURIComponent(v)}`);
+        const d = await r.json();
+        if (d.found && d.product && d.variant) {
+          const result = {
+            found: true,
+            product: d.product,
+            variant: { id: d.variant.id, sku: d.variant.sku, price: d.variant.price, size: d.variant.size ?? null },
+            stock_quantity: d.stock_quantity ?? 0,
+          };
+          setPosLookupResult(result);
+          return result;
+        }
+      } catch {
+        /* ignore */
+      }
+      try {
+        let res = await adminFetch(`/api/admin/products?sku=${encodeURIComponent(v)}`);
+        let data = await res.json();
+        if (!data?.product && !data?.variant) {
+          res = await adminFetch(`/api/admin/products?barcode=${encodeURIComponent(v)}`);
+          data = await res.json();
+        }
+        if (data?.product && data?.variant) {
+          const stock = data.stock_quantity ?? 0;
+          const result = {
+            found: true,
+            product: data.product,
+            variant: { id: data.variant.id, sku: data.variant.sku, price: data.variant.price, size: data.variant.size ?? null },
+            stock_quantity: stock,
+          };
+          setPosLookupResult(result);
+          return result;
+        }
+      } catch {
+        /* ignore */
+      }
+      setPosLookupResult({ found: false });
+      return { found: false };
+    },
+    [adminFetch]
+  );
 
   const handleScanQr = useCallback(() => {
     setSearchMode("qr");
@@ -1378,10 +1437,83 @@ export default function AdminPage() {
                       <button type="button" onClick={() => { const p = products.find((x) => x.category === "rental"); const v = p?.variants?.[0]; const price = v?.price ?? 50000; const name = p?.name ?? "Rental Shoes"; const sku = v?.sku ?? "RENTAL_SHOES"; setPosCart((c) => [...c, { sku, name, quantity: 1, price, variant_id: v?.id }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.shoeRental} (50,000 VND)</button>
                       <button type="button" onClick={() => { const p = products.find((x) => x.category === "chalk"); const v = p?.variants?.[0]; const price = v?.price ?? 20000; const name = p?.name ?? "Chalk (bag, return after session)"; const sku = v?.sku ?? "CHALK_BAG"; setPosCart((c) => [...c, { sku, name, quantity: 1, price, variant_id: v?.id }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.buyChalk} (20,000 VND)</button>
                     </div>
-                    <div className="flex gap-2">
-                      <input placeholder={m.skuOrBarcode} value={posSkuInput} onChange={(e) => setPosSkuInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const val = posSkuInput.trim(); if (!val) return; adminFetch(`/api/admin/products?sku=${encodeURIComponent(val)}`).then((r) => r.json()).then((d) => { if (d.product && d.variant) setPosCart((c) => [...c, { sku: d.variant.sku, name: d.product.name, quantity: 1, price: d.variant.price, variant_id: d.variant.id }]); else adminFetch(`/api/admin/products?barcode=${encodeURIComponent(val)}`).then((r2) => r2.json()).then((d2) => { if (d2?.product && d2?.variant) setPosCart((c) => [...c, { sku: d2.variant.sku, name: d2.product.name, quantity: 1, price: d2.variant.price, variant_id: d2.variant.id }]); }); setPosSkuInput(""); }); } }} className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
-                      <button type="button" onClick={() => { const val = posSkuInput.trim(); if (!val) return; adminFetch(`/api/admin/products?sku=${encodeURIComponent(val)}`).then((r) => r.json()).then((d) => { if (d.product && d.variant) { setPosCart((c) => [...c, { sku: d.variant.sku, name: d.product.name, quantity: 1, price: d.variant.price, variant_id: d.variant.id }]); setPosSkuInput(""); } else return adminFetch(`/api/admin/products?barcode=${encodeURIComponent(val)}`).then((r2) => r2.json()); }).then((d2) => { if (d2?.product && d2?.variant) { setPosCart((c) => [...c, { sku: d2.variant.sku, name: d2.product.name, quantity: 1, price: d2.variant.price, variant_id: d2.variant.id }]); setPosSkuInput(""); } }).catch(() => {}); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-white hover:bg-slate-700">{m.addToCart}</button>
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <input
+                        placeholder={m.skuOrBarcode}
+                        value={posSkuInput}
+                        onChange={(e) => { setPosSkuInput(e.target.value); setPosLookupResult(null); }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            const val = posSkuInput.trim();
+                            if (!val) return;
+                            doPosLookup(val).then((r) => {
+                              if (r.found && r.product && r.variant) {
+                                setPosCart((c) => [...c, { sku: r.variant!.sku, name: r.product!.name, quantity: 1, price: r.variant!.price, variant_id: r.variant!.id }]);
+                                setPosSkuInput("");
+                                setPosLookupResult(null);
+                              }
+                            });
+                          }
+                        }}
+                        className="flex-1 min-w-[120px] px-2 py-1.5 rounded-lg border border-slate-200 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setPosBarcodeScannerOpen(true)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200"
+                      >
+                        {m.scanBarcode}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = posSkuInput.trim();
+                          if (!val) return;
+                          doPosLookup(val).then((r) => {
+                            if (r.found && r.product && r.variant) {
+                              setPosCart((c) => [...c, { sku: r.variant!.sku, name: r.product!.name, quantity: 1, price: r.variant!.price, variant_id: r.variant!.id }]);
+                              setPosSkuInput("");
+                              setPosLookupResult(null);
+                            }
+                          });
+                        }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-white hover:bg-slate-700"
+                      >
+                        {m.addToCart}
+                      </button>
                     </div>
+                    {posLookupResult && (
+                      <div className={`rounded-lg border p-3 text-sm ${posLookupResult.found ? "border-emerald-200 bg-emerald-50/80" : "border-amber-200 bg-amber-50/80"}`}>
+                        {posLookupResult.found && posLookupResult.product && posLookupResult.variant ? (
+                          <>
+                            <p className="font-medium text-slate-800">{posLookupResult.product.name}</p>
+                            <p className="text-slate-600 mt-0.5">
+                              {posLookupResult.variant.sku}
+                              {posLookupResult.variant.size != null ? ` — ${posLookupResult.variant.size}` : ""} · {(posLookupResult.variant.price ?? 0).toLocaleString("vi-VN")} VND
+                            </p>
+                            <p className="text-xs mt-1">
+                              {(posLookupResult.stock_quantity ?? 0) > 0
+                                ? `${m.inStock}: ${posLookupResult.stock_quantity}`
+                                : m.outOfStock}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPosCart((c) => [...c, { sku: posLookupResult.variant!.sku, name: posLookupResult.product!.name, quantity: 1, price: posLookupResult.variant!.price, variant_id: posLookupResult.variant!.id }]);
+                                setPosSkuInput("");
+                                setPosLookupResult(null);
+                              }}
+                              className="mt-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-500"
+                            >
+                              {m.addToCart}
+                            </button>
+                          </>
+                        ) : (
+                          <p className="text-amber-800">{m.skuOrBarcodeNotFound}</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="mt-3 border-t border-slate-200 pt-3">
                     <p className="text-xs font-medium text-slate-600 mb-2">{m.cart}</p>
@@ -1442,6 +1574,7 @@ export default function AdminPage() {
                             setScannedVariant(null);
                             setScannedProduct(null);
                             setNewProductBarcode(b);
+                            setNewProductCode(b);
                             setInventoryScannedBarcode("");
                           }
                         })
@@ -1501,35 +1634,36 @@ export default function AdminPage() {
                 <div>
                   <p className="text-xs font-medium text-slate-600 mb-2">{m.variantSizes}</p>
                   {newVariants.map((nv, idx) => (
-                    <div key={idx} className="flex gap-2 items-center mb-2">
+                    <div key={idx} className="flex flex-wrap gap-2 items-center mb-2">
                       <input placeholder="Size" value={nv.size} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, size: e.target.value } : x))} className="w-16 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
-                      <input placeholder={m.barcode} value={nv.barcode} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, barcode: e.target.value } : x))} className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
-                      <input placeholder={m.price} value={nv.price} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, price: e.target.value } : x))} className="w-24 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" type="number" />
-                      <input placeholder={m.cost} value={nv.cost} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, cost: e.target.value } : x))} className="w-24 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" type="number" />
+                      <input placeholder={m.barcode} value={nv.barcode} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, barcode: e.target.value } : x))} className="flex-1 min-w-[80px] px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                      <input placeholder={m.price} value={nv.price} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, price: e.target.value } : x))} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" type="number" />
+                      <input placeholder={m.cost} value={nv.cost} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, cost: e.target.value } : x))} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" type="number" />
+                      <input placeholder={m.quantity} value={nv.quantity} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, quantity: e.target.value } : x))} className="w-14 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" type="number" min="0" title={locale === "vi" ? "Số lượng nhập kho ngay" : "Initial stock (no separate Stock In needed)"} />
                       <button type="button" onClick={() => setNewVariants((v) => v.filter((_, i) => i !== idx))} className="text-slate-500 hover:text-red-600 text-xs">{m.remove}</button>
                     </div>
                   ))}
-                  <button type="button" onClick={() => setNewVariants((v) => [...v, { size: "", barcode: "", price: "", cost: "" }])} className="text-xs text-slate-600 underline">{m.addSize}</button>
+                  <button type="button" onClick={() => setNewVariants((v) => [...v, { size: "", barcode: "", price: "", cost: "", quantity: "1" }])} className="text-xs text-slate-600 underline">{m.addSize}</button>
                 </div>
                 <div className="flex gap-2">
                   <button type="button" onClick={async () => {
                     if (!newProductName.trim() || !newProductCode.trim()) { setInventoryCreateError(locale === "vi" ? "Nhập tên và mã sản phẩm." : "Enter name and product code."); return; }
-                    const variantsToCreate = newVariants.filter((v) => v.size.trim() || v.price.trim() || v.barcode.trim()).map((v) => ({ size: v.size.trim() || null, barcode: v.barcode.trim() || null, price: parseInt(v.price, 10) || 0, cost: parseInt(v.cost, 10) || 0 }));
+                    const variantsToCreate = newVariants.filter((v) => v.size.trim() || v.price.trim() || v.barcode.trim()).map((v) => ({ size: v.size.trim() || null, barcode: v.barcode.trim() || null, price: parseInt(v.price, 10) || 0, cost: parseInt(v.cost, 10) || 0, quantity: Math.max(0, parseInt(v.quantity, 10) || 0) }));
                     if (variantsToCreate.length === 0) { setInventoryCreateError(locale === "vi" ? "Thêm ít nhất một size/phiên bản." : "Add at least one variant."); return; }
                     setInventoryCreateError(null);
                     try {
-                      const res = await adminFetch("/api/admin/products/with-variants", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newProductName.trim(), brand: newProductBrand.trim() || null, category: newProductCategory, product_code: newProductCode.trim().toUpperCase().replace(/-/g, ""), variants: variantsToCreate }) });
+                      const res = await adminFetch("/api/admin/products/with-variants", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newProductName.trim(), brand: newProductBrand.trim() || null, category: newProductCategory, product_code: newProductCode.trim().toUpperCase(), variants: variantsToCreate }) });
                       const d = await res.json();
                       if (res.ok && d.product) {
                         setInventoryActionMessage(locale === "vi" ? "Đã tạo sản phẩm và các phiên bản." : "Product and variants created.");
-                        setNewProductName(""); setNewProductBrand(""); setNewProductCode(""); setNewProductBarcode(""); setNewVariants([{ size: "", barcode: "", price: "", cost: "" }]);
+                        setNewProductName(""); setNewProductBrand(""); setNewProductCode(""); setNewProductBarcode(""); setNewVariants([{ size: "", barcode: "", price: "", cost: "", quantity: "1" }]);
                         adminFetch("/api/admin/products").then((r) => r.json()).then((x) => setProducts(x.products ?? []));
                         adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? []));
                         setTimeout(() => setInventoryActionMessage(null), 3000);
                       } else setInventoryCreateError(d?.error ?? "Failed");
                     } catch (e) { setInventoryCreateError("Request failed. Run migration 031_product_variants_barcode_first.sql if needed."); }
                   }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-800 text-white hover:bg-slate-700">{m.createProduct}</button>
-                  <button type="button" onClick={() => { setNewProductBarcode(""); setNewProductName(""); setNewProductBrand(""); setNewProductCode(""); setNewVariants([{ size: "", barcode: "", price: "", cost: "" }]); setInventoryCreateError(null); }} className="px-3 py-1.5 rounded-lg text-sm border border-slate-300 text-slate-700">{m.cancel}</button>
+                  <button type="button" onClick={() => { setNewProductBarcode(""); setNewProductName(""); setNewProductBrand(""); setNewProductCode(""); setNewVariants([{ size: "", barcode: "", price: "", cost: "", quantity: "1" }]); setInventoryCreateError(null); }} className="px-3 py-1.5 rounded-lg text-sm border border-slate-300 text-slate-700">{m.cancel}</button>
                 </div>
               </div>
             )}
@@ -1552,6 +1686,7 @@ export default function AdminPage() {
                     setScannedVariant(null);
                     setScannedProduct(null);
                     setNewProductBarcode(b);
+                    setNewProductCode(b);
                     setInventoryScannedBarcode("");
                   }
                 })
@@ -2331,6 +2466,23 @@ export default function AdminPage() {
           setSearchError(msg);
           setScannerModalOpen(false);
         }}
+      />
+
+      {/* POS barcode scanner — Sales tab: scan SKU to lookup product and add to cart */}
+      <BarcodeScannerModal
+        readerId="pos-barcode-reader"
+        open={posBarcodeScannerOpen}
+        onClose={() => setPosBarcodeScannerOpen(false)}
+        onScanned={(raw) => {
+          setPosBarcodeScannerOpen(false);
+          const b = raw.trim();
+          if (b) {
+            setPosSkuInput(b);
+            doPosLookup(b);
+          }
+        }}
+        title={locale === "vi" ? "Quét mã vạch" : "Scan barcode"}
+        hint={locale === "vi" ? "Quét mã vạch sản phẩm để tìm SKU và giá." : "Scan product barcode to find SKU and price."}
       />
     </div>
   );

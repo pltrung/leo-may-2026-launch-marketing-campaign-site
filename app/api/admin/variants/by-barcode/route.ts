@@ -22,11 +22,12 @@ export async function GET(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!variant) return NextResponse.json({ error: "Variant not found", found: false }, { status: 404 });
 
-  const { data: product } = await supabase
-    .from("products")
-    .select("id, name, brand, category, image")
-    .eq("id", variant.product_id)
-    .single();
+  const [{ data: product }, { data: invRows }] = await Promise.all([
+    supabase.from("products").select("id, name, brand, category, image").eq("id", variant.product_id).single(),
+    supabase.from("inventory").select("quantity").eq("variant_id", variant.id),
+  ]);
+
+  const stockQuantity = (invRows ?? []).reduce((sum: number, r: { quantity: number }) => sum + (r.quantity ?? 0), 0);
 
   return NextResponse.json({
     found: true,
@@ -40,5 +41,6 @@ export async function GET(req: NextRequest) {
       cost: variant.cost,
     },
     product: product ? { id: product.id, name: product.name, brand: product.brand, category: product.category, image: product.image } : null,
+    stock_quantity: stockQuantity,
   });
 }

@@ -5,46 +5,52 @@ import { getAdminFromRequest } from "@/lib/adminAuth";
 /**
  * GET /api/admin/inventory
  * GET /api/admin/inventory?variant_id=xxx
- * Returns inventory rows with variant + product info.
+ * Returns all product variants with their stock (quantity). Variants with no inventory row show quantity 0
+ * so newly created products appear in View Inventory.
  */
 export async function GET(req: NextRequest) {
   const admin = await getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServerClient();
-  const variantId = req.nextUrl.searchParams.get("variant_id")?.trim();
+  const variantIdParam = req.nextUrl.searchParams.get("variant_id")?.trim();
 
-  let query = supabase
-    .from("inventory")
-    .select("id, variant_id, quantity, location")
-    .order("variant_id");
+  const { data: allVariants, error: varErr } = await supabase
+    .from("product_variants")
+    .select("id, product_id, sku, size, barcode, price, cost")
+    .order("sku");
+  if (varErr) return NextResponse.json({ error: varErr.message }, { status: 500 });
 
-  if (variantId) query = query.eq("variant_id", variantId);
-  const { data: invRows, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  let variants = allVariants ?? [];
+  if (variantIdParam) variants = variants.filter((v: { id: string }) => v.id === variantIdParam);
 
-  const rows = invRows ?? [];
-  const vIds = Array.from(new Set(rows.map((r: { variant_id: string }) => r.variant_id)));
-  const { data: variants } = vIds.length
-    ? await supabase.from("product_variants").select("id, product_id, sku, size, barcode, price, cost").in("id", vIds)
+  const vIds = variants.map((v: { id: string }) => v.id);
+  const { data: invRows } = vIds.length
+    ? await supabase.from("inventory").select("variant_id, quantity").in("variant_id", vIds)
     : { data: [] };
-  const pIds = Array.from(new Set((variants ?? []).map((v: { product_id: string }) => v.product_id)));
+
+  const qtyByVariant: Record<string, number> = {};
+  for (const r of invRows ?? []) {
+    const vid = r.variant_id as string;
+    qtyByVariant[vid] = (qtyByVariant[vid] ?? 0) + (r.quantity as number);
+  }
+
+  const pIds = Array.from(new Set(variants.map((v: { product_id: string }) => v.product_id)));
   const { data: products } = pIds.length
     ? await supabase.from("products").select("id, name, brand, category, image").in("id", pIds)
     : { data: [] };
-  const variantMap = (variants ?? []).reduce((acc: Record<string, unknown>, v: { id: string }) => {
-    acc[v.id] = v;
-    return acc;
-  }, {});
   const productMap = (products ?? []).reduce((acc: Record<string, unknown>, p: { id: string }) => {
     acc[p.id] = p;
     return acc;
   }, {});
 
-  const inventory = rows.map((r: { variant_id: string; [k: string]: unknown }) => {
-    const v = variantMap[r.variant_id] as { product_id: string } | undefined;
-    const product = v ? productMap[v.product_id] : null;
-    return { ...r, variant: v ?? null, product: product ?? null };
-  });
+  const inventory = variants.map((v: { id: string; product_id: string }) => ({
+    id: v.id,
+    variant_id: v.id,
+    quantity: qtyByVariant[v.id] ?? 0,
+    location: null as string | null,
+    variant: v,
+    product: productMap[v.product_id] ?? null,
+  }));
 
   return NextResponse.json({ inventory });
 }

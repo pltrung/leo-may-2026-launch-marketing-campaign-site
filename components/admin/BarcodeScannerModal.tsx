@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 
-const BARCODE_READER_ID = "admin-barcode-reader";
+const DEFAULT_READER_ID = "admin-barcode-reader";
 
 interface BarcodeScannerModalProps {
   open: boolean;
@@ -12,6 +12,8 @@ interface BarcodeScannerModalProps {
   onError?: (message: string) => void;
   title?: string;
   hint?: string;
+  /** Use a different ID when multiple scanners can be mounted (e.g. POS vs Inventory). */
+  readerId?: string;
 }
 
 /**
@@ -25,6 +27,7 @@ export default function BarcodeScannerModal({
   onError,
   title = "Scan barcode",
   hint = "Point your camera at the product barcode or QR code.",
+  readerId = DEFAULT_READER_ID,
 }: BarcodeScannerModalProps) {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isScanningRef = useRef(false);
@@ -47,12 +50,12 @@ export default function BarcodeScannerModal({
       return;
     }
 
-    const el = document.getElementById(BARCODE_READER_ID);
+    const el = document.getElementById(readerId);
     if (!el) return;
 
     const startScanner = async () => {
       try {
-        const scanner = new Html5Qrcode(BARCODE_READER_ID);
+        const scanner = new Html5Qrcode(readerId);
         scannerRef.current = scanner;
         isScanningRef.current = true;
         await scanner.start(
@@ -80,7 +83,7 @@ export default function BarcodeScannerModal({
 
     startScanner();
     return () => stopScanner();
-  }, [open, onClose, onScanned, onError, stopScanner]);
+  }, [open, onClose, onScanned, onError, stopScanner, readerId]);
 
   if (!open) return null;
 
@@ -96,7 +99,7 @@ export default function BarcodeScannerModal({
           {title}
         </h2>
         <div
-          id={BARCODE_READER_ID}
+          id={readerId}
           className="min-h-[280px] rounded-lg overflow-hidden [&_video]:rounded-lg [&_img]:rounded-lg bg-black"
         />
         <p className="mt-2 text-sm text-white/60">{hint}</p>

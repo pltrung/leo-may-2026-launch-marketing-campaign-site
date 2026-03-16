@@ -3,13 +3,14 @@ import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
 
 const CATEGORIES = ["shoes", "chalk", "merch", "rental"] as const;
-/** PRODUCTCODE-SIZE e.g. SCA100-41 */
-const CODE_PATTERN = /^[A-Za-z0-9]+$/;
+/** Product code / SKU: alphanumeric, hyphen, brackets (e.g. from barcode scans). */
+const CODE_PATTERN = /^[A-Za-z0-9\-\[\]]+$/;
 
 /**
  * POST /api/admin/products/with-variants
  * Create product and variants in one call (barcode-first "Create Product" flow).
- * Body: { name, brand?, category, image?, product_code, variants: [{ size?, barcode?, price, cost? }] }
+ * If variant.quantity is provided and > 0, creates initial inventory so the product appears in View Inventory.
+ * Body: { name, brand?, category, image?, product_code, variants: [{ size?, barcode?, price, cost?, quantity? }] }
  * SKU = product_code + (size ? "-" + size : "")
  */
 export async function POST(req: NextRequest) {
@@ -22,11 +23,11 @@ export async function POST(req: NextRequest) {
     const brand = typeof body.brand === "string" ? body.brand.trim() || null : null;
     const category = CATEGORIES.includes(body.category) ? body.category : null;
     const image = typeof body.image === "string" ? body.image.trim() || null : null;
-    const productCode = typeof body.product_code === "string" ? body.product_code.trim().toUpperCase().replace(/-/g, "") : "";
+    const productCode = typeof body.product_code === "string" ? body.product_code.trim().toUpperCase() : "";
     const variants = Array.isArray(body.variants) ? body.variants : [];
 
     if (!name || !category) return NextResponse.json({ error: "name and category required" }, { status: 400 });
-    if (!productCode || !CODE_PATTERN.test(productCode)) return NextResponse.json({ error: "product_code required (alphanumeric, e.g. SCA100)" }, { status: 400 });
+    if (!productCode || !CODE_PATTERN.test(productCode)) return NextResponse.json({ error: "product_code required (letters, numbers, hyphen, [ ] allowed)" }, { status: 400 });
     if (variants.length === 0) return NextResponse.json({ error: "At least one variant required" }, { status: 400 });
 
     const barcodes = new Set<string>();
@@ -51,6 +52,7 @@ export async function POST(req: NextRequest) {
       const barcode = typeof v.barcode === "string" ? v.barcode.trim() || null : null;
       const price = Math.max(0, parseInt(String(v.price), 10) || 0);
       const cost = Math.max(0, parseInt(String(v.cost), 10) || 0);
+      const quantity = Math.max(0, parseInt(String(v.quantity), 10) || 0);
       const sku = size ? `${productCode}-${size}` : productCode;
 
       if (barcode) {
@@ -61,13 +63,19 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const { error: varErr } = await supabase
+      const { data: insertedVariant, error: varErr } = await supabase
         .from("product_variants")
-        .insert({ product_id: product.id, sku, size, barcode, price, cost });
+        .insert({ product_id: product.id, sku, size, barcode, price, cost })
+        .select("id")
+        .single();
 
-      if (varErr) {
+      if (varErr || !insertedVariant) {
         await supabase.from("products").delete().eq("id", product.id);
-        return NextResponse.json({ error: varErr.message }, { status: 500 });
+        return NextResponse.json({ error: varErr?.message ?? "Failed to create variant" }, { status: 500 });
+      }
+
+      if (quantity > 0) {
+        await supabase.from("inventory").insert({ variant_id: insertedVariant.id, quantity, location: null });
       }
     }
 
