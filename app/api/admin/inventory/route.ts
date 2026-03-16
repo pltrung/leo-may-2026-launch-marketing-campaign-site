@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/admin/inventory - Stock in
- * Body: { variant_id or barcode, quantity, location? }
+ * Body: { variant_id, barcode, or sku (barcode field tries barcode then SKU), quantity, location? }
  */
 export async function POST(req: NextRequest) {
   const admin = await getAdminFromRequest(req);
@@ -71,10 +71,14 @@ export async function POST(req: NextRequest) {
     const location = typeof body.location === "string" ? body.location.trim() || null : null;
 
     if (!variantId && barcode) {
-      const { data: v } = await supabase.from("product_variants").select("id").eq("barcode", barcode).maybeSingle();
-      variantId = v?.id ?? null;
+      const { data: vByBarcode } = await supabase.from("product_variants").select("id").eq("barcode", barcode).maybeSingle();
+      variantId = vByBarcode?.id ?? null;
+      if (!variantId) {
+        const { data: vBySku } = await supabase.from("product_variants").select("id").eq("sku", barcode).maybeSingle();
+        variantId = vBySku?.id ?? null;
+      }
     }
-    if (!variantId) return NextResponse.json({ error: "Variant not found (variant_id or barcode required)" }, { status: 400 });
+    if (!variantId) return NextResponse.json({ error: "Variant not found (variant_id, barcode, or SKU required)" }, { status: 400 });
 
     const locKey = location ?? "";
     let existingQuery = supabase.from("inventory").select("id, quantity").eq("variant_id", variantId);
@@ -101,7 +105,7 @@ export async function POST(req: NextRequest) {
 
 /**
  * PATCH /api/admin/inventory - Stock out
- * Body: { variant_id or barcode, quantity }
+ * Body: { variant_id, barcode, or sku (barcode field tries barcode then SKU), quantity }
  */
 export async function PATCH(req: NextRequest) {
   const admin = await getAdminFromRequest(req);
@@ -114,10 +118,14 @@ export async function PATCH(req: NextRequest) {
     const quantity = Math.max(1, parseInt(String(body.quantity), 10) || 1);
 
     if (!variantId && barcode) {
-      const { data: v } = await supabase.from("product_variants").select("id").eq("barcode", barcode).maybeSingle();
-      variantId = v?.id ?? null;
+      const { data: vByBarcode } = await supabase.from("product_variants").select("id").eq("barcode", barcode).maybeSingle();
+      variantId = vByBarcode?.id ?? null;
+      if (!variantId) {
+        const { data: vBySku } = await supabase.from("product_variants").select("id").eq("sku", barcode).maybeSingle();
+        variantId = vBySku?.id ?? null;
+      }
     }
-    if (!variantId) return NextResponse.json({ error: "Variant not found" }, { status: 400 });
+    if (!variantId) return NextResponse.json({ error: "Variant not found (variant_id, barcode, or SKU required)" }, { status: 400 });
 
     const { data: rows } = await supabase.from("inventory").select("id, quantity").eq("variant_id", variantId).order("quantity", { ascending: false });
     if (!rows?.length) return NextResponse.json({ error: "No inventory row for this variant" }, { status: 404 });
