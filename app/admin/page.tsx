@@ -104,7 +104,7 @@ export default function AdminPage() {
   const [nameResults, setNameResults] = useState<NameSearchResult[]>([]);
   const [paymentReceived, setPaymentReceived] = useState(false);
   const lastPaymentCountRef = React.useRef<number | null>(null);
-  const [toolsModal, setToolsModal] = useState<"occupancy" | "checkins" | "revenue" | "staff" | "inventory" | null>(null);
+  const [toolsModal, setToolsModal] = useState<"occupancy" | "checkins" | "revenue" | "inventory" | null>(null);
   const [staffModalTab, setStaffModalTab] = useState<"overview" | "tasks" | "attendance" | "coaching" | "routes">("overview");
   const [staffResetLoading, setStaffResetLoading] = useState(false);
   const [showNewMemberForm, setShowNewMemberForm] = useState(false);
@@ -2398,7 +2398,220 @@ export default function AdminPage() {
                     );
                   })()}
 
-                  {/* Other tabs (tasks/attendance/coaching/routes) continue to render from existing modal JSX below */}
+                  {/* TAB 2 — TASKS */}
+                  {staffModalTab === "tasks" && staffOpsData && (() => {
+                    const preOpen = staffOpsData.preOpen ?? staffOpsData.tasks.filter((t) => t.block === "pre_open");
+                    const during = staffOpsData.during ?? staffOpsData.tasks.filter((t) => t.block === "during_hours");
+                    const closing = staffOpsData.closing ?? staffOpsData.tasks.filter((t) => t.block === "closing");
+                    const allByPhase: { phase: string; phaseLabel: string; tasks: typeof preOpen }[] = [
+                      { phase: "pre_open", phaseLabel: m.preOpenSection, tasks: preOpen },
+                      { phase: "during_hours", phaseLabel: m.duringHoursSection, tasks: during },
+                      { phase: "closing", phaseLabel: m.closingSection, tasks: closing },
+                    ];
+                    const nowHHMM = () => { const t = new Date().toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", timeZone: "America/Los_Angeles" }); return t.slice(0, 5); };
+                    const isOverdue = (t: { status: string; due_time?: string | null }) => {
+                      if (t.status === "completed") return false;
+                      const due = t.due_time ? String(t.due_time).slice(0, 5) : null;
+                      if (!due) return false;
+                      const [dh, dm] = due.split(":").map(Number);
+                      const [nh, nm] = nowHHMM().split(":").map(Number);
+                      return (nh * 60 + nm) > (dh * 60 + dm);
+                    };
+                    return (
+                      <>
+                        <div className="rounded-lg border border-slate-200 overflow-hidden">
+                          <table className="w-full text-sm">
+                            <thead><tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase"><th className="px-3 py-2">{locale === "vi" ? "Công việc" : "Task Name"}</th><th className="px-3 py-2">{m.phaseColumn}</th><th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th><th className="px-3 py-2">{m.completedBy}</th><th className="px-3 py-2">{m.completionTime}</th></tr></thead>
+                            <tbody>
+                              {allByPhase.flatMap(({ phaseLabel, tasks: phaseTasks }) =>
+                                phaseTasks.map((t) => {
+                                  const c = Array.isArray(t.completer) ? t.completer[0] : t.completer;
+                                  const name = c ? (c.display_name || c.email) : null;
+                                  const overdue = isOverdue(t);
+                                  const statusText = t.status === "completed" ? m.done : overdue ? m.overdue : m.pending;
+                                  const statusColor = t.status === "completed" ? "text-emerald-700" : overdue ? "text-red-700" : "text-amber-700";
+                                  return (
+                                    <tr key={t.id} className="border-t border-slate-100">
+                                      <td className="px-3 py-2 font-medium text-slate-800">{t.title}</td>
+                                      <td className="px-3 py-2 text-slate-600">{phaseLabel}</td>
+                                      <td className={`px-3 py-2 font-medium ${statusColor}`}>{statusText}</td>
+                                      <td className="px-3 py-2 text-slate-600">{name ?? "—"}</td>
+                                      <td className="px-3 py-2 text-slate-600">{t.completed_at ? formatInGymTZ(t.completed_at, { hour: "numeric", minute: "2-digit" }) : "—"}</td>
+                                    </tr>
+                                  );
+                                })
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                        {staffOpsData.staffTaskPerformance && staffOpsData.staffTaskPerformance.length > 0 && (
+                          <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
+                            <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.staffTaskPerformance}</h4>
+                            <ul className="space-y-2 text-sm">
+                              {staffOpsData.staffTaskPerformance.map((s: { staff_id: string; display_name: string; tasks_completed: number; completion_rate_pct: number }) => (
+                                <li key={s.staff_id} className="flex justify-between items-center"><span className="font-medium text-slate-800">{s.display_name}</span><span className="text-slate-600">{m.tasksCompletedCount}: {s.tasks_completed} · {s.completion_rate_pct}% {m.completionRate}</span></li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+
+                  {/* TAB 3 — ATTENDANCE */}
+                  {staffModalTab === "attendance" && (
+                    <>
+                      {staffOpsData && (
+                        <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
+                          <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.todaysAttendance}</h4>
+                          <p className="text-sm text-slate-700 mb-1"><strong>IN:</strong> {staffOpsData.attendance.in.map((a: { staff_profiles?: { display_name?: string; email?: string } | unknown }) => { const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles; return ((p as { display_name?: string; email?: string })?.display_name || (p as { display_name?: string; email?: string })?.email) ?? "—"; }).join(", ") || "—"}</p>
+                          <p className="text-sm text-slate-700"><strong>NOT IN:</strong> {staffOpsData.attendance.out.map((a: { staff_profiles?: { display_name?: string; email?: string } | unknown }) => { const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles; return ((p as { display_name?: string; email?: string })?.display_name || (p as { display_name?: string; email?: string })?.email) ?? "—"; }).join(", ") || "—"}</p>
+                        </div>
+                      )}
+                      <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
+                        <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.monthlyAttendanceSection}</h4>
+                        <p className="text-sm font-medium text-slate-700 mb-2">{m.currentMonth}: {monthlyAttendanceData?.label ?? "—"}</p>
+                        {!monthlyAttendanceData && <p className="text-sm text-slate-500">{m.loading}</p>}
+                        {monthlyAttendanceData && monthlyAttendanceData.staff.length === 0 && <p className="text-sm text-slate-500">{m.noSessions}</p>}
+                        {monthlyAttendanceData && monthlyAttendanceData.staff.length > 0 && (
+                          <ul className="space-y-2">
+                            {monthlyAttendanceData.staff.map((s) => (
+                              <li key={s.staff_id} className="flex justify-between items-center py-2 px-3 rounded-lg bg-white border border-slate-100">
+                                <span className="font-medium text-slate-800">{(s.display_name || s.email) ?? s.staff_id}</span>
+                                <span className="text-slate-600 font-medium">{s.in_days} {m.inDays}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {/* TAB 4 — COACHING */}
+                  {staffModalTab === "coaching" && staffOpsData && (
+                    <>
+                      <div className="grid grid-cols-3 gap-2 text-sm">
+                        <div className="rounded-lg border border-slate-200 p-2 text-center"><p className="text-[11px] text-slate-500 uppercase">{m.totalSessionsToday}</p><p className="font-bold text-slate-800">{(staffOpsData.sessionsToday ?? staffOpsData.sessions).length}</p></div>
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-center"><p className="text-[11px] text-slate-600 uppercase">{m.assignedSessions}</p><p className="font-bold text-slate-800">{(staffOpsData.sessionsToday ?? staffOpsData.sessions).filter((s: { coach_id: string | null }) => s.coach_id).length}</p></div>
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-center"><p className="text-[11px] text-slate-600 uppercase">{m.unassignedSessions}</p><p className="font-bold text-slate-800">{staffOpsData.summary.unassigned_sessions ?? 0}</p></div>
+                      </div>
+                      <div className="rounded-lg border border-slate-200 overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead><tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase"><th className="px-3 py-2">{m.time}</th><th className="px-3 py-2">{m.wallArea}</th><th className="px-3 py-2">{m.coachAssigned}</th><th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th></tr></thead>
+                          <tbody>
+                            {((staffOpsData.sessionsToday ?? staffOpsData.sessions) as { id: string; start_time: string; coach_id: string | null; location?: string; staff_profiles?: { display_name?: string; email?: string } | unknown }[]).map((s) => {
+                              const p = Array.isArray(s.staff_profiles) ? s.staff_profiles[0] : s.staff_profiles;
+                              const name = (p as { display_name?: string; email?: string })?.display_name || (p as { display_name?: string; email?: string })?.email;
+                              return (
+                                <tr key={s.id} className="border-t border-slate-100"><td className="px-3 py-2 text-slate-800">{new Date(s.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</td><td className="px-3 py-2 text-slate-700">{s.location ?? "—"}</td><td className="px-3 py-2">{s.coach_id ? (name ?? m.assigned) : "—"}</td><td className="px-3 py-2">{s.coach_id ? <span className="text-emerald-700">{m.assigned}</span> : <span className="text-amber-700">⚠ {m.unassigned}</span>}</td></tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+
+                  {/* TAB 5 — ROUTES */}
+                  {staffModalTab === "routes" && staffOpsData && (
+                    <div className="rounded-lg border border-slate-200 overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase">
+                            <th className="px-3 py-2">{m.wallZone}</th>
+                            <th className="px-3 py-2">{m.nextResetDate}</th>
+                            <th className="px-3 py-2">{locale === "vi" ? "Route age" : "Route age"}</th>
+                            <th className="px-3 py-2">{locale === "vi" ? "Setters today" : "Setters today"}</th>
+                            <th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th>
+                            <th className="px-3 py-2 w-40">{locale === "vi" ? "Hành động" : "Actions"}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {staffOpsData.zones.map((z) => {
+                            const setters = (z.assigned_setters ?? []).map((s) => s.name).join(", ");
+                            const age = typeof z.route_age_days === "number" ? z.route_age_days : null;
+                            const status = z.reset_status ?? (setters ? "in_progress" : "pending");
+                            return (
+                              <tr key={z.id} className={`border-t border-slate-100 ${status === "overdue" ? "bg-red-50" : ""}`}>
+                                <td className="px-3 py-2 font-medium text-slate-800">{z.name}</td>
+                                <td className="px-3 py-2 text-slate-700">{z.next_reset_at ? new Date(z.next_reset_at).toLocaleDateString() : "—"}</td>
+                                <td className="px-3 py-2 text-slate-700">{age === null ? "—" : `${age}d`}</td>
+                                <td className="px-3 py-2 text-slate-700">{setters || "—"}</td>
+                                <td className="px-3 py-2">
+                                  {status === "completed" ? (
+                                    <span className="text-emerald-700 font-semibold">Completed</span>
+                                  ) : status === "overdue" ? (
+                                    <span className="text-red-700 font-semibold">⚠ {m.overdue}</span>
+                                  ) : status === "in_progress" ? (
+                                    <span className="text-amber-700 font-semibold">In Progress</span>
+                                  ) : (
+                                    <span className="text-slate-600 font-semibold">Pending</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2">
+                                  <div className="flex gap-2 flex-wrap">
+                                    <details className="relative">
+                                      <summary className="list-none cursor-pointer px-2 py-1 rounded-lg border border-slate-300 bg-white text-slate-800 text-xs font-medium">
+                                        {locale === "vi" ? "Assign" : "Assign"}
+                                      </summary>
+                                      <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-lg shadow-lg p-2 z-10">
+                                        <p className="text-[11px] text-slate-500 uppercase font-semibold mb-2">{locale === "vi" ? "Setters" : "Setters"}</p>
+                                        <div className="max-h-48 overflow-y-auto space-y-1">
+                                          {(staffOpsData.route_setters ?? []).map((p) => {
+                                            const label = p.display_name || p.email || p.id;
+                                            const checked = (z.assigned_setters ?? []).some((s) => s.staff_id === p.id);
+                                            return (
+                                              <label key={p.id} className="flex items-center gap-2 text-sm text-slate-800">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={checked}
+                                                  onChange={async (e) => {
+                                                    const nextIds = new Set((z.assigned_setters ?? []).map((s) => s.staff_id));
+                                                    if (e.target.checked) nextIds.add(p.id);
+                                                    else nextIds.delete(p.id);
+                                                    const res = await adminFetch(`/api/admin/routes/zones/${z.id}/assignments`, {
+                                                      method: "PUT",
+                                                      headers: { "Content-Type": "application/json" },
+                                                      body: JSON.stringify({ staff_ids: Array.from(nextIds) }),
+                                                    });
+                                                    const d = await res.json();
+                                                    if (res.ok && d?.ok) {
+                                                      setStaffOpsData((prev) => prev ? ({
+                                                        ...prev,
+                                                        zones: prev.zones.map((zz) => (zz.id === z.id ? { ...zz, assigned_setters: d.assigned_setters } : zz)),
+                                                      }) : prev);
+                                                    }
+                                                  }}
+                                                />
+                                                <span className="truncate">{label}</span>
+                                              </label>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    </details>
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        const res = await adminFetch(`/api/admin/routes/zones/${z.id}/reset`, { method: "POST" });
+                                        const d = await res.json();
+                                        if (res.ok && d?.ok) {
+                                          adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x));
+                                        }
+                                      }}
+                                      className="px-2 py-1 rounded-lg bg-slate-700 text-white text-xs font-medium hover:bg-slate-600"
+                                    >
+                                      {m.markResetComplete}
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </div>
             </section>
@@ -2511,411 +2724,6 @@ export default function AdminPage() {
                     </ul>
                   </div>
                 </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {toolsModal === "staff" && (
-        <div className={`fixed inset-0 ${adminTab === "operations" ? "z-10" : "z-50"} flex items-center justify-center ${adminTab === "operations" ? "bg-transparent p-0" : "bg-black/50 p-4"}`}>
-          <div className={`bg-white rounded-2xl shadow-xl w-full max-h-[90vh] flex flex-col ${adminTab === "operations" ? "max-w-[1100px] h-[calc(100vh-96px)] mt-24" : "max-w-2xl"}`}>
-            <div className="flex justify-between items-center p-4 border-b">
-              <h3 className="text-lg font-semibold text-slate-900">{m.staffOperations}</h3>
-              {adminTab !== "operations" && (
-                <button type="button" onClick={() => setToolsModal(null)} className="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
-              )}
-            </div>
-            <div className="flex gap-1 p-2 border-b bg-slate-50 flex-wrap">
-              {(["overview", "tasks", "attendance", "coaching", "routes"] as const).map((tab) => (
-                <button key={tab} type="button" onClick={() => setStaffModalTab(tab)} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${staffModalTab === tab ? "bg-white shadow border border-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-100"}`}>
-                  {tab === "overview" ? m.staffTabOverview : tab === "tasks" ? m.staffTabTasks : tab === "attendance" ? m.staffTabAttendance : tab === "coaching" ? m.staffTabCoaching : m.staffTabRoutes}
-                </button>
-              ))}
-            </div>
-            <div className="overflow-y-auto p-4 space-y-4">
-              {!staffOpsData && staffModalTab !== "attendance" && <p className="text-sm text-slate-500">{m.loading}</p>}
-
-              {/* TAB 1 — OVERVIEW */}
-              {staffModalTab === "overview" && staffOpsData && (() => {
-                const sum = staffOpsData.summary;
-                const req = sum.staff_required ?? 3;
-                const present = sum.staff_in_today ?? 0;
-                const preOpenDone = sum.pre_open_completed ?? 0;
-                const preOpenTotal = sum.pre_open_total ?? 0;
-                const closingOver = sum.closing_overdue ?? 0;
-                const zonesOver = sum.zones_overdue ?? 0;
-                const unassigned = sum.unassigned_sessions ?? 0;
-                const staffStatus = present >= req ? "green" : present >= req - 1 ? "yellow" : "red";
-                const preOpenStatus = preOpenTotal === 0 ? "green" : preOpenDone >= preOpenTotal ? "green" : preOpenDone >= preOpenTotal - 1 ? "yellow" : "red";
-                const phase = staffOpsData.phase ?? {};
-                const currentPhaseLabel = phase.phase_label ?? "Gym Open";
-                const countdownMessage = phase.countdown_message ?? "";
-                const currentPhaseTasks = staffOpsData.currentPhaseTasks ?? [];
-                const phaseCompleted = currentPhaseTasks.filter((t: { status: string }) => t.status === "completed").length;
-                const phaseTotal = currentPhaseTasks.length;
-                const gymReady = staffOpsData.gym_ready === true;
-                const routeResetDay = staffOpsData.route_reset_day === true;
-                const sessionsToday = staffOpsData.sessionsToday ?? staffOpsData.sessions ?? [];
-                const nowIso = new Date().toISOString();
-                const alerts: string[] = [];
-                staffOpsData.preOpen?.forEach((t: { status: string; due_time?: string | null; title: string }) => {
-                  if (t.status !== "completed" && t.due_time) {
-                    const due = String(t.due_time).slice(0, 5);
-                    const now = new Date().toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", timeZone: "America/Los_Angeles" }).slice(0, 5);
-                    const [dh, dm] = due.split(":").map(Number);
-                    const [nh, nm] = now.split(":").map(Number);
-                    const minOver = (nh * 60 + nm) - (dh * 60 + dm);
-                    if (minOver > 0) alerts.push(`${t.title} ${locale === "vi" ? "quá hạn" : "overdue"} (${minOver} ${locale === "vi" ? "phút" : "min"})`);
-                  }
-                });
-                staffOpsData.closing?.forEach((t: { status: string; due_time?: string | null; title: string }) => {
-                  if (t.status !== "completed" && t.due_time) {
-                    const due = String(t.due_time).slice(0, 5);
-                    const now = new Date().toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", timeZone: "America/Los_Angeles" }).slice(0, 5);
-                    const [dh, dm] = due.split(":").map(Number);
-                    const [nh, nm] = now.split(":").map(Number);
-                    const minOver = (nh * 60 + nm) - (dh * 60 + dm);
-                    if (minOver > 0) alerts.push(`${t.title} ${locale === "vi" ? "quá hạn" : "overdue"} (${minOver} ${locale === "vi" ? "phút" : "min"})`);
-                  }
-                });
-                staffOpsData.zones?.filter((z: { overdue?: boolean }) => z.overdue).forEach((z: { name: string }) => alerts.push(`${z.name} ${locale === "vi" ? "reset quá hạn" : "reset overdue"}`));
-                if (unassigned > 0) alerts.push(`${unassigned} ${locale === "vi" ? "buổi coaching chưa giao" : "coaching sessions unassigned"}`);
-                const staffIn = staffOpsData.attendance?.in ?? [];
-                const getStaffName = (a: { staff_profiles?: { display_name?: string; email?: string } | unknown }) => {
-                  const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles;
-                  return ((p as { display_name?: string; email?: string })?.display_name || (p as { display_name?: string; email?: string })?.email) ?? "—";
-                };
-                const staffIdInSessionNow = new Set<string>();
-                for (const s of sessionsToday) {
-                  if (!s.coach_id || !s.end_time) continue;
-                  if (s.start_time <= nowIso && s.end_time >= nowIso) staffIdInSessionNow.add(s.coach_id);
-                }
-                const phaseTaskLabel = phase.current_phase === "pre_open" ? (locale === "vi" ? "Công việc trước mở cửa" : "Pre-Open Tasks") : phase.current_phase === "closing" ? (locale === "vi" ? "Công việc đóng cửa" : "Closing Tasks") : (locale === "vi" ? "Công việc trong giờ" : "Gym Open Tasks");
-                const routeLabel = locale === "vi" ? "Reset tường" : "Route Reset";
-                const coachingLabel = locale === "vi" ? "Buổi coaching" : "Coaching Session";
-                return (
-                  <>
-                    <div className="flex justify-end">
-                      <button type="button" disabled={staffResetLoading} onClick={async () => { setStaffResetLoading(true); try { const r = await adminFetch("/api/admin/staff/reset-attendance", { method: "POST" }); const d = await r.json(); if (r.ok) { setActionMessage(locale === "vi" ? "Đã xóa chấm công hôm nay." : "Today's staff attendance reset."); adminFetch("/api/admin/staff").then((res) => res.json()).then((data) => setStaffOpsData(data)).catch(() => setStaffOpsData(null)); } else setActionError(d?.error || "Failed"); } catch { setActionError("Failed"); } finally { setStaffResetLoading(false); } }} className="text-xs px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 disabled:opacity-50">{staffResetLoading ? "…" : (locale === "vi" ? "Xóa chấm công (test)" : "Reset attendance (test)")}</button>
-                    </div>
-                    {/* CURRENT PHASE — top */}
-                    <div className="rounded-lg border-2 border-slate-200 bg-slate-50 p-3">
-                      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{m.currentPhase}</p>
-                      <p className="text-lg font-bold text-slate-800 mt-0.5">{currentPhaseLabel} Phase</p>
-                      {countdownMessage && <p className="text-sm text-slate-600 mt-1">{countdownMessage}</p>}
-                    </div>
-                    {/* ROUTE RESET DAY banner */}
-                    {routeResetDay && (
-                      <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-3">
-                        <p className="text-xs font-bold text-amber-900 uppercase tracking-wider">{m.routeResetDay}</p>
-                        <p className="text-sm text-amber-800 mt-1">{m.routeResetDayBanner}</p>
-                        {staffOpsData.zones?.filter((z: { overdue?: boolean; next_reset_at?: string | null }) => z.overdue || (z.next_reset_at && getGymDateFromISO(z.next_reset_at) === getGymToday())).map((z: { name: string }) => (
-                          <span key={z.name} className="inline-block mt-1 mr-2 text-sm font-medium text-amber-900">{z.name}</span>
-                        ))}
-                      </div>
-                    )}
-                    {/* OPERATIONS HEALTH */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      <div className={`rounded-lg border p-2 ${staffStatus === "green" ? "bg-emerald-50 border-emerald-200" : staffStatus === "yellow" ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200"}`}>
-                        <p className="text-[11px] font-semibold text-slate-600 uppercase">{m.staffPresent}</p>
-                        <p className="text-sm font-bold text-slate-800">{present} / {req}</p>
-                      </div>
-                      <div className={`rounded-lg border p-2 ${preOpenStatus === "green" ? "bg-emerald-50 border-emerald-200" : preOpenStatus === "yellow" ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200"}`}>
-                        <p className="text-[11px] font-semibold text-slate-600 uppercase">{m.preOpenTasks}</p>
-                        <p className="text-sm font-bold text-slate-800">{preOpenDone} / {preOpenTotal}</p>
-                      </div>
-                      <div className={`rounded-lg border p-2 ${closingOver === 0 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
-                        <p className="text-[11px] font-semibold text-slate-600 uppercase">{m.closingTasksOverdue}</p>
-                        <p className="text-sm font-bold text-slate-800">{closingOver} {locale === "vi" ? "quá hạn" : "overdue"}</p>
-                      </div>
-                      <div className={`rounded-lg border p-2 ${zonesOver === 0 ? "bg-emerald-50 border-emerald-200" : zonesOver > 1 ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"}`}>
-                        <p className="text-[11px] font-semibold text-slate-600 uppercase">{m.routeResetsOverdue}</p>
-                        <p className="text-sm font-bold text-slate-800">{zonesOver} {locale === "vi" ? "quá hạn" : "overdue"}</p>
-                      </div>
-                      <div className={`rounded-lg border p-2 ${unassigned === 0 ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
-                        <p className="text-[11px] font-semibold text-slate-600 uppercase">{m.unassignedCoaching}</p>
-                        <p className="text-sm font-bold text-slate-800">{unassigned}</p>
-                      </div>
-                    </div>
-                    {/* CURRENT PHASE TASK PROGRESS */}
-                    <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
-                      <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.currentPhaseTaskProgress}</h4>
-                      <div className="mb-2 h-2 rounded-full bg-slate-200 overflow-hidden">
-                        <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: phaseTotal ? `${(100 * phaseCompleted) / phaseTotal}%` : "0%" }} />
-                      </div>
-                      <p className="text-sm font-medium text-slate-700 mb-2">{phaseCompleted} / {phaseTotal} {locale === "vi" ? "công việc đã xong" : "tasks completed"}</p>
-                      <ul className="space-y-1.5 text-sm">
-                        {currentPhaseTasks.map((t) => {
-                          const c = Array.isArray(t.completer) ? t.completer[0] : t.completer;
-                          const name = c ? (c.display_name || c.email) : null;
-                          return (
-                            <li key={t.id} className="flex items-center gap-2">
-                              {t.status === "completed" ? <span className="text-emerald-600">✔</span> : <span className="text-amber-600">⚠</span>}
-                              <span className={t.status === "completed" ? "text-slate-600" : "text-slate-800"}>{t.title}</span>
-                              {t.status === "completed" && name && <span className="text-slate-500 text-xs">{locale === "vi" ? "bởi" : "by"} {name}</span>}
-                              {t.status !== "completed" && <span className="text-amber-600 text-xs">{m.tasksPendingLabel}</span>}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                    {/* PHASE READINESS */}
-                    {(phase.current_phase === "pre_open" || phase.current_phase === "gym_open") && (
-                      <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
-                        <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.phaseReadiness}</h4>
-                        <p className="text-sm text-slate-600 mb-1">{locale === "vi" ? "An toàn: Kiểm tra bolt, thảm, giày thuê" : "Safety tasks: Inspect anchors, Inspect crash pads, Check rental shoes"}</p>
-                        <p className={`font-semibold ${gymReady ? "text-emerald-700" : "text-red-700"}`}>{gymReady ? "🟢 " + m.gymReady : "🔴 " + m.gymNotReady}</p>
-                      </div>
-                    )}
-                    {/* OPERATIONS ALERTS */}
-                    <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
-                      <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.operationsAlerts}</h4>
-                      {alerts.length === 0 ? <p className="text-sm text-slate-600">{m.noOperationalAlerts}</p> : <ul className="space-y-1 text-sm text-amber-800">{alerts.map((a, i) => <li key={i}>⚠ {a}</li>)}</ul>}
-                    </div>
-                    {/* STAFF ACTIVITY FEED */}
-                    <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
-                      <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.staffActivityFeed}</h4>
-                      {(!staffOpsData.timeline || staffOpsData.timeline.length === 0) ? <p className="text-sm text-slate-500">{locale === "vi" ? "Chưa có sự kiện." : "No events yet."}</p> : (
-                        <ul className="space-y-1 text-sm">
-                          {staffOpsData.timeline.map((e: { id: string; completed_at: string; staff_name: string; task_title: string }) => (
-                            <li key={e.id} className="text-slate-700">
-                              {formatInGymTZ(e.completed_at, { hour: "2-digit", minute: "2-digit" })} — {e.staff_name} {locale === "vi" ? "hoàn thành" : "completed"} {e.task_title}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                    {/* STAFF FOCUS PANEL */}
-                    <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
-                      <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.staffFocusPanel}</h4>
-                      {staffIn.length === 0 ? <p className="text-sm text-slate-500">—</p> : (
-                        <ul className="space-y-1 text-sm">
-                          {staffIn.map((a: { staff_id: string; staff_profiles?: unknown }) => {
-                            const name = getStaffName(a as { staff_profiles?: { display_name?: string; email?: string } | unknown });
-                            const focus = staffIdInSessionNow.has(a.staff_id) ? coachingLabel : routeResetDay ? routeLabel : phaseTaskLabel;
-                            return <li key={a.staff_id} className="text-slate-700"><span className="font-medium">{name}</span> → {focus}</li>;
-                          })}
-                        </ul>
-                      )}
-                    </div>
-                  </>
-                );
-              })()}
-
-              {/* TAB 2 — TASKS */}
-              {staffModalTab === "tasks" && staffOpsData && (() => {
-                const preOpen = staffOpsData.preOpen ?? staffOpsData.tasks.filter((t) => t.block === "pre_open");
-                const during = staffOpsData.during ?? staffOpsData.tasks.filter((t) => t.block === "during_hours");
-                const closing = staffOpsData.closing ?? staffOpsData.tasks.filter((t) => t.block === "closing");
-                const allByPhase: { phase: string; phaseLabel: string; tasks: typeof preOpen }[] = [
-                  { phase: "pre_open", phaseLabel: m.preOpenSection, tasks: preOpen },
-                  { phase: "during_hours", phaseLabel: m.duringHoursSection, tasks: during },
-                  { phase: "closing", phaseLabel: m.closingSection, tasks: closing },
-                ];
-                const nowHHMM = () => { const t = new Date().toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", timeZone: "America/Los_Angeles" }); return t.slice(0, 5); };
-                const isOverdue = (t: { status: string; due_time?: string | null }) => {
-                  if (t.status === "completed") return false;
-                  const due = t.due_time ? String(t.due_time).slice(0, 5) : null;
-                  if (!due) return false;
-                  const [dh, dm] = due.split(":").map(Number);
-                  const [nh, nm] = nowHHMM().split(":").map(Number);
-                  return (nh * 60 + nm) > (dh * 60 + dm);
-                };
-                return (
-                  <>
-                    <div className="rounded-lg border border-slate-200 overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead><tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase"><th className="px-3 py-2">{locale === "vi" ? "Công việc" : "Task Name"}</th><th className="px-3 py-2">{m.phaseColumn}</th><th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th><th className="px-3 py-2">{m.completedBy}</th><th className="px-3 py-2">{m.completionTime}</th></tr></thead>
-                        <tbody>
-                          {allByPhase.flatMap(({ phaseLabel, tasks: phaseTasks }) =>
-                            phaseTasks.map((t) => {
-                              const c = Array.isArray(t.completer) ? t.completer[0] : t.completer;
-                              const name = c ? (c.display_name || c.email) : null;
-                              const overdue = isOverdue(t);
-                              const statusText = t.status === "completed" ? m.done : overdue ? m.overdue : m.pending;
-                              const statusColor = t.status === "completed" ? "text-emerald-700" : overdue ? "text-red-700" : "text-amber-700";
-                              return (
-                                <tr key={t.id} className="border-t border-slate-100">
-                                  <td className="px-3 py-2 font-medium text-slate-800">{t.title}</td>
-                                  <td className="px-3 py-2 text-slate-600">{phaseLabel}</td>
-                                  <td className={`px-3 py-2 font-medium ${statusColor}`}>{statusText}</td>
-                                  <td className="px-3 py-2 text-slate-600">{name ?? "—"}</td>
-                                  <td className="px-3 py-2 text-slate-600">{t.completed_at ? formatInGymTZ(t.completed_at, { hour: "numeric", minute: "2-digit" }) : "—"}</td>
-                                </tr>
-                              );
-                            })
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                    {staffOpsData.staffTaskPerformance && staffOpsData.staffTaskPerformance.length > 0 && (
-                      <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
-                        <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.staffTaskPerformance}</h4>
-                        <ul className="space-y-2 text-sm">
-                          {staffOpsData.staffTaskPerformance.map((s: { staff_id: string; display_name: string; tasks_completed: number; completion_rate_pct: number }) => (
-                            <li key={s.staff_id} className="flex justify-between items-center"><span className="font-medium text-slate-800">{s.display_name}</span><span className="text-slate-600">{m.tasksCompletedCount}: {s.tasks_completed} · {s.completion_rate_pct}% {m.completionRate}</span></li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-
-              {/* TAB 3 — ATTENDANCE */}
-              {staffModalTab === "attendance" && (
-                <>
-                  {staffOpsData && (
-                    <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
-                      <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.todaysAttendance}</h4>
-                      <p className="text-sm text-slate-700 mb-1"><strong>IN:</strong> {staffOpsData.attendance.in.map((a: { staff_profiles?: { display_name?: string; email?: string } | unknown }) => { const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles; return ((p as { display_name?: string; email?: string })?.display_name || (p as { display_name?: string; email?: string })?.email) ?? "—"; }).join(", ") || "—"}</p>
-                      <p className="text-sm text-slate-700"><strong>NOT IN:</strong> {staffOpsData.attendance.out.map((a: { staff_profiles?: { display_name?: string; email?: string } | unknown }) => { const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles; return ((p as { display_name?: string; email?: string })?.display_name || (p as { display_name?: string; email?: string })?.email) ?? "—"; }).join(", ") || "—"}</p>
-                    </div>
-                  )}
-                  <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
-                    <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.monthlyAttendanceSection}</h4>
-                    <p className="text-sm font-medium text-slate-700 mb-2">{m.currentMonth}: {monthlyAttendanceData?.label ?? "—"}</p>
-                    {!monthlyAttendanceData && <p className="text-sm text-slate-500">{m.loading}</p>}
-                    {monthlyAttendanceData && monthlyAttendanceData.staff.length === 0 && <p className="text-sm text-slate-500">{m.noSessions}</p>}
-                    {monthlyAttendanceData && monthlyAttendanceData.staff.length > 0 && (
-                      <ul className="space-y-2">
-                        {monthlyAttendanceData.staff.map((s) => (
-                          <li key={s.staff_id} className="flex justify-between items-center py-2 px-3 rounded-lg bg-white border border-slate-100">
-                            <span className="font-medium text-slate-800">{(s.display_name || s.email) ?? s.staff_id}</span>
-                            <span className="text-slate-600 font-medium">{s.in_days} {m.inDays}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </>
-              )}
-
-              {/* TAB 4 — COACHING */}
-              {staffModalTab === "coaching" && staffOpsData && (
-                <>
-                  <div className="grid grid-cols-3 gap-2 text-sm">
-                    <div className="rounded-lg border border-slate-200 p-2 text-center"><p className="text-[11px] text-slate-500 uppercase">{m.totalSessionsToday}</p><p className="font-bold text-slate-800">{(staffOpsData.sessionsToday ?? staffOpsData.sessions).length}</p></div>
-                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-center"><p className="text-[11px] text-slate-600 uppercase">{m.assignedSessions}</p><p className="font-bold text-slate-800">{(staffOpsData.sessionsToday ?? staffOpsData.sessions).filter((s: { coach_id: string | null }) => s.coach_id).length}</p></div>
-                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-center"><p className="text-[11px] text-slate-600 uppercase">{m.unassignedSessions}</p><p className="font-bold text-slate-800">{staffOpsData.summary.unassigned_sessions ?? 0}</p></div>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead><tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase"><th className="px-3 py-2">{m.time}</th><th className="px-3 py-2">{m.wallArea}</th><th className="px-3 py-2">{m.coachAssigned}</th><th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th></tr></thead>
-                      <tbody>
-                        {((staffOpsData.sessionsToday ?? staffOpsData.sessions) as { id: string; start_time: string; coach_id: string | null; location?: string; staff_profiles?: { display_name?: string; email?: string } | unknown }[]).map((s) => {
-                          const p = Array.isArray(s.staff_profiles) ? s.staff_profiles[0] : s.staff_profiles;
-                          const name = (p as { display_name?: string; email?: string })?.display_name || (p as { display_name?: string; email?: string })?.email;
-                          return (
-                            <tr key={s.id} className="border-t border-slate-100"><td className="px-3 py-2 text-slate-800">{new Date(s.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</td><td className="px-3 py-2 text-slate-700">{s.location ?? "—"}</td><td className="px-3 py-2">{s.coach_id ? (name ?? m.assigned) : "—"}</td><td className="px-3 py-2">{s.coach_id ? <span className="text-emerald-700">{m.assigned}</span> : <span className="text-amber-700">⚠ {m.unassigned}</span>}</td></tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
-
-              {/* TAB 5 — ROUTES */}
-              {staffModalTab === "routes" && staffOpsData && (
-                <div className="rounded-lg border border-slate-200 overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase">
-                        <th className="px-3 py-2">{m.wallZone}</th>
-                        <th className="px-3 py-2">{m.nextResetDate}</th>
-                        <th className="px-3 py-2">{locale === "vi" ? "Route age" : "Route age"}</th>
-                        <th className="px-3 py-2">{locale === "vi" ? "Setters today" : "Setters today"}</th>
-                        <th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th>
-                        <th className="px-3 py-2 w-40">{locale === "vi" ? "Hành động" : "Actions"}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {staffOpsData.zones.map((z) => {
-                        const setters = (z.assigned_setters ?? []).map((s) => s.name).join(", ");
-                        const age = typeof z.route_age_days === "number" ? z.route_age_days : null;
-                        const status = z.reset_status ?? (setters ? "in_progress" : "pending");
-                        return (
-                          <tr key={z.id} className={`border-t border-slate-100 ${status === "overdue" ? "bg-red-50" : ""}`}>
-                            <td className="px-3 py-2 font-medium text-slate-800">{z.name}</td>
-                            <td className="px-3 py-2 text-slate-700">{z.next_reset_at ? new Date(z.next_reset_at).toLocaleDateString() : "—"}</td>
-                            <td className="px-3 py-2 text-slate-700">{age === null ? "—" : `${age}d`}</td>
-                            <td className="px-3 py-2 text-slate-700">{setters || "—"}</td>
-                            <td className="px-3 py-2">
-                              {status === "completed" ? (
-                                <span className="text-emerald-700 font-semibold">Completed</span>
-                              ) : status === "overdue" ? (
-                                <span className="text-red-700 font-semibold">⚠ {m.overdue}</span>
-                              ) : status === "in_progress" ? (
-                                <span className="text-amber-700 font-semibold">In Progress</span>
-                              ) : (
-                                <span className="text-slate-600 font-semibold">Pending</span>
-                              )}
-                            </td>
-                            <td className="px-3 py-2">
-                              <div className="flex gap-2 flex-wrap">
-                                <details className="relative">
-                                  <summary className="list-none cursor-pointer px-2 py-1 rounded-lg border border-slate-300 bg-white text-slate-800 text-xs font-medium">
-                                    {locale === "vi" ? "Assign" : "Assign"}
-                                  </summary>
-                                  <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-lg shadow-lg p-2 z-10">
-                                    <p className="text-[11px] text-slate-500 uppercase font-semibold mb-2">{locale === "vi" ? "Setters" : "Setters"}</p>
-                                    <div className="max-h-48 overflow-y-auto space-y-1">
-                                      {(staffOpsData.route_setters ?? []).map((p) => {
-                                        const label = p.display_name || p.email || p.id;
-                                        const checked = (z.assigned_setters ?? []).some((s) => s.staff_id === p.id);
-                                        return (
-                                          <label key={p.id} className="flex items-center gap-2 text-sm text-slate-800">
-                                            <input
-                                              type="checkbox"
-                                              checked={checked}
-                                              onChange={async (e) => {
-                                                const nextIds = new Set((z.assigned_setters ?? []).map((s) => s.staff_id));
-                                                if (e.target.checked) nextIds.add(p.id);
-                                                else nextIds.delete(p.id);
-                                                const res = await adminFetch(`/api/admin/routes/zones/${z.id}/assignments`, {
-                                                  method: "PUT",
-                                                  headers: { "Content-Type": "application/json" },
-                                                  body: JSON.stringify({ staff_ids: Array.from(nextIds) }),
-                                                });
-                                                const d = await res.json();
-                                                if (res.ok && d?.ok) {
-                                                  setStaffOpsData((prev) => prev ? ({
-                                                    ...prev,
-                                                    zones: prev.zones.map((zz) => (zz.id === z.id ? { ...zz, assigned_setters: d.assigned_setters } : zz)),
-                                                  }) : prev);
-                                                }
-                                              }}
-                                            />
-                                            <span className="truncate">{label}</span>
-                                          </label>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                </details>
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    const res = await adminFetch(`/api/admin/routes/zones/${z.id}/reset`, { method: "POST" });
-                                    const d = await res.json();
-                                    if (res.ok && d?.ok) {
-                                      adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x));
-                                    }
-                                  }}
-                                  className="px-2 py-1 rounded-lg bg-slate-700 text-white text-xs font-medium hover:bg-slate-600"
-                                >
-                                  {m.markResetComplete}
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
               )}
             </div>
           </div>
