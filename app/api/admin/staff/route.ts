@@ -155,7 +155,8 @@ export async function GET(request: NextRequest) {
       .from("staff_tasks")
       .update({ status: "pending", completed_at: null, completed_by: null });
     await supabase.from("staff_daily_reset").update({ last_reset_date: today }).eq("id", 1);
-    tasks = tasks.map((t) => ({ ...t, status: "pending", completed_at: null, completed_by: null, completer: null }));
+    // Also reflect reset status in the in-memory tasks array for this response
+    tasks = tasks.map((t) => ({ ...t, status: "pending", completed_at: null, completed_by: null }));
   }
 
   const staffIn = attendance.filter((a) => a.status === "IN");
