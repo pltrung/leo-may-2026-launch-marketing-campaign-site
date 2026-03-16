@@ -105,6 +105,7 @@ export async function GET(request: NextRequest) {
     tasksRes,
     taskLogsRes,
     resetTrackerRes,
+    zoneSettersRes,
   ] = await Promise.all([
     supabase
       .from("staff_attendance")
@@ -139,6 +140,10 @@ export async function GET(request: NextRequest) {
       .eq("date", today)
       .order("completed_at", { ascending: true }),
     supabase.from("staff_daily_reset").select("last_reset_date").maybeSingle(),
+    supabase
+      .from("route_zone_setters")
+      .select("zone_id, staff_profiles(display_name, email)")
+      .eq("date", today),
   ]);
 
   const attendance = attendanceRes.data ?? [];
@@ -147,6 +152,13 @@ export async function GET(request: NextRequest) {
   const zones = zonesRes.data ?? [];
   let tasks = tasksRes.data ?? [];
   const taskLogs = taskLogsRes.data ?? [];
+  const zoneSetterRows = (zoneSettersRes.data ?? []) as {
+    zone_id: string;
+    staff_profiles:
+      | { display_name?: string | null; email?: string | null }
+      | { display_name?: string | null; email?: string | null }[]
+      | null;
+  }[];
 
   // When the gym date rolls over (midnight), reset staff_tasks so alerts/overview show a fresh day
   const lastResetDate = resetTrackerRes.data?.last_reset_date ?? null;
@@ -162,10 +174,20 @@ export async function GET(request: NextRequest) {
   const staffIn = attendance.filter((a) => a.status === "IN");
   const staffOut = attendance.filter((a) => a.status === "NOT_IN");
 
-  const zonesWithStatus = zones.map((z) => ({
-    ...z,
-    overdue: z.next_reset_at ? z.next_reset_at < nowIso : false,
-  }));
+  const zonesWithStatus = zones.map((z) => {
+    const assigned = zoneSetterRows
+      .filter((row) => row.zone_id === z.id)
+      .map((row) => {
+        const p = Array.isArray(row.staff_profiles) ? row.staff_profiles[0] : row.staff_profiles;
+        return (p?.display_name as string | null) || (p?.email as string | null);
+      })
+      .filter((n): n is string => !!n);
+    return {
+      ...z,
+      overdue: z.next_reset_at ? z.next_reset_at < nowIso : false,
+      assigned_setters: assigned,
+    };
+  });
 
   const sessionIds = sessionsNext2h.map((s) => s.id);
   const newbieCountBySession: Record<string, number> = {};

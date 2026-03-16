@@ -609,23 +609,53 @@ export default function StaffPage() {
                     <thead>
                       <tr className="text-left text-xs font-semibold text-slate-400 uppercase border-b border-slate-600">
                         <th className="py-2 pr-2">{m.wallZone}</th>
+                        <th className="py-2 pr-2">{m.nextResetDate}</th>
                         <th className="py-2 pr-2">{m.assignedSetters}</th>
                         <th className="py-2 pr-2">{m.resetProgress}</th>
-                        <th className="py-2 w-24" />
+                        <th className="py-2 w-28" />
                       </tr>
                     </thead>
                     <tbody>
                       {zones.map((z) => {
                         const resetComplete = z.last_reset_at && getGymDateFromISO(z.last_reset_at) === today;
+                        const setters = (z.assigned_setters as string[] | undefined) ?? [];
                         return (
                           <tr key={z.id} className="border-b border-slate-700 last:border-0">
                             <td className="py-2 pr-2 font-medium text-slate-200">{z.name}</td>
-                            <td className="py-2 pr-2 text-slate-500">{m.noAssignments}</td>
+                            <td className="py-2 pr-2 text-slate-400">{formatDate(z.next_reset_at)}</td>
+                            <td className="py-2 pr-2 text-slate-500">{setters.length > 0 ? setters.join(", ") : m.noAssignments}</td>
                             <td className="py-2 pr-2">{resetComplete ? <span className="text-emerald-400">{m.resetProgressComplete}</span> : <span className="text-slate-400">{m.resetProgressPending}</span>}</td>
                             <td className="py-2">
-                              {z.status !== "recent" && (
-                                <button type="button" disabled={resettingZoneId === z.id} onClick={() => handleZoneReset(z.id)} className="px-2 py-1 rounded bg-slate-600 text-slate-200 text-xs hover:bg-slate-500 disabled:opacity-50">{resettingZoneId === z.id ? "…" : m.markResetComplete}</button>
-                              )}
+                              <div className="flex flex-col gap-1">
+                                {z.status !== "recent" && (
+                                  <button
+                                    type="button"
+                                    disabled={resettingZoneId === z.id}
+                                    onClick={() => handleZoneReset(z.id)}
+                                    className="px-2 py-1 rounded bg-slate-600 text-slate-200 text-xs hover:bg-slate-500 disabled:opacity-50"
+                                  >
+                                    {resettingZoneId === z.id ? "…" : m.markResetComplete}
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    try {
+                                      const res = await staffFetch(`/api/route-setter/zones/${z.id}/assign`, { method: "POST" });
+                                      if (!res.ok) throw new Error("failed");
+                                      // Refresh zones list to show updated assignments
+                                      const r = await staffFetch("/api/route-setter/zones");
+                                      const d = await r.json();
+                                      if (r.ok && d?.zones) setZones(d.zones);
+                                    } catch {
+                                      // ignore, existing error UI will handle generic failures
+                                    }
+                                  }}
+                                  className="px-2 py-1 rounded bg-slate-700 text-slate-200 text-xs hover:bg-slate-600"
+                                >
+                                  {m.assignToMe}
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
