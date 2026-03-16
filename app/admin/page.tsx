@@ -105,7 +105,7 @@ export default function AdminPage() {
   const [paymentReceived, setPaymentReceived] = useState(false);
   const lastPaymentCountRef = React.useRef<number | null>(null);
   const [toolsModal, setToolsModal] = useState<"occupancy" | "checkins" | "revenue" | "staff" | "inventory" | null>(null);
-  const [staffModalTab, setStaffModalTab] = useState<"overview" | "monthly">("overview");
+  const [staffModalTab, setStaffModalTab] = useState<"overview" | "tasks" | "attendance" | "coaching" | "routes">("overview");
   const [staffResetLoading, setStaffResetLoading] = useState(false);
   const [monthlyAttendanceData, setMonthlyAttendanceData] = useState<{
     label: string;
@@ -173,12 +173,15 @@ export default function AdminPage() {
   const [staffOpsData, setStaffOpsData] = useState<{
     attendance: { in: { staff_id: string; status: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[]; out: { staff_id: string; status: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[] };
     sessions: { id: string; start_time: string; coach_id: string | null; session_type: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[];
+    sessionsToday?: { id: string; start_time: string; coach_id: string | null; location?: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[];
     zones: { id: string; name: string; next_reset_at: string | null; overdue?: boolean }[];
     tasks: { id: string; title: string; status: string; block?: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | null }[];
     preOpen?: { id: string; title: string; status: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | null }[];
     during?: { id: string; title: string; status: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | null }[];
     closing?: { id: string; title: string; status: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | null }[];
-    summary: { staff_in_today: number; staff_out_today: number; sessions_today: number; newbie_attendance_today?: number; zones_overdue: number; tasks_pending: number };
+    timeline?: { id: string; completed_at: string; task_title: string; staff_name: string }[];
+    staffTaskPerformance?: { staff_id: string; display_name: string; tasks_completed: number; completion_rate_pct: number }[];
+    summary: { staff_in_today: number; staff_out_today: number; sessions_today: number; newbie_attendance_today?: number; zones_overdue: number; tasks_pending: number; tasks_completed?: number; tasks_overdue?: number; tasks_total?: number; pre_open_completed?: number; pre_open_total?: number; closing_overdue?: number; unassigned_sessions?: number; staff_required?: number };
   } | null>(null);
 
   const m = getMessages(locale).admin;
@@ -314,7 +317,7 @@ export default function AdminPage() {
   }, [toolsModal, adminFetch]);
 
   useEffect(() => {
-    if (toolsModal !== "staff" || staffModalTab !== "monthly") return;
+    if (toolsModal !== "staff" || staffModalTab !== "attendance") return;
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
@@ -2078,174 +2081,242 @@ export default function AdminPage() {
 
       {toolsModal === "staff" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-center p-4 border-b">
               <h3 className="text-lg font-semibold text-slate-900">{m.staffOperations}</h3>
               <button type="button" onClick={() => setToolsModal(null)} className="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
             </div>
-            <div className="flex gap-1 p-2 border-b bg-slate-50">
-              <button type="button" onClick={() => setStaffModalTab("overview")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${staffModalTab === "overview" ? "bg-white shadow border border-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-100"}`}>{m.staffTabOverview}</button>
-              <button type="button" onClick={() => setStaffModalTab("monthly")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${staffModalTab === "monthly" ? "bg-white shadow border border-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-100"}`}>{m.monthlyAttendance}</button>
+            <div className="flex gap-1 p-2 border-b bg-slate-50 flex-wrap">
+              {(["overview", "tasks", "attendance", "coaching", "routes"] as const).map((tab) => (
+                <button key={tab} type="button" onClick={() => setStaffModalTab(tab)} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${staffModalTab === tab ? "bg-white shadow border border-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-100"}`}>
+                  {tab === "overview" ? m.staffTabOverview : tab === "tasks" ? m.staffTabTasks : tab === "attendance" ? m.staffTabAttendance : tab === "coaching" ? m.staffTabCoaching : m.staffTabRoutes}
+                </button>
+              ))}
             </div>
             <div className="overflow-y-auto p-4 space-y-4">
-              {staffModalTab === "overview" && (
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    disabled={staffResetLoading}
-                    onClick={async () => {
-                      setStaffResetLoading(true);
-                      try {
-                        const r = await adminFetch("/api/admin/staff/reset-attendance", { method: "POST" });
-                        const d = await r.json();
-                        if (r.ok) {
-                          setActionMessage(locale === "vi" ? "Đã xóa chấm công hôm nay. Staff có thể quét QR lại." : "Today's staff attendance reset. Staff can scan QR again.");
-                          adminFetch("/api/admin/staff").then((res) => res.json()).then((data) => setStaffOpsData(data)).catch(() => setStaffOpsData(null));
-                        } else setActionError(d?.error || "Failed");
-                      } catch {
-                        setActionError("Failed to reset");
-                      } finally {
-                        setStaffResetLoading(false);
-                      }
-                    }}
-                    className="text-xs px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 disabled:opacity-50"
-                  >
-                    {staffResetLoading ? "…" : (locale === "vi" ? "Xóa chấm công hôm nay (test)" : "Reset today's attendance (test)")}
-                  </button>
-                </div>
-              )}
-              {staffModalTab === "monthly" ? (
+              {!staffOpsData && staffModalTab !== "attendance" && <p className="text-sm text-slate-500">{m.loading}</p>}
+
+              {/* TAB 1 — OVERVIEW */}
+              {staffModalTab === "overview" && staffOpsData && (() => {
+                const sum = staffOpsData.summary;
+                const req = sum.staff_required ?? 3;
+                const present = sum.staff_in_today ?? 0;
+                const preOpenDone = sum.pre_open_completed ?? 0;
+                const preOpenTotal = sum.pre_open_total ?? 0;
+                const closingOver = sum.closing_overdue ?? 0;
+                const zonesOver = sum.zones_overdue ?? 0;
+                const unassigned = sum.unassigned_sessions ?? 0;
+                const status = (v: number, warn: number, crit: number) => v <= crit ? "red" : v <= warn ? "yellow" : "green";
+                const staffStatus = present >= req ? "green" : present >= req - 1 ? "yellow" : "red";
+                const preOpenStatus = preOpenTotal === 0 ? "green" : preOpenDone >= preOpenTotal ? "green" : preOpenDone >= preOpenTotal - 1 ? "yellow" : "red";
+                const alerts: string[] = [];
+                staffOpsData.preOpen?.forEach((t) => {
+                  if (t.status !== "completed" && t.due_time) {
+                    const due = String(t.due_time).slice(0, 5);
+                    const now = new Date().toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", timeZone: "America/Los_Angeles" }).slice(0, 5);
+                    const [dh, dm] = due.split(":").map(Number);
+                    const [nh, nm] = now.split(":").map(Number);
+                    const minOver = (nh * 60 + nm) - (dh * 60 + dm);
+                    if (minOver > 0) alerts.push(`${t.title} ${locale === "vi" ? "quá hạn" : "overdue"} (${minOver} ${locale === "vi" ? "phút" : "min"})`);
+                  }
+                });
+                staffOpsData.closing?.forEach((t) => {
+                  if (t.status !== "completed" && t.due_time) {
+                    const due = String(t.due_time).slice(0, 5);
+                    const now = new Date().toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", timeZone: "America/Los_Angeles" }).slice(0, 5);
+                    const [dh, dm] = due.split(":").map(Number);
+                    const [nh, nm] = now.split(":").map(Number);
+                    const minOver = (nh * 60 + nm) - (dh * 60 + dm);
+                    if (minOver > 0) alerts.push(`${t.title} ${locale === "vi" ? "quá hạn" : "overdue"} (${minOver} ${locale === "vi" ? "phút" : "min"})`);
+                  }
+                });
+                staffOpsData.zones?.filter((z) => z.overdue).forEach((z) => alerts.push(`${z.name} ${locale === "vi" ? "reset quá hạn" : "reset overdue"}`));
+                if (unassigned > 0) alerts.push(`${unassigned} ${locale === "vi" ? "buổi coaching chưa giao" : "coaching sessions unassigned"}`);
+                return (
+                  <>
+                    <div className="flex justify-end">
+                      <button type="button" disabled={staffResetLoading} onClick={async () => { setStaffResetLoading(true); try { const r = await adminFetch("/api/admin/staff/reset-attendance", { method: "POST" }); const d = await r.json(); if (r.ok) { setActionMessage(locale === "vi" ? "Đã xóa chấm công hôm nay." : "Today's staff attendance reset."); adminFetch("/api/admin/staff").then((res) => res.json()).then((data) => setStaffOpsData(data)).catch(() => setStaffOpsData(null)); } else setActionError(d?.error || "Failed"); } catch { setActionError("Failed"); } finally { setStaffResetLoading(false); } }} className="text-xs px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 disabled:opacity-50">{staffResetLoading ? "…" : (locale === "vi" ? "Xóa chấm công (test)" : "Reset attendance (test)")}</button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      <div className={`rounded-lg border p-2 ${staffStatus === "green" ? "bg-emerald-50 border-emerald-200" : staffStatus === "yellow" ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200"}`}>
+                        <p className="text-[11px] font-semibold text-slate-600 uppercase">{m.staffPresent}</p>
+                        <p className="text-sm font-bold text-slate-800">{present} / {req}</p>
+                      </div>
+                      <div className={`rounded-lg border p-2 ${preOpenStatus === "green" ? "bg-emerald-50 border-emerald-200" : preOpenStatus === "yellow" ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200"}`}>
+                        <p className="text-[11px] font-semibold text-slate-600 uppercase">{m.preOpenTasks}</p>
+                        <p className="text-sm font-bold text-slate-800">{preOpenDone} / {preOpenTotal}</p>
+                      </div>
+                      <div className={`rounded-lg border p-2 ${closingOver === 0 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
+                        <p className="text-[11px] font-semibold text-slate-600 uppercase">{m.closingTasksOverdue}</p>
+                        <p className="text-sm font-bold text-slate-800">{closingOver} {locale === "vi" ? "quá hạn" : "overdue"}</p>
+                      </div>
+                      <div className={`rounded-lg border p-2 ${zonesOver === 0 ? "bg-emerald-50 border-emerald-200" : zonesOver > 1 ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"}`}>
+                        <p className="text-[11px] font-semibold text-slate-600 uppercase">{m.routeResetsOverdue}</p>
+                        <p className="text-sm font-bold text-slate-800">{zonesOver} {locale === "vi" ? "quá hạn" : "overdue"}</p>
+                      </div>
+                      <div className={`rounded-lg border p-2 ${unassigned === 0 ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
+                        <p className="text-[11px] font-semibold text-slate-600 uppercase">{m.unassignedCoaching}</p>
+                        <p className="text-sm font-bold text-slate-800">{unassigned}</p>
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
+                      <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.operationsAlerts}</h4>
+                      {alerts.length === 0 ? <p className="text-sm text-slate-600">{m.noOperationalAlerts}</p> : <ul className="space-y-1 text-sm text-amber-800">{alerts.map((a, i) => <li key={i}>⚠ {a}</li>)}</ul>}
+                    </div>
+                    <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
+                      <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.todaysAttendance}</h4>
+                      <p className="text-sm text-slate-700 mb-1"><strong>IN:</strong> {staffOpsData.attendance.in.map((a: { staff_profiles?: { display_name?: string; email?: string } | unknown }) => { const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles; return (p as { display_name?: string; email?: string })?.display_name || (p as { display_name?: string; email?: string })?.email ?? "—"; }).join(", ") || "—"}</p>
+                      <p className="text-sm text-slate-700"><strong>NOT IN:</strong> {staffOpsData.attendance.out.map((a: { staff_profiles?: { display_name?: string; email?: string } | unknown }) => { const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles; return (p as { display_name?: string; email?: string })?.display_name || (p as { display_name?: string; email?: string })?.email ?? "—"; }).join(", ") || "—"}</p>
+                      <div className="mt-2 pt-2 border-t border-slate-200">
+                        <p className="text-xs text-slate-600">{m.requiredSetters}: {req} · {m.presentSetters}: {present}</p>
+                        {present < req && <p className="text-xs font-semibold text-amber-700 mt-0.5">⚠ {m.understaffed}</p>}
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
+                      <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.taskComplianceSummary}</h4>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <span className="text-slate-600">{m.totalTasksToday}:</span><span className="font-medium text-slate-800">{sum.tasks_total ?? 0}</span>
+                        <span className="text-slate-600">{m.tasksCompleted}:</span><span className="font-medium text-emerald-700">{sum.tasks_completed ?? 0}</span>
+                        <span className="text-slate-600">{m.tasksPendingLabel}:</span><span className="font-medium text-amber-700">{sum.tasks_pending ?? 0}</span>
+                        <span className="text-slate-600">{m.tasksOverdueLabel}:</span><span className="font-medium text-red-700">{sum.tasks_overdue ?? 0}</span>
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
+                      <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.todaysOperationsTimeline}</h4>
+                      {(!staffOpsData.timeline || staffOpsData.timeline.length === 0) ? <p className="text-sm text-slate-500">{locale === "vi" ? "Chưa có sự kiện." : "No events yet."}</p> : (
+                        <ul className="space-y-1 text-sm">
+                          {staffOpsData.timeline.map((e) => (
+                            <li key={e.id} className="text-slate-700">
+                              {new Date(e.completed_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} — {e.staff_name} {locale === "vi" ? "hoàn thành" : "completed"} "{e.task_title}"
+                            </li>
+                          ))}
+                          <li className="text-slate-600 font-medium">10:00 — {m.gymOpened}</li>
+                        </ul>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
+
+              {/* TAB 2 — TASKS */}
+              {staffModalTab === "tasks" && staffOpsData && (() => {
+                const preOpen = staffOpsData.preOpen ?? staffOpsData.tasks.filter((t: { block?: string }) => t.block === "pre_open");
+                const during = staffOpsData.during ?? staffOpsData.tasks.filter((t: { block?: string }) => t.block === "during_hours");
+                const closing = staffOpsData.closing ?? staffOpsData.tasks.filter((t: { block?: string }) => t.block === "closing");
+                const nowHHMM = () => { const t = new Date().toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", timeZone: "America/Los_Angeles" }); return t.slice(0, 5); };
+                const isOverdue = (t: { status: string; due_time?: string | null }) => {
+                  if (t.status === "completed") return false;
+                  const due = t.due_time ? String(t.due_time).slice(0, 5) : null;
+                  if (!due) return false;
+                  const [dh, dm] = due.split(":").map(Number);
+                  const [nh, nm] = nowHHMM().split(":").map(Number);
+                  return (nh * 60 + nm) > (dh * 60 + dm);
+                };
+                const renderTaskRow = (t: { id: string; title: string; status: string; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | { display_name?: string | null; email?: string | null }[] | null }) => {
+                  const c = Array.isArray(t.completer) ? t.completer[0] : t.completer;
+                  const name = c ? (c.display_name || c.email) : null;
+                  const overdue = isOverdue(t);
+                  const statusColor = t.status === "completed" ? "text-emerald-700" : overdue ? "text-red-700" : "text-amber-700";
+                  return (
+                    <li key={t.id} className="flex justify-between items-start gap-2 py-1.5 border-b border-slate-100 last:border-0">
+                      <div>
+                        <span className={t.status === "completed" ? "line-through text-slate-500" : "text-slate-800"}>{t.title}</span>
+                        {t.completed_at && name && <p className="text-[11px] text-slate-500">{m.completedBy} {name} — {new Date(t.completed_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</p>}
+                        {overdue && t.status !== "completed" && <p className="text-[11px] text-red-600">{m.overdue}</p>}
+                      </div>
+                      <span className={`text-xs font-medium shrink-0 ${statusColor}`}>{t.status === "completed" ? m.done : overdue ? m.overdue : m.pending}</span>
+                    </li>
+                  );
+                };
+                return (
+                  <>
+                    <div><h4 className="text-xs font-semibold text-slate-700 uppercase mb-2">{m.preOpenSection}</h4><ul className="text-sm space-y-0">{preOpen.map((t: { id: string; title: string; status: string; due_time?: string | null; completed_at: string | null; completer?: unknown }) => renderTaskRow(t))}</ul></div>
+                    <div><h4 className="text-xs font-semibold text-slate-700 uppercase mb-2">{m.duringHoursSection}</h4><ul className="text-sm space-y-0">{during.map((t: { id: string; title: string; status: string; due_time?: string | null; completed_at: string | null; completer?: unknown }) => renderTaskRow(t))}</ul></div>
+                    <div><h4 className="text-xs font-semibold text-slate-700 uppercase mb-2">{m.closingSection}</h4><ul className="text-sm space-y-0">{closing.map((t: { id: string; title: string; status: string; due_time?: string | null; completed_at: string | null; completer?: unknown }) => renderTaskRow(t))}</ul></div>
+                    {staffOpsData.staffTaskPerformance && staffOpsData.staffTaskPerformance.length > 0 && (
+                      <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
+                        <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.staffTaskPerformance}</h4>
+                        <ul className="space-y-2 text-sm">
+                          {staffOpsData.staffTaskPerformance.map((s) => (
+                            <li key={s.staff_id} className="flex justify-between items-center"><span className="font-medium text-slate-800">{s.display_name}</span><span className="text-slate-600">{m.tasksCompletedCount}: {s.tasks_completed} · {s.completion_rate_pct}% {m.completionRate}</span></li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+
+              {/* TAB 3 — ATTENDANCE */}
+              {staffModalTab === "attendance" && (
                 <>
-                  <p className="text-sm font-medium text-slate-700">{m.currentMonth}: {monthlyAttendanceData?.label ?? "—"}</p>
-                  {!monthlyAttendanceData && <p className="text-sm text-slate-500">{m.loading}</p>}
-                  {monthlyAttendanceData && monthlyAttendanceData.staff.length === 0 && <p className="text-sm text-slate-500">{m.noSessions}</p>}
-                  {monthlyAttendanceData && monthlyAttendanceData.staff.length > 0 && (
-                    <ul className="space-y-2">
-                      {monthlyAttendanceData.staff.map((s) => (
-                        <li key={s.staff_id} className="flex justify-between items-center py-2 px-3 rounded-lg bg-slate-50 border border-slate-100">
-                          <span className="font-medium text-slate-800">{(s.display_name || s.email) ?? s.staff_id}</span>
-                          <span className="text-slate-600 font-medium">{s.in_days} {m.inDays}</span>
-                        </li>
-                      ))}
-                    </ul>
+                  {staffOpsData && (
+                    <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
+                      <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.todaysAttendance}</h4>
+                      <p className="text-sm text-slate-700 mb-1"><strong>IN:</strong> {staffOpsData.attendance.in.map((a: { staff_profiles?: { display_name?: string; email?: string } | unknown }) => { const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles; return (p as { display_name?: string; email?: string })?.display_name || (p as { display_name?: string; email?: string })?.email ?? "—"; }).join(", ") || "—"}</p>
+                      <p className="text-sm text-slate-700"><strong>NOT IN:</strong> {staffOpsData.attendance.out.map((a: { staff_profiles?: { display_name?: string; email?: string } | unknown }) => { const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles; return (p as { display_name?: string; email?: string })?.display_name || (p as { display_name?: string; email?: string })?.email ?? "—"; }).join(", ") || "—"}</p>
+                    </div>
                   )}
-                </>
-              ) : (
-              <>
-              {!staffOpsData && <p className="text-sm text-slate-500">{m.loading}</p>}
-              {staffOpsData && (
-                <>
                   <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
-                    <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.todayAttendance}</h4>
-                    <p className="text-sm text-slate-700 mb-1"><strong className="text-slate-800">IN:</strong> {staffOpsData.summary.staff_in_today} — {staffOpsData.attendance.in.map((a: { staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }) => {
-                      const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles;
-                      return (p?.display_name || p?.email) ?? "—";
-                    }).join(", ") || "—"}</p>
-                    <p className="text-sm text-slate-700"><strong className="text-slate-800">NOT IN:</strong> {staffOpsData.summary.staff_out_today} — {staffOpsData.attendance.out.map((a: { staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }) => {
-                      const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles;
-                      return (p?.display_name || p?.email) ?? "—";
-                    }).join(", ") || "—"}</p>
-                  </div>
-                  <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
-                    <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                      {m.coachingSessionsToday} ({staffOpsData.sessions.length})
-                      {" — "}{m.newbieAttendanceToday}: {staffOpsData.summary.newbie_attendance_today ?? 0}
-                    </h4>
-                    {staffOpsData.sessions.length === 0 && <p className="text-sm text-slate-600">{m.noSessions}</p>}
-                    <ul className="space-y-1 text-sm">
-                      {staffOpsData.sessions.slice(0, 20).map((s: { id: string; start_time: string; coach_id: string | null; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[]; location?: string; newbie_count?: number }) => (
-                        <li key={s.id} className="flex justify-between items-start gap-2 py-0.5">
-                          <span className="text-slate-800">{new Date(s.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} {s.location && <span className="text-slate-600">· {s.location}</span>} {(s.newbie_count ?? 0) > 0 && <span className="text-emerald-700 font-medium">({s.newbie_count} newbie{(s.newbie_count ?? 0) !== 1 ? "s" : ""})</span>}</span>
-                          <span className="text-slate-700 shrink-0 font-medium">
-                            {s.coach_id ? (() => {
-                              const p = Array.isArray(s.staff_profiles) ? s.staff_profiles[0] : s.staff_profiles;
-                              return (p?.display_name || p?.email) ?? m.assigned;
-                            })() : m.unassigned}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
-                    <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.routeZonesOverdue} {staffOpsData.summary.zones_overdue})</h4>
-                    <ul className="space-y-1 text-sm">
-                      {staffOpsData.zones.map((z: { id: string; name: string; next_reset_at: string | null; overdue?: boolean }) => (
-                        <li key={z.id} className={`flex justify-between items-center py-1.5 px-2 rounded-lg ${z.overdue ? "bg-red-50 border border-red-200" : "bg-slate-50 border border-slate-100"}`}>
-                          <span className={z.overdue ? "font-medium text-slate-800" : "text-slate-700"}>{z.name}</span>
-                          <span className={z.overdue ? "font-semibold text-red-700" : "text-slate-600"}>
-                            {z.overdue ? m.overdue : z.next_reset_at ? new Date(z.next_reset_at).toLocaleDateString() : "—"}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  {/* Shift tasks by block (Pre-open, During hours, Closing) — mirrors staff layout */}
-                  <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
-                    <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.tasksPending} {staffOpsData.summary.tasks_pending})</h4>
-                    {(() => {
-                      const preOpen = staffOpsData.preOpen ?? staffOpsData.tasks.filter((t: { block?: string }) => t.block === "pre_open");
-                      const during = staffOpsData.during ?? staffOpsData.tasks.filter((t: { block?: string }) => t.block === "during_hours");
-                      const closing = staffOpsData.closing ?? staffOpsData.tasks.filter((t: { block?: string }) => t.block === "closing");
-                      const renderTask = (t: { id: string; title: string; status: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | { display_name?: string | null; email?: string | null }[] | null }) => {
-                        const timeStr = t.start_time != null && t.due_time != null
-                          ? `${String(t.start_time).slice(0, 5)}–${String(t.due_time).slice(0, 5)}`
-                          : "";
-                        const c = Array.isArray(t.completer) ? t.completer[0] : t.completer;
-                        const completerName = c ? (c.display_name || c.email) : null;
-                        return (
-                          <li key={t.id} className="flex justify-between items-start gap-2 py-1.5 border-b border-slate-100 last:border-0">
-                            <div className="min-w-0">
-                              <span className={t.status === "completed" ? "line-through text-slate-500" : "text-slate-800"}>{t.title}</span>
-                              {timeStr && <span className="ml-2 text-xs text-slate-500">{timeStr}</span>}
-                              {t.completed_at && completerName && (
-                                <p className="text-[11px] text-slate-500 mt-0.5">
-                                  {locale === "vi" ? "Hoàn thành bởi" : "Done by"} <span className="font-medium text-slate-600">{completerName}</span>
-                                  {" "}{new Date(t.completed_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                                </p>
-                              )}
-                            </div>
-                            <span className={`shrink-0 text-xs font-medium ${t.status === "completed" ? "text-emerald-700" : "text-amber-700"}`}>
-                              {t.status === "completed" ? m.done : m.pending}
-                            </span>
+                    <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.monthlyAttendanceSection}</h4>
+                    <p className="text-sm font-medium text-slate-700 mb-2">{m.currentMonth}: {monthlyAttendanceData?.label ?? "—"}</p>
+                    {!monthlyAttendanceData && <p className="text-sm text-slate-500">{m.loading}</p>}
+                    {monthlyAttendanceData && monthlyAttendanceData.staff.length === 0 && <p className="text-sm text-slate-500">{m.noSessions}</p>}
+                    {monthlyAttendanceData && monthlyAttendanceData.staff.length > 0 && (
+                      <ul className="space-y-2">
+                        {monthlyAttendanceData.staff.map((s) => (
+                          <li key={s.staff_id} className="flex justify-between items-center py-2 px-3 rounded-lg bg-white border border-slate-100">
+                            <span className="font-medium text-slate-800">{(s.display_name || s.email) ?? s.staff_id}</span>
+                            <span className="text-slate-600 font-medium">{s.in_days} {m.inDays}</span>
                           </li>
-                        );
-                      };
-                      return (
-                        <div className="space-y-3">
-                          {preOpen.length > 0 && (
-                            <div>
-                              <p className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                                {locale === "vi" ? "Trước giờ mở cửa (9:00–10:00)" : "Pre-open (9:00–10:00)"}
-                              </p>
-                              <ul className="space-y-0 text-sm">{preOpen.map((t: { id: string; title: string; status: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | null }) => renderTask(t))}</ul>
-                            </div>
-                          )}
-                          {during.length > 0 && (
-                            <div>
-                              <p className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                                {locale === "vi" ? "Trong giờ mở cửa (10:00–22:00)" : "During hours (10:00–22:00)"}
-                              </p>
-                              <ul className="space-y-0 text-sm">{during.map((t: { id: string; title: string; status: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | null }) => renderTask(t))}</ul>
-                            </div>
-                          )}
-                          {closing.length > 0 && (
-                            <div>
-                              <p className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                                {locale === "vi" ? "Đóng cửa (22:00–23:00)" : "Closing (22:00–23:00)"}
-                              </p>
-                              <ul className="space-y-0 text-sm">{closing.map((t: { id: string; title: string; status: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | null }) => renderTask(t))}</ul>
-                            </div>
-                          )}
-                          {preOpen.length === 0 && during.length === 0 && closing.length === 0 && (
-                            <p className="text-sm text-slate-500">{locale === "vi" ? "Không có công việc ca." : "No shift tasks."}</p>
-                          )}
-                        </div>
-                      );
-                    })()}
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 </>
               )}
-              </>
+
+              {/* TAB 4 — COACHING */}
+              {staffModalTab === "coaching" && staffOpsData && (
+                <>
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div className="rounded-lg border border-slate-200 p-2 text-center"><p className="text-[11px] text-slate-500 uppercase">{m.totalSessionsToday}</p><p className="font-bold text-slate-800">{(staffOpsData.sessionsToday ?? staffOpsData.sessions).length}</p></div>
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-center"><p className="text-[11px] text-slate-600 uppercase">{m.assignedSessions}</p><p className="font-bold text-slate-800">{(staffOpsData.sessionsToday ?? staffOpsData.sessions).filter((s: { coach_id: string | null }) => s.coach_id).length}</p></div>
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-center"><p className="text-[11px] text-slate-600 uppercase">{m.unassignedSessions}</p><p className="font-bold text-slate-800">{staffOpsData.summary.unassigned_sessions ?? 0}</p></div>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead><tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase"><th className="px-3 py-2">{m.time}</th><th className="px-3 py-2">{m.wallArea}</th><th className="px-3 py-2">{m.coachAssigned}</th><th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th></tr></thead>
+                      <tbody>
+                        {((staffOpsData.sessionsToday ?? staffOpsData.sessions) as { id: string; start_time: string; coach_id: string | null; location?: string; staff_profiles?: { display_name?: string; email?: string } | unknown }[]).map((s) => {
+                          const p = Array.isArray(s.staff_profiles) ? s.staff_profiles[0] : s.staff_profiles;
+                          const name = (p as { display_name?: string; email?: string })?.display_name || (p as { display_name?: string; email?: string })?.email;
+                          return (
+                            <tr key={s.id} className="border-t border-slate-100"><td className="px-3 py-2 text-slate-800">{new Date(s.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</td><td className="px-3 py-2 text-slate-700">{s.location ?? "—"}</td><td className="px-3 py-2">{s.coach_id ? (name ?? m.assigned) : "—"}</td><td className="px-3 py-2">{s.coach_id ? <span className="text-emerald-700">{m.assigned}</span> : <span className="text-amber-700">⚠ {m.unassigned}</span>}</td></tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+
+              {/* TAB 5 — ROUTES */}
+              {staffModalTab === "routes" && staffOpsData && (
+                <div className="rounded-lg border border-slate-200 overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead><tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase"><th className="px-3 py-2">{m.wallZone}</th><th className="px-3 py-2">{m.nextResetDate}</th><th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th></tr></thead>
+                    <tbody>
+                      {staffOpsData.zones.map((z: { id: string; name: string; next_reset_at: string | null; overdue?: boolean }) => (
+                        <tr key={z.id} className={`border-t border-slate-100 ${z.overdue ? "bg-red-50" : ""}`}>
+                          <td className="px-3 py-2 font-medium text-slate-800">{z.name}</td>
+                          <td className="px-3 py-2 text-slate-700">{z.next_reset_at ? new Date(z.next_reset_at).toLocaleDateString() : "—"}</td>
+                          <td className="px-3 py-2">{z.overdue ? <span className="text-red-700 font-semibold">⚠ {m.overdue}</span> : <span className="text-emerald-700">{locale === "vi" ? "Đúng hạn" : "On schedule"}</span>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           </div>

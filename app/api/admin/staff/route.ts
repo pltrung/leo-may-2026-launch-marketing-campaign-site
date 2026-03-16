@@ -1,11 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
-import { getGymToday } from "@/lib/gymTimezone";
+import { getGymToday, getGymStartOfDay, getGymEndOfDay } from "@/lib/gymTimezone";
+
+const STAFF_REQUIRED_DEFAULT = 3;
+
+/** Current time in gym TZ as HH:MM for comparison with DB time. */
+function getGymNowHHMM(): string {
+  return new Date().toLocaleTimeString("en-GB", {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Los_Angeles",
+  }).slice(0, 5);
+}
+
+function compareHHMM(a: string, b: string): number {
+  const [ah, am] = a.split(":").map((n) => parseInt(n, 10) || 0);
+  const [bh, bm] = b.split(":").map((n) => parseInt(n, 10) || 0);
+  return (ah * 60 + am) - (bh * 60 + bm);
+}
 
 /**
  * GET /api/admin/staff
- * Returns staff operations overview: attendance today, coaching sessions, zones due, tasks.
+ * Returns staff operations: attendance, tasks, task_logs timeline, sessions (today), zones, ops metrics.
  * Admin only.
  */
 export async function GET(request: NextRequest) {
@@ -16,9 +34,18 @@ export async function GET(request: NextRequest) {
   const today = getGymToday();
   const now = new Date();
   const nowIso = now.toISOString();
+  const todayStart = getGymStartOfDay(today);
+  const todayEnd = getGymEndOfDay(today);
   const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
 
-  const [attendanceRes, sessionsRes, zonesRes, tasksRes] = await Promise.all([
+  const [
+    attendanceRes,
+    sessionsNext2hRes,
+    sessionsTodayRes,
+    zonesRes,
+    tasksRes,
+    taskLogsRes,
+  ] = await Promise.all([
     supabase
       .from("staff_attendance")
       .select("id, staff_id, date, status, created_at, staff_profiles(email, display_name)")
@@ -32,6 +59,13 @@ export async function GET(request: NextRequest) {
       .in("status", ["scheduled"])
       .order("start_time"),
     supabase
+      .from("coaching_sessions")
+      .select("id, start_time, end_time, coach_id, session_type, status, location, staff_profiles(email, display_name)")
+      .gte("start_time", todayStart)
+      .lte("start_time", todayEnd)
+      .in("status", ["scheduled"])
+      .order("start_time"),
+    supabase
       .from("route_zones")
       .select("id, name, reset_frequency_days, last_reset_at, next_reset_at")
       .order("next_reset_at", { ascending: true, nullsFirst: false }),
@@ -39,12 +73,19 @@ export async function GET(request: NextRequest) {
       .from("staff_tasks")
       .select("id, title, description, block, start_time, due_time, status, completed_at, completed_by, completer:staff_profiles!completed_by(display_name, email)")
       .order("start_time", { ascending: true, nullsFirst: true }),
+    supabase
+      .from("task_logs")
+      .select("id, task_id, staff_id, date, completed_at, staff_tasks(title), staff_profiles(display_name, email)")
+      .eq("date", today)
+      .order("completed_at", { ascending: true }),
   ]);
 
   const attendance = attendanceRes.data ?? [];
-  const sessions = sessionsRes.data ?? [];
+  const sessionsNext2h = sessionsNext2hRes.data ?? [];
+  const sessionsToday = sessionsTodayRes.data ?? [];
   const zones = zonesRes.data ?? [];
   const tasks = tasksRes.data ?? [];
+  const taskLogs = taskLogsRes.data ?? [];
 
   const staffIn = attendance.filter((a) => a.status === "IN");
   const staffOut = attendance.filter((a) => a.status === "NOT_IN");
@@ -54,7 +95,7 @@ export async function GET(request: NextRequest) {
     overdue: z.next_reset_at ? z.next_reset_at < nowIso : false,
   }));
 
-  const sessionIds = sessions.map((s) => s.id);
+  const sessionIds = sessionsNext2h.map((s) => s.id);
   const newbieCountBySession: Record<string, number> = {};
   if (sessionIds.length > 0) {
     const { data: bookings } = await supabase
@@ -66,34 +107,106 @@ export async function GET(request: NextRequest) {
       newbieCountBySession[id] = (newbieCountBySession[id] ?? 0) + 1;
     }
   }
-  const sessionsWithNewbieCount = sessions.map((s) => ({
+  const sessionsWithNewbieCount = sessionsNext2h.map((s) => ({
     ...s,
     location: (s.location as string) ?? "Main Wall - Beginner Area",
     newbie_count: newbieCountBySession[s.id] ?? 0,
   }));
 
+  // Today's full sessions with location for Coaching tab
+  const sessionsTodayWithLocation = sessionsToday.map((s) => ({
+    ...s,
+    location: (s.location as string) ?? "Main Wall - Beginner Area",
+  }));
+
   const totalNewbieAttendance = Object.values(newbieCountBySession).reduce((a, b) => a + b, 0);
 
-  // Group tasks by shift block (same structure as staff /api/route-setter/tasks)
   const preOpen = tasks.filter((t) => (t as { block?: string }).block === "pre_open");
   const during = tasks.filter((t) => (t as { block?: string }).block === "during_hours");
   const closing = tasks.filter((t) => (t as { block?: string }).block === "closing");
 
+  const preOpenCompleted = preOpen.filter((t) => t.status === "completed").length;
+  const nowHHMM = getGymNowHHMM();
+  const closingOverdue = closing.filter((t) => {
+    if (t.status === "completed") return false;
+    const due = t.due_time ? String(t.due_time).slice(0, 5) : null;
+    return due ? compareHHMM(nowHHMM, due) > 0 : false;
+  }).length;
+
+  const unassignedSessions = sessionsToday.filter((s) => !s.coach_id).length;
+
+  // Timeline: task_logs with task title and staff name
+  const timeline = taskLogs.map((log: { id: string; completed_at: string; staff_tasks?: { title: string } | null; staff_profiles?: { display_name?: string; email?: string } | null }) => {
+    const task = Array.isArray(log.staff_tasks) ? log.staff_tasks[0] : log.staff_tasks;
+    const profile = Array.isArray(log.staff_profiles) ? log.staff_profiles[0] : log.staff_profiles;
+    return {
+      id: log.id,
+      completed_at: log.completed_at,
+      task_title: task?.title ?? "Task",
+      staff_name: profile?.display_name || profile?.email || "Staff",
+    };
+  });
+
+  // Staff task performance: count completions per staff from task_logs
+  const staffCompletionCount: Record<string, number> = {};
+  const staffNames: Record<string, string> = {};
+  for (const log of taskLogs as { staff_id: string; staff_profiles?: { display_name?: string; email?: string } | null }[]) {
+    const id = log.staff_id as string;
+    staffCompletionCount[id] = (staffCompletionCount[id] ?? 0) + 1;
+    const p = Array.isArray(log.staff_profiles) ? log.staff_profiles[0] : log.staff_profiles;
+    if (p && !staffNames[id]) staffNames[id] = p.display_name || p.email || id;
+  }
+  const totalTasks = tasks.length;
+  const staffTaskPerformance = Object.entries(staffCompletionCount).map(([staff_id, completed]) => ({
+    staff_id,
+    display_name: staffNames[staff_id] ?? staff_id,
+    tasks_completed: completed,
+    completion_rate_pct: totalTasks > 0 ? Math.round((completed / totalTasks) * 100) : 0,
+  }));
+
+  const tasksCompleted = tasks.filter((t) => t.status === "completed").length;
+  const tasksPending = tasks.filter((t) => t.status === "pending").length;
+  const preOpenOverdue = preOpen.filter((t) => {
+    if (t.status === "completed") return false;
+    const due = t.due_time ? String(t.due_time).slice(0, 5) : null;
+    return due ? compareHHMM(nowHHMM, due) > 0 : false;
+  }).length;
+  const duringOverdue = during.filter((t) => {
+    if (t.status === "completed") return false;
+    const due = t.due_time ? String(t.due_time).slice(0, 5) : null;
+    return due ? compareHHMM(nowHHMM, due) > 0 : false;
+  }).length;
+  const tasksOverdue = preOpenOverdue + duringOverdue + closingOverdue;
+
+  const staffRequired = STAFF_REQUIRED_DEFAULT;
+  const zonesOverdueCount = zonesWithStatus.filter((z) => z.overdue).length;
+
   return NextResponse.json({
     attendance: { in: staffIn, out: staffOut, all: attendance },
     sessions: sessionsWithNewbieCount,
+    sessionsToday: sessionsTodayWithLocation,
     zones: zonesWithStatus,
     tasks,
     preOpen,
     during,
     closing,
+    timeline,
+    staffTaskPerformance,
     summary: {
       staff_in_today: staffIn.length,
       staff_out_today: staffOut.length,
-      sessions_today: sessions.length,
+      sessions_today: sessionsToday.length,
       newbie_attendance_today: totalNewbieAttendance,
-      zones_overdue: zonesWithStatus.filter((z) => z.overdue).length,
-      tasks_pending: tasks.filter((t) => t.status === "pending").length,
+      zones_overdue: zonesOverdueCount,
+      tasks_pending: tasksPending,
+      tasks_completed: tasksCompleted,
+      tasks_overdue: tasksOverdue,
+      tasks_total: totalTasks,
+      pre_open_completed: preOpenCompleted,
+      pre_open_total: preOpen.length,
+      closing_overdue: closingOverdue,
+      unassigned_sessions: unassignedSessions,
+      staff_required: staffRequired,
     },
   });
 }
