@@ -159,7 +159,7 @@ export default function AdminPage() {
   const [inventoryCreateError, setInventoryCreateError] = useState<string | null>(null);
   const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
   const inventoryQtyInputRef = React.useRef<HTMLInputElement>(null);
-  const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState<"all" | "shoes" | "chalk" | "merch" | "rental">("all");
+  const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState<"all" | "shoes" | "merch">("all");
   const [productDetailProductId, setProductDetailProductId] = useState<string | null>(null);
   const [productDetailData, setProductDetailData] = useState<{ product: InvProduct; variants: (InvVariant & { stock_quantity: number })[] } | null>(null);
   const [productDetailEditProduct, setProductDetailEditProduct] = useState<{ name: string; brand: string | null; category: string; image: string | null } | null>(null);
@@ -1745,11 +1745,11 @@ export default function AdminPage() {
                 .catch(() => setInventoryCreateError("Lookup failed."));
             }} onError={(msg) => setInventoryCreateError(msg)} title={m.scanProduct} hint={m.scanProductHint} />
 
-            {/* 4) View Inventory list with category filter */}
+            {/* 4) View Inventory — table, filter All/Shoes/Merch only, sorted by qty*price desc */}
             <div>
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.viewInventory}</h4>
               <div className="flex flex-wrap gap-1.5 mb-2">
-                {(["all", "shoes", "chalk", "merch", "rental"] as const).map((cat) => (
+                {(["all", "shoes", "merch"] as const).map((cat) => (
                   <button
                     key={cat}
                     type="button"
@@ -1761,36 +1761,68 @@ export default function AdminPage() {
                 ))}
               </div>
               {inventoryList.length === 0 && <p className="text-sm text-slate-500">{m.loading}</p>}
-              <ul className="space-y-1 text-sm border border-slate-600 rounded-lg divide-y divide-slate-600">
-                {inventoryList.map((inv) => (
-                  <li
-                    key={inv.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => { setProductDetailProductId(inv.product?.id ?? null); setProductDetailData(null); }}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setProductDetailProductId(inv.product?.id ?? null); setProductDetailData(null); } }}
-                    className="flex justify-between items-center px-3 py-2 hover:bg-slate-700/50 cursor-pointer rounded"
-                  >
-                    <span className="flex items-center gap-2">
-                      {inv.product?.image ? <img src={inv.product.image} alt="" className="w-8 h-8 object-cover rounded" /> : null}
-                      {inv.product?.name ?? ""} ({inv.variant?.sku ?? ""}){inv.variant?.size ? ` size ${inv.variant.size}` : ""}{inv.location ? ` · ${inv.location}` : ""}
-                    </span>
-                    <span className="font-medium">{inv.quantity}</span>
-                  </li>
-                ))}
-              </ul>
+              <div className="border border-slate-600 rounded-lg overflow-hidden text-sm">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-slate-700/80 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                      <th className="px-3 py-2 border-b border-slate-600">{locale === "vi" ? "Loại" : "Type"}</th>
+                      <th className="px-3 py-2 border-b border-slate-600">{locale === "vi" ? "SKU / Tên / Size" : "SKU / Name / Size"}</th>
+                      <th className="px-3 py-2 border-b border-slate-600 text-right">{m.quantity}</th>
+                      <th className="px-3 py-2 border-b border-slate-600 text-right">{m.price}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...inventoryList]
+                      .sort((a, b) => (b.quantity * (b.variant?.price ?? 0)) - (a.quantity * (a.variant?.price ?? 0)))
+                      .map((inv) => (
+                        <tr
+                          key={inv.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => { setProductDetailProductId(inv.product?.id ?? null); setProductDetailData(null); }}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setProductDetailProductId(inv.product?.id ?? null); setProductDetailData(null); } }}
+                          className="hover:bg-slate-700/50 cursor-pointer border-b border-slate-600 last:border-b-0"
+                        >
+                          <td className="px-3 py-2 text-slate-300">{inv.product?.category === "shoes" ? (locale === "vi" ? "Giày" : "Shoes") : inv.product?.category === "merch" ? "Merch" : (inv.product?.category ? inv.product.category.charAt(0).toUpperCase() + inv.product.category.slice(1) : "—")}</td>
+                          <td className="px-3 py-2">
+                            <span className="flex items-center gap-2">
+                              {inv.product?.image ? <img src={inv.product.image} alt="" className="w-8 h-8 object-cover rounded flex-shrink-0" /> : null}
+                              <span className="text-slate-200">{(inv.variant?.sku ?? "")} — {inv.product?.name ?? ""}{inv.variant?.size ? ` (${inv.variant.size})` : ""}</span>
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-right font-medium text-slate-100">{inv.quantity}</td>
+                          <td className="px-3 py-2 text-right text-slate-300">{(inv.variant?.price ?? 0).toLocaleString("vi-VN")} VND</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
-            {/* Stock In/Out by barcode (optional) */}
+            {/* Stock In/Out — dropdown of SKUs */}
             <div className="border-t border-slate-200 pt-4 space-y-3">
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{m.stockIn} / {m.stockOut}</h4>
-              <div className="flex gap-2 flex-wrap">
-                <input placeholder={m.skuOrBarcode} value={stockInSku} onChange={(e) => setStockInSku(e.target.value)} className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+              <div className="flex gap-2 flex-wrap items-center">
+                <select value={stockInSku} onChange={(e) => setStockInSku(e.target.value)} className="flex-1 min-w-0 max-w-xs px-2 py-1.5 rounded-lg border border-slate-200 text-sm bg-white text-slate-900">
+                  <option value="">{locale === "vi" ? "Chọn SKU..." : "Select SKU..."}</option>
+                  {inventoryList.map((inv) => (
+                    <option key={inv.id} value={inv.variant?.barcode ?? inv.variant?.sku ?? ""}>
+                      {inv.variant?.sku ?? ""} — {inv.product?.name ?? ""}{inv.variant?.size ? ` (${inv.variant.size})` : ""}
+                    </option>
+                  ))}
+                </select>
                 <input type="number" min={1} value={stockInQty} onChange={(e) => setStockInQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
                 <button type="button" onClick={async () => { const v = stockInSku.trim(); if (!v) return; const res = await adminFetch("/api/admin/inventory", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ barcode: v, quantity: parseInt(stockInQty, 10) || 1 }) }); const d = await res.json(); if (res.ok && d.ok) { setInventoryActionMessage(locale === "vi" ? "Đã nhập kho." : "Stock in recorded."); setStockInSku(""); setStockInQty("1"); adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? [])); setTimeout(() => setInventoryActionMessage(null), 3000); } else setInventoryCreateError(d?.error ?? "Failed"); }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500">{m.stockIn}</button>
               </div>
-              <div className="flex gap-2 flex-wrap">
-                <input placeholder={m.skuOrBarcode} value={stockOutSku} onChange={(e) => setStockOutSku(e.target.value)} className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+              <div className="flex gap-2 flex-wrap items-center">
+                <select value={stockOutSku} onChange={(e) => setStockOutSku(e.target.value)} className="flex-1 min-w-0 max-w-xs px-2 py-1.5 rounded-lg border border-slate-200 text-sm bg-white text-slate-900">
+                  <option value="">{locale === "vi" ? "Chọn SKU..." : "Select SKU..."}</option>
+                  {inventoryList.map((inv) => (
+                    <option key={inv.id} value={inv.variant?.barcode ?? inv.variant?.sku ?? ""}>
+                      {inv.variant?.sku ?? ""} — {inv.product?.name ?? ""}{inv.variant?.size ? ` (${inv.variant.size})` : ""}
+                    </option>
+                  ))}
+                </select>
                 <input type="number" min={1} value={stockOutQty} onChange={(e) => setStockOutQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
                 <button type="button" onClick={async () => { const v = stockOutSku.trim(); if (!v) return; const res = await adminFetch("/api/admin/inventory", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ barcode: v, quantity: parseInt(stockOutQty, 10) || 1 }) }); const d = await res.json(); if (res.ok && d.ok) { setInventoryActionMessage(locale === "vi" ? "Đã xuất kho." : "Stock out recorded."); setStockOutSku(""); setStockOutQty("1"); adminFetch("/api/admin/inventory").then((r) => r.json()).then((x) => setInventoryList(x.inventory ?? [])); setTimeout(() => setInventoryActionMessage(null), 3000); } else setInventoryCreateError(d?.error ?? "Failed"); }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-500">{m.stockOut}</button>
               </div>
@@ -2177,38 +2209,69 @@ export default function AdminPage() {
               <div>
                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.viewInventory}</h4>
                 <div className="flex flex-wrap gap-1.5 mb-2">
-                  {(["all", "shoes", "chalk", "merch", "rental"] as const).map((cat) => (
+                  {(["all", "shoes", "merch"] as const).map((cat) => (
                     <button key={cat} type="button" onClick={() => setInventoryCategoryFilter(cat)} className={`px-2.5 py-1 rounded-lg text-xs font-medium ${inventoryCategoryFilter === cat ? "bg-slate-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
                       {cat === "all" ? (locale === "vi" ? "Tất cả" : "All") : cat.charAt(0).toUpperCase() + cat.slice(1)}
                     </button>
                   ))}
                 </div>
                 {inventoryList.length === 0 && <p className="text-sm text-slate-500">{m.loading}</p>}
-                <ul className="space-y-1 text-sm border rounded-lg divide-y divide-slate-200">
-                  {inventoryList.map((inv) => (
-                    <li key={inv.id} role="button" tabIndex={0} onClick={() => { setToolsModal(null); setProductDetailProductId(inv.product?.id ?? null); setProductDetailData(null); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setToolsModal(null); setProductDetailProductId(inv.product?.id ?? null); setProductDetailData(null); } }} className="flex justify-between items-center px-3 py-2 hover:bg-slate-50 cursor-pointer">
-                      <span className="flex items-center gap-2">{inv.product?.image ? <img src={inv.product.image} alt="" className="w-8 h-8 object-cover rounded" /> : null}{inv.product?.name ?? ""} ({inv.variant?.sku ?? ""}){inv.variant?.size ? ` size ${inv.variant.size}` : ""}{inv.location ? ` · ${inv.location}` : ""}</span>
-                      <span className="font-medium">{inv.quantity}</span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="border border-slate-200 rounded-lg overflow-hidden text-sm">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                        <th className="px-3 py-2 border-b border-slate-200">{locale === "vi" ? "Loại" : "Type"}</th>
+                        <th className="px-3 py-2 border-b border-slate-200">{locale === "vi" ? "SKU / Tên / Size" : "SKU / Name / Size"}</th>
+                        <th className="px-3 py-2 border-b border-slate-200 text-right">{m.quantity}</th>
+                        <th className="px-3 py-2 border-b border-slate-200 text-right">{m.price}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...inventoryList]
+                        .sort((a, b) => (b.quantity * (b.variant?.price ?? 0)) - (a.quantity * (a.variant?.price ?? 0)))
+                        .map((inv) => (
+                          <tr
+                            key={inv.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => { setToolsModal(null); setProductDetailProductId(inv.product?.id ?? null); setProductDetailData(null); }}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setToolsModal(null); setProductDetailProductId(inv.product?.id ?? null); setProductDetailData(null); } }}
+                            className="hover:bg-slate-50 cursor-pointer border-b border-slate-200 last:border-b-0"
+                          >
+                            <td className="px-3 py-2 text-slate-700">{inv.product?.category === "shoes" ? (locale === "vi" ? "Giày" : "Shoes") : inv.product?.category === "merch" ? "Merch" : (inv.product?.category ? inv.product.category.charAt(0).toUpperCase() + inv.product.category.slice(1) : "—")}</td>
+                            <td className="px-3 py-2">
+                              <span className="flex items-center gap-2">
+                                {inv.product?.image ? <img src={inv.product.image} alt="" className="w-8 h-8 object-cover rounded flex-shrink-0" /> : null}
+                                <span>{(inv.variant?.sku ?? "")} — {inv.product?.name ?? ""}{inv.variant?.size ? ` (${inv.variant.size})` : ""}</span>
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-right font-medium">{inv.quantity}</td>
+                            <td className="px-3 py-2 text-right text-slate-600">{(inv.variant?.price ?? 0).toLocaleString("vi-VN")} VND</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
               <p className="text-xs text-slate-500">Use the Inventory tab for scan-first workflow and creating products with variants. Click a row to view or edit product details.</p>
               <div>
                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.stockIn}</h4>
-                <div className="flex gap-2">
-                  <input placeholder={m.skuOrBarcode} value={stockInSku} onChange={(e) => setStockInSku(e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                <div className="flex gap-2 flex-wrap items-center">
+                  <select value={stockInSku} onChange={(e) => setStockInSku(e.target.value)} className="flex-1 min-w-0 max-w-xs px-2 py-1.5 rounded-lg border border-slate-200 text-sm">
+                    <option value="">{locale === "vi" ? "Chọn SKU..." : "Select SKU..."}</option>
+                    {inventoryList.map((inv) => (
+                      <option key={inv.id} value={inv.variant?.barcode ?? inv.variant?.sku ?? ""}>
+                        {inv.variant?.sku ?? ""} — {inv.product?.name ?? ""}{inv.variant?.size ? ` (${inv.variant.size})` : ""}
+                      </option>
+                    ))}
+                  </select>
                   <input type="number" min={1} value={stockInQty} onChange={(e) => setStockInQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
                   <button
                     type="button"
                     onClick={async () => {
                       const v = stockInSku.trim();
                       if (!v) return;
-                      const res = await adminFetch("/api/admin/inventory", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ barcode: v, quantity: parseInt(stockInQty, 10) || 1 }),
-                      });
+                      const res = await adminFetch("/api/admin/inventory", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ barcode: v, quantity: parseInt(stockInQty, 10) || 1 }) });
                       const d = await res.json();
                       if (res.ok && d.ok) {
                         setInventoryActionMessage(locale === "vi" ? "Đã nhập kho." : "Stock in recorded.");
@@ -2225,19 +2288,22 @@ export default function AdminPage() {
               </div>
               <div>
                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{m.stockOut}</h4>
-                <div className="flex gap-2">
-                  <input placeholder={m.skuOrBarcode} value={stockOutSku} onChange={(e) => setStockOutSku(e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                <div className="flex gap-2 flex-wrap items-center">
+                  <select value={stockOutSku} onChange={(e) => setStockOutSku(e.target.value)} className="flex-1 min-w-0 max-w-xs px-2 py-1.5 rounded-lg border border-slate-200 text-sm">
+                    <option value="">{locale === "vi" ? "Chọn SKU..." : "Select SKU..."}</option>
+                    {inventoryList.map((inv) => (
+                      <option key={inv.id} value={inv.variant?.barcode ?? inv.variant?.sku ?? ""}>
+                        {inv.variant?.sku ?? ""} — {inv.product?.name ?? ""}{inv.variant?.size ? ` (${inv.variant.size})` : ""}
+                      </option>
+                    ))}
+                  </select>
                   <input type="number" min={1} value={stockOutQty} onChange={(e) => setStockOutQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
                   <button
                     type="button"
                     onClick={async () => {
                       const v = stockOutSku.trim();
                       if (!v) return;
-                      const res = await adminFetch("/api/admin/inventory", {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ barcode: v, quantity: parseInt(stockOutQty, 10) || 1 }),
-                      });
+                      const res = await adminFetch("/api/admin/inventory", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ barcode: v, quantity: parseInt(stockOutQty, 10) || 1 }) });
                       const d = await res.json();
                       if (res.ok && d.ok) {
                         setInventoryActionMessage(locale === "vi" ? "Đã xuất kho." : "Stock out recorded.");
