@@ -164,6 +164,7 @@ export default function AdminPage() {
   const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
   const inventoryQtyInputRef = React.useRef<HTMLInputElement>(null);
   const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState<"all" | "shoes" | "merch">("all");
+  const [inventorySearchQuery, setInventorySearchQuery] = useState("");
   const [productDetailProductId, setProductDetailProductId] = useState<string | null>(null);
   const [productDetailData, setProductDetailData] = useState<{ product: InvProduct; variants: (InvVariant & { stock_quantity: number })[] } | null>(null);
   const [productDetailEditProduct, setProductDetailEditProduct] = useState<{ name: string; brand: string | null; category: string; image: string | null } | null>(null);
@@ -1670,6 +1671,7 @@ export default function AdminPage() {
                             setScannedProduct(null);
                             setNewProductBarcode(b);
                             setNewProductCode(b);
+                            setNewVariants((v) => v.length ? [{ ...v[0], barcode: b }, ...v.slice(1)] : [{ size: "", barcode: b, price: "", cost: "", quantity: "1" }]);
                             setInventoryScannedBarcode("");
                           }
                         })
@@ -1691,7 +1693,7 @@ export default function AdminPage() {
                 <p className="text-sm text-slate-700">SKU: {scannedVariant.sku}{scannedVariant.size ? ` · Size ${scannedVariant.size}` : ""} · {m.price}: {(scannedVariant.price ?? 0).toLocaleString()} VND</p>
                 <div className="flex flex-wrap gap-2 items-center">
                   <label className="text-xs font-medium text-slate-700">{m.quantity}</label>
-                  <input ref={inventoryQtyInputRef} type="number" min={1} value={inventoryQty} onChange={(e) => setInventoryQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                  <input ref={inventoryQtyInputRef} type="number" min={1} value={inventoryQty} onChange={(e) => setInventoryQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border-2 border-slate-500 bg-slate-800 text-slate-100 text-sm font-medium focus:ring-2 focus:ring-slate-400 focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                   <button type="button" onClick={async () => {
                     const qty = parseInt(inventoryQty, 10) || 1;
                     const res = await adminFetch("/api/admin/inventory", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ variant_id: scannedVariant.id, quantity: qty }) });
@@ -1716,15 +1718,15 @@ export default function AdminPage() {
                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{m.createProduct}</h4>
                 <p className="text-xs text-slate-600">{m.createProductHint}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                  <input placeholder={m.barcode} value={newProductBarcode} onChange={(e) => setNewProductBarcode(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder-slate-500 focus:ring-2 focus:ring-slate-400 focus:border-slate-400" />
+                  <input placeholder={m.barcode} value={newProductBarcode} onChange={(e) => { const v = e.target.value; setNewProductBarcode(v); setNewVariants((prev) => prev.length ? [{ ...prev[0], barcode: v }, ...prev.slice(1)] : prev); }} className="px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder-slate-500 focus:ring-2 focus:ring-slate-400 focus:border-slate-400" title={locale === "vi" ? "Mã vạch dùng chung (tự điền từ quét); sửa ở đây sẽ cập nhật size đầu tiên" : "Barcode (auto-filled from scan); edit here updates first variant"} />
                   <input placeholder={m.productName} value={newProductName} onChange={(e) => setNewProductName(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder-slate-500 focus:ring-2 focus:ring-slate-400 focus:border-slate-400" />
                   <input placeholder={m.brand} value={newProductBrand} onChange={(e) => setNewProductBrand(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder-slate-500 focus:ring-2 focus:ring-slate-400 focus:border-slate-400" />
                   <input placeholder={m.productCode} value={newProductCode} onChange={(e) => setNewProductCode(e.target.value)} className="px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder-slate-500 focus:ring-2 focus:ring-slate-400 focus:border-slate-400" />
                   <div className="col-span-full flex items-center gap-3">
-                    <input ref={newProductPhotoInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (!f || !/^image\/(jpeg|png|webp)$/i.test(f.type)) return; const r = new FileReader(); r.onload = () => setNewProductImageDataUrl(r.result as string); r.readAsDataURL(f); e.target.value = ""; }} />
+                    <input ref={newProductPhotoInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (!f || !/^image\/(jpeg|png|webp)$/i.test(f.type)) return; const r = new FileReader(); r.onload = () => { const dataUrl = r.result as string; if (dataUrl) setNewProductImageDataUrl(dataUrl); }; r.readAsDataURL(f); e.target.value = ""; }} />
                     {newProductImageDataUrl ? (
                       <div className="flex items-center gap-2">
-                        <img src={newProductImageDataUrl} alt="" className="w-14 h-14 object-cover rounded-lg border border-slate-200" />
+                        <img key={newProductImageDataUrl} src={newProductImageDataUrl} alt="" className="w-14 h-14 object-cover rounded-lg border border-slate-200" />
                         <button type="button" onClick={() => setNewProductImageDataUrl(null)} className="text-xs text-slate-600 hover:text-red-600 underline">{locale === "vi" ? "Xóa ảnh" : "Remove photo"}</button>
                       </div>
                     ) : (
@@ -1745,10 +1747,10 @@ export default function AdminPage() {
                   {newVariants.map((nv, idx) => (
                     <div key={idx} className="flex flex-wrap gap-2 items-center mb-2">
                       <input placeholder="Size" value={nv.size} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, size: e.target.value } : x))} className="w-16 px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400" />
-                      <input placeholder={m.barcode} value={nv.barcode} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, barcode: e.target.value } : x))} className="flex-1 min-w-[80px] px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400" />
+                      <input placeholder={m.barcode} value={nv.barcode} onChange={(e) => { const val = e.target.value; setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, barcode: val } : x)); if (idx === 0) setNewProductBarcode(val); }} className="flex-1 min-w-[80px] px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400" />
                       <input placeholder={m.price} value={nv.price} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, price: e.target.value } : x))} className="w-20 px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" type="number" />
                       <input placeholder={m.cost} value={nv.cost} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, cost: e.target.value } : x))} className="w-20 px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" type="number" />
-                      <input placeholder={m.quantity} value={nv.quantity} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, quantity: e.target.value } : x))} className="w-14 px-2 py-1.5 rounded-lg border border-slate-200 text-sm" type="number" min="0" title={locale === "vi" ? "Số lượng nhập kho ngay" : "Initial stock (no separate Stock In needed)"} />
+                      <input placeholder={m.quantity} value={nv.quantity} onChange={(e) => setNewVariants((v) => v.map((x, i) => i === idx ? { ...x, quantity: e.target.value } : x))} className="w-14 px-2 py-1.5 rounded-lg border-2 border-slate-400 bg-white text-slate-900 text-sm font-medium focus:ring-2 focus:ring-slate-400 focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" type="number" min="0" title={locale === "vi" ? "Số lượng nhập kho ngay" : "Initial stock (no separate Stock In needed)"} />
                       <button type="button" onClick={() => setNewVariants((v) => v.filter((_, i) => i !== idx))} className="text-slate-500 hover:text-red-600 text-xs">{m.remove}</button>
                     </div>
                   ))}
@@ -1802,16 +1804,17 @@ export default function AdminPage() {
                     setScannedProduct(null);
                     setNewProductBarcode(b);
                     setNewProductCode(b);
+                    setNewVariants((v) => v.length ? [{ ...v[0], barcode: b }, ...v.slice(1)] : [{ size: "", barcode: b, price: "", cost: "", quantity: "1" }]);
                     setInventoryScannedBarcode("");
                   }
                 })
                 .catch(() => setInventoryCreateError("Lookup failed."));
             }} onError={(msg) => setInventoryCreateError(msg)} title={m.scanProduct} hint={m.scanProductHint} />
 
-            {/* 4) View Inventory — table, filter All/Shoes/Merch only, sorted by qty*price desc */}
+            {/* 4) View Inventory — table, filter All/Shoes/Merch, search, sorted by qty*price desc */}
             <div>
               <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">{m.viewInventory}</h4>
-              <div className="flex flex-wrap gap-1.5 mb-2">
+              <div className="flex flex-wrap gap-2 mb-2 items-center">
                 {(["all", "shoes", "merch"] as const).map((cat) => (
                   <button
                     key={cat}
@@ -1822,6 +1825,13 @@ export default function AdminPage() {
                     {cat === "all" ? (locale === "vi" ? "Tất cả" : "All") : cat.charAt(0).toUpperCase() + cat.slice(1)}
                   </button>
                 ))}
+                <input
+                  type="search"
+                  placeholder={locale === "vi" ? "Tìm SKU, tên, thương hiệu..." : "Search SKU, name, brand..."}
+                  value={inventorySearchQuery}
+                  onChange={(e) => setInventorySearchQuery(e.target.value)}
+                  className="flex-1 min-w-[160px] px-2.5 py-1.5 rounded-lg border border-slate-500 bg-slate-700 text-slate-100 placeholder-slate-400 text-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
+                />
               </div>
               {inventoryList.length === 0 && <p className="text-sm text-slate-500">{m.loading}</p>}
               <div className="border border-slate-600 rounded-lg overflow-x-auto text-sm -mx-1 px-1 sm:mx-0 sm:px-0">
@@ -1829,13 +1839,21 @@ export default function AdminPage() {
                   <thead>
                     <tr className="bg-slate-700/80 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
                       <th className="px-3 py-2 border-b border-slate-600">{locale === "vi" ? "Loại" : "Type"}</th>
-                      <th className="px-3 py-2 border-b border-slate-600">{locale === "vi" ? "SKU / Tên / Size" : "SKU / Name / Size"}</th>
+                      <th className="px-3 py-2 border-b border-slate-600">{locale === "vi" ? "SKU / Tên / Thương hiệu / Size" : "SKU / Name / Brand / Size"}</th>
                       <th className="px-3 py-2 border-b border-slate-600 text-right">{m.quantity}</th>
                       <th className="px-3 py-2 border-b border-slate-600 text-right">{m.price}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {[...inventoryList]
+                      .filter((inv) => {
+                        if (!inventorySearchQuery.trim()) return true;
+                        const q = inventorySearchQuery.trim().toLowerCase();
+                        const sku = (inv.variant?.sku ?? "").toLowerCase();
+                        const name = (inv.product?.name ?? "").toLowerCase();
+                        const brand = (inv.product?.brand ?? "").toLowerCase();
+                        return sku.includes(q) || name.includes(q) || brand.includes(q);
+                      })
                       .sort((a, b) => (b.quantity * (b.variant?.price ?? 0)) - (a.quantity * (a.variant?.price ?? 0)))
                       .map((inv) => (
                         <tr
@@ -1850,7 +1868,7 @@ export default function AdminPage() {
                           <td className="px-3 py-2">
                             <span className="flex items-center gap-2">
                               {inv.product?.image ? <img src={inv.product.image} alt="" className="w-8 h-8 object-cover rounded flex-shrink-0" /> : null}
-                              <span className="text-slate-200">{(inv.variant?.sku ?? "")} — {inv.product?.name ?? ""}{inv.variant?.size ? ` (${inv.variant.size})` : ""}</span>
+                              <span className="text-slate-200">{(inv.variant?.sku ?? "")} — {inv.product?.name ?? ""}{inv.product?.brand ? ` · ${inv.product.brand}` : ""}{inv.variant?.size ? ` (${inv.variant.size})` : ""}</span>
                             </span>
                           </td>
                           <td className="px-3 py-2 text-right font-medium text-slate-100">{inv.quantity}</td>
@@ -1870,7 +1888,7 @@ export default function AdminPage() {
                   <option value="">{locale === "vi" ? "Chọn SKU..." : "Select SKU..."}</option>
                   {inventoryList.map((inv) => (
                     <option key={inv.id} value={inv.variant?.barcode ?? inv.variant?.sku ?? ""}>
-                      {inv.variant?.sku ?? ""} — {inv.product?.name ?? ""}{inv.variant?.size ? ` (${inv.variant.size})` : ""}
+                      {inv.variant?.sku ?? ""} — {inv.product?.name ?? ""}{inv.product?.brand ? ` · ${inv.product.brand}` : ""}{inv.variant?.size ? ` (${inv.variant.size})` : ""}
                     </option>
                   ))}
                 </select>
@@ -1882,7 +1900,7 @@ export default function AdminPage() {
                   <option value="">{locale === "vi" ? "Chọn SKU..." : "Select SKU..."}</option>
                   {inventoryList.map((inv) => (
                     <option key={inv.id} value={inv.variant?.barcode ?? inv.variant?.sku ?? ""}>
-                      {inv.variant?.sku ?? ""} — {inv.product?.name ?? ""}{inv.variant?.size ? ` (${inv.variant.size})` : ""}
+                      {inv.variant?.sku ?? ""} — {inv.product?.name ?? ""}{inv.product?.brand ? ` · ${inv.product.brand}` : ""}{inv.variant?.size ? ` (${inv.variant.size})` : ""}
                     </option>
                   ))}
                 </select>
@@ -2740,7 +2758,7 @@ export default function AdminPage() {
                           <option value="shoes">Shoes</option><option value="chalk">Chalk</option><option value="merch">Merch</option><option value="rental">Rental</option>
                         </select>
                         <div className="col-span-full flex items-center gap-3">
-                          {productDetailEditProduct.image && <img src={productDetailEditProduct.image} alt="" className="w-14 h-14 object-cover rounded-lg border border-slate-600" />}
+                          {productDetailEditProduct.image && <img key={productDetailEditProduct.image} src={productDetailEditProduct.image} alt="" className="w-14 h-14 object-cover rounded-lg border border-slate-600" />}
                           <input ref={productDetailPhotoInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (!f || !productDetailProductId || !productDetailEditProduct) return; const reader = new FileReader(); reader.onload = async () => { const dataUrl = reader.result as string; try { const res = await adminFetch("/api/admin/upload/product-image", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: dataUrl }) }); const d = await res.json(); if (res.ok && d.url) setProductDetailEditProduct((p) => p ? { ...p, image: d.url } : null); } catch { /* ignore */ } }; reader.readAsDataURL(f); e.target.value = ""; }} />
                           <button type="button" onClick={() => productDetailPhotoInputRef.current?.click()} className="px-3 py-1.5 rounded-lg border border-slate-500 text-slate-300 text-xs hover:bg-slate-700">{locale === "vi" ? "Chụp ảnh" : "Take photo"}</button>
                         </div>
