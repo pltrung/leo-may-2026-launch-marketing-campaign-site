@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getRouteSetterFromRequest } from "@/lib/routeSetterAuth";
-import { getGymToday } from "@/lib/gymTimezone";
 
 /**
- * POST /api/route-setter/zones/[id]/assign
- * Assign current route setter as a setter for this zone for today.
+ * DELETE /api/route-setter/zones/[id]/unassign
+ * Removes current route setter from this zone's assignment list.
  */
-export async function POST(
+export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -20,17 +19,18 @@ export async function POST(
   const supabase = createServerClient();
   const { data: staff } = await supabase
     .from("staff_profiles")
-    .select("id, display_name, email")
+    .select("id")
     .eq("auth_id", user.id)
     .single();
-
   if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
 
-  const { error: insertErr } = await supabase
+  const { error: delErr } = await supabase
     .from("route_reset_assignments")
-    .upsert({ zone_id: id, staff_id: staff.id }, { onConflict: "zone_id,staff_id" });
+    .delete()
+    .eq("zone_id", id)
+    .eq("staff_id", staff.id);
 
-  if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
+  if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
 
   const { data: assignments, error: loadErr } = await supabase
     .from("route_reset_assignments")
@@ -48,13 +48,6 @@ export async function POST(
         return name ? { staff_id: a.staff_id as string, name } : null;
       })
       .filter((x): x is { staff_id: string; name: string } => !!x);
-
-  const today = getGymToday();
-  const { error: touchErr } = await supabase
-    .from("route_zones")
-    .update({ updated_at: new Date().toISOString() })
-    .eq("id", id);
-  void touchErr;
 
   return NextResponse.json({ ok: true, assigned_setters });
 }

@@ -176,7 +176,17 @@ export default function AdminPage() {
     attendance: { in: { staff_id: string; status: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[]; out: { staff_id: string; status: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[] };
     sessions: { id: string; start_time: string; end_time?: string; coach_id: string | null; session_type: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[];
     sessionsToday?: { id: string; start_time: string; end_time?: string; coach_id: string | null; location?: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[];
-    zones: { id: string; name: string; next_reset_at: string | null; overdue?: boolean }[];
+    zones: {
+      id: string;
+      name: string;
+      next_reset_at: string | null;
+      last_reset_at?: string | null;
+      reset_frequency_days?: number;
+      overdue?: boolean;
+      route_age_days?: number | null;
+      reset_status?: "pending" | "in_progress" | "completed" | "overdue";
+      assigned_setters?: { staff_id: string; name: string }[];
+    }[];
     tasks: StaffTaskRow[];
     preOpen?: StaffTaskRow[];
     during?: StaffTaskRow[];
@@ -187,6 +197,7 @@ export default function AdminPage() {
     route_reset_day?: boolean;
     timeline?: { id: string; completed_at: string; task_title: string; staff_name: string }[];
     staffTaskPerformance?: { staff_id: string; display_name: string; tasks_completed: number; completion_rate_pct: number }[];
+    route_setters?: { id: string; display_name?: string | null; email?: string | null }[];
     summary: { staff_in_today: number; staff_out_today: number; sessions_today: number; newbie_attendance_today?: number; zones_overdue: number; tasks_pending: number; tasks_completed?: number; tasks_overdue?: number; tasks_total?: number; pre_open_completed?: number; pre_open_total?: number; closing_overdue?: number; unassigned_sessions?: number; staff_required?: number };
   } | null>(null);
 
@@ -2407,15 +2418,98 @@ export default function AdminPage() {
               {staffModalTab === "routes" && staffOpsData && (
                 <div className="rounded-lg border border-slate-200 overflow-hidden">
                   <table className="w-full text-sm">
-                    <thead><tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase"><th className="px-3 py-2">{m.wallZone}</th><th className="px-3 py-2">{m.nextResetDate}</th><th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th></tr></thead>
+                    <thead>
+                      <tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase">
+                        <th className="px-3 py-2">{m.wallZone}</th>
+                        <th className="px-3 py-2">{m.nextResetDate}</th>
+                        <th className="px-3 py-2">{locale === "vi" ? "Route age" : "Route age"}</th>
+                        <th className="px-3 py-2">{locale === "vi" ? "Setters today" : "Setters today"}</th>
+                        <th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th>
+                        <th className="px-3 py-2 w-40">{locale === "vi" ? "Hành động" : "Actions"}</th>
+                      </tr>
+                    </thead>
                     <tbody>
-                      {staffOpsData.zones.map((z: { id: string; name: string; next_reset_at: string | null; overdue?: boolean }) => (
-                        <tr key={z.id} className={`border-t border-slate-100 ${z.overdue ? "bg-red-50" : ""}`}>
-                          <td className="px-3 py-2 font-medium text-slate-800">{z.name}</td>
-                          <td className="px-3 py-2 text-slate-700">{z.next_reset_at ? new Date(z.next_reset_at).toLocaleDateString() : "—"}</td>
-                          <td className="px-3 py-2">{z.overdue ? <span className="text-red-700 font-semibold">⚠ {m.overdue}</span> : <span className="text-emerald-700">{locale === "vi" ? "Đúng hạn" : "On schedule"}</span>}</td>
-                        </tr>
-                      ))}
+                      {staffOpsData.zones.map((z) => {
+                        const setters = (z.assigned_setters ?? []).map((s) => s.name).join(", ");
+                        const age = typeof z.route_age_days === "number" ? z.route_age_days : null;
+                        const status = z.reset_status ?? (setters ? "in_progress" : "pending");
+                        return (
+                          <tr key={z.id} className={`border-t border-slate-100 ${status === "overdue" ? "bg-red-50" : ""}`}>
+                            <td className="px-3 py-2 font-medium text-slate-800">{z.name}</td>
+                            <td className="px-3 py-2 text-slate-700">{z.next_reset_at ? new Date(z.next_reset_at).toLocaleDateString() : "—"}</td>
+                            <td className="px-3 py-2 text-slate-700">{age === null ? "—" : `${age}d`}</td>
+                            <td className="px-3 py-2 text-slate-700">{setters || "—"}</td>
+                            <td className="px-3 py-2">
+                              {status === "completed" ? (
+                                <span className="text-emerald-700 font-semibold">Completed</span>
+                              ) : status === "overdue" ? (
+                                <span className="text-red-700 font-semibold">⚠ {m.overdue}</span>
+                              ) : status === "in_progress" ? (
+                                <span className="text-amber-700 font-semibold">In Progress</span>
+                              ) : (
+                                <span className="text-slate-600 font-semibold">Pending</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="flex gap-2 flex-wrap">
+                                <details className="relative">
+                                  <summary className="list-none cursor-pointer px-2 py-1 rounded-lg border border-slate-300 bg-white text-slate-800 text-xs font-medium">
+                                    {locale === "vi" ? "Assign" : "Assign"}
+                                  </summary>
+                                  <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-lg shadow-lg p-2 z-10">
+                                    <p className="text-[11px] text-slate-500 uppercase font-semibold mb-2">{locale === "vi" ? "Setters" : "Setters"}</p>
+                                    <div className="max-h-48 overflow-y-auto space-y-1">
+                                      {(staffOpsData.route_setters ?? []).map((p) => {
+                                        const label = p.display_name || p.email || p.id;
+                                        const checked = (z.assigned_setters ?? []).some((s) => s.staff_id === p.id);
+                                        return (
+                                          <label key={p.id} className="flex items-center gap-2 text-sm text-slate-800">
+                                            <input
+                                              type="checkbox"
+                                              checked={checked}
+                                              onChange={async (e) => {
+                                                const nextIds = new Set((z.assigned_setters ?? []).map((s) => s.staff_id));
+                                                if (e.target.checked) nextIds.add(p.id);
+                                                else nextIds.delete(p.id);
+                                                const res = await adminFetch(`/api/admin/routes/zones/${z.id}/assignments`, {
+                                                  method: "PUT",
+                                                  headers: { "Content-Type": "application/json" },
+                                                  body: JSON.stringify({ staff_ids: Array.from(nextIds) }),
+                                                });
+                                                const d = await res.json();
+                                                if (res.ok && d?.ok) {
+                                                  setStaffOpsData((prev) => prev ? ({
+                                                    ...prev,
+                                                    zones: prev.zones.map((zz) => (zz.id === z.id ? { ...zz, assigned_setters: d.assigned_setters } : zz)),
+                                                  }) : prev);
+                                                }
+                                              }}
+                                            />
+                                            <span className="truncate">{label}</span>
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                </details>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const res = await adminFetch(`/api/admin/routes/zones/${z.id}/reset`, { method: "POST" });
+                                    const d = await res.json();
+                                    if (res.ok && d?.ok) {
+                                      adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x));
+                                    }
+                                  }}
+                                  className="px-2 py-1 rounded-lg bg-slate-700 text-white text-xs font-medium hover:bg-slate-600"
+                                >
+                                  {m.markResetComplete}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

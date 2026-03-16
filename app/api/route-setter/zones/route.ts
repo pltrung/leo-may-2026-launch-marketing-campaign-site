@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getRouteSetterFromRequest } from "@/lib/routeSetterAuth";
-import { getGymToday } from "@/lib/gymTimezone";
+import { getGymToday, getGymDateFromISO } from "@/lib/gymTimezone";
 
 /**
  * GET /api/route-setter/zones
@@ -19,9 +19,9 @@ export async function GET(request: NextRequest) {
       .select("id, name, reset_frequency_days, last_reset_at, next_reset_at")
       .order("next_reset_at", { ascending: true, nullsFirst: true }),
     supabase
-      .from("route_zone_setters")
-      .select("zone_id, staff_profiles(display_name, email)")
-      .eq("date", today),
+      .from("route_reset_assignments")
+      .select("zone_id, staff_id, assigned_at, staff_profiles(display_name, email)")
+      .order("assigned_at", { ascending: true }),
   ]);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -31,32 +31,29 @@ export async function GET(request: NextRequest) {
   const zonesWithStatus = (zones ?? []).map((z) => {
     const next = z.next_reset_at as string | null;
     const lastReset = z.last_reset_at as string | null;
-    const daysSinceReset = lastReset
-      ? (nowMs - new Date(lastReset).getTime()) / (24 * 60 * 60 * 1000)
+    const routeAgeDays = lastReset
+      ? Math.max(0, Math.floor((nowMs - new Date(lastReset).getTime()) / (24 * 60 * 60 * 1000)))
       : null;
-    let status: "overdue" | "due" | "recent" | "upcoming" = "upcoming";
-    if (daysSinceReset !== null && daysSinceReset <= 1) status = "recent";
-    else if (next) {
-      if (next < now) status = "overdue";
-      else {
-        const daysUntil = (new Date(next).getTime() - nowMs) / (24 * 60 * 60 * 1000);
-        if (daysUntil <= 2) status = "due";
-      }
-    }
-    const assigned = (assignments ?? [])
+    const assigned_setters = (assignments ?? [])
       .filter((a) => a.zone_id === z.id)
       .map((a) => {
         const p = Array.isArray(a.staff_profiles) ? a.staff_profiles[0] : a.staff_profiles;
-        return (p?.display_name as string | null) || (p?.email as string | null);
+        const name = (p?.display_name as string | null) || (p?.email as string | null);
+        return name ? { staff_id: a.staff_id as string, name } : null;
       })
-      .filter((n): n is string => !!n);
+      .filter((x): x is { staff_id: string; name: string } => !!x);
 
-    return { ...z, status, assigned_setters: assigned };
+    const completedToday = lastReset ? getGymDateFromISO(lastReset) === today : false;
+    let reset_status: "pending" | "in_progress" | "completed" | "overdue" = assigned_setters.length > 0 ? "in_progress" : "pending";
+    if (completedToday) reset_status = "completed";
+    else if (next && next < now) reset_status = "overdue";
+
+    return { ...z, route_age_days: routeAgeDays, reset_status, assigned_setters };
   });
 
-  const overdue = zonesWithStatus.filter((z) => z.status === "overdue");
-  const due = zonesWithStatus.filter((z) => z.status === "due");
-  const recent = zonesWithStatus.filter((z) => z.status === "recent");
+  const overdue = zonesWithStatus.filter((z) => z.reset_status === "overdue");
+  const due = zonesWithStatus.filter((z) => z.reset_status === "overdue");
+  const recent = zonesWithStatus.filter((z) => z.reset_status === "completed");
 
   return NextResponse.json({
     zones: zonesWithStatus,

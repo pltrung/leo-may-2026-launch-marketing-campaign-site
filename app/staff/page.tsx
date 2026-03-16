@@ -48,7 +48,9 @@ interface RouteZone {
   last_reset_at: string | null;
   next_reset_at: string | null;
   status: "overdue" | "due" | "recent" | "upcoming";
-  assigned_setters?: string[];
+  route_age_days?: number | null;
+  reset_status?: "pending" | "in_progress" | "completed" | "overdue";
+  assigned_setters?: { staff_id: string; name: string }[];
 }
 
 type TaskStatus = "upcoming" | "pending" | "completed" | "overdue";
@@ -612,66 +614,133 @@ export default function StaffPage() {
             {staffTab === "routes" && (
               <section className="rounded-xl bg-slate-800 border border-slate-700 p-4 space-y-4">
                 <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">{m.routeResetSchedule}</h2>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-xs font-semibold text-slate-400 uppercase border-b border-slate-600">
-                        <th className="py-2 pr-2">{m.wallZone}</th>
-                        <th className="py-2 pr-2">{m.next}</th>
-                        <th className="py-2 pr-2">{m.assignedSetters}</th>
-                        <th className="py-2 pr-2">{m.resetProgress}</th>
-                        <th className="py-2 w-28" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {zones.map((z) => {
-                        const resetComplete = z.last_reset_at && getGymDateFromISO(z.last_reset_at) === today;
-                        const setters = (z.assigned_setters as string[] | undefined) ?? [];
-                        return (
-                          <tr key={z.id} className="border-b border-slate-700 last:border-0">
-                            <td className="py-2 pr-2 font-medium text-slate-200">{z.name}</td>
-                            <td className="py-2 pr-2 text-slate-400">{formatDate(z.next_reset_at)}</td>
-                            <td className="py-2 pr-2 text-slate-500">{setters.length > 0 ? setters.join(", ") : m.noAssignments}</td>
-                            <td className="py-2 pr-2">{resetComplete ? <span className="text-emerald-400">{m.resetProgressComplete}</span> : <span className="text-slate-400">{m.resetProgressPending}</span>}</td>
-                            <td className="py-2">
-                              <div className="flex flex-col gap-1">
-                                {z.status !== "recent" && (
-                                  <button
-                                    type="button"
-                                    disabled={resettingZoneId === z.id}
-                                    onClick={() => handleZoneReset(z.id)}
-                                    className="px-2 py-1 rounded bg-slate-600 text-slate-200 text-xs hover:bg-slate-500 disabled:opacity-50"
-                                  >
-                                    {resettingZoneId === z.id ? "…" : m.markResetComplete}
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    try {
-                                      const res = await staffFetch(`/api/route-setter/zones/${z.id}/assign`, { method: "POST" });
-                                      if (!res.ok) throw new Error("failed");
-                                      // Refresh zones list to show updated assignments
-                                      const r = await staffFetch("/api/route-setter/zones");
-                                      const d = await r.json();
-                                      if (r.ok && d?.zones) setZones(d.zones);
-                                    } catch {
-                                      // ignore, existing error UI will handle generic failures
-                                    }
-                                  }}
-                                  className="px-2 py-1 rounded bg-slate-700 text-slate-200 text-xs hover:bg-slate-600"
+                <div className="space-y-3">
+                  {zones.map((z) => {
+                    const setters = (z.assigned_setters ?? []) as { staff_id: string; name: string }[];
+                    const myStaffId = staff?.id as string | undefined;
+                    const routeAgeDays = typeof z.route_age_days === "number" ? z.route_age_days : null;
+                    const ageColor =
+                      routeAgeDays === null
+                        ? "text-slate-400"
+                        : routeAgeDays <= 14
+                          ? "text-emerald-300"
+                          : routeAgeDays <= 21
+                            ? "text-amber-300"
+                            : "text-rose-300";
+                    const status = (z.reset_status ??
+                      (setters.length > 0 ? "in_progress" : "pending")) as
+                      | "pending"
+                      | "in_progress"
+                      | "completed"
+                      | "overdue";
+
+                    const statusPill =
+                      status === "completed"
+                        ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                        : status === "overdue"
+                          ? "bg-rose-500/15 text-rose-300 border-rose-500/30"
+                          : status === "in_progress"
+                            ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                            : "bg-slate-700 text-slate-300 border-slate-600";
+
+                    return (
+                      <div key={z.id} className="rounded-xl border border-slate-700 bg-slate-900/30 p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-slate-100 font-semibold">{z.name}</div>
+                            <div className="text-xs text-slate-400 mt-1">
+                              {m.next}: <span className="text-slate-200">{formatDate(z.next_reset_at)}</span>
+                            </div>
+                          </div>
+                          <span className={`px-2 py-1 text-xs rounded-full border ${statusPill}`}>
+                            {status === "pending"
+                              ? "Pending"
+                              : status === "in_progress"
+                                ? "In Progress"
+                                : status === "completed"
+                                  ? "Completed"
+                                  : "Overdue"}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="text-sm">
+                            <span className="text-slate-400">Route Age:</span>{" "}
+                            <span className={ageColor}>
+                              {routeAgeDays === null ? "—" : `${routeAgeDays} days`}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={resettingZoneId === z.id || status === "completed"}
+                            onClick={() => handleZoneReset(z.id)}
+                            className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-100 text-sm hover:bg-slate-600 disabled:opacity-50"
+                          >
+                            {resettingZoneId === z.id ? "…" : m.markResetComplete}
+                          </button>
+                        </div>
+
+                        <div>
+                          <div className="text-xs text-slate-400 mb-2">{m.assignedSetters}</div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {setters.length === 0 && <span className="text-sm text-slate-500">{m.noAssignments}</span>}
+
+                            {setters.map((s) => {
+                              const canRemoveSelf = !!myStaffId && s.staff_id === myStaffId;
+                              return (
+                                <span
+                                  key={s.staff_id}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-700/70 border border-slate-600 text-slate-200 text-xs"
                                 >
-                                  {m.assignToMe}
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                                  <span>{s.name}</span>
+                                  {canRemoveSelf && (
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        try {
+                                          const res = await staffFetch(`/api/route-setter/zones/${z.id}/unassign`, { method: "DELETE" });
+                                          if (!res.ok) throw new Error("failed");
+                                          const r = await staffFetch("/api/route-setter/zones");
+                                          const d = await r.json();
+                                          if (r.ok && d?.zones) setZones(d.zones);
+                                        } catch {
+                                          // ignore
+                                        }
+                                      }}
+                                      className="ml-1 text-slate-300 hover:text-white"
+                                      aria-label="Remove my assignment"
+                                      title="Remove my assignment"
+                                    >
+                                      ✕
+                                    </button>
+                                  )}
+                                </span>
+                              );
+                            })}
+
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  const res = await staffFetch(`/api/route-setter/zones/${z.id}/assign`, { method: "POST" });
+                                  if (!res.ok) throw new Error("failed");
+                                  const r = await staffFetch("/api/route-setter/zones");
+                                  const d = await r.json();
+                                  if (r.ok && d?.zones) setZones(d.zones);
+                                } catch {
+                                  // ignore
+                                }
+                              }}
+                              className="px-2 py-1 rounded-full bg-slate-800 border border-slate-600 text-slate-200 text-xs hover:bg-slate-700"
+                            >
+                              + {m.assignToMe}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <p className="text-xs text-slate-500">{m.next}: {zones.map((z) => `${z.name} ${formatDate(z.next_reset_at)}`).join(" · ")}</p>
                 {isRouteResetDay && (
                   <div>
                     <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{m.routeSettingTasks}</h3>

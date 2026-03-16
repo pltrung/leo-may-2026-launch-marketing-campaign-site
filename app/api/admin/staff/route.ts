@@ -107,6 +107,7 @@ export async function GET(request: NextRequest) {
     taskLogsRes,
     resetTrackerRes,
     zoneSettersRes,
+    routeSetterListRes,
   ] = await Promise.all([
     supabase
       .from("staff_attendance")
@@ -143,9 +144,13 @@ export async function GET(request: NextRequest) {
       .order("completed_at", { ascending: true }),
     supabase.from("staff_daily_reset").select("last_reset_date").maybeSingle(),
     supabase
-      .from("route_zone_setters")
-      .select("zone_id, staff_profiles(display_name, email)")
-      .eq("date", today),
+      .from("route_reset_assignments")
+      .select("zone_id, staff_id, assigned_at, staff_profiles(display_name, email)")
+      .order("assigned_at", { ascending: true }),
+    supabase
+      .from("staff_profiles")
+      .select("id, display_name, email, role")
+      .order("display_name", { ascending: true }),
   ]);
 
   const attendance = attendanceRes.data ?? [];
@@ -156,6 +161,8 @@ export async function GET(request: NextRequest) {
   const taskLogs = taskLogsRes.data ?? [];
   const zoneSetterRows = (zoneSettersRes.data ?? []) as {
     zone_id: string;
+    staff_id?: string | null;
+    assigned_at?: string | null;
     staff_profiles:
       | { display_name?: string | null; email?: string | null }
       | { display_name?: string | null; email?: string | null }[]
@@ -175,19 +182,32 @@ export async function GET(request: NextRequest) {
 
   const staffIn = attendance.filter((a) => a.status === "IN");
   const staffOut = attendance.filter((a) => a.status === "NOT_IN");
+  const routeSetters = (routeSetterListRes.data ?? []).filter((p) => (p.role as string | null) === "route_setter");
 
   const zonesWithStatus = zones.map((z) => {
-    const assigned = zoneSetterRows
+    const assigned_setters = zoneSetterRows
       .filter((row) => row.zone_id === z.id)
       .map((row) => {
         const p = Array.isArray(row.staff_profiles) ? row.staff_profiles[0] : row.staff_profiles;
-        return (p?.display_name as string | null) || (p?.email as string | null);
+        const name = (p?.display_name as string | null) || (p?.email as string | null);
+        return name && row.staff_id ? { staff_id: row.staff_id, name } : null;
       })
-      .filter((n): n is string => !!n);
+      .filter((x): x is { staff_id: string; name: string } => !!x);
+
+    const routeAgeDays = z.last_reset_at
+      ? Math.max(0, Math.floor((Date.now() - new Date(z.last_reset_at).getTime()) / (24 * 60 * 60 * 1000)))
+      : null;
+    const completedToday = z.last_reset_at ? getGymDateFromISO(z.last_reset_at) === today : false;
+    let reset_status: "pending" | "in_progress" | "completed" | "overdue" = assigned_setters.length > 0 ? "in_progress" : "pending";
+    if (completedToday) reset_status = "completed";
+    else if (z.next_reset_at && z.next_reset_at < nowIso) reset_status = "overdue";
+
     return {
       ...z,
       overdue: z.next_reset_at ? z.next_reset_at < nowIso : false,
-      assigned_setters: assigned,
+      route_age_days: routeAgeDays,
+      reset_status,
+      assigned_setters,
     };
   });
 
@@ -339,6 +359,7 @@ export async function GET(request: NextRequest) {
     closing,
     timeline,
     staffTaskPerformance,
+    route_setters: routeSetters,
     phase: {
       current_phase: currentPhase,
       phase_label: phaseLabel,
