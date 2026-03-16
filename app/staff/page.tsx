@@ -48,6 +48,7 @@ interface RouteZone {
   last_reset_at: string | null;
   next_reset_at: string | null;
   status: "overdue" | "due" | "recent" | "upcoming";
+  assigned_setters?: string[];
 }
 
 type TaskStatus = "upcoming" | "pending" | "completed" | "overdue";
