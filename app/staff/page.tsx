@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
+import { getGymToday } from "@/lib/gymTimezone";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { useRouteSetterAuth } from "@/components/route-setter/RouteSetterAuthContext";
 import RouteSetterLoginForm from "@/components/route-setter/RouteSetterLoginForm";
@@ -276,9 +277,9 @@ export default function StaffPage() {
     return <RouteSetterLoginForm locale={locale} onLocaleChange={setLocaleAndStore} />;
   }
 
-  const today = new Date().toISOString().slice(0, 10);
-  const hasAnsweredAttendance = attendance?.date === today;
-  const isIn = attendance?.status === "IN";
+  const today = getGymToday();
+  const hasAttendanceForToday = attendance != null && attendance.date === today;
+  const isIn = hasAttendanceForToday && attendance.status === "IN";
   const dateLocale = locale === "vi" ? "vi-VN" : "en-US";
   const formatTime = (iso: string) =>
     new Date(iso).toLocaleTimeString(dateLocale, { hour: "numeric", minute: "2-digit", hour12: locale === "en" });
@@ -320,90 +321,106 @@ export default function StaffPage() {
       </header>
 
       <main className="p-4 pb-8 space-y-6 max-w-2xl mx-auto">
-        <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
-          <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
-            {m.profile}
-          </h2>
-          {profileEditing ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="text"
-                value={profileName}
-                onChange={(e) => setProfileName(e.target.value)}
-                placeholder={m.yourNamePlaceholder}
-                className="flex-1 min-w-[160px] px-3 py-2 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-              <button
-                type="button"
-                disabled={profileSaving}
-                onClick={handleSaveProfile}
-                className="px-3 py-2 rounded-lg bg-amber-600 text-slate-900 text-sm font-medium hover:bg-amber-500 disabled:opacity-50"
-              >
-                {profileSaving ? "…" : m.save}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setProfileEditing(false); setProfileName(staff.display_name ?? staff.email?.split("@")[0] ?? ""); }}
-                className="px-3 py-2 rounded-lg bg-slate-600 text-slate-200 text-sm hover:bg-slate-500"
-              >
-                {m.cancel}
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-slate-200">
-                <span className="text-slate-400 text-sm">{m.nameShownAsCoach} </span>
-                <strong>{staff.display_name || m.notSet}</strong>
-              </p>
-              <button
-                type="button"
-                onClick={() => setProfileEditing(true)}
-                className="text-xs px-2 py-1.5 rounded bg-slate-600 text-slate-200 hover:bg-slate-500"
-              >
-                {staff.display_name ? m.editName : m.setName}
-              </button>
-            </div>
-          )}
-          <p className="text-slate-500 text-xs mt-2">{m.profileHint}</p>
-        </section>
         {error && (
           <div className="rounded-lg bg-red-900/30 border border-red-700 text-red-200 text-sm px-4 py-2">
             {error}
           </div>
         )}
 
-        <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
-          <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
-            {m.dailyAttendance}
-          </h2>
-          {!hasAnsweredAttendance ? (
-            <>
-              <p className="text-slate-200 font-medium mb-1">{m.checkInAtFrontDesk}</p>
-              <p className="text-slate-400 text-sm mb-4">{m.checkInAtFrontDeskHint}</p>
-              <div className="flex flex-col items-center gap-4">
-                <div className="rounded-xl bg-white p-3 inline-block">
-                  <QRCodeSVG value={`leo-staff:${staff.id}`} size={180} level="M" />
-                </div>
-                <button
-                  type="button"
-                  disabled={attendanceLoading}
-                  onClick={() => handleAttendance("NOT_IN")}
-                  className="w-full max-w-xs py-2.5 rounded-lg font-medium bg-slate-600 text-slate-200 hover:bg-slate-500 disabled:opacity-50"
-                >
-                  {m.notWorkingToday}
-                </button>
+        {/* Not checked in for today: show only QR + Not working (no profile, no dashboard) */}
+        {!hasAttendanceForToday && (
+          <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
+            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
+              {m.dailyAttendance}
+            </h2>
+            <p className="text-slate-200 font-medium mb-1">{m.checkInAtFrontDesk}</p>
+            <p className="text-slate-400 text-sm mb-4">{m.checkInAtFrontDeskHint}</p>
+            <div className="flex flex-col items-center gap-4">
+              <div className="rounded-xl bg-white p-3 inline-block">
+                <QRCodeSVG value={`leo-staff:${staff.id}`} size={180} level="M" />
               </div>
-            </>
-          ) : isIn ? (
-            <p className="text-slate-200">
-              <span className="text-emerald-400 font-medium">{m.youAreCheckedIn}</span>
-            </p>
-          ) : (
-            <p className="text-slate-400">{m.youAreMarkedNotWorking}</p>
-          )}
-        </section>
+              <button
+                type="button"
+                disabled={attendanceLoading}
+                onClick={() => handleAttendance("NOT_IN")}
+                className="w-full max-w-xs py-2.5 rounded-lg font-medium bg-slate-600 text-slate-200 hover:bg-slate-500 disabled:opacity-50"
+              >
+                {m.notWorkingToday}
+              </button>
+            </div>
+          </section>
+        )}
 
-        {isIn && tasks.some((t) => t.status === "pending") && (
+        {/* Checked in as NOT working today: only show message, no QR no dashboard */}
+        {hasAttendanceForToday && !isIn && (
+          <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
+            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
+              {m.dailyAttendance}
+            </h2>
+            <p className="text-slate-400">{m.youAreMarkedNotWorking}</p>
+          </section>
+        )}
+
+        {/* Checked in (IN): show full dashboard — no QR, profile + tasks + zones + sessions */}
+        {isIn && (
+          <>
+            <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
+              <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
+                {m.profile}
+              </h2>
+              {profileEditing ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    placeholder={m.yourNamePlaceholder}
+                    className="flex-1 min-w-[160px] px-3 py-2 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                  <button
+                    type="button"
+                    disabled={profileSaving}
+                    onClick={handleSaveProfile}
+                    className="px-3 py-2 rounded-lg bg-amber-600 text-slate-900 text-sm font-medium hover:bg-amber-500 disabled:opacity-50"
+                  >
+                    {profileSaving ? "…" : m.save}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setProfileEditing(false); setProfileName(staff.display_name ?? staff.email?.split("@")[0] ?? ""); }}
+                    className="px-3 py-2 rounded-lg bg-slate-600 text-slate-200 text-sm hover:bg-slate-500"
+                  >
+                    {m.cancel}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-slate-200">
+                    <span className="text-slate-400 text-sm">{m.nameShownAsCoach} </span>
+                    <strong>{staff.display_name || m.notSet}</strong>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setProfileEditing(true)}
+                    className="text-xs px-2 py-1.5 rounded bg-slate-600 text-slate-200 hover:bg-slate-500"
+                  >
+                    {staff.display_name ? m.editName : m.setName}
+                  </button>
+                </div>
+              )}
+              <p className="text-slate-500 text-xs mt-2">{m.profileHint}</p>
+            </section>
+
+            <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
+              <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
+                {m.dailyAttendance}
+              </h2>
+              <p className="text-slate-200">
+                <span className="text-emerald-400 font-medium">{m.youAreCheckedIn}</span>
+              </p>
+            </section>
+
+        {tasks.length > 0 && (
           <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
             <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
               {m.dailyOperationsTasks}
@@ -438,7 +455,6 @@ export default function StaffPage() {
           </section>
         )}
 
-        {isIn && (
         <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
           <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
             {m.routeResetSchedule}
@@ -493,9 +509,7 @@ export default function StaffPage() {
             ))}
           </ul>
         </section>
-        )}
 
-        {isIn && (
         <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
           <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
             {m.todayCoachingSessions}
@@ -522,7 +536,7 @@ export default function StaffPage() {
               </ul>
             </div>
           )}
-          {unassignedSessions.length > 0 && isIn && (
+          {unassignedSessions.length > 0 && (
             <div>
               <p className="text-xs text-slate-400 mb-2">{m.unassignedTapToTake}</p>
               <ul className="space-y-1.5">
@@ -551,6 +565,7 @@ export default function StaffPage() {
             </div>
           )}
         </section>
+          </>
         )}
       </main>
     </div>

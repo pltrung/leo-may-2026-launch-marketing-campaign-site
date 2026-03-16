@@ -121,6 +121,24 @@ export function getGymWeekBoundaries(year?: number, week?: number): { start: str
   return { start, end };
 }
 
+const GYM_TZ_DISPLAY = "America/Los_Angeles";
+
+/**
+ * Format an ISO timestamp for display in gym timezone (Pacific).
+ * Use for check-ins, payments, and any datetime shown in admin/dashboard.
+ */
+export function formatInGymTZ(
+  iso: string,
+  options: Intl.DateTimeFormatOptions = {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }
+): string {
+  return new Date(iso).toLocaleString("en-US", { ...options, timeZone: GYM_TZ_DISPLAY });
+}
+
 /**
  * Given a date (YYYY-MM-DD) and time (HH:MM or HH:MM:SS) in gym TZ, return ISO string.
  * Used for coaching session slots (e.g. 09:00, 09:30 in LA).

@@ -6,6 +6,7 @@ import { useAdminAuth } from "@/components/admin/AdminAuthContext";
 import AdminLoginForm from "@/components/admin/AdminLoginForm";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
+import { formatInGymTZ } from "@/lib/gymTimezone";
 
 const QrScannerModal = dynamic(() => import("@/components/admin/QrScannerModal"), { ssr: false });
 const BarcodeScannerModal = dynamic(() => import("@/components/admin/BarcodeScannerModal"), { ssr: false });
@@ -1887,14 +1888,14 @@ export default function AdminPage() {
                 .map(([date, items]) => (
                   <div key={date}>
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                      {new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                      {formatInGymTZ(date + "T12:00:00.000Z", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
                     </p>
                     <ul className="space-y-1.5">
                       {items.map((c) => (
                         <li key={(c as { id?: string }).id ?? c.timestamp} className="flex justify-between items-center text-sm py-1.5 px-3 rounded-lg bg-slate-50">
                           <span className="font-medium text-slate-800">{c.member_name}</span>
                           <span className="text-slate-500 text-xs">
-                            {new Date(c.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                            {formatInGymTZ(c.timestamp, { hour: "numeric", minute: "2-digit" })}
                             {c.member_code && ` • ${c.member_code}`}
                           </span>
                         </li>

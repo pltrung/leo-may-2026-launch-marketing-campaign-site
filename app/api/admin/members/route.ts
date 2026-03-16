@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getAdminFromRequest } from "@/lib/adminAuth";
-import { getGymStartOfMonth } from "@/lib/gymTimezone";
+import { getGymStartOfMonth, formatInGymTZ } from "@/lib/gymTimezone";
 
 function formatRecent(timestamp: string): string {
-  const d = new Date(timestamp);
-  return d.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatInGymTZ(timestamp);
 }
 
 export async function GET(req: NextRequest) {
