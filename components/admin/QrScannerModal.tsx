@@ -9,6 +9,15 @@ export type QrScanResult =
 
 function parseQrContent(content: string): QrScanResult | null {
   const raw = content.trim();
+
+  // New URL format from member dashboard: /api/checkin?member_id=...&qr=TOKEN
+  const qrMatch = raw.match(/[?&]qr=([^&\s#]+)/);
+  if (qrMatch) {
+    const token = decodeURIComponent(qrMatch[1]);
+    const memberIdMatch = raw.match(/[?&]member_id=([^&\s#]+)/);
+    const memberId = (memberIdMatch?.[1] ?? "").trim() || undefined;
+    return { type: "member", raw: token, id: memberId };
+  }
   if (raw.startsWith("leo-staff:")) {
     const parts = raw.split(":");
     const id = parts.length >= 2 ? parts[1].trim() : undefined;

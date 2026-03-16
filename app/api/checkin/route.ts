@@ -149,15 +149,26 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET /api/checkin?member_id=xxx
- * Same check-in logic as POST. Use for QR codes that encode a URL, or links.
+ * GET /api/checkin?member_id=xxx&qr=TOKEN
+ * If qr is present, it is verified and used as source of truth for member ID.
+ * Otherwise falls back to member_id for legacy/static QR codes.
  * All check-in paths (POST and GET) insert into gym_checkins and trigger Realtime.
  */
 export async function GET(request: NextRequest) {
-  const memberId = request.nextUrl.searchParams.get("member_id")?.trim() ?? null;
+  const search = request.nextUrl.searchParams;
+  const rawQr = search.get("qr")?.trim() ?? null;
+  let memberId = search.get("member_id")?.trim() ?? null;
+
+  if (rawQr) {
+    const { ok, id, error } = verifyQrToken("member", rawQr, 60);
+    if (!ok || !id) {
+      return NextResponse.json({ error: error ?? "Invalid or expired QR token" }, { status: 400 });
+    }
+    memberId = id;
+  }
 
   if (!memberId) {
-    return NextResponse.json({ error: "member_id required" }, { status: 400 });
+    return NextResponse.json({ error: "member_id or qr required" }, { status: 400 });
   }
 
   return performCheckIn(memberId, null);

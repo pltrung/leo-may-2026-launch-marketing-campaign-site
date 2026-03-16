@@ -700,8 +700,13 @@ export default function DashboardPage() {
   const displayName = member.full_name?.trim() || (isVi ? "bạn" : "Member");
   const greeting = isVi ? `Chào lại, ${displayName}` : `Welcome back, ${displayName}`;
 
-  // Short-lived signed QR token; prevents reuse of screenshots beyond a short window.
-  const qrPayload = qrToken ?? "";
+  // Short-lived signed QR token encoded into a URL; supports camera scan and admin scanner.
+  const qrPayload =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/api/checkin?member_id=${encodeURIComponent(
+          member.id
+        )}${qrToken ? `&qr=${encodeURIComponent(qrToken)}` : ""}`
+      : `leo-member:${member.id}`;
 
   const memberSince = safeDate(member.created_at, isVi ? "vi-VN" : "en-US");
   const lastCheckIn = member.last_checkin
