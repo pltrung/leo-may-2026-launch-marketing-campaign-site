@@ -8,7 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { User } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { isAdminEmail } from "@/lib/adminAuth";
+import { isAdminEmail, isFrontdeskEmail } from "@/lib/adminAuth";
 import { isRouteSetterEmail } from "@/lib/routeSetterAuth";
 
 /** UI role: admin (full), frontdesk (front desk only), staff (operations + limited front desk) */
@@ -55,6 +55,7 @@ function mapToUnifiedRole(dbRole: string): UnifiedRole {
  * - If email is in ADMIN_EMAILS: role = admin (optionally resolve staff_profiles for staffId).
  * - Else if staff_profiles exists for auth_id: role from staff_profiles (admin | frontdesk | staff).
  * - Else if email is in ROUTE_SETTER_EMAILS: create staff_profiles with role route_setter, return staff.
+ * - Else if email is in FRONTDESK_EMAILS: create staff_profiles with role frontdesk, return frontdesk.
  * Otherwise returns null (401).
  */
 export async function getUnifiedAdminOrStaffFromRequest(
@@ -121,6 +122,29 @@ export async function getUnifiedAdminOrStaffFromRequest(
       return {
         user,
         role: "staff",
+        staffId: newRow.id,
+        staffProfile: newRow,
+      };
+    }
+  }
+
+  // 4) If no row but is frontdesk email → create with role frontdesk (same pattern as route setters; no seed script needed)
+  if (!row && isFrontdeskEmail(user.email)) {
+    const { data: inserted, error: insertErr } = await supabase
+      .from("staff_profiles")
+      .insert({
+        auth_id: user.id,
+        email,
+        role: "frontdesk",
+        display_name: "Front Desk",
+      })
+      .select("id, auth_id, email, role, display_name")
+      .single();
+    if (!insertErr && inserted) {
+      const newRow = inserted as StaffProfileRow;
+      return {
+        user,
+        role: "frontdesk",
         staffId: newRow.id,
         staffProfile: newRow,
       };

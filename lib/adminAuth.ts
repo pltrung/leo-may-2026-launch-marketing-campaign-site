@@ -13,9 +13,19 @@ export const ADMIN_EMAILS = [
   "admin003@gym.local",
 ] as const;
 
+/** Front desk emails: get frontdesk role; staff_profiles row is auto-created on first login (like route setters). */
+export const FRONTDESK_EMAILS = [
+  "frontdesk001@gym.local",
+] as const;
+
 export function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;
   return ADMIN_EMAILS.includes(email.toLowerCase().trim() as (typeof ADMIN_EMAILS)[number]);
+}
+
+export function isFrontdeskEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return FRONTDESK_EMAILS.includes(email.toLowerCase().trim() as (typeof FRONTDESK_EMAILS)[number]);
 }
 
 /**
