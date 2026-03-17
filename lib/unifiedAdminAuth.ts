@@ -23,6 +23,11 @@ export interface StaffProfileRow {
   email: string;
   role: StaffProfileRole;
   display_name: string | null;
+  id_number?: string | null;
+  date_of_birth?: string | null;
+  gender?: string | null;
+  id_verified_from_cccd?: boolean;
+  address?: string | null;
 }
 
 export interface UnifiedAdminResult {
@@ -89,7 +94,7 @@ export async function getUnifiedAdminOrStaffFromRequest(
     };
   }
 
-  // 2) Look up staff_profiles by auth_id
+  // 2) Look up staff_profiles by auth_id (base columns only so /admin loads before migration 040)
   let { data: staff, error: staffErr } = await supabase
     .from("staff_profiles")
     .select("id, auth_id, email, role, display_name")

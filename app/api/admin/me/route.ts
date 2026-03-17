@@ -25,6 +25,11 @@ export async function GET(req: NextRequest) {
           email: result.staffProfile.email,
           role: result.staffProfile.role,
           display_name: result.staffProfile.display_name,
+          id_number: result.staffProfile.id_number ?? null,
+          date_of_birth: result.staffProfile.date_of_birth ?? null,
+          gender: result.staffProfile.gender ?? null,
+          id_verified_from_cccd: result.staffProfile.id_verified_from_cccd ?? false,
+          address: result.staffProfile.address ?? null,
         }
       : null,
     phase: { current_phase: phase.current_phase, phase_label: phase.phase_label, countdown_message: phase.countdown_message },

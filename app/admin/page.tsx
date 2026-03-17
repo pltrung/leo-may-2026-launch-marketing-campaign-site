@@ -8,10 +8,12 @@ import { getMessages } from "@/lib/messages";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import type { Locale } from "@/lib/i18n";
 import { formatInGymTZ, getGymToday, getGymDateFromISO, getCurrentPhase } from "@/lib/gymTimezone";
+import { parseCccdPipeDelimited } from "@/lib/vnEidQr";
 
 const QrScannerModal = dynamic(() => import("@/components/admin/QrScannerModal"), { ssr: false });
 const BarcodeScannerModal = dynamic(() => import("@/components/admin/BarcodeScannerModal"), { ssr: false });
 const QRCodeSVG = dynamic(() => import("qrcode.react").then((m) => m.QRCodeSVG), { ssr: false });
+const EidQrScannerModal = dynamic(() => import("@/components/dashboard/EidQrScannerModal"), { ssr: false });
 
 const ADMIN_LOCALE_KEY = "admin-locale";
 
@@ -89,6 +91,7 @@ export default function AdminPage() {
     canAccessAdminTools,
     phase,
     staffDisplayName,
+    staffProfile,
     refreshMe,
   } = useAdminAuth();
   const [locale, setLocale] = useState<Locale>("vi");
@@ -133,6 +136,15 @@ export default function AdminPage() {
   const [adminProfileDisplayName, setAdminProfileDisplayName] = useState("");
   const [adminProfileEditing, setAdminProfileEditing] = useState(false);
   const [adminProfileSaving, setAdminProfileSaving] = useState(false);
+  const [adminProfileIdNumber, setAdminProfileIdNumber] = useState("");
+  const [adminProfileDateOfBirth, setAdminProfileDateOfBirth] = useState("");
+  const [adminProfileGender, setAdminProfileGender] = useState<"male" | "female" | "">("");
+  const [adminProfileAddress, setAdminProfileAddress] = useState("");
+  const [adminProfileCccdScanPending, setAdminProfileCccdScanPending] = useState(false);
+  const [adminProfileEidScannerOpen, setAdminProfileEidScannerOpen] = useState(false);
+  const [adminProfileSaveError, setAdminProfileSaveError] = useState<string | null>(null);
+  const [profileModalVerifiedFromCccd, setProfileModalVerifiedFromCccd] = useState(false);
+  const [profileAttendanceStats, setProfileAttendanceStats] = useState<{ checkins_this_month: number; on_time_count: number; on_time_100: boolean } | null>(null);
   const [frontDeskTab, setFrontDeskTab] = useState<"checkin" | "member">("checkin");
   const [memberProfileSubTab, setMemberProfileSubTab] = useState<"summary" | "membership" | "sales" | "history">("summary");
   const [managementTab, setManagementTab] = useState<"inventory" | "reporting" | "admin_tools">("inventory");
@@ -517,6 +529,51 @@ export default function AdminPage() {
     }).subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [adminArea, staffId, adminFetch]);
+
+  // When profile modal opens, sync staff profile form state from staffProfile; then fetch full profile (id_number, etc.) when migration 040 applied.
+  useEffect(() => {
+    if (!profileModalOpen || !staffProfile) return;
+    setAdminProfileDisplayName(staffProfile.display_name ?? session?.user?.email?.split("@")[0] ?? "");
+    setAdminProfileIdNumber(staffProfile.id_number ?? "");
+    setAdminProfileDateOfBirth(staffProfile.date_of_birth ? staffProfile.date_of_birth.slice(0, 10) : "");
+    setAdminProfileGender(staffProfile.gender === "male" || staffProfile.gender === "female" ? staffProfile.gender : "");
+    setAdminProfileAddress(staffProfile.address ?? "");
+    setAdminProfileCccdScanPending(false);
+    setAdminProfileSaveError(null);
+    setProfileModalVerifiedFromCccd(!!staffProfile.id_verified_from_cccd);
+    if (staffId || role === "staff" || role === "frontdesk") {
+      adminFetch("/api/admin/staff/profile")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (d?.staff) {
+            const s = d.staff;
+            setAdminProfileIdNumber(s.id_number ?? "");
+            setAdminProfileDateOfBirth(s.date_of_birth ? String(s.date_of_birth).slice(0, 10) : "");
+            setAdminProfileGender(s.gender === "male" || s.gender === "female" ? s.gender : "");
+            setAdminProfileAddress(s.address ?? "");
+            setProfileModalVerifiedFromCccd(!!s.id_verified_from_cccd);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [profileModalOpen, staffProfile, session?.user?.email, staffId, role, adminFetch]);
+
+  // When profile modal opens and user is staff/frontdesk, fetch my attendance stats for the month (check-ins, on-time %).
+  useEffect(() => {
+    if (!profileModalOpen) {
+      setProfileAttendanceStats(null);
+      return;
+    }
+    if (!staffId && role !== "staff" && role !== "frontdesk") return;
+    adminFetch("/api/admin/staff/my-attendance-stats")
+      .then((r) => r.json())
+      .then((d) => setProfileAttendanceStats({
+        checkins_this_month: d.checkins_this_month ?? 0,
+        on_time_count: d.on_time_count ?? 0,
+        on_time_100: !!d.on_time_100,
+      }))
+      .catch(() => setProfileAttendanceStats(null));
+  }, [profileModalOpen, staffId, role, adminFetch]);
 
   // Poll real-time-ish occupancy from backend.
   useEffect(() => {
@@ -3247,6 +3304,10 @@ export default function AdminPage() {
             <p className="text-sm text-slate-300"><span className="text-slate-500">{locale === "vi" ? "Vai trò" : "Role"}:</span> {role === "admin" ? "Admin" : role === "frontdesk" ? (locale === "vi" ? "Quầy lễ tân" : "Front Desk") : "Staff"}</p>
             {(staffId || role === "staff" || role === "frontdesk") && (
               <>
+                <p className="text-sm text-slate-300"><span className="text-slate-500">{t.profileCheckinsThisMonth}:</span> {profileAttendanceStats === null ? "—" : profileAttendanceStats.checkins_this_month}</p>
+                {profileAttendanceStats !== null && profileAttendanceStats.checkins_this_month > 0 && (
+                  <p className="text-sm text-slate-300"><span className="text-slate-500">{locale === "vi" ? "Đúng giờ" : "On time"}:</span> {profileAttendanceStats.on_time_100 ? t.profileOnTime100 : (t.profileOnTimeNot100 as string).replace("{onTime}", String(profileAttendanceStats.on_time_count)).replace("{total}", String(profileAttendanceStats.checkins_this_month))}</p>
+                )}
                 {adminProfileEditing ? (
                   <div className="space-y-2">
                     <label className="block text-xs font-medium text-slate-400">{locale === "vi" ? "Tên hiển thị" : "Display name"}</label>
@@ -3258,6 +3319,45 @@ export default function AdminPage() {
                   </div>
                 ) : (
                   <p className="text-sm text-slate-300"><span className="text-slate-500">{locale === "vi" ? "Tên hiển thị" : "Display name"}:</span> {staffDisplayName || (locale === "vi" ? "Chưa đặt" : "Not set")} <button type="button" onClick={() => setAdminProfileEditing(true)} className="ml-2 text-xs text-amber-400 hover:underline">{locale === "vi" ? "Sửa" : "Edit"}</button></p>
+                )}
+                {/* Verified identity (DOB, VN eID, gender) — same as /dashboard profile */}
+                {staffProfile && (
+                  <div className="border-t border-slate-600 pt-4 mt-4 space-y-3">
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{locale === "vi" ? "Xác minh danh tính" : "Verify identity"}</p>
+                    {profileModalVerifiedFromCccd && <p className="text-xs text-emerald-400">{locale === "vi" ? "Đã xác minh từ CCCD" : "Verified from CCCD"}</p>}
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-1">{m.govtId}{profileModalVerifiedFromCccd && <span className="ml-1 text-slate-500">({t.verifiedFromCccdLocked})</span>}</label>
+                      <div className="flex gap-2">
+                        <input type="text" value={adminProfileIdNumber} onChange={(e) => { setAdminProfileIdNumber(e.target.value); setAdminProfileSaveError(null); }} placeholder={locale === "vi" ? "Số CCCD hoặc hộ chiếu" : "CCCD or passport number"} disabled={profileModalVerifiedFromCccd} className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-500 text-sm disabled:opacity-70 disabled:cursor-not-allowed" />
+                        {!profileModalVerifiedFromCccd && (
+                          <button type="button" onClick={() => { setAdminProfileSaveError(null); setAdminProfileEidScannerOpen(true); }} className="shrink-0 px-3 py-2 rounded-lg bg-slate-600 text-slate-200 text-sm font-medium hover:bg-slate-500">{t.scanVnEid}</button>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-1">{m.dateOfBirth}{profileModalVerifiedFromCccd && <span className="ml-1 text-slate-500">({t.verifiedFromCccdLocked})</span>}</label>
+                      <input type="date" value={adminProfileDateOfBirth} onChange={(e) => setAdminProfileDateOfBirth(e.target.value)} disabled={profileModalVerifiedFromCccd} className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-600 text-white text-sm disabled:opacity-70 disabled:cursor-not-allowed" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-1">{m.genderLabel}{profileModalVerifiedFromCccd && <span className="ml-1 text-slate-500">({t.verifiedFromCccdLocked})</span>}</label>
+                      <select value={adminProfileGender} onChange={(e) => setAdminProfileGender(e.target.value as "male" | "female" | "")} disabled={profileModalVerifiedFromCccd} className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-600 text-white text-sm disabled:opacity-70 disabled:cursor-not-allowed">
+                        <option value="">{locale === "vi" ? "Chọn" : "Select"}</option>
+                        <option value="male">{m.male}</option>
+                        <option value="female">{m.female}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-1">{m.address}{profileModalVerifiedFromCccd && <span className="ml-1 text-slate-500">({t.verifiedFromCccdLocked})</span>}</label>
+                      <input type="text" value={adminProfileAddress} onChange={(e) => setAdminProfileAddress(e.target.value)} placeholder={locale === "vi" ? "Địa chỉ" : "Address"} disabled={profileModalVerifiedFromCccd} className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-500 text-sm disabled:opacity-70 disabled:cursor-not-allowed" />
+                    </div>
+                    {adminProfileSaveError && <p className="text-sm text-red-400">{adminProfileSaveError}</p>}
+                    {!profileModalVerifiedFromCccd && (
+                      <button type="button" disabled={adminProfileSaving} onClick={async () => { setAdminProfileSaveError(null); setAdminProfileSaving(true); try { const body: { display_name?: string | null; id_number?: string | null; date_of_birth?: string | null; gender?: string | null; address?: string | null; id_verified_from_cccd?: boolean } = { display_name: adminProfileDisplayName.trim() || null, id_number: adminProfileIdNumber.trim() || null, date_of_birth: adminProfileDateOfBirth.trim() || null, gender: adminProfileGender || null, address: adminProfileAddress.trim() || null }; if (adminProfileCccdScanPending) body.id_verified_from_cccd = true; const res = await adminFetch("/api/admin/staff/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); if (res.ok) { refreshMe(); setProfileModalOpen(false); } else { const d = await res.json(); setAdminProfileSaveError(d.error ?? "Failed"); } } finally { setAdminProfileSaving(false); } }} className="w-full py-2 rounded-lg bg-amber-600 text-slate-900 text-sm font-medium hover:bg-amber-500 disabled:opacity-50">{adminProfileSaving ? "…" : (locale === "vi" ? "Lưu hồ sơ" : "Save profile")}</button>
+                    )}
+                  </div>
+                )}
+                {adminProfileEidScannerOpen && (
+                  <EidQrScannerModal open={adminProfileEidScannerOpen} onClose={() => setAdminProfileEidScannerOpen(false)} onScanned={async (rawContent) => { const cccd = parseCccdPipeDelimited(rawContent); if (!cccd) return; setAdminProfileSaveError(null); try { const res = await adminFetch(`/api/admin/staff/profile/check-id?id_number=${encodeURIComponent(cccd.id_number)}`); const data = await res.json(); if (!res.ok || !data.available) { setAdminProfileSaveError(t.idAlreadyRegistered); return; } setAdminProfileIdNumber(cccd.id_number); setAdminProfileDateOfBirth(cccd.date_of_birth); setAdminProfileGender(cccd.gender); setAdminProfileAddress(cccd.address); setAdminProfileCccdScanPending(true); setAdminProfileEidScannerOpen(false); } catch { setAdminProfileSaveError(locale === "vi" ? "Không thể kiểm tra." : "Could not check."); } }} onError={(msg) => setAdminProfileSaveError(msg)} title={t.scanVnEid} hint={t.scanVnEidHint} />
                 )}
               </>
             )}

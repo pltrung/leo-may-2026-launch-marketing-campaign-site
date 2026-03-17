@@ -16,6 +16,18 @@ interface AdminAuthContextValue {
   staffId: string | null;
   /** Display name from staff_profiles (for profile modal). */
   staffDisplayName: string | null;
+  /** Full staff profile from /api/admin/me (for profile modal: DOB, id_number, gender, verified). */
+  staffProfile: {
+    id: string;
+    email: string;
+    role: string;
+    display_name: string | null;
+    id_number: string | null;
+    date_of_birth: string | null;
+    gender: string | null;
+    id_verified_from_cccd: boolean;
+    address: string | null;
+  } | null;
   loading: boolean;
   accessToken: string | null;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
@@ -77,6 +89,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<UnifiedRole | null>(null);
   const [staffId, setStaffId] = useState<string | null>(null);
   const [staffDisplayName, setStaffDisplayName] = useState<string | null>(null);
+  const [staffProfile, setStaffProfile] = useState<AdminAuthContextValue["staffProfile"]>(null);
   const [phase, setPhase] = useState<{ phase_label: string; countdown_message: string } | null>(null);
 
   useEffect(() => {
@@ -110,6 +123,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           setRole(data.role as UnifiedRole);
           setStaffId(data.staffId ?? null);
           setStaffDisplayName(data.staffProfile?.display_name ?? null);
+          setStaffProfile(data.staffProfile ?? null);
           setPhase(data.phase ? { phase_label: data.phase.phase_label, countdown_message: data.phase.countdown_message } : null);
         }
       });
@@ -130,17 +144,20 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           setRole(data.role as UnifiedRole);
           setStaffId(data.staffId ?? null);
           setStaffDisplayName(data.staffProfile?.display_name ?? null);
+          setStaffProfile(data.staffProfile ?? null);
           setPhase(data.phase ? { phase_label: data.phase.phase_label, countdown_message: data.phase.countdown_message } : null);
         } else {
           setRole(null);
           setStaffId(null);
           setStaffDisplayName(null);
+          setStaffProfile(null);
           setPhase(null);
         }
       })
       .catch(() => {
         setRole(null);
         setStaffId(null);
+        setStaffProfile(null);
         setPhase(null);
       });
   }, [session?.access_token, adminFetch]);
@@ -177,6 +194,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     setRole(null);
     setStaffId(null);
     setStaffDisplayName(null);
+    setStaffProfile(null);
     setPhase(null);
   }, []);
 
@@ -196,6 +214,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     ...perms,
     phase,
     staffDisplayName,
+    staffProfile,
     refreshMe,
   };
 

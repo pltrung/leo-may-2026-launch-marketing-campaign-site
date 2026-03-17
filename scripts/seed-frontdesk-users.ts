@@ -34,14 +34,23 @@ async function main() {
 
   const supabase = createClient(url, key, { auth: { persistSession: false } });
 
-  const { data: existing } = await supabase.auth.admin.listUsers();
-  const found = existing?.users?.find((u) => u.email?.toLowerCase() === FRONTDESK_EMAIL);
+  // listUsers() returns only the first page (~50). Paginate to find user by email.
+  let found: { id: string } | undefined;
+  let page = 1;
+  const perPage = 100;
+  while (true) {
+    const { data } = await supabase.auth.admin.listUsers({ page, perPage });
+    const users = data?.users ?? [];
+    found = users.find((u) => u.email?.toLowerCase() === FRONTDESK_EMAIL);
+    if (found || users.length < perPage) break;
+    page++;
+  }
 
   let authId: string;
 
-  if (found?.id) {
+  if (found) {
     authId = found.id;
-    const { error } = await supabase.auth.admin.updateUserById(found.id, { password: FRONTDESK_PASSWORD });
+    const { error } = await supabase.auth.admin.updateUserById(authId, { password: FRONTDESK_PASSWORD });
     if (error) {
       console.warn("User exists; could not reset password:", error.message);
     } else {
