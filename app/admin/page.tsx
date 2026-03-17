@@ -66,7 +66,26 @@ interface NameSearchResult {
 }
 
 export default function AdminPage() {
-  const { isAdmin, loading, adminFetch, signOut } = useAdminAuth();
+  const {
+    session,
+    loading,
+    adminFetch,
+    signOut,
+    hasAccess,
+    role,
+    staffId,
+    canAccessFrontDeskFull,
+    canAccessFrontDeskLimited,
+    canAccessOperations,
+    canAccessManagement,
+    canDoPos,
+    canDoMembershipModify,
+    canDoPaymentConfirm,
+    canDoCheckIn,
+    canAccessRevenue,
+    canAccessInventory,
+    canAccessAdminTools,
+  } = useAdminAuth();
   const [locale, setLocale] = useState<Locale>("vi");
   const [searchQuery, setSearchQuery] = useState("");
   useEffect(() => {
@@ -176,6 +195,7 @@ export default function AdminPage() {
   const newProductPhotoInputRef = React.useRef<HTMLInputElement>(null);
   const [posAddQty, setPosAddQty] = useState(1);
   const productDetailPhotoInputRef = React.useRef<HTMLInputElement>(null);
+  const [staffSalesSummary, setStaffSalesSummary] = useState<{ sales_today: number; commission_today: number } | null>(null);
   // Derived for data-loading: when in Front Desk we need member/sales data when on those tabs; Operations/Management drive inventory and staff ops
   const isInventoryActive = adminArea === "management" && managementTab === "inventory";
   const isOperationsActive = adminArea === "operations";
@@ -238,6 +258,31 @@ export default function AdminPage() {
       .then((d) => setMemberPurchases(d.purchases ?? []))
       .catch(() => setMemberPurchases([]));
   }, [foundMember?.id, adminFetch]);
+
+  // Staff commission summary (My Sales Today / My Commission)
+  useEffect(() => {
+    if (!staffId) {
+      setStaffSalesSummary(null);
+      return;
+    }
+    adminFetch("/api/admin/me/sales-summary")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => (d && typeof d.sales_today === "number" && typeof d.commission_today === "number" ? setStaffSalesSummary({ sales_today: d.sales_today, commission_today: d.commission_today }) : setStaffSalesSummary(null)))
+      .catch(() => setStaffSalesSummary(null));
+  }, [staffId, adminFetch]);
+
+  // When role loads, ensure current area is allowed; otherwise switch to first allowed. Staff on Front Desk default to Member tab.
+  useEffect(() => {
+    if (role === null) return;
+    const allowed: ("front_desk" | "operations" | "management")[] = [];
+    if (canAccessFrontDeskFull || canAccessFrontDeskLimited) allowed.push("front_desk");
+    if (canAccessOperations) allowed.push("operations");
+    if (canAccessManagement) allowed.push("management");
+    if (allowed.length > 0 && !allowed.includes(adminArea)) setAdminArea(allowed[0]);
+    if (adminArea === "front_desk" && !canDoCheckIn && frontDeskTab === "checkin") setFrontDeskTab("member");
+    if (!canDoMembershipModify && memberProfileSubTab === "membership") setMemberProfileSubTab("summary");
+    if (adminArea === "management" && !canAccessRevenue && !canAccessAdminTools && managementTab !== "inventory") setManagementTab("inventory");
+  }, [role, canAccessFrontDeskFull, canAccessFrontDeskLimited, canAccessOperations, canAccessManagement, adminArea, canDoCheckIn, frontDeskTab, canDoMembershipModify, memberProfileSubTab, canAccessRevenue, canAccessAdminTools, managementTab]);
 
   // Fetch products for front desk sales and management inventory
   useEffect(() => {
@@ -808,6 +853,9 @@ export default function AdminPage() {
           .then((r) => r.json())
           .then((d) => setMemberPurchases(d.purchases ?? []))
           .catch(() => {});
+        if (staffId) {
+          adminFetch("/api/admin/me/sales-summary").then((r) => (r.ok ? r.json() : null)).then((d) => d && typeof d.sales_today === "number" && setStaffSalesSummary({ sales_today: d.sales_today, commission_today: d.commission_today ?? 0 }));
+        }
       } else {
         setActionError(data?.error || m.checkoutFailed);
       }
@@ -816,7 +864,7 @@ export default function AdminPage() {
     } finally {
       setPosCheckoutLoading(false);
     }
-  }, [foundMember, posCart, adminFetch, locale, m]);
+  }, [foundMember, posCart, staffId, adminFetch, locale, m]);
 
   const handlePosCheckoutVietqr = useCallback(async () => {
     if (!foundMember || posCart.length === 0) return;
@@ -869,6 +917,9 @@ export default function AdminPage() {
             .then((d) => setMemberPurchases(d.purchases ?? []))
             .catch(() => {});
         }
+        if (staffId) {
+          adminFetch("/api/admin/me/sales-summary").then((r) => (r.ok ? r.json() : null)).then((d) => d && typeof d.sales_today === "number" && setStaffSalesSummary({ sales_today: d.sales_today, commission_today: d.commission_today ?? 0 }));
+        }
       } else {
         setActionError(data?.error || m.confirmFailed);
       }
@@ -877,7 +928,7 @@ export default function AdminPage() {
     } finally {
       setPosConfirmLoading(false);
     }
-  }, [posPendingTransactionId, foundMember, adminFetch, locale, m]);
+  }, [posPendingTransactionId, foundMember, staffId, adminFetch, locale, m]);
 
   const handlePaymentPlanChange = useCallback(
     (planId: string) => {
@@ -995,7 +1046,14 @@ export default function AdminPage() {
       </div>
     );
   }
-  if (!isAdmin) {
+  if (loading || (session && role === null)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <p className="text-slate-400">{m.loading}</p>
+      </div>
+    );
+  }
+  if (!hasAccess) {
     return <AdminLoginForm locale={locale} onLocaleChange={setLocaleAndStore} />;
   }
 
@@ -1051,10 +1109,16 @@ export default function AdminPage() {
 
       <main className="flex-1">
         <div className="max-w-[1100px] mx-auto px-4 py-6 md:py-8 space-y-8 md:space-y-10">
-          {/* AREA NAVIGATION */}
+          {/* AREA NAVIGATION (role-based visibility) */}
+          {(() => {
+            const allowedAreas: ("front_desk" | "operations" | "management")[] = [];
+            if (canAccessFrontDeskFull || canAccessFrontDeskLimited) allowedAreas.push("front_desk");
+            if (canAccessOperations) allowedAreas.push("operations");
+            if (canAccessManagement) allowedAreas.push("management");
+            return (
           <nav className="sticky top-0 z-20 rounded-xl p-1 mb-4 bg-white/95 border border-slate-200 shadow-md backdrop-blur-md overflow-x-auto" aria-label="Admin areas">
             <div className="flex gap-1 min-w-max">
-              {(["front_desk", "operations", "management"] as const).map((area) => (
+              {allowedAreas.map((area) => (
                 <button
                   key={area}
                   type="button"
@@ -1070,24 +1134,47 @@ export default function AdminPage() {
               ))}
             </div>
           </nav>
+            );
+          })()}
 
-          {/* FRONT DESK: inner tabs */}
+          {/* Staff commission summary (My Sales Today / My Commission) — only when staffId is set */}
+          {staffId != null && staffSalesSummary != null && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 flex flex-wrap gap-4">
+              <div>
+                <p className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">{locale === "vi" ? "Doanh số hôm nay" : "My Sales Today"}</p>
+                <p className="text-lg font-bold text-emerald-900">{(staffSalesSummary.sales_today ?? 0).toLocaleString("vi-VN")} VND</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">{locale === "vi" ? "Hoa hồng hôm nay" : "My Commission Earned"}</p>
+                <p className="text-lg font-bold text-emerald-900">{(staffSalesSummary.commission_today ?? 0).toLocaleString("vi-VN")} VND</p>
+              </div>
+            </div>
+          )}
+
+          {/* FRONT DESK: inner tabs (staff sees Member only; admin/frontdesk see Check-in + Member) */}
           {adminArea === "front_desk" && (
             <nav className="rounded-xl p-1 mb-4 bg-slate-100 border border-slate-200 overflow-x-auto" aria-label="Front desk tabs">
               <div className="flex gap-1 min-w-max">
-                {(["checkin", "member"] as const).map((tab) => (
+                {canDoCheckIn && (
                   <button
-                    key={tab}
                     type="button"
-                    onClick={() => setFrontDeskTab(tab)}
+                    onClick={() => setFrontDeskTab("checkin")}
                     className={`flex-none whitespace-nowrap py-2 px-3 rounded-lg text-sm font-medium ${
-                      frontDeskTab === tab ? "bg-white shadow border border-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-200"
+                      frontDeskTab === "checkin" ? "bg-white shadow border border-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-200"
                     }`}
                   >
-                    {tab === "checkin" ? (locale === "vi" ? "Check-in" : "Check-in") : null}
-                    {tab === "member" ? (locale === "vi" ? "Thành viên" : "Member") : null}
+                    {locale === "vi" ? "Check-in" : "Check-in"}
                   </button>
-                ))}
+                )}
+                <button
+                  type="button"
+                  onClick={() => setFrontDeskTab("member")}
+                  className={`flex-none whitespace-nowrap py-2 px-3 rounded-lg text-sm font-medium ${
+                    frontDeskTab === "member" ? "bg-white shadow border border-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {locale === "vi" ? "Thành viên" : "Member"}
+                </button>
               </div>
             </nav>
           )}
@@ -1293,9 +1380,11 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Sub-tabs to reduce scroll */}
+              {/* Sub-tabs (staff: no membership tab) */}
               <nav className="flex gap-1 p-1 rounded-xl bg-slate-800/80 border border-slate-700 overflow-x-auto" aria-label="Member sections">
-                {(["summary", "membership", "sales", "history"] as const).map((tab) => (
+                {(["summary", "membership", "sales", "history"] as const)
+                  .filter((tab) => tab !== "membership" || canDoMembershipModify)
+                  .map((tab) => (
                   <button
                     key={tab}
                     type="button"
@@ -1417,7 +1506,7 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {memberProfileSubTab === "membership" && (
+              {memberProfileSubTab === "membership" && canDoMembershipModify && (
               <div className="space-y-4 md:space-y-6">
                 <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_50px_rgba(15,23,42,0.75)] p-4 md:p-6">
                   <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-200 uppercase mb-4">
@@ -1617,11 +1706,15 @@ export default function AdminPage() {
           </>
           )}
 
-          {/* MANAGEMENT: inner tabs */}
+          {/* MANAGEMENT: inner tabs (admin: all; frontdesk: Inventory only) */}
           {adminArea === "management" && (
             <nav className="rounded-xl p-1 mb-4 bg-slate-100 border border-slate-200 overflow-x-auto" aria-label="Management tabs">
               <div className="flex gap-1 min-w-max">
-                {(["inventory", "reporting", "admin_tools"] as const).map((tab) => (
+                {([
+                  ...(canAccessInventory ? ["inventory" as const] : []),
+                  ...(canAccessRevenue ? ["reporting" as const] : []),
+                  ...(canAccessAdminTools ? ["admin_tools" as const] : []),
+                ]).map((tab) => (
                   <button
                     key={tab}
                     type="button"

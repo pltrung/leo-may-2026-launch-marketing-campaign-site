@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getUnifiedAdminOrStaffFromRequest, canAccessInventory } from "@/lib/unifiedAdminAuth";
 
 const CATEGORIES = ["shoes", "chalk", "merch", "rental"] as const;
 
@@ -8,10 +8,11 @@ const CATEGORIES = ["shoes", "chalk", "merch", "rental"] as const;
  * GET /api/admin/products
  * GET /api/admin/products?sku=xxx  -> returns product + matching variant(s)
  * GET /api/admin/products?barcode=xxx -> returns product + matching variant (for lookup)
+ * Allowed: any admin-interface role (admin, frontdesk, staff) for lookup/POS.
  */
 export async function GET(req: NextRequest) {
-  const admin = await getAdminFromRequest(req);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(req);
+  if (!unified) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServerClient();
   const sku = req.nextUrl.searchParams.get("sku")?.trim();
   const barcode = req.nextUrl.searchParams.get("barcode")?.trim();
@@ -67,10 +68,12 @@ export async function GET(req: NextRequest) {
 /**
  * POST /api/admin/products - Create product only (no variants)
  * Body: { name, brand?, category, image? }
+ * Allowed: admin, frontdesk (inventory).
  */
 export async function POST(req: NextRequest) {
-  const admin = await getAdminFromRequest(req);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(req);
+  if (!unified) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canAccessInventory(unified.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const supabase = createServerClient();
   try {
     const body = await req.json();

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getUnifiedAdminOrStaffFromRequest, canAccessInventory } from "@/lib/unifiedAdminAuth";
 
 const SKU_PATTERN = /^[A-Za-z0-9\-\[\]]+(-[A-Za-z0-9\-\[\]]+)?$/;
 
@@ -12,8 +12,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const admin = await getAdminFromRequest(req);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(req);
+  if (!unified || !canAccessInventory(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "Variant id required" }, { status: 400 });
 

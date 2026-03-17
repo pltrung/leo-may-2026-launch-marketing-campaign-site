@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getUnifiedAdminOrStaffFromRequest, canAccessRevenue } from "@/lib/unifiedAdminAuth";
 import { getGymStartOfDay, getGymStartOfWeek, getGymStartOfMonth } from "@/lib/gymTimezone";
 
 const PLAN_LABELS: Record<string, string> = {
@@ -21,8 +21,8 @@ const PLAN_LABELS: Record<string, string> = {
  * ?period=day|week|month — aggregate revenue for period ending today
  */
 export async function GET(req: NextRequest) {
-  const admin = await getAdminFromRequest(req);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(req);
+  if (!unified || !canAccessRevenue(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServerClient();
   const period = req.nextUrl.searchParams.get("period") ?? "day";
   const validPeriods = ["day", "week", "month"];

@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getUnifiedAdminOrStaffFromRequest, canDoMembershipModify } from "@/lib/unifiedAdminAuth";
 import { insertAdminAuditLog, getStaffIdFromAuthId } from "@/lib/auditLog";
 
 type MembershipAction = "extend" | "freeze" | "cancel" | "upgrade";
 
+/**
+ * POST - Membership actions (extend, freeze, cancel, upgrade).
+ * Allowed: admin, frontdesk (not staff).
+ */
 export async function POST(req: NextRequest) {
-  const admin = await getAdminFromRequest(req);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(req);
+  if (!unified || !canDoMembershipModify(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServerClient();
 
   try {
@@ -77,10 +81,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to update membership" }, { status: 500 });
     }
 
-    const staffId = await getStaffIdFromAuthId(supabase, admin.id);
+    const auditStaffId = unified.staffId ?? (await getStaffIdFromAuthId(supabase, unified.user.id));
     await insertAdminAuditLog(supabase, {
-      adminAuthId: admin.id,
-      staffId,
+      adminAuthId: unified.user.id,
+      staffId: auditStaffId,
       actionType: action === "extend" ? "membership_extend" : action === "freeze" ? "membership_freeze" : action === "cancel" ? "membership_cancel" : "membership_upgrade",
       entityId: memberId,
     });

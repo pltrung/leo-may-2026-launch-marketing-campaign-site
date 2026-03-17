@@ -3,23 +3,73 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { isAdminEmail } from "@/lib/adminAuth";
+import { isRouteSetterEmail } from "@/lib/routeSetterAuth";
 import type { Session } from "@supabase/supabase-js";
+import type { UnifiedRole } from "@/lib/unifiedAdminAuth";
 
 interface AdminAuthContextValue {
   session: Session | null;
+  /** @deprecated Use role === "admin" for full admin; hasAccess for any operational access */
   isAdmin: boolean;
+  /** Unified role from staff_profiles (or admin email). Null until /api/admin/me has been fetched. */
+  role: UnifiedRole | null;
+  staffId: string | null;
   loading: boolean;
   accessToken: string | null;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   adminFetch: (url: string, init?: RequestInit) => Promise<Response>;
+  /** True when user has any access to /admin (admin, frontdesk, or staff) */
+  hasAccess: boolean;
+  canAccessFrontDeskFull: boolean;
+  canAccessFrontDeskLimited: boolean;
+  canAccessOperations: boolean;
+  canAccessManagement: boolean;
+  canDoPos: boolean;
+  canDoMembershipModify: boolean;
+  canDoPaymentConfirm: boolean;
+  canAccessRevenue: boolean;
+  canDoCheckIn: boolean;
+  canAccessInventory: boolean;
+  canAccessAdminTools: boolean;
 }
 
 const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
 
+function perm(role: UnifiedRole | null) {
+  if (!role) return {
+    canAccessFrontDeskFull: false,
+    canAccessFrontDeskLimited: false,
+    canAccessOperations: false,
+    canAccessManagement: false,
+    canDoPos: false,
+    canDoMembershipModify: false,
+    canDoPaymentConfirm: false,
+    canAccessRevenue: false,
+    canDoCheckIn: false,
+    canAccessInventory: false,
+    canAccessAdminTools: false,
+  };
+  return {
+    canAccessFrontDeskFull: role === "admin" || role === "frontdesk",
+    canAccessFrontDeskLimited: role === "staff",
+    canAccessOperations: role === "admin" || role === "staff",
+    canAccessManagement: role === "admin" || role === "frontdesk",
+    canDoPos: true,
+    canDoMembershipModify: role === "admin" || role === "frontdesk",
+    canDoPaymentConfirm: role === "admin" || role === "frontdesk",
+    canAccessRevenue: role === "admin",
+    canDoCheckIn: role === "admin" || role === "frontdesk",
+    canAccessInventory: role === "admin" || role === "frontdesk",
+    canAccessAdminTools: role === "admin",
+  };
+}
+
 export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState<UnifiedRole | null>(null);
+  const [staffId, setStaffId] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -33,26 +83,6 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const isAdmin = !!(session?.user && isAdminEmail(session.user.email));
-
-  const signIn = useCallback(async (email: string, password: string) => {
-    const supabase = getSupabaseBrowserClient();
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password,
-    });
-    if (error) return { error: error.message };
-    if (!isAdminEmail(data.user?.email)) {
-      await supabase.auth.signOut();
-      return { error: "Invalid email or password" };
-    }
-    return {};
-  }, []);
-
-  const signOut = useCallback(async () => {
-    await getSupabaseBrowserClient().auth.signOut();
-  }, []);
-
   const adminFetch = useCallback(
     (url: string, init?: RequestInit) => {
       const token = session?.access_token;
@@ -63,14 +93,76 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     [session?.access_token]
   );
 
+  useEffect(() => {
+    if (!session?.access_token) {
+      setRole(null);
+      setStaffId(null);
+      return;
+    }
+    adminFetch("/api/admin/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.role) {
+          setRole(data.role as UnifiedRole);
+          setStaffId(data.staffId ?? null);
+        } else {
+          setRole(null);
+          setStaffId(null);
+        }
+      })
+      .catch(() => {
+        setRole(null);
+        setStaffId(null);
+      });
+  }, [session?.access_token, adminFetch]);
+
+  const isAdmin = role === "admin";
+  const hasAccess = role === "admin" || role === "frontdesk" || role === "staff";
+
+  const signIn = useCallback(async (email: string, password: string) => {
+    const supabase = getSupabaseBrowserClient();
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+    if (error) return { error: error.message };
+    if (isAdminEmail(data.user?.email) || isRouteSetterEmail(data.user?.email)) return {};
+    const token = data.session?.access_token;
+    if (token) {
+      try {
+        const res = await fetch("/api/admin/me", { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const body = await res.json();
+          if (body.role) return {};
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    await supabase.auth.signOut();
+    return { error: "Invalid email or password" };
+  }, []);
+
+  const signOut = useCallback(async () => {
+    await getSupabaseBrowserClient().auth.signOut();
+    setRole(null);
+    setStaffId(null);
+  }, []);
+
+  const perms = perm(role);
+
   const value: AdminAuthContextValue = {
     session,
     isAdmin,
+    role,
+    staffId,
     loading,
     accessToken: session?.access_token ?? null,
     signIn,
     signOut,
     adminFetch,
+    hasAccess,
+    ...perms,
   };
 
   return (

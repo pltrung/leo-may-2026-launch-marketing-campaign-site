@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getUnifiedAdminOrStaffFromRequest, canAccessOperations } from "@/lib/unifiedAdminAuth";
 import { getGymToday, getGymStartOfDay, getGymEndOfDay, getGymDateFromISO, parseGymDateTime } from "@/lib/gymTimezone";
 
 const STAFF_REQUIRED_DEFAULT = 3;
@@ -82,12 +82,12 @@ function getCountdownMessage(phase: ShiftPhase, minutes: number): string {
 
 /**
  * GET /api/admin/staff
- * Returns staff operations: attendance, tasks, task_logs timeline, sessions (today), zones, ops metrics.
- * Admin only.
+ * Returns staff operations: attendance, tasks, sessions (today), zones, etc.
+ * Allowed: admin, staff (Operations tab).
  */
 export async function GET(request: NextRequest) {
-  const admin = await getAdminFromRequest(request);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(request);
+  if (!unified || !canAccessOperations(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = createServerClient();
   const today = getGymToday();

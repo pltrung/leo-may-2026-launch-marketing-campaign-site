@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getUnifiedAdminOrStaffFromRequest, canAccessInventory } from "@/lib/unifiedAdminAuth";
 import { insertAdminAuditLog, getStaffIdFromAuthId } from "@/lib/auditLog";
 
 const CATEGORIES = ["shoes", "chalk", "merch", "rental"] as const;
@@ -13,8 +13,8 @@ const CATEGORIES = ["shoes", "chalk", "merch", "rental"] as const;
  * so newly created products appear in View Inventory.
  */
 export async function GET(req: NextRequest) {
-  const admin = await getAdminFromRequest(req);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(req);
+  if (!unified || !canAccessInventory(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServerClient();
   const variantIdParam = req.nextUrl.searchParams.get("variant_id")?.trim();
   const categoryParam = req.nextUrl.searchParams.get("category")?.trim().toLowerCase();
@@ -69,8 +69,8 @@ export async function GET(req: NextRequest) {
  * Body: { variant_id, barcode, or sku (barcode field tries barcode then SKU), quantity, location? }
  */
 export async function POST(req: NextRequest) {
-  const admin = await getAdminFromRequest(req);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(req);
+  if (!unified || !canAccessInventory(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServerClient();
   try {
     const body = await req.json();
@@ -98,8 +98,8 @@ export async function POST(req: NextRequest) {
     if (existing) {
       const newQty = (existing.quantity as number) + quantity;
       await supabase.from("inventory").update({ quantity: newQty, updated_at: new Date().toISOString() }).eq("id", existing.id);
-      const staffId = await getStaffIdFromAuthId(supabase, admin.id);
-      await insertAdminAuditLog(supabase, { adminAuthId: admin.id, staffId, actionType: "inventory_stock_in", entityId: variantId, metadata: { quantity: newQty } });
+      const auditStaffId = unified.staffId ?? (await getStaffIdFromAuthId(supabase, unified.user.id));
+      await insertAdminAuditLog(supabase, { adminAuthId: unified.user.id, staffId: auditStaffId, actionType: "inventory_stock_in", entityId: variantId, metadata: { quantity: newQty } });
       return NextResponse.json({ ok: true, quantity: newQty });
     }
     const { data: inserted, error: insErr } = await supabase
@@ -108,8 +108,8 @@ export async function POST(req: NextRequest) {
       .select("id, quantity")
       .single();
     if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });
-    const staffId = await getStaffIdFromAuthId(supabase, admin.id);
-    await insertAdminAuditLog(supabase, { adminAuthId: admin.id, staffId, actionType: "inventory_stock_in", entityId: variantId, metadata: { quantity: inserted?.quantity ?? quantity } });
+    const auditStaffId = unified.staffId ?? (await getStaffIdFromAuthId(supabase, unified.user.id));
+    await insertAdminAuditLog(supabase, { adminAuthId: unified.user.id, staffId: auditStaffId, actionType: "inventory_stock_in", entityId: variantId, metadata: { quantity: inserted?.quantity ?? quantity } });
     return NextResponse.json({ ok: true, quantity: inserted?.quantity ?? quantity });
   } catch (e) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -121,8 +121,8 @@ export async function POST(req: NextRequest) {
  * Body: { variant_id, barcode, or sku (barcode field tries barcode then SKU), quantity }
  */
 export async function PATCH(req: NextRequest) {
-  const admin = await getAdminFromRequest(req);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(req);
+  if (!unified || !canAccessInventory(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServerClient();
   try {
     const body = await req.json();
@@ -154,8 +154,8 @@ export async function PATCH(req: NextRequest) {
       else await supabase.from("inventory").update({ quantity: newQty, updated_at: new Date().toISOString() }).eq("id", row.id);
     }
     if (remaining > 0) return NextResponse.json({ error: "Insufficient quantity" }, { status: 400 });
-    const staffId = await getStaffIdFromAuthId(supabase, admin.id);
-    await insertAdminAuditLog(supabase, { adminAuthId: admin.id, staffId, actionType: "inventory_stock_out", entityId: variantId, metadata: { quantity } });
+    const auditStaffId = unified.staffId ?? (await getStaffIdFromAuthId(supabase, unified.user.id));
+    await insertAdminAuditLog(supabase, { adminAuthId: unified.user.id, staffId: auditStaffId, actionType: "inventory_stock_out", entityId: variantId, metadata: { quantity } });
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });

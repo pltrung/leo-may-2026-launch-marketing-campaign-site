@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getUnifiedAdminOrStaffFromRequest } from "@/lib/unifiedAdminAuth";
 
 /**
  * GET /api/admin/variants/by-barcode?barcode=xxx
  * Returns variant + product for barcode-first workflow. If not found, returns 404.
+ * Allowed: any admin-interface role (admin, frontdesk, staff) for POS lookup.
  */
 export async function GET(req: NextRequest) {
-  const admin = await getAdminFromRequest(req);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(req);
+  if (!unified) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const barcode = req.nextUrl.searchParams.get("barcode")?.trim();
   if (!barcode) return NextResponse.json({ error: "barcode required" }, { status: 400 });
 

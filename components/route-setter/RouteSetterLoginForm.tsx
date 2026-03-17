@@ -8,9 +8,11 @@ import type { Locale } from "@/lib/i18n";
 interface RouteSetterLoginFormProps {
   locale: Locale;
   onLocaleChange?: (locale: Locale) => void;
+  /** When true, only render the card (no full-page wrapper, no locale switcher). Use inside OperationalShell. */
+  embedded?: boolean;
 }
 
-export default function RouteSetterLoginForm({ locale, onLocaleChange }: RouteSetterLoginFormProps) {
+export default function RouteSetterLoginForm({ locale, onLocaleChange, embedded }: RouteSetterLoginFormProps) {
   const { signIn } = useRouteSetterAuth();
   const m = getMessages(locale).staff;
   const [email, setEmail] = useState("");
@@ -30,27 +32,8 @@ export default function RouteSetterLoginForm({ locale, onLocaleChange }: RouteSe
     }
   };
 
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 p-4">
-      {onLocaleChange && (
-        <div className="absolute top-4 right-4 flex gap-0.5 rounded-full border border-slate-600 bg-slate-800 p-0.5">
-          <button
-            type="button"
-            onClick={() => onLocaleChange("en")}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium ${locale === "en" ? "bg-amber-500 text-slate-900" : "text-slate-400 hover:text-slate-200"}`}
-          >
-            EN
-          </button>
-          <button
-            type="button"
-            onClick={() => onLocaleChange("vi")}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium ${locale === "vi" ? "bg-amber-500 text-slate-900" : "text-slate-400 hover:text-slate-200"}`}
-          >
-            VN
-          </button>
-        </div>
-      )}
-      <div className="w-full max-w-sm rounded-2xl bg-slate-800 border border-slate-700 shadow-xl p-6">
+  const card = (
+    <div className="w-full max-w-sm rounded-2xl bg-slate-800 border border-slate-700 shadow-xl p-6">
         <div className="mb-4 flex items-center gap-2">
           <img src="/logo-white.svg" alt="Leo Mây logo" className="h-8 w-auto" />
           <span className="text-sm font-semibold text-slate-100 tracking-wide">Leo Mây Staff</span>
@@ -97,6 +80,30 @@ export default function RouteSetterLoginForm({ locale, onLocaleChange }: RouteSe
           </button>
         </form>
       </div>
+  );
+
+  if (embedded) return card;
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 p-4">
+      {onLocaleChange && (
+        <div className="absolute top-4 right-4 flex gap-0.5 rounded-full border border-slate-600 bg-slate-800 p-0.5">
+          <button
+            type="button"
+            onClick={() => onLocaleChange("en")}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium ${locale === "en" ? "bg-amber-500 text-slate-900" : "text-slate-400 hover:text-slate-200"}`}
+          >
+            EN
+          </button>
+          <button
+            type="button"
+            onClick={() => onLocaleChange("vi")}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium ${locale === "vi" ? "bg-amber-500 text-slate-900" : "text-slate-400 hover:text-slate-200"}`}
+          >
+            VN
+          </button>
+        </div>
+      )}
+      {card}
     </div>
   );
 }

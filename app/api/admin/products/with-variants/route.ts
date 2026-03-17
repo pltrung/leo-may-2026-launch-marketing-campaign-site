@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getUnifiedAdminOrStaffFromRequest, canAccessInventory } from "@/lib/unifiedAdminAuth";
 
 const CATEGORIES = ["shoes", "chalk", "merch", "rental"] as const;
 /** Product code / SKU: alphanumeric, hyphen, brackets (e.g. from barcode scans). */
@@ -14,8 +14,8 @@ const CODE_PATTERN = /^[A-Za-z0-9\-\[\]]+$/;
  * SKU = product_code + (size ? "-" + size : "")
  */
 export async function POST(req: NextRequest) {
-  const admin = await getAdminFromRequest(req);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(req);
+  if (!unified || !canAccessInventory(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServerClient();
   try {
     const body = await req.json();

@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getUnifiedAdminOrStaffFromRequest, canDoCheckIn } from "@/lib/unifiedAdminAuth";
 import { performCheckIn } from "@/lib/performCheckIn";
 import { insertAdminAuditLog, getStaffIdFromAuthId } from "@/lib/auditLog";
 
 /**
  * POST /api/admin/checkin
  * Body: { member_id: string, location?: string }
- * Performs member check-in (same as public /api/checkin) and logs audit with admin/staff id.
+ * Performs member check-in (same as public /api/checkin) and logs audit.
+ * Allowed: admin, frontdesk (not staff).
  */
 export async function POST(req: NextRequest) {
-  const admin = await getAdminFromRequest(req);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(req);
+  if (!unified || !canDoCheckIn(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let body: { member_id?: string; location?: string };
   try {
@@ -28,10 +29,10 @@ export async function POST(req: NextRequest) {
   if (res.status === 200) {
     try {
       const supabase = createServerClient();
-      const staffId = await getStaffIdFromAuthId(supabase, admin.id);
+      const auditStaffId = unified.staffId ?? (await getStaffIdFromAuthId(supabase, unified.user.id));
       await insertAdminAuditLog(supabase, {
-        adminAuthId: admin.id,
-        staffId,
+        adminAuthId: unified.user.id,
+        staffId: auditStaffId,
         actionType: "member_checkin",
         entityId: memberId,
         metadata: location ? { location } : undefined,

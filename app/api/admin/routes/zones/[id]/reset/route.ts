@@ -1,28 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getUnifiedAdminOrStaffFromRequest, canAccessOperations } from "@/lib/unifiedAdminAuth";
 import { insertAdminAuditLog } from "@/lib/auditLog";
 
 /**
  * POST /api/admin/routes/zones/[id]/reset
- * Marks the route zone as reset + logs completion + clears assignments.
+ * Marks the route zone as reset + logs completion + clears assignments. Allowed: admin, staff.
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const admin = await getAdminFromRequest(request);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(request);
+  if (!unified || !canAccessOperations(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "Zone id required" }, { status: 400 });
 
   const supabase = createServerClient();
-  const { data: staff } = await supabase
-    .from("staff_profiles")
-    .select("id")
-    .eq("auth_id", admin.id)
-    .maybeSingle();
+  let staffIdForAudit: string | null = unified.staffId ?? null;
+  if (!staffIdForAudit) {
+    const { data: sp } = await supabase.from("staff_profiles").select("id").eq("auth_id", unified.user.id).maybeSingle();
+    staffIdForAudit = sp?.id ?? null;
+  }
 
   const { data: zone, error: fetchErr } = await supabase
     .from("route_zones")
@@ -49,14 +49,14 @@ export async function POST(
 
   await supabase.from("route_reset_logs").insert({
     zone_id: id,
-    completed_by: staff?.id ?? null,
+    completed_by: staffIdForAudit,
     completed_at: now.toISOString(),
   });
   await supabase.from("route_reset_assignments").delete().eq("zone_id", id);
 
   await insertAdminAuditLog(supabase, {
-    adminAuthId: admin.id,
-    staffId: staff?.id ?? null,
+    adminAuthId: unified.user.id,
+    staffId: staffIdForAudit,
     actionType: "route_reset_complete",
     entityId: id,
   });

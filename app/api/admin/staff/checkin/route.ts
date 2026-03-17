@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getUnifiedAdminOrStaffFromRequest } from "@/lib/unifiedAdminAuth";
 import { getGymToday } from "@/lib/gymTimezone";
 import { verifyQrToken } from "@/lib/qrTokens";
 import { insertAdminAuditLog, getStaffIdFromAuthId } from "@/lib/auditLog";
@@ -11,8 +11,8 @@ import { insertAdminAuditLog, getStaffIdFromAuthId } from "@/lib/auditLog";
  * Records staff attendance for today as IN (QR check-in at front desk). Admin only.
  */
 export async function POST(request: NextRequest) {
-  const admin = await getAdminFromRequest(request);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(request);
+  if (!unified || unified.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let body: { staff_id?: string; qr?: string };
   try {
@@ -52,10 +52,10 @@ export async function POST(request: NextRequest) {
 
   if (upsertErr) return NextResponse.json({ error: upsertErr.message }, { status: 500 });
 
-  const adminStaffId = await getStaffIdFromAuthId(supabase, admin.id);
+  const auditStaffId = unified.staffId ?? (await getStaffIdFromAuthId(supabase, unified.user.id));
   await insertAdminAuditLog(supabase, {
-    adminAuthId: admin.id,
-    staffId: adminStaffId,
+    adminAuthId: unified.user.id,
+    staffId: auditStaffId,
     actionType: "staff_checkin",
     entityId: staff.id,
   });

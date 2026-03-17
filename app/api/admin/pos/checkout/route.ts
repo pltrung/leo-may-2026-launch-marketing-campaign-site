@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getUnifiedAdminOrStaffFromRequest, canDoPos } from "@/lib/unifiedAdminAuth";
 import { getVietQRUrl } from "@/lib/vietqr";
+
+const DEFAULT_COMMISSION_RATE = 0.1; // 10%
 
 type CartItem = { sku: string; name?: string; quantity: number; price: number; variant_id?: string };
 
@@ -9,10 +11,11 @@ type CartItem = { sku: string; name?: string; quantity: number; price: number; v
  * POST /api/admin/pos/checkout
  * Body: { member_id, items: [{ sku, name?, quantity, price, variant_id? }], payment_method: "vietqr" | "cash" }
  * Resolves sku to variant_id; stores variant_id in transaction_items; deducts inventory by variant_id.
+ * When caller is staff or frontdesk, attaches staff_id and commission (rate + amount).
  */
 export async function POST(req: NextRequest) {
-  const admin = await getAdminFromRequest(req);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(req);
+  if (!unified || !canDoPos(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServerClient();
   try {
     const body = await req.json();
@@ -69,14 +72,21 @@ export async function POST(req: NextRequest) {
     const status = paymentMethod === "cash" ? "success" : "pending";
     const memo = paymentMethod === "vietqr" ? `LM_PURCHASE:${lineItems.map((i) => i.sku).join(",")}` : null;
 
+    const staffId = unified.staffId ?? null;
+    const commissionRate = staffId ? DEFAULT_COMMISSION_RATE : null;
+    const commissionAmount = staffId && commissionRate != null ? Math.round(total * commissionRate) : null;
+
     const { data: tx, error: txErr } = await supabase
       .from("pos_transactions")
       .insert({
         member_id: memberId,
+        staff_id: staffId,
         total,
         payment_method: paymentMethod,
         payment_status: status,
         memo,
+        commission_rate: commissionRate,
+        commission_amount: commissionAmount,
       })
       .select("id")
       .single();

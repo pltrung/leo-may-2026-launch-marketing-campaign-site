@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getUnifiedAdminOrStaffFromRequest } from "@/lib/unifiedAdminAuth";
 import { getGymToday } from "@/lib/gymTimezone";
 
 /**
@@ -9,8 +9,8 @@ import { getGymToday } from "@/lib/gymTimezone";
  * so staff see tasks as pending again. For testing QR check-in. Admin only.
  */
 export async function POST(request: NextRequest) {
-  const admin = await getAdminFromRequest(request);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(request);
+  if (!unified || unified.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const today = getGymToday();
   const supabase = createServerClient();

@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getUnifiedAdminOrStaffFromRequest, canDoPaymentConfirm } from "@/lib/unifiedAdminAuth";
 import { computeNewExpiry } from "@/lib/membershipExtension";
 import { bookNewbieClass } from "@/lib/newbieClassBooking";
 
 /**
  * POST - Confirm payment and extend membership
  * Body: { member_id, plan_id, method?: "vietqr" | "cash" }
+ * Allowed: admin, frontdesk (not staff).
  */
 export async function POST(req: NextRequest) {
-  const admin = await getAdminFromRequest(req);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(req);
+  if (!unified || !canDoPaymentConfirm(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServerClient();
   try {
     const body = await req.json();

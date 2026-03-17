@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
 import { getGymToday, getGymDateFromISO } from "@/lib/gymTimezone";
+import OperationalShell from "@/components/operational/OperationalShell";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { useRouteSetterAuth } from "@/components/route-setter/RouteSetterAuthContext";
 import RouteSetterLoginForm from "@/components/route-setter/RouteSetterLoginForm";
@@ -69,17 +71,22 @@ interface StaffTask {
 }
 
 export default function StaffPage() {
+  const router = useRouter();
   const [locale, setLocale] = useState<Locale>("en");
   useEffect(() => {
     setLocale(getStoredLocale());
   }, []);
+  const { staff, loading, staffFetch, signOut, refreshStaff } = useRouteSetterAuth();
+  useEffect(() => {
+    if (loading) return;
+    if (staff) router.replace("/admin");
+  }, [loading, staff, router]);
   const setLocaleAndStore = useCallback((l: Locale) => {
     setLocale(l);
     if (typeof window !== "undefined") localStorage.setItem(STAFF_LOCALE_KEY, l);
   }, []);
 
   const m = getMessages(locale).staff;
-  const { staff, loading, staffFetch, signOut, refreshStaff } = useRouteSetterAuth();
   const [attendance, setAttendance] = useState<AttendanceRecord | null>(null);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [sessions, setSessions] = useState<CoachingSession[]>([]);
@@ -334,7 +341,19 @@ export default function StaffPage() {
   }
 
   if (!staff) {
-    return <RouteSetterLoginForm locale={locale} onLocaleChange={setLocaleAndStore} />;
+    const t = getMessages(locale).admin;
+    return (
+      <OperationalShell
+        title={t.title}
+        subtitle={t.subtitle}
+        locale={locale}
+        onLocaleChange={setLocaleAndStore}
+      >
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <RouteSetterLoginForm locale={locale} onLocaleChange={setLocaleAndStore} embedded />
+        </div>
+      </OperationalShell>
+    );
   }
 
   const today = getGymToday();
@@ -385,44 +404,27 @@ export default function StaffPage() {
     return (nh * 60 + nm) - (dh * 60 + dm);
   };
 
+  const t = getMessages(locale).admin;
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
-      <header className="sticky top-0 z-10 border-b border-slate-700 bg-slate-900/95 backdrop-blur px-4 py-3 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <img src="/logo-white.svg" alt="Leo Mây logo" className="h-7 w-auto" />
-          <h1 className="text-lg font-semibold text-white">{m.title}</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex gap-0.5 rounded-full border border-slate-600 bg-slate-800 p-0.5">
-            <button
-              type="button"
-              onClick={() => setLocaleAndStore("en")}
-              className={`px-2 py-1 rounded-full text-xs font-medium ${locale === "en" ? "bg-amber-500 text-slate-900" : "text-slate-400 hover:text-slate-200"}`}
-            >
-              EN
-            </button>
-            <button
-              type="button"
-              onClick={() => setLocaleAndStore("vi")}
-              className={`px-2 py-1 rounded-full text-xs font-medium ${locale === "vi" ? "bg-amber-500 text-slate-900" : "text-slate-400 hover:text-slate-200"}`}
-            >
-              VN
-            </button>
-          </div>
-          <span className="text-slate-300 text-sm truncate max-w-[140px]">
-            {staff.display_name || staff.email}
-          </span>
+    <OperationalShell
+      title={t.title}
+      subtitle={t.subtitle}
+      locale={locale}
+      onLocaleChange={setLocaleAndStore}
+      headerRight={
+        <>
+          <span className="text-slate-300 truncate max-w-[180px]">{staff.display_name || staff.email}</span>
           <button
             type="button"
             onClick={() => signOut()}
-            className="text-xs px-2 py-1 rounded bg-slate-700 text-slate-300 hover:bg-slate-600"
+            className="px-3 py-1.5 rounded-lg border border-slate-500 text-slate-200 hover:bg-slate-700 hover:text-white"
           >
             {m.signOut}
           </button>
-        </div>
-      </header>
-
-      <main className="p-4 pb-8 space-y-6 max-w-2xl mx-auto">
+        </>
+      }
+    >
+      <div className="space-y-6 md:space-y-8">
         {error && (
           <div className="rounded-lg bg-red-900/30 border border-red-700 text-red-200 text-sm px-4 py-2">
             {error}
@@ -809,7 +811,7 @@ export default function StaffPage() {
             )}
           </>
         )}
-      </main>
-    </div>
+      </div>
+    </OperationalShell>
   );
 }

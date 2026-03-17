@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getUnifiedAdminOrStaffFromRequest, canAccessOperations } from "@/lib/unifiedAdminAuth";
 import { getGymMonthBoundaries, getGymWeekBoundaries } from "@/lib/gymTimezone";
 
 /**
@@ -9,8 +9,8 @@ import { getGymMonthBoundaries, getGymWeekBoundaries } from "@/lib/gymTimezone";
  * Returns per-staff IN attendance count for the given month or week. Admin only.
  */
 export async function GET(request: NextRequest) {
-  const admin = await getAdminFromRequest(request);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(request);
+  if (!unified || !canAccessOperations(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(request.url);
   const period = searchParams.get("period") ?? "month";

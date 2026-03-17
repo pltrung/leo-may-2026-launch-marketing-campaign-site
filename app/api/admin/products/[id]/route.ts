@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getUnifiedAdminOrStaffFromRequest, canAccessInventory } from "@/lib/unifiedAdminAuth";
 
 const CATEGORIES = ["shoes", "chalk", "merch", "rental"] as const;
 
@@ -12,11 +12,10 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const admin = await getAdminFromRequest(req);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(req);
+  if (!unified) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "Product id required" }, { status: 400 });
-
   const supabase = createServerClient();
   const { data: product, error: productErr } = await supabase
     .from("products")
@@ -74,11 +73,10 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const admin = await getAdminFromRequest(req);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const unified = await getUnifiedAdminOrStaffFromRequest(req);
+  if (!unified || !canAccessInventory(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "Product id required" }, { status: 400 });
-
   const supabase = createServerClient();
   try {
     const body = await req.json();
