@@ -17,6 +17,7 @@ import {
   PRIMARY_SKILL_BY_DAY,
 } from "@/lib/onboardingContent";
 import type { Locale } from "@/lib/i18n";
+import { getMessages } from "@/lib/messages";
 
 type Phase = "map" | "lesson" | "scenario" | "simulation" | "simulation_result" | "quiz" | "reflection" | "key_takeaway" | "day_complete_menu" | "hard_mode" | "advanced_lessons";
 
@@ -29,8 +30,9 @@ function getStoredLocale(): Locale {
 }
 
 export default function OnboardingPage() {
-  const { loading, hasAccess, adminFetch, role } = useAdminAuth();
+  const { loading, hasAccess, adminFetch, role, signOut } = useAdminAuth();
   const [locale, setLocale] = useState<Locale>("vi");
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [progress, setProgress] = useState<{
     xp_total: number;
     streak_days: number;
@@ -483,65 +485,87 @@ export default function OnboardingPage() {
     );
   }
 
+  const t = getMessages(locale).admin;
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white">
-      <header className="border-b border-slate-700/50 sticky top-0 z-30 bg-slate-900/90 backdrop-blur">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <a href="/admin" className="text-sm text-slate-400 hover:text-white">← Admin</a>
-            <img src="/logo-white.svg" alt="Leo Mây" className="h-8" />
-          </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            {progress && (
-              <>
-                <span className="text-amber-400 font-bold">{progress.xp_total} XP</span>
-                <span className="flex items-center gap-1 text-red-400">
-                  {"❤".repeat(progress.hearts_remaining)}
-                  {"♡".repeat(HEARTS_MAX - progress.hearts_remaining)}
-                </span>
-                {progress.streak_days > 0 && (
-                  <span className="text-emerald-400 text-sm">🔥 {progress.streak_days}</span>
+    <div className="min-h-screen flex flex-col bg-slate-900 text-slate-50">
+      <header className="relative z-30 border-b border-slate-800 bg-slate-900/95 backdrop-blur shrink-0">
+        <div className="max-w-[1100px] mx-auto px-3 py-2 md:px-4 md:py-3">
+          <div className="flex items-center justify-between gap-2 min-h-[2rem] flex-nowrap">
+            <div className="flex items-center shrink-0">
+              <img src="/logo-white.svg" alt="Leo Mây" className="h-6 w-auto md:h-7" />
+            </div>
+            <div className="flex items-center justify-center flex-1 min-w-0">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-600 px-2.5 py-1 text-xs font-medium whitespace-nowrap bg-slate-800/80 text-amber-200">
+                {locale === "vi" ? "Đào tạo" : "Training"}
+              </span>
+            </div>
+            <div className="flex items-center shrink-0">
+              <div className="relative">
+                <button type="button" onClick={() => setHeaderMenuOpen((o) => !o)} className="p-1.5 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white" aria-label="Menu">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                </button>
+                {headerMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-[100]" aria-hidden onClick={() => setHeaderMenuOpen(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-[110] min-w-[180px] rounded-xl border border-slate-700 bg-slate-800 shadow-xl py-1">
+                      <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{locale === "vi" ? "Điều hướng" : "Navigation"}</div>
+                      <a href="/admin" onClick={() => setHeaderMenuOpen(false)} className="block w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700">
+                        {locale === "vi" ? "← Bảng điều khiển" : "← Dashboard"}
+                      </a>
+                      <div className="border-t border-slate-700 my-1" />
+                      <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{locale === "vi" ? "Tài khoản" : "Account"}</div>
+                      <button type="button" onClick={() => { signOut(); setHeaderMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700">
+                        {t.logout}
+                      </button>
+                      <div className="border-t border-slate-700 my-1" />
+                      <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{locale === "vi" ? "Ngôn ngữ" : "Preferences"}</div>
+                      <div className="flex gap-0.5 p-2">
+                        <button type="button" onClick={() => { setLocaleAndStore("en"); setHeaderMenuOpen(false); }} className={`flex-1 py-1 rounded-lg text-xs font-medium ${locale === "en" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}>EN</button>
+                        <button type="button" onClick={() => { setLocaleAndStore("vi"); setHeaderMenuOpen(false); }} className={`flex-1 py-1 rounded-lg text-xs font-medium ${locale === "vi" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}>VN</button>
+                      </div>
+                    </div>
+                  </>
                 )}
-                {progress.skill_scores && (
-                  <div className="hidden sm:flex flex-wrap gap-x-4 gap-y-1.5 text-[10px] max-w-[280px]">
-                    {(["communication", "safety", "sales", "teamwork"] as const).map((key) => {
-                      const label = key === "communication" ? (locale === "vi" ? "Giao tiếp" : "Communication") : key === "safety" ? (locale === "vi" ? "An toàn" : "Safety") : key === "sales" ? (locale === "vi" ? "Bán hàng" : "Sales") : (locale === "vi" ? "Đội nhóm" : "Teamwork");
-                      const val = progress.skill_scores?.[key] ?? 50;
-                      return (
-                        <div key={key} className="flex items-center gap-1.5 min-w-0">
-                          <span className="text-slate-400 shrink-0">{label}</span>
-                          <div className="h-1.5 w-12 rounded-full bg-slate-700 overflow-hidden shrink-0">
-                            <div className="h-full bg-amber-500/80 rounded-full transition-all" style={{ width: `${val}%` }} />
-                          </div>
-                          <span className="text-slate-300 font-medium w-6 shrink-0">{val}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            )}
-            <div className="flex gap-1">
-              <button
-                type="button"
-                onClick={() => setLocaleAndStore("en")}
-                className={`px-2 py-1 rounded text-xs font-medium ${locale === "en" ? "bg-amber-500 text-slate-900" : "text-slate-400"}`}
-              >
-                EN
-              </button>
-              <button
-                type="button"
-                onClick={() => setLocaleAndStore("vi")}
-                className={`px-2 py-1 rounded text-xs font-medium ${locale === "vi" ? "bg-amber-500 text-slate-900" : "text-slate-400"}`}
-              >
-                VI
-              </button>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-8">
+      <main className="flex-1 min-h-0">
+        <div className="max-w-[1100px] mx-auto px-3 py-3 md:px-4 md:py-6 space-y-2 md:space-y-4">
+          {progress && (
+            <div className="flex flex-wrap items-center gap-2 md:gap-4 rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1.5 md:p-3">
+              <span className="text-amber-400 font-bold text-xs md:text-sm">{progress.xp_total} XP</span>
+              <span className="flex items-center gap-0.5 text-red-400 text-xs md:text-sm">
+                {"❤".repeat(progress.hearts_remaining)}
+                {"♡".repeat(HEARTS_MAX - progress.hearts_remaining)}
+              </span>
+              {progress.streak_days > 0 && (
+                <span className="text-emerald-400 text-xs md:text-sm">🔥 {progress.streak_days}</span>
+              )}
+              {progress.skill_scores && (
+                <div className="hidden sm:flex flex-wrap gap-x-4 gap-y-1.5 text-[10px]">
+                  {(["communication", "safety", "sales", "teamwork"] as const).map((key) => {
+                    const label = key === "communication" ? (locale === "vi" ? "Giao tiếp" : "Communication") : key === "safety" ? (locale === "vi" ? "An toàn" : "Safety") : key === "sales" ? (locale === "vi" ? "Bán hàng" : "Sales") : (locale === "vi" ? "Đội nhóm" : "Teamwork");
+                    const val = progress.skill_scores?.[key] ?? 50;
+                    return (
+                      <div key={key} className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-slate-400 shrink-0">{label}</span>
+                        <div className="h-1.5 w-12 rounded-full bg-slate-700 overflow-hidden shrink-0">
+                          <div className="h-full bg-amber-500/80 rounded-full transition-all" style={{ width: `${val}%` }} />
+                        </div>
+                        <span className="text-slate-300 font-medium w-6 shrink-0">{val}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="max-w-2xl mx-auto">
         {phase === "map" && (
           <section className="space-y-8">
             <div className="text-center">
@@ -1024,6 +1048,8 @@ export default function OnboardingPage() {
             </div>
           </div>
         )}
+          </div>
+        </div>
       </main>
     </div>
   );
