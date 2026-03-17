@@ -180,6 +180,11 @@ export function canAccessAdminTools(role: UnifiedRole): boolean {
   return role === "admin";
 }
 
+/** Analytics & reporting: admin only */
+export function canAccessAnalytics(role: UnifiedRole): boolean {
+  return role === "admin";
+}
+
 export function canDoCheckIn(role: UnifiedRole): boolean {
   return role === "admin" || role === "frontdesk";
 }

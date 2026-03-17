@@ -14,6 +14,7 @@ const QrScannerModal = dynamic(() => import("@/components/admin/QrScannerModal")
 const BarcodeScannerModal = dynamic(() => import("@/components/admin/BarcodeScannerModal"), { ssr: false });
 const QRCodeSVG = dynamic(() => import("qrcode.react").then((m) => m.QRCodeSVG), { ssr: false });
 const EidQrScannerModal = dynamic(() => import("@/components/dashboard/EidQrScannerModal"), { ssr: false });
+const AnalyticsCharts = dynamic(() => import("@/components/admin/AnalyticsCharts"), { ssr: false });
 
 const ADMIN_LOCALE_KEY = "admin-locale";
 
@@ -89,6 +90,7 @@ export default function AdminPage() {
     canAccessRevenue,
     canAccessInventory,
     canAccessAdminTools,
+    canAccessAnalytics,
     phase,
     staffDisplayName,
     staffProfile,
@@ -132,7 +134,7 @@ export default function AdminPage() {
   const [nameResults, setNameResults] = useState<NameSearchResult[]>([]);
   const [paymentReceived, setPaymentReceived] = useState(false);
   const lastPaymentCountRef = React.useRef<number | null>(null);
-  const [adminArea, setAdminArea] = useState<"front_desk" | "operations" | "management" | "staff">("front_desk");
+  const [adminArea, setAdminArea] = useState<"front_desk" | "operations" | "management" | "staff" | "analytics">("front_desk");
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [adminProfileDisplayName, setAdminProfileDisplayName] = useState("");
   const [adminProfileEditing, setAdminProfileEditing] = useState(false);
@@ -222,6 +224,25 @@ export default function AdminPage() {
   const [assigningSessionId, setAssigningSessionId] = useState<string | null>(null);
   const [staffQrToken, setStaffQrToken] = useState<string | null>(null);
   const [staffCheckInSuccess, setStaffCheckInSuccess] = useState(false);
+  const [analyticsTab, setAnalyticsTab] = useState<"overview" | "revenue" | "members" | "retention" | "behavior" | "funnel" | "operations" | "staff">("overview");
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<"day" | "week" | "month" | "custom">("month");
+  const [analyticsFrom, setAnalyticsFrom] = useState("");
+  const [analyticsTo, setAnalyticsTo] = useState("");
+  const [analyticsMemberType, setAnalyticsMemberType] = useState<"all" | "member" | "newbie" | "casual">("all");
+  const [analyticsActivity, setAnalyticsActivity] = useState<"all" | "active" | "inactive">("all");
+  const [analyticsData, setAnalyticsData] = useState<{
+    filters?: { period: string; since: string; until: string; member_type: string; activity: string };
+    overview?: { total_revenue: number; total_members: number; active_members: number; total_visits: number };
+    revenue?: { total: number; by_category: Record<string, number>; over_time: { date: string; total: number }[]; arpu: number; revenue_per_visit: number };
+    members?: { total: number; active: number; inactive: number; new_over_time: { date: string; count: number }[]; churn_rate: number; avg_visits_per_member: number };
+    retention?: { day1: number; day7: number; day30: number; newbie_purchased_pct: number; newbie_return_7_pct: number; newbie_return_30_pct: number };
+    behavior?: { dau: { date: string; count: number }[]; wau: number; mau: number; peak_hours: { hour: number; count: number }[] };
+    funnel?: { first_visit_to_purchase: number; newbie_to_return: number; return_to_membership: number };
+    operations?: { tasks_completed: number; tasks_overdue: number; completion_rate: number; route_resets_overdue: number; coaching_completed: number; coaching_missed: number };
+    staff?: { staff_id: string; display_name: string; email: string; role: string; sales: number; commission: number; tasks_completed: number; attendance_days: number }[];
+  } | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [opsOverviewExpanded, setOpsOverviewExpanded] = useState(false);
   const [staffSubTab, setStaffSubTab] = useState<"routes" | "coaching">("routes");
   const [staffAttendanceLoading, setStaffAttendanceLoading] = useState(false);
   const [staffCompletedTasksExpanded, setStaffCompletedTasksExpanded] = useState(false);
@@ -307,7 +328,7 @@ export default function AdminPage() {
   // When role loads, ensure current area is allowed; otherwise switch to first allowed. Staff land on Staff tab first; others on first allowed.
   useEffect(() => {
     if (role === null) return;
-    const allowed: ("front_desk" | "operations" | "management" | "staff")[] = [];
+    const allowed: ("front_desk" | "operations" | "management" | "staff" | "analytics")[] = [];
     if (role === "staff") {
       allowed.push("staff");
       if (canAccessFrontDeskLimited) allowed.push("front_desk");
@@ -316,11 +337,12 @@ export default function AdminPage() {
       if (canAccessOperations) allowed.push("operations");
     }
     if (canAccessManagement) allowed.push("management");
+    if (canAccessAnalytics) allowed.push("analytics");
     if (allowed.length > 0 && !allowed.includes(adminArea)) setAdminArea(allowed[0]);
     if (adminArea === "front_desk" && !canDoCheckIn && frontDeskTab === "checkin") setFrontDeskTab("member");
     if (!canDoMembershipModify && memberProfileSubTab === "membership") setMemberProfileSubTab("summary");
     if (adminArea === "management" && !canAccessRevenue && !canAccessAdminTools && managementTab !== "inventory") setManagementTab("inventory");
-  }, [role, canAccessFrontDeskFull, canAccessFrontDeskLimited, canAccessOperations, canAccessManagement, adminArea, canDoCheckIn, frontDeskTab, canDoMembershipModify, memberProfileSubTab, canAccessRevenue, canAccessAdminTools, managementTab]);
+  }, [role, canAccessFrontDeskFull, canAccessFrontDeskLimited, canAccessOperations, canAccessManagement, canAccessAnalytics, adminArea, canDoCheckIn, frontDeskTab, canDoMembershipModify, memberProfileSubTab, canAccessRevenue, canAccessAdminTools, managementTab]);
 
   // Fetch products for front desk sales and management inventory
   useEffect(() => {
@@ -447,6 +469,24 @@ export default function AdminPage() {
     }, 60000);
     return () => clearInterval(id);
   }, [canAccessOperations, adminFetch]);
+
+  // Fetch analytics when Analytics area is active
+  useEffect(() => {
+    if (adminArea !== "analytics" || !canAccessAnalytics) return;
+    setAnalyticsLoading(true);
+    const params = new URLSearchParams();
+    params.set("period", analyticsPeriod === "custom" ? "month" : analyticsPeriod);
+    if (analyticsPeriod === "custom" && analyticsFrom && analyticsTo) {
+      params.set("from", analyticsFrom);
+      params.set("to", analyticsTo);
+    }
+    params.set("member_type", analyticsMemberType);
+    params.set("activity", analyticsActivity);
+    adminFetch(`/api/admin/analytics?${params.toString()}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { setAnalyticsData(d); setAnalyticsLoading(false); })
+      .catch(() => { setAnalyticsData(null); setAnalyticsLoading(false); });
+  }, [adminArea, canAccessAnalytics, analyticsPeriod, analyticsFrom, analyticsTo, analyticsMemberType, analyticsActivity, adminFetch]);
 
   useEffect(() => {
     if (!isOperationsActive || staffModalTab !== "attendance") return;
@@ -1260,74 +1300,48 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-900 text-slate-50">
-      <header className="border-b border-slate-800 bg-slate-900/95 backdrop-blur">
-        {/* Row 1: Logo, title, subtitle, and locale only */}
-        <div className="max-w-[1100px] mx-auto px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <img src="/logo-white.svg" alt="Leo Mây logo" className="h-7 w-auto" />
-            <div>
-              <h1
-                className="text-xl md:text-2xl font-bold text-white tracking-tight"
-                style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}
-              >
-                {t.title}
-              </h1>
-              <p className="text-xs md:text-sm text-slate-300">{dashboardSubtitle}</p>
+      <header className="border-b border-slate-800 bg-slate-900/95 backdrop-blur shrink-0">
+        {/* Compact header: one row on mobile (logo+title+utils), second row = status line */}
+        <div className="max-w-[1100px] mx-auto px-3 py-2 md:px-4 md:py-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <img src="/logo-white.svg" alt="Leo Mây logo" className="h-6 w-auto shrink-0 md:h-7" />
+              <div className="min-w-0">
+                <h1 className="text-base md:text-2xl font-bold text-white tracking-tight truncate" style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}>{t.title}</h1>
+                <p className="text-[10px] md:text-sm text-slate-300 hidden sm:block">{dashboardSubtitle}</p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="flex gap-1 rounded-full border border-slate-600 bg-slate-800/80 p-0.5">
-              <button
-                type="button"
-                onClick={() => setLocaleAndStore("en")}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium ${locale === "en" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}
-              >
-                EN
+            <div className="flex items-center gap-1.5 shrink-0">
+              {phase && (
+                <span className="hidden sm:inline-flex border border-amber-500/50 rounded-lg px-2 py-0.5 bg-amber-500/10 text-amber-300 text-[10px] font-semibold md:text-xs" title={phase.countdown_message}>{phase.phase_label}</span>
+              )}
+              <div className="border border-slate-700 rounded-lg px-1.5 py-0.5 bg-slate-800/80 text-[10px] md:text-xs text-slate-200">
+                <span className="text-slate-400">{t.gymOccupancy}</span> <span className="font-medium text-slate-50">{gymOccupancy}</span>
+              </div>
+              <div className="flex gap-0.5 rounded-full border border-slate-600 bg-slate-800/80 p-0.5">
+                <button type="button" onClick={() => setLocaleAndStore("en")} className={`px-2 py-0.5 rounded-full text-[10px] font-medium md:px-3 md:py-1 md:text-xs ${locale === "en" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}>EN</button>
+                <button type="button" onClick={() => setLocaleAndStore("vi")} className={`px-2 py-0.5 rounded-full text-[10px] font-medium md:px-3 md:py-1 md:text-xs ${locale === "vi" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}>VN</button>
+              </div>
+              <button type="button" onClick={() => { setProfileModalOpen(true); setAdminProfileDisplayName(staffDisplayName ?? session?.user?.email?.split("@")[0] ?? ""); setAdminProfileEditing(false); }} className="px-2 py-0.5 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-700 text-[10px] md:text-xs md:px-3 md:py-1">
+                {t.profileTab}
               </button>
-              <button
-                type="button"
-                onClick={() => setLocaleAndStore("vi")}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium ${locale === "vi" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}
-              >
-                VN
+              <button type="button" onClick={() => signOut()} className="px-2 py-0.5 rounded-lg border border-slate-500 text-slate-200 hover:bg-slate-700 hover:text-white text-[10px] md:text-xs md:px-3 md:py-1">
+                {t.logout}
               </button>
             </div>
           </div>
-        </div>
-        {/* Row 2: Phase, profile, gym occupancy, logout */}
-        <div className="max-w-[1100px] mx-auto px-4 pb-3 flex flex-wrap items-center gap-2 md:gap-3 text-xs md:text-sm text-slate-200">
-          {phase && (
-            <div className="border border-amber-500/50 rounded-xl px-3 py-2 bg-amber-500/10 shadow-sm" title={phase.countdown_message}>
-              <span className="text-slate-400 text-[10px] font-medium uppercase tracking-wider block leading-tight">{locale === "vi" ? "Ca hiện tại" : "Current phase"}</span>
-              <span className="text-amber-300 font-bold text-sm">{phase.phase_label}</span>
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={() => { setProfileModalOpen(true); setAdminProfileDisplayName(staffDisplayName ?? session?.user?.email?.split("@")[0] ?? ""); setAdminProfileEditing(false); }}
-            className="px-3 py-1.5 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-700"
-          >
-            {t.profileTab}
-          </button>
-          <div className="border border-slate-700 rounded-xl px-3 py-1.5 bg-slate-800/80 shadow-sm">
-            <span className="font-medium">{t.gymOccupancy}</span>
-            <span className="ml-2 text-slate-50">
-              {t.climbersInside.replace("{count}", String(gymOccupancy))}
-            </span>
+          {/* Second row only on smallest screens (phase not in first row below sm) */}
+          <div className="mt-1 flex flex-wrap items-center gap-2 sm:hidden">
+            {phase && (
+              <span className="inline-flex border border-amber-500/50 rounded-lg px-2 py-0.5 bg-amber-500/10 text-amber-300 text-[10px] font-semibold" title={phase.countdown_message}>{phase.phase_label}</span>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={() => signOut()}
-            className="px-3 py-1.5 rounded-lg border border-slate-500 text-slate-200 hover:bg-slate-700 hover:text-white"
-          >
-            {t.logout}
-          </button>
         </div>
       </header>
 
-      <main className="flex-1">
-        <div className="max-w-[1100px] mx-auto px-4 py-6 md:py-8 space-y-8 md:space-y-10">
-          {/* For staff: daily attendance + sales commission above the nav (only when checked in today) */}
+      <main className="flex-1 min-h-0">
+        <div className="max-w-[1100px] mx-auto px-3 py-3 md:px-4 md:py-6 space-y-2 md:space-y-4">
+          {/* For staff: compact bar above nav (only when checked in today) */}
           {role === "staff" && staffId != null && (() => {
             const today = getGymToday();
             const hasShiftToday = shiftCheckInAttendance != null && shiftCheckInAttendance.date === today;
@@ -1335,28 +1349,23 @@ export default function AdminPage() {
             if (!isShiftIn) return null;
             const staffMsg = getMessages(locale).staff;
             return (
-              <div className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-700 bg-slate-800/80 p-3 mb-4">
-                <p className="text-slate-200 text-sm"><span className="text-emerald-400 font-medium">{staffMsg.youAreCheckedIn}</span></p>
+              <div className="flex flex-wrap items-center gap-2 md:gap-4 rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1.5 md:p-3">
+                <p className="text-slate-200 text-xs md:text-sm"><span className="text-emerald-400 font-medium">{staffMsg.youAreCheckedIn}</span></p>
                 {staffSalesSummary != null && (
                   <>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{locale === "vi" ? "Doanh số hôm nay" : "My Sales Today"}</p>
-                      <p className="text-base font-bold text-white">{(staffSalesSummary.sales_today ?? 0).toLocaleString("vi-VN")} VND</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{locale === "vi" ? "Hoa hồng hôm nay" : "My Commission"}</p>
-                      <p className="text-base font-bold text-white">{(staffSalesSummary.commission_today ?? 0).toLocaleString("vi-VN")} VND</p>
-                    </div>
+                    <span className="text-slate-500">|</span>
+                    <span className="text-[10px] md:text-xs text-slate-400">{locale === "vi" ? "Doanh số" : "Sales"}: <span className="font-semibold text-white">{(staffSalesSummary.sales_today ?? 0).toLocaleString("vi-VN")}</span></span>
+                    <span className="text-[10px] md:text-xs text-slate-400">{locale === "vi" ? "Hoa hồng" : "Commission"}: <span className="font-semibold text-white">{(staffSalesSummary.commission_today ?? 0).toLocaleString("vi-VN")}</span> VND</span>
                   </>
                 )}
               </div>
             );
           })()}
 
-          {/* Operations overview bar — admin only: always visible above Front Desk / Operations / Management tabs */}
+          {/* Operations overview — admin only: compact summary, expand for full details */}
           {canAccessOperations && (() => {
             const sum = staffOpsData?.summary;
-            if (!sum) return <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 mb-4"><p className="text-sm text-slate-500">{m.loading}</p></div>;
+            if (!sum) return <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 md:p-3"><p className="text-xs md:text-sm text-slate-500">{m.loading}</p></div>;
             const req = sum.staff_required ?? 3;
             const present = sum.staff_in_today ?? 0;
             const unassigned = sum.unassigned_sessions ?? 0;
@@ -1384,35 +1393,41 @@ export default function AdminPage() {
               alerts.push(`${z.name} ${locale === "vi" ? "reset quá hạn" : "reset overdue"}`),
             );
             if (unassigned > 0) alerts.push(`${unassigned} ${locale === "vi" ? "buổi coaching chưa giao" : "coaching sessions unassigned"}`);
+            const gymReady = staffOpsData?.phase?.current_phase === "closing" ? staffOpsData?.ready_to_close === true : staffOpsData?.gym_ready === true;
+            const summaryLine = alerts.length === 0 ? (locale === "vi" ? "Không có sự cố hôm nay" : "No issues today") : `${alerts.length} ${locale === "vi" ? "cảnh báo" : "alerts"}`;
             return (
-              <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-3 mb-4">
-                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">{locale === "vi" ? "Tổng quan vận hành" : "Operations overview"}</p>
-                <div className="flex flex-wrap gap-3 md:gap-6">
-                  <div className={`rounded-lg border px-3 py-2 min-w-0 ${staffStatus === "green" ? "bg-emerald-50 border-emerald-200" : staffStatus === "yellow" ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200"}`}>
-                    <p className="text-[10px] font-semibold text-slate-600 uppercase">{m.staffPresent}</p>
-                    <p className="text-sm font-bold text-slate-800">{present} / {req}</p>
+              <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <button type="button" onClick={() => setOpsOverviewExpanded(!opsOverviewExpanded)} className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 md:px-3 md:py-2 text-left">
+                  <span className={`text-[10px] md:text-xs font-semibold uppercase tracking-wider ${alerts.length === 0 ? "text-emerald-700" : "text-amber-800"}`}>
+                    {locale === "vi" ? "Vận hành" : "Operations"}: {summaryLine}
+                  </span>
+                  <span className="text-slate-400 text-xs shrink-0">{opsOverviewExpanded ? "▲" : "▼"} {locale === "vi" ? "Chi tiết" : "Details"}</span>
+                </button>
+                {opsOverviewExpanded && (
+                  <div className="border-t border-slate-100 px-2.5 py-2 md:px-3 md:py-3 space-y-2">
+                    <div className="flex flex-wrap gap-2 md:gap-4">
+                      <div className={`rounded border px-2 py-1 min-w-0 ${staffStatus === "green" ? "bg-emerald-50 border-emerald-200" : staffStatus === "yellow" ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200"}`}>
+                        <p className="text-[10px] font-semibold text-slate-600 uppercase">{m.staffPresent}</p>
+                        <p className="text-xs font-bold text-slate-800">{present} / {req}</p>
+                      </div>
+                      <div className={`rounded border px-2 py-1 min-w-0 ${gymReady ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200"}`}>
+                        <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Gym" : "Gym"}</p>
+                        <p className="text-xs font-bold text-slate-800">{gymReady ? (locale === "vi" ? "Sẵn sàng" : "Ready") : (locale === "vi" ? "Chưa sẵn sàng" : "Not ready")}</p>
+                      </div>
+                      <div className={`rounded border px-2 py-1 flex-1 min-w-0 ${alerts.length === 0 ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
+                        <p className="text-[10px] font-semibold text-slate-600 uppercase">{m.operationsAlerts}</p>
+                        {alerts.length === 0 ? <p className="text-xs text-slate-700">{m.noOperationalAlerts}</p> : <ul className="list-disc list-inside text-[10px] text-slate-700">{alerts.slice(0, 5).map((a) => <li key={a}>{a}</li>)}</ul>}
+                      </div>
+                    </div>
                   </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                    <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Phòng gym" : "Gym status"}</p>
-                    <p className="text-sm font-bold text-slate-800">{t.climbersInside.replace("{count}", String(gymOccupancy))}</p>
-                  </div>
-                  <div className={`rounded-lg border px-3 py-2 flex-1 min-w-0 ${alerts.length === 0 ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
-                    <p className="text-[10px] font-semibold text-slate-600 uppercase">{m.operationsAlerts}</p>
-                    {alerts.length === 0 ? <p className="text-sm text-slate-700">{m.noOperationalAlerts}</p> : <p className="text-sm font-bold text-slate-800">{alerts.length} {locale === "vi" ? "cảnh báo" : "alerts"}</p>}
-                    {alerts.length > 0 && <ul className="list-disc list-inside text-xs text-slate-700 mt-0.5">{alerts.slice(0, 3).map((a) => <li key={a}>{a}</li>)}</ul>}
-                  </div>
-                  <div className={`rounded-lg border px-3 py-2 min-w-0 ${unassigned > 0 ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"}`}>
-                    <p className="text-[10px] font-semibold text-slate-600 uppercase">{m.unassignedCoaching}</p>
-                    <p className="text-sm font-bold text-slate-800">{unassigned}</p>
-                  </div>
-                </div>
+                )}
               </div>
             );
           })()}
 
-          {/* AREA NAVIGATION: Staff see only Front Desk + Staff (old /staff workflow). They never see Operations (overview, alerts, bird's-eye). Admin sees Front Desk + Operations + Management. */}
+          {/* MAIN AREA NAV: Front Desk | Operations | Management — high priority, directly below header */}
           {(() => {
-            const allowedAreas: ("front_desk" | "operations" | "management" | "staff")[] = [];
+            const allowedAreas: ("front_desk" | "operations" | "management" | "staff" | "analytics")[] = [];
             if (role === "staff") {
               allowedAreas.push("staff");
               if (canAccessFrontDeskLimited) allowedAreas.push("front_desk");
@@ -1421,15 +1436,16 @@ export default function AdminPage() {
               if (canAccessOperations) allowedAreas.push("operations");
             }
             if (canAccessManagement) allowedAreas.push("management");
+            if (canAccessAnalytics) allowedAreas.push("analytics");
             return (
-          <nav className="sticky top-0 z-20 rounded-xl p-1 mb-4 bg-white/95 border border-slate-200 shadow-md backdrop-blur-md overflow-x-auto" aria-label="Admin areas">
+          <nav className="sticky top-0 z-20 rounded-lg md:rounded-xl p-1 mb-2 md:mb-4 bg-white/95 border border-slate-200 shadow-md backdrop-blur-md overflow-x-auto" aria-label="Admin areas">
             <div className="flex gap-1 min-w-max">
               {allowedAreas.map((area) => (
                 <button
                   key={area}
                   type="button"
                   onClick={() => setAdminArea(area)}
-                  className={`flex-none whitespace-nowrap py-2.5 px-3 rounded-lg text-[13px] font-medium transition-all ${
+                  className={`flex-none whitespace-nowrap py-2 px-3 md:py-2.5 rounded-md md:rounded-lg text-sm font-semibold md:text-[13px] md:font-medium transition-all ${
                     adminArea === area ? "bg-slate-900 text-white shadow" : "text-slate-700 hover:bg-slate-100 border border-transparent"
                   }`}
                 >
@@ -1437,6 +1453,7 @@ export default function AdminPage() {
                   {area === "operations" ? (locale === "vi" ? "Vận hành" : "Operations") : null}
                   {area === "management" ? (locale === "vi" ? "Quản lý" : "Management") : null}
                   {area === "staff" ? (locale === "vi" ? "Nhân sự / Ca làm" : "Staff") : null}
+                  {area === "analytics" ? (locale === "vi" ? "Phân tích" : "Analytics") : null}
                 </button>
               ))}
             </div>
@@ -1444,54 +1461,47 @@ export default function AdminPage() {
             );
           })()}
 
-          {/* Shift check-in (QR + Not working) for Front Desk tab when user has staffId — frontdesk and staff */}
+          {/* Shift check-in — compact on mobile */}
           {adminArea === "front_desk" && staffId != null && (() => {
             const today = getGymToday();
             const hasShiftToday = shiftCheckInAttendance != null && shiftCheckInAttendance.date === today;
             const isShiftIn = hasShiftToday && shiftCheckInAttendance!.status === "IN";
             const staffMsg = getMessages(locale).staff;
             return (
-              <div className="rounded-xl border border-slate-200 bg-slate-800/80 p-4 mb-4">
-                <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">{staffMsg.dailyAttendance}</h3>
+              <div className="rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 md:p-4">
+                <h3 className="text-xs md:text-sm font-semibold text-slate-300 uppercase tracking-wider mb-1 md:mb-3">{staffMsg.dailyAttendance}</h3>
                 {!hasShiftToday && (
                   <>
-                    <p className="text-slate-200 font-medium mb-1">{staffMsg.checkInAtFrontDesk}</p>
-                    <p className="text-slate-400 text-sm mb-3">{staffMsg.checkInAtFrontDeskHint}</p>
-                    <div className="flex flex-wrap items-center gap-4">
-                      <div className="rounded-lg bg-white p-2 inline-block">{shiftCheckInQrToken ? <QRCodeSVG value={shiftCheckInQrToken} size={120} level="M" /> : <span className="text-slate-500 text-sm">{m.loading}</span>}</div>
-                      <button type="button" disabled={shiftCheckInLoading} onClick={async () => { setShiftCheckInLoading(true); try { await adminFetch("/api/admin/staff/my-attendance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "NOT_IN" }) }); adminFetch("/api/admin/staff/my-attendance").then((r) => r.json()).then((d) => setShiftCheckInAttendance(d.attendance ?? null)); } finally { setShiftCheckInLoading(false); } }} className="py-2 px-4 rounded-lg font-medium bg-slate-600 text-slate-200 hover:bg-slate-500 disabled:opacity-50">{staffMsg.notWorkingToday}</button>
+                    <p className="text-slate-200 text-xs md:text-sm mb-1">{staffMsg.checkInAtFrontDesk}</p>
+                    <div className="flex flex-wrap items-center gap-2 md:gap-4">
+                      <div className="rounded bg-white p-1.5 inline-block">{shiftCheckInQrToken ? <QRCodeSVG value={shiftCheckInQrToken} size={80} level="M" /> : <span className="text-slate-500 text-xs">{m.loading}</span>}</div>
+                      <button type="button" disabled={shiftCheckInLoading} onClick={async () => { setShiftCheckInLoading(true); try { await adminFetch("/api/admin/staff/my-attendance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "NOT_IN" }) }); adminFetch("/api/admin/staff/my-attendance").then((r) => r.json()).then((d) => setShiftCheckInAttendance(d.attendance ?? null)); } finally { setShiftCheckInLoading(false); } }} className="py-1.5 px-3 rounded-lg text-xs md:text-sm font-medium bg-slate-600 text-slate-200 hover:bg-slate-500 disabled:opacity-50">{staffMsg.notWorkingToday}</button>
                     </div>
                   </>
                 )}
-                {hasShiftToday && !isShiftIn && <p className="text-slate-400">{staffMsg.youAreMarkedNotWorking}</p>}
-                {hasShiftToday && isShiftIn && <p className="text-slate-200"><span className="text-emerald-400 font-medium">{staffMsg.youAreCheckedIn}</span></p>}
+                {hasShiftToday && !isShiftIn && <p className="text-slate-400 text-xs md:text-sm">{staffMsg.youAreMarkedNotWorking}</p>}
+                {hasShiftToday && isShiftIn && <p className="text-slate-200 text-xs md:text-sm"><span className="text-emerald-400 font-medium">{staffMsg.youAreCheckedIn}</span></p>}
               </div>
             );
           })()}
 
-          {/* Staff commission summary (My Sales Today / My Commission) — for frontdesk with staffId; staff see it above the nav when checked in */}
+          {/* Frontdesk commission — compact bar */}
           {staffId != null && role !== "staff" && staffSalesSummary != null && (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 flex flex-wrap gap-4">
-              <div>
-                <p className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">{locale === "vi" ? "Doanh số hôm nay" : "My Sales Today"}</p>
-                <p className="text-lg font-bold text-emerald-900">{(staffSalesSummary.sales_today ?? 0).toLocaleString("vi-VN")} VND</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">{locale === "vi" ? "Hoa hồng hôm nay" : "My Commission Earned"}</p>
-                <p className="text-lg font-bold text-emerald-900">{(staffSalesSummary.commission_today ?? 0).toLocaleString("vi-VN")} VND</p>
-              </div>
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 px-2.5 py-1.5 md:p-3 flex flex-wrap items-center gap-2 md:gap-4">
+              <span className="text-[10px] md:text-xs text-emerald-800">{locale === "vi" ? "Doanh số" : "Sales"}: <span className="font-bold text-emerald-900">{(staffSalesSummary.sales_today ?? 0).toLocaleString("vi-VN")}</span></span>
+              <span className="text-[10px] md:text-xs text-emerald-800">{locale === "vi" ? "Hoa hồng" : "Commission"}: <span className="font-bold text-emerald-900">{(staffSalesSummary.commission_today ?? 0).toLocaleString("vi-VN")}</span> VND</span>
             </div>
           )}
 
-          {/* FRONT DESK: inner tabs (staff sees Member only; admin/frontdesk see Check-in + Member) */}
+          {/* FRONT DESK sub-tabs: Check-in | Member — secondary hierarchy (smaller) */}
           {adminArea === "front_desk" && (
-            <nav className="rounded-xl p-1 mb-4 bg-slate-100 border border-slate-200 overflow-x-auto" aria-label="Front desk tabs">
-              <div className="flex gap-1 min-w-max">
+            <nav className="rounded-lg md:rounded-xl p-0.5 mb-2 md:mb-4 bg-slate-100 border border-slate-200 overflow-x-auto" aria-label="Front desk tabs">
+              <div className="flex gap-0.5 min-w-max">
                 {canDoCheckIn && (
                   <button
                     type="button"
                     onClick={() => setFrontDeskTab("checkin")}
-                    className={`flex-none whitespace-nowrap py-2 px-3 rounded-lg text-sm font-medium ${
+                    className={`flex-none whitespace-nowrap py-1.5 px-2.5 md:py-2 md:px-3 rounded-md text-xs md:text-sm font-medium ${
                       frontDeskTab === "checkin" ? "bg-white shadow border border-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-200"
                     }`}
                   >
@@ -1501,7 +1511,7 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={() => setFrontDeskTab("member")}
-                  className={`flex-none whitespace-nowrap py-2 px-3 rounded-lg text-sm font-medium ${
+                  className={`flex-none whitespace-nowrap py-1.5 px-2.5 md:py-2 md:px-3 rounded-md text-xs md:text-sm font-medium ${
                     frontDeskTab === "member" ? "bg-white shadow border border-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-200"
                   }`}
                 >
@@ -1513,22 +1523,22 @@ export default function AdminPage() {
 
           {/* FRONT DESK → Check-in: quick check-in primary, occupancy, recent check-ins */}
           {adminArea === "front_desk" && frontDeskTab === "checkin" && (
-            <section className="space-y-6">
-              {/* Primary CTA: Quick Check-In — clear hierarchy and separation */}
-              <div className="rounded-2xl border-2 border-emerald-400/60 bg-gradient-to-br from-emerald-500/20 to-slate-800/95 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-5 md:p-7 ring-2 ring-emerald-400/30">
-                <h2 className="text-base md:text-lg font-bold text-white mb-1">{m.scanToCheckIn}</h2>
-                <p className="text-xs md:text-sm text-slate-300 mb-4">{m.quickCheckInScanHint}</p>
-                <button type="button" onClick={handleQuickCheckInScan} className="w-full sm:w-auto min-w-[200px] px-6 py-4 rounded-xl text-base font-bold bg-emerald-500 text-slate-900 hover:bg-emerald-400 active:scale-[0.98] transition shadow-lg shadow-emerald-900/30">
+            <section className="space-y-3 md:space-y-6">
+              {/* Primary CTA: Quick Check-In — prominent, less padding on mobile */}
+              <div className="rounded-xl md:rounded-2xl border-2 border-emerald-400/60 bg-gradient-to-br from-emerald-500/20 to-slate-800/95 shadow-lg p-3 md:p-7 ring-2 ring-emerald-400/30">
+                <h2 className="text-sm md:text-lg font-bold text-white mb-0.5">{m.scanToCheckIn}</h2>
+                <p className="text-[10px] md:text-sm text-slate-300 mb-2 md:mb-4">{m.quickCheckInScanHint}</p>
+                <button type="button" onClick={handleQuickCheckInScan} className="w-full sm:w-auto min-w-0 sm:min-w-[200px] px-4 py-3 md:px-6 md:py-4 rounded-xl text-sm md:text-base font-bold bg-emerald-500 text-slate-900 hover:bg-emerald-400 active:scale-[0.98] transition shadow-lg shadow-emerald-900/30">
                   {m.scanToCheckIn}
                 </button>
               </div>
-              <div className="rounded-2xl bg-slate-900/95 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-6">
-                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{m.gymOccupancy}</h3>
-                <p className="text-3xl font-bold text-white">{gymOccupancy}</p>
-                <p className="text-sm text-slate-400 mt-0.5">{m.climbersInsideLast2h}</p>
+              <div className="rounded-xl md:rounded-2xl bg-slate-900/95 border border-slate-700 p-3 md:p-6">
+                <h3 className="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">{m.gymOccupancy}</h3>
+                <p className="text-2xl md:text-3xl font-bold text-white">{gymOccupancy}</p>
+                <p className="text-xs md:text-sm text-slate-400 mt-0.5">{m.climbersInsideLast2h}</p>
               </div>
-              <div className="rounded-2xl bg-white border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.07)] p-4 md:p-6">
-                <h3 className="text-sm font-semibold text-slate-900 mb-3">{m.recentCheckins} (7 {m.day}s)</h3>
+              <div className="rounded-xl md:rounded-2xl bg-white border border-slate-200 p-3 md:p-6">
+                <h3 className="text-xs md:text-sm font-semibold text-slate-900 mb-2 md:mb-3">{m.recentCheckins} (7 {m.day}s)</h3>
                 {!checkinsData && <p className="text-sm text-slate-500">{m.loading}</p>}
                 {checkinsData && Object.keys(checkinsData.byDay).length === 0 && <p className="text-sm text-slate-500">{m.noCheckins7Days}</p>}
                 {checkinsData && Object.keys(checkinsData.byDay).length > 0 && (
@@ -1561,7 +1571,7 @@ export default function AdminPage() {
           {adminArea === "front_desk" && frontDeskTab === "member" && (
           <>
           {/* MEMBER LOOKUP */}
-          <section className="rounded-2xl bg-white/80 border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.07)] p-4 md:p-6">
+          <section className="rounded-xl md:rounded-2xl bg-white/80 border border-slate-200 shadow-sm p-3 md:p-6">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-6">
               <div className="flex-1 space-y-2.5">
                 <div className="flex flex-wrap gap-2 text-xs text-slate-600">
@@ -3398,6 +3408,82 @@ export default function AdminPage() {
               </section>
             );
           })()}
+
+          {/* ANALYTICS — admin only */}
+          {adminArea === "analytics" && canAccessAnalytics && (
+            <section className="rounded-2xl bg-white border border-slate-200 shadow-sm p-4 md:p-6">
+              <h2 className="text-lg font-semibold text-slate-900">{locale === "vi" ? "Phân tích & Báo cáo" : "Analytics & Reporting"}</h2>
+              <p className="text-sm text-slate-600 mt-1">{locale === "vi" ? "Tổng quan hiệu suất phòng gym: doanh thu, thành viên, giữ chân, hành vi và vận hành." : "Full view of gym performance: revenue, members, retention, behavior, and operations."}</p>
+
+              {/* Global filters */}
+              <div className="mt-4 flex flex-wrap gap-3 items-center rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{locale === "vi" ? "Bộ lọc" : "Filters"}</span>
+                <select
+                  value={analyticsPeriod}
+                  onChange={(e) => setAnalyticsPeriod(e.target.value as "day" | "week" | "month" | "custom")}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800"
+                >
+                  <option value="day">{locale === "vi" ? "Ngày" : "Day"}</option>
+                  <option value="week">{locale === "vi" ? "Tuần" : "Week"}</option>
+                  <option value="month">{locale === "vi" ? "Tháng" : "Month"}</option>
+                  <option value="custom">{locale === "vi" ? "Tùy chọn" : "Custom"}</option>
+                </select>
+                {analyticsPeriod === "custom" && (
+                  <>
+                    <input type="date" value={analyticsFrom} onChange={(e) => setAnalyticsFrom(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm" />
+                    <span className="text-slate-500">–</span>
+                    <input type="date" value={analyticsTo} onChange={(e) => setAnalyticsTo(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm" />
+                  </>
+                )}
+                <select
+                  value={analyticsMemberType}
+                  onChange={(e) => setAnalyticsMemberType(e.target.value as "all" | "member" | "newbie" | "casual")}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800"
+                >
+                  <option value="all">{locale === "vi" ? "Tất cả thành viên" : "All members"}</option>
+                  <option value="member">{locale === "vi" ? "Thành viên (gói)" : "Member"}</option>
+                  <option value="newbie">{locale === "vi" ? "Newbie" : "Newbie"}</option>
+                  <option value="casual">{locale === "vi" ? "Khách lẻ" : "Casual"}</option>
+                </select>
+                <select
+                  value={analyticsActivity}
+                  onChange={(e) => setAnalyticsActivity(e.target.value as "all" | "active" | "inactive")}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800"
+                >
+                  <option value="all">{locale === "vi" ? "Mọi trạng thái" : "All activity"}</option>
+                  <option value="active">{locale === "vi" ? "Đang hoạt động" : "Active"}</option>
+                  <option value="inactive">{locale === "vi" ? "Không hoạt động" : "Inactive"}</option>
+                </select>
+              </div>
+
+              {/* Analytics sub-tabs */}
+              <nav className="mt-4 flex gap-1 p-1 border-b border-slate-200 overflow-x-auto" aria-label="Analytics tabs">
+                {(["overview", "revenue", "members", "retention", "behavior", "funnel", "operations", "staff"] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setAnalyticsTab(t)}
+                    className={`flex-none whitespace-nowrap px-3 py-2 rounded-lg text-sm font-medium ${
+                      analyticsTab === t ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    {t === "overview" ? (locale === "vi" ? "Tổng quan" : "Overview") : null}
+                    {t === "revenue" ? (locale === "vi" ? "Doanh thu" : "Revenue") : null}
+                    {t === "members" ? (locale === "vi" ? "Thành viên" : "Members") : null}
+                    {t === "retention" ? (locale === "vi" ? "Giữ chân" : "Retention") : null}
+                    {t === "behavior" ? (locale === "vi" ? "Hành vi" : "Behavior") : null}
+                    {t === "funnel" ? (locale === "vi" ? "Phễu" : "Funnel") : null}
+                    {t === "operations" ? (locale === "vi" ? "Vận hành" : "Operations") : null}
+                    {t === "staff" ? (locale === "vi" ? "Nhân sự" : "Staff") : null}
+                  </button>
+                ))}
+              </nav>
+
+              <div className="mt-6">
+                <AnalyticsCharts data={analyticsData} tab={analyticsTab} locale={locale} loading={analyticsLoading} />
+              </div>
+            </section>
+          )}
         </div>
       </main>
 

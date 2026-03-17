@@ -48,6 +48,7 @@ interface AdminAuthContextValue {
   canDoCheckIn: boolean;
   canAccessInventory: boolean;
   canAccessAdminTools: boolean;
+  canAccessAnalytics: boolean;
   /** Current gym phase (Pre-open / Gym Open / Closing) from /api/admin/me. Shown in header for Staff and Frontdesk. */
   phase: { phase_label: string; countdown_message: string } | null;
   /** Re-fetch /api/admin/me to refresh role, staffId, staffDisplayName, phase. */
@@ -69,6 +70,7 @@ function perm(role: UnifiedRole | null) {
     canDoCheckIn: false,
     canAccessInventory: false,
     canAccessAdminTools: false,
+    canAccessAnalytics: false,
   };
   return {
     canAccessFrontDeskFull: role === "admin" || role === "frontdesk",
@@ -82,6 +84,7 @@ function perm(role: UnifiedRole | null) {
     canDoCheckIn: role === "admin" || role === "frontdesk",
     canAccessInventory: role === "admin" || role === "frontdesk",
     canAccessAdminTools: role === "admin",
+    canAccessAnalytics: role === "admin",
   };
 }
 
