@@ -251,11 +251,15 @@ export function renderBody(body: string, name: string): string {
   return body.replace(/\[Name\]/g, displayName);
 }
 
-/** Base URL for dashboard/gym (env or default). No trailing slash. */
+/** Base URL for campaign links and logo (always production). No trailing slash. */
 export function getCampaignBaseUrl(): string {
-  const url = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL;
-  if (url) return url.startsWith("http") ? url.replace(/\/$/, "") : `https://${url}`;
-  return "https://leo-may-2026.com";
+  const raw =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.CAMPAIGN_BASE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://leo-may-2026.com";
+  const url = raw.startsWith("http") ? raw : `https://${raw}`;
+  return url.replace(/\/$/, "");
 }
 
 /** Logo URL for emails (full URL so it loads in Gmail) */

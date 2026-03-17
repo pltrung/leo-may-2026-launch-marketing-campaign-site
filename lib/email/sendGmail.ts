@@ -49,13 +49,26 @@ async function getValidAccessToken(): Promise<string> {
 }
 
 /**
+ * Encode subject for non-ASCII (RFC 2047) so "Leo Mây" and punctuation display correctly.
+ */
+function encodeSubject(subject: string): string {
+  const cleaned = subject.replace(/\r?\n/g, " ").trim();
+  if (!cleaned) return cleaned;
+  const hasNonAscii = /[^\x00-\x7F]/.test(cleaned);
+  if (!hasNonAscii) return cleaned;
+  const base64 = Buffer.from(cleaned, "utf8").toString("base64");
+  return `=?UTF-8?B?${base64}?=`;
+}
+
+/**
  * Build a simple MIME message and base64url-encode for Gmail API.
  */
 function buildRawMessage(opts: SendEmailOptions): string {
   const boundary = `boundary_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const subjectLine = encodeSubject(opts.subject);
   const lines: string[] = [
     `To: ${opts.to}`,
-    `Subject: ${opts.subject.replace(/\r?\n/g, " ")}`,
+    `Subject: ${subjectLine}`,
     "MIME-Version: 1.0",
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
     "",

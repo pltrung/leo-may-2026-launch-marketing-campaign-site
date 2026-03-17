@@ -11,6 +11,8 @@ export interface SegmentRecipient {
   full_name?: string | null;
   display_name?: string | null;
   created_at?: string;
+  membership_expires_at?: string | null;
+  visits_remaining?: number | null;
 }
 
 function displayName(rec: SegmentRecipient): string {
@@ -32,9 +34,15 @@ export async function getSegmentRecipients(
 
   const { data: profiles } = await supabase
     .from("member_profiles")
-    .select("id, email, full_name, display_name, created_at");
+    .select("id, email, full_name, display_name, created_at, membership_expires_at, visits_remaining");
   const allProfiles = (profiles ?? []) as (SegmentRecipient & { created_at: string })[];
   const byId = new Map(allProfiles.map((p) => [p.id, p]));
+
+  function hasCurrentAccess(p: SegmentRecipient): boolean {
+    const expires = p.membership_expires_at ? new Date(p.membership_expires_at).getTime() : 0;
+    const visits = p.visits_remaining ?? 0;
+    return (expires > now.getTime()) || visits > 0;
+  }
 
   const { data: checkins } = await supabase
     .from("gym_checkins")
@@ -100,6 +108,7 @@ export async function getSegmentRecipients(
     }
     case "first_time_no_return": {
       memberIds = allProfiles.filter((p) => {
+        if (hasCurrentAccess(p)) return false;
         const total = totalVisitsByMember.get(p.id) ?? 0;
         const last = lastVisitByMember.get(p.id);
         return total === 1 && last && last < sevenDaysAgo;
@@ -108,6 +117,7 @@ export async function getSegmentRecipients(
     }
     case "near_conversion_users": {
       memberIds = allProfiles.filter((p) => {
+        if (hasCurrentAccess(p)) return false;
         const total = totalVisitsByMember.get(p.id) ?? 0;
         const plan = latestPlanByMember2.get(p.id);
         const hasMembership = plan && membershipPlans.has(plan);
@@ -122,11 +132,17 @@ export async function getSegmentRecipients(
         if (c.timestamp >= thirtyDaysAgo && c.timestamp <= nowIso) hadVisitLast30.add(c.member_id);
         if (c.timestamp >= sixtyDaysAgo && c.timestamp < thirtyDaysAgo) hadVisit30to60.add(c.member_id);
       }
-      memberIds = allProfiles.filter((p) => hadVisit30to60.has(p.id) && !hadVisitLast30.has(p.id)).map((p) => p.id);
+      memberIds = allProfiles.filter((p) => {
+        if (hasCurrentAccess(p)) return false;
+        return hadVisit30to60.has(p.id) && !hadVisitLast30.has(p.id);
+      }).map((p) => p.id);
       break;
     }
     case "new_members_recent": {
-      memberIds = allProfiles.filter((p) => p.created_at >= threeDaysAgo).map((p) => p.id);
+      memberIds = allProfiles.filter((p) => {
+        if (hasCurrentAccess(p)) return false;
+        return p.created_at >= threeDaysAgo;
+      }).map((p) => p.id);
       break;
     }
     default:
