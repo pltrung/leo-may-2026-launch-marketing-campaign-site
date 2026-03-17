@@ -3574,7 +3574,7 @@ export default function AdminPage() {
               <p className="text-sm text-slate-600 mt-1">{locale === "vi" ? "Tổng quan hiệu suất phòng gym: doanh thu, thành viên, giữ chân, hành vi và vận hành." : "Full view of gym performance: revenue, members, retention, behavior, and operations."}</p>
 
               {/* Global filters */}
-              <div className="mt-4 flex flex-wrap gap-3 items-center rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="mt-4 flex flex-wrap gap-3 items-center rounded-xl border border-slate-200 bg-slate-50 p-3" data-tour="analytics-filters">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{locale === "vi" ? "Bộ lọc" : "Filters"}</span>
                 <select
                   value={analyticsPeriod}
@@ -3631,7 +3631,7 @@ export default function AdminPage() {
                   <button
                     key={t}
                     type="button"
-                    data-tour={t === "onboarding" ? "tab-onboarding" : undefined}
+                    data-tour={`analytics-tab-${t}`}
                     onClick={() => setAnalyticsTab(t)}
                     className={`flex-none whitespace-nowrap px-3 py-2 rounded-lg text-sm font-medium ${
                       analyticsTab === t ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"

@@ -90,10 +90,24 @@ export function GuidedTour({ steps, isActive, onClose, locale, onNavigate, getCa
         document.removeEventListener("scroll", onScroll, true);
         window.removeEventListener("resize", onResize);
       };
-    } else {
-      setHighlightRect(null);
-      setModalAtTop(false);
     }
+    if (step.navigate) {
+      const retryDelays = [300, 600, 1000, 1500, 2200];
+      const timers = retryDelays.map((d) => setTimeout(updateRect, d));
+      const onScroll = () => updateRect();
+      const onResize = () => updateRect();
+      window.addEventListener("scroll", onScroll, true);
+      document.addEventListener("scroll", onScroll, true);
+      window.addEventListener("resize", onResize);
+      return () => {
+        timers.forEach((t) => clearTimeout(t));
+        window.removeEventListener("scroll", onScroll, true);
+        document.removeEventListener("scroll", onScroll, true);
+        window.removeEventListener("resize", onResize);
+      };
+    }
+    setHighlightRect(null);
+    setModalAtTop(false);
   }, [isActive, stepIndex, step?.target, step?.navigate]);
 
   if (!isActive || steps.length === 0 || !step) return null;
@@ -231,7 +245,16 @@ export const TOUR_STEPS_ADMIN: TourStep[] = [
   { id: "tab-inventory", target: "[data-tour=tab-inventory]", titleEn: "Inventory", titleVi: "Kho", contentEn: "Inventory tab: scan or type barcode → see product → enter quantity → Stock In or Stock Out. Example: scan a chalk bag, enter 10, click Stock In.", contentVi: "Tab Kho: quét hoặc nhập barcode → xem sản phẩm → nhập số lượng → Nhập kho hoặc Xuất kho. Ví dụ: quét túi magnesium, nhập 10, nhấn Nhập kho.", navigate: { area: "management", managementTab: "inventory" } },
   // 4. ANALYTICS (fourth tab, right)
   { id: "area-analytics", target: "[data-tour=area-analytics]", titleEn: "Analytics", titleVi: "Phân tích", contentEn: "Analytics: revenue, members, retention, behavior, funnel, operations, staff, and onboarding reports. Use filters for date and member type.", contentVi: "Phân tích: doanh thu, thành viên, giữ chân, hành vi, phễu, vận hành, nhân sự và báo cáo đào tạo. Dùng bộ lọc theo ngày và loại thành viên.", navigate: { area: "analytics" } },
-  { id: "onboarding-analytics", target: "[data-tour=tab-onboarding]", titleEn: "Onboarding analytics", titleVi: "Đào tạo", contentEn: "In Analytics, open the Onboarding tab to see per-staff: average AI score, quiz accuracy, days completed, weakest skill, and completion time.", contentVi: "Trong Phân tích, mở tab Đào tạo để xem theo từng nhân sự: điểm AI trung bình, độ chính xác quiz, số ngày hoàn thành, kỹ năng yếu nhất và thời gian hoàn thành.", navigate: { area: "analytics", analyticsTab: "onboarding" } },
+  { id: "analytics-overview", target: "[data-tour=analytics-tab-overview]", titleEn: "Overview", titleVi: "Tổng quan", contentEn: "Overview gives a high-level summary of key metrics across the selected period. Check this first for a quick picture of gym performance.", contentVi: "Tổng quan cho biết tóm tắt các chỉ số quan trọng trong kỳ đã chọn. Xem mục này trước để nắm nhanh hiệu suất phòng gym.", navigate: { area: "analytics", analyticsTab: "overview" } },
+  { id: "analytics-revenue", target: "[data-tour=analytics-tab-revenue]", titleEn: "Revenue", titleVi: "Doanh thu", contentEn: "Revenue tab shows income from memberships, day passes, and other sales. Use it to track revenue trends and breakdowns by period.", contentVi: "Tab Doanh thu hiển thị thu nhập từ gói thành viên, day pass và bán hàng khác. Dùng để theo dõi xu hướng và cơ cấu doanh thu theo kỳ.", navigate: { area: "analytics", analyticsTab: "revenue" } },
+  { id: "analytics-members", target: "[data-tour=analytics-tab-members]", titleEn: "Members", titleVi: "Thành viên", contentEn: "Members tab shows member counts, growth, and composition. See how many members you have and how the base is changing over time.", contentVi: "Tab Thành viên hiển thị số lượng, tăng trưởng và cơ cấu thành viên. Xem số thành viên và sự thay đổi theo thời gian.", navigate: { area: "analytics", analyticsTab: "members" } },
+  { id: "analytics-retention", target: "[data-tour=analytics-tab-retention]", titleEn: "Retention", titleVi: "Giữ chân", contentEn: "Retention tab shows how well you keep members: churn, return rates, and retention by cohort. Use it to improve member loyalty.", contentVi: "Tab Giữ chân cho biết mức độ giữ chân thành viên: rời bỏ, tỷ lệ quay lại và giữ chân theo nhóm. Dùng để cải thiện lòng trung thành.", navigate: { area: "analytics", analyticsTab: "retention" } },
+  { id: "analytics-filters", target: "[data-tour=analytics-filters]", titleEn: "Filters", titleVi: "Bộ lọc", contentEn: "Use these filters to set the date range (day, week, month, or custom), member type (all, member, newbie, casual), and activity level. Results in all tabs respect these filters.", contentVi: "Dùng bộ lọc để chọn khoảng thời gian (ngày, tuần, tháng hoặc tùy chọn), loại thành viên và mức hoạt động. Kết quả ở mọi tab đều theo bộ lọc này.", navigate: { area: "analytics" } },
+  { id: "analytics-behavior", target: "[data-tour=analytics-tab-behavior]", titleEn: "Behavior", titleVi: "Hành vi", contentEn: "Behavior tab shows how members use the gym: visit patterns, peak times, and engagement. Use it to optimize scheduling and offerings.", contentVi: "Tab Hành vi cho biết cách thành viên sử dụng phòng gym: mẫu đến, giờ cao điểm và mức độ tham gia. Dùng để tối ưu lịch và dịch vụ.", navigate: { area: "analytics", analyticsTab: "behavior" } },
+  { id: "analytics-funnel", target: "[data-tour=analytics-tab-funnel]", titleEn: "Funnel", titleVi: "Phễu", contentEn: "Funnel tab shows the conversion path: from signup to active member. See where drop-off happens and how to improve conversion.", contentVi: "Tab Phễu hiển thị luồng chuyển đổi: từ đăng ký đến thành viên hoạt động. Xem điểm rời bỏ và cách cải thiện chuyển đổi.", navigate: { area: "analytics", analyticsTab: "funnel" } },
+  { id: "analytics-operations", target: "[data-tour=analytics-tab-operations]", titleEn: "Operations (analytics)", titleVi: "Vận hành (phân tích)", contentEn: "Operations tab in Analytics shows operational metrics: check-ins, capacity, task completion, and efficiency over the selected period.", contentVi: "Tab Vận hành trong Phân tích hiển thị chỉ số vận hành: check-in, công suất, hoàn thành nhiệm vụ và hiệu quả trong kỳ đã chọn.", navigate: { area: "analytics", analyticsTab: "operations" } },
+  { id: "analytics-staff", target: "[data-tour=analytics-tab-staff]", titleEn: "Staff (analytics)", titleVi: "Nhân sự (phân tích)", contentEn: "Staff tab in Analytics shows staff performance: attendance, commission, tasks completed, and activity. Use it to review and support your team.", contentVi: "Tab Nhân sự trong Phân tích hiển thị hiệu suất nhân sự: chấm công, hoa hồng, nhiệm vụ hoàn thành và hoạt động. Dùng để đánh giá và hỗ trợ đội ngũ.", navigate: { area: "analytics", analyticsTab: "staff" } },
+  { id: "analytics-onboarding", target: "[data-tour=analytics-tab-onboarding]", titleEn: "Onboarding analytics", titleVi: "Đào tạo", contentEn: "Onboarding tab shows per-staff training metrics: average AI score, quiz accuracy, days completed, weakest skill, and completion time.", contentVi: "Tab Đào tạo hiển thị chỉ số đào tạo theo từng nhân sự: điểm AI trung bình, độ chính xác quiz, số ngày hoàn thành, kỹ năng yếu nhất và thời gian hoàn thành.", navigate: { area: "analytics", analyticsTab: "onboarding" } },
 ];
 
 /** Member dashboard first-time: 3 steps to unlock QR (waiver → pass → profile). Complete each before advancing. */

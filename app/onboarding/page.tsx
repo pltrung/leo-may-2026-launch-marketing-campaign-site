@@ -489,19 +489,9 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-900 text-slate-50">
-      <header className="relative z-30 border-b border-slate-800 bg-slate-900/95 backdrop-blur shrink-0">
-        <div className="max-w-[1100px] mx-auto px-3 py-2 md:px-4 md:py-3">
-          <div className="flex items-center justify-between gap-2 min-h-[2rem] flex-nowrap">
-            <div className="flex items-center shrink-0">
-              <img src="/logo-white.svg" alt="Leo Mây" className="h-6 w-auto md:h-7" />
-            </div>
-            <div className="flex items-center justify-center flex-1 min-w-0">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-600 px-2.5 py-1 text-xs font-medium whitespace-nowrap bg-slate-800/80 text-amber-200">
-                {locale === "vi" ? "Đào tạo" : "Training"}
-              </span>
-            </div>
-            <div className="flex items-center shrink-0">
-              <div className="relative">
+      <header className="relative z-30 border-b border-slate-800/50 bg-slate-900/80 backdrop-blur shrink-0">
+        <div className="max-w-[1100px] mx-auto px-3 py-2 md:px-4 md:py-3 flex justify-end">
+          <div className="relative">
                 <button type="button" onClick={() => setHeaderMenuOpen((o) => !o)} className="p-1.5 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white" aria-label="Menu">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
                 </button>
@@ -527,107 +517,124 @@ export default function OnboardingPage() {
                     </div>
                   </>
                 )}
-              </div>
-            </div>
           </div>
         </div>
       </header>
 
       <main className="flex-1 min-h-0">
-        <div className="max-w-[1100px] mx-auto px-3 py-3 md:px-4 md:py-6 space-y-2 md:space-y-4">
-          {progress && (
-            <div className="flex flex-wrap items-center gap-2 md:gap-4 rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1.5 md:p-3">
-              <span className="text-amber-400 font-bold text-xs md:text-sm">{progress.xp_total} XP</span>
-              <span className="flex items-center gap-0.5 text-red-400 text-xs md:text-sm">
-                {"❤".repeat(progress.hearts_remaining)}
-                {"♡".repeat(HEARTS_MAX - progress.hearts_remaining)}
-              </span>
-              {progress.streak_days > 0 && (
-                <span className="text-emerald-400 text-xs md:text-sm">🔥 {progress.streak_days}</span>
+        <div className="max-w-[1100px] mx-auto px-3 py-3 md:px-4 md:py-6">
+          {phase === "map" ? (
+            <>
+              {/* Hero: brand-first, mobile-first */}
+              <section className="text-center pt-4 pb-6 md:pt-8 md:pb-10">
+                <div className="flex justify-center mb-6 md:mb-8">
+                  <img
+                    src="/logo-white.svg"
+                    alt="Leo Mây"
+                    className="w-[min(72vw,280px)] sm:w-[min(65vw,320px)] md:w-[min(55vw,380px)] h-auto drop-shadow-[0_0_40px_rgba(251,191,36,0.15)] animate-[float_4s_ease-in-out_infinite]"
+                    style={{ animation: "float 4s ease-in-out infinite" }}
+                  />
+                </div>
+                <style>{`@keyframes float { 0%, 100% { transform: translateY(0); filter: drop-shadow(0 0 24px rgba(251,191,36,0.12)); } 50% { transform: translateY(-6px); filter: drop-shadow(0 0 32px rgba(251,191,36,0.2)); } }`}</style>
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+                  {locale === "vi" ? "Đào tạo Leo Mây" : "Leo Mây Onboarding"}
+                </h1>
+                <p className="text-slate-400 mt-1 text-sm sm:text-base">
+                  Climb the Clouds
+                </p>
+              </section>
+
+              {/* Game-style progression */}
+              {progress && (
+                <div className="flex justify-center mb-6 md:mb-8">
+                  <p className="text-slate-300 text-sm font-medium">
+                    Level {Math.max(1, 1 + Math.floor(progress.xp_total / 200))} • {progress.xp_total} XP{" "}
+                    <span className="inline-flex" aria-label="Hearts">
+                      <span className="text-red-400">{"❤".repeat(progress.hearts_remaining)}</span>
+                      <span className="text-slate-600">{"♡".repeat(HEARTS_MAX - progress.hearts_remaining)}</span>
+                    </span>
+                    {progress.streak_days > 0 && <span className="text-emerald-400 ml-1">🔥 {progress.streak_days}</span>}
+                  </p>
+                </div>
               )}
-              {progress.skill_scores && (
-                <div className="hidden sm:flex flex-wrap gap-x-4 gap-y-1.5 text-[10px]">
-                  {(["communication", "safety", "sales", "teamwork"] as const).map((key) => {
-                    const label = key === "communication" ? (locale === "vi" ? "Giao tiếp" : "Communication") : key === "safety" ? (locale === "vi" ? "An toàn" : "Safety") : key === "sales" ? (locale === "vi" ? "Bán hàng" : "Sales") : (locale === "vi" ? "Đội nhóm" : "Teamwork");
-                    const val = progress.skill_scores?.[key] ?? 50;
+
+              {/* Journey-style day cards: horizontal flow, depth, glow */}
+              <section className="max-w-2xl mx-auto">
+                <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
+                  {[1, 2, 3, 4, 5].map((day) => {
+                    const unlocked = isDayUnlocked(day);
+                    const completed = progress?.day_completion[day]?.completed ?? false;
+                    const countdownMs = getCountdownMs(day);
+                    const dc = getDayContent(day);
+                    const formatCountdown = (ms: number) => {
+                      const h = Math.floor(ms / 3600000);
+                      const m = Math.floor((ms % 3600000) / 60000);
+                      return locale === "vi" ? `${h}h ${m}m` : `${h}h ${m}m`;
+                    };
+                    const isNext = unlocked && !completed && (day === 1 || progress?.day_completion[day - 1]?.completed);
+                    const isCurrent = isNext || (unlocked && !completed && day === 1);
                     return (
-                      <div key={key} className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-slate-400 shrink-0">{label}</span>
-                        <div className="h-1.5 w-12 rounded-full bg-slate-700 overflow-hidden shrink-0">
-                          <div className="h-full bg-amber-500/80 rounded-full transition-all" style={{ width: `${val}%` }} />
-                        </div>
-                        <span className="text-slate-300 font-medium w-6 shrink-0">{val}</span>
-                      </div>
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => handleStartDay(day)}
+                        disabled={!unlocked}
+                        className={`relative flex flex-col items-center justify-center rounded-2xl p-4 min-w-[72px] sm:min-w-[80px] transition-all duration-300 active:scale-[0.98] ${
+                          completed
+                            ? "bg-emerald-500/15 border-2 border-emerald-500/70 shadow-lg shadow-emerald-500/10"
+                            : unlocked
+                            ? isCurrent
+                              ? "bg-amber-500/20 border-2 border-amber-400 shadow-lg shadow-amber-500/20 ring-2 ring-amber-400/30"
+                              : "bg-slate-700/80 border-2 border-slate-500 hover:border-amber-500/40 hover:shadow-md hover:shadow-amber-500/10"
+                            : "bg-slate-800/70 border-2 border-slate-600 opacity-70 cursor-not-allowed"
+                        }`}
+                      >
+                        {completed && <span className="absolute top-2 right-2 text-emerald-400 text-sm">✓</span>}
+                        {!unlocked && countdownMs != null && (
+                          <span className="absolute top-1.5 left-1 right-1 text-[10px] text-amber-400/90 font-medium text-center leading-tight">
+                            {formatCountdown(countdownMs)}
+                          </span>
+                        )}
+                        <span className={`font-bold ${!unlocked && countdownMs != null ? "text-lg" : "text-2xl"} ${completed ? "text-emerald-300" : unlocked ? "text-white" : "text-slate-500"}`}>{day}</span>
+                        <span className="text-[10px] mt-1 opacity-90 text-center text-slate-400 line-clamp-2">
+                          {dc ? (locale === "vi" ? dc.titleVi : dc.titleEn) : ""}
+                        </span>
+                      </button>
                     );
                   })}
                 </div>
-              )}
+
+                {/* Primary CTA */}
+                {progress && (() => {
+                  const dayToStart = [1, 2, 3, 4, 5].find((d) => isDayUnlocked(d) && !progress.day_completion[d]?.completed) ?? 1;
+                  const canStart = isDayUnlocked(dayToStart);
+                  const hasProgress = (progress.day_completion[dayToStart]?.current_step ?? 0) > 0;
+                  const label = hasProgress
+                    ? (locale === "vi" ? `Tiếp tục Ngày ${dayToStart}` : `Continue Day ${dayToStart}`)
+                    : (locale === "vi" ? `Bắt đầu Ngày ${dayToStart}` : `Start Day ${dayToStart}`);
+                  return (
+                    <div className="mt-8 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => dayToStart != null && handleStartDay(dayToStart)}
+                        disabled={!canStart}
+                        className="px-8 py-4 rounded-2xl text-lg font-semibold bg-amber-500 text-slate-900 hover:bg-amber-400 active:scale-[0.98] transition-all shadow-lg shadow-amber-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                      >
+                        {label}
+                      </button>
+                    </div>
+                  );
+                })()}
+              </section>
+            </>
+          ) : progress ? (
+            <div className="flex flex-wrap items-center justify-center gap-2 py-2 border-b border-slate-800/50 mb-4">
+              <span className="text-slate-400 text-sm">Level {Math.max(1, 1 + Math.floor(progress.xp_total / 200))} • {progress.xp_total} XP</span>
+              <span className="text-red-400 text-sm">{"❤".repeat(progress.hearts_remaining)}{"♡".repeat(HEARTS_MAX - progress.hearts_remaining)}</span>
             </div>
-          )}
+          ) : null}
 
           <div className="max-w-2xl mx-auto">
-        {phase === "map" && (
-          <section className="space-y-8">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold tracking-tight">
-                {locale === "vi" ? "Đào tạo Leo Mây" : "Leo Mây Onboarding"}
-                {role === "frontdesk" && (locale === "vi" ? " — Lễ tân" : " — Front Desk")}
-                {role === "staff" && (locale === "vi" ? " — Nhân viên" : " — Staff")}
-                {role === "admin" && (locale === "vi" ? " — Quản trị" : " — Admin")}
-              </h1>
-              <p className="text-slate-400 mt-1">
-                {locale === "vi" ? "5 ngày xây văn hóa • Climb the Clouds, Build a Culture" : "5 days to build culture"}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-5 gap-3">
-              {[1, 2, 3, 4, 5].map((day) => {
-                const unlocked = isDayUnlocked(day);
-                const completed = progress?.day_completion[day]?.completed ?? false;
-                const countdownMs = getCountdownMs(day);
-                const dc = getDayContent(day);
-                const formatCountdown = (ms: number) => {
-                  const h = Math.floor(ms / 3600000);
-                  const m = Math.floor((ms % 3600000) / 60000);
-                  return locale === "vi" ? `Mở khóa sau ${h}h ${m}m` : `Unlocks in ${h}h ${m}m`;
-                };
-                return (
-                  <button
-                    key={day}
-                    type="button"
-                    onClick={() => handleStartDay(day)}
-                    disabled={!unlocked}
-                    className={`relative flex flex-col items-center justify-center rounded-2xl p-4 transition-all ${
-                      completed
-                        ? "bg-emerald-500/20 border-2 border-emerald-500"
-                        : unlocked
-                        ? "bg-slate-700/80 border-2 border-amber-500/50 hover:border-amber-400"
-                        : "bg-slate-800/60 border-2 border-slate-600 opacity-60 cursor-not-allowed"
-                    }`}
-                  >
-                    {completed && <span className="absolute top-2 right-2 text-emerald-400">✓</span>}
-                    {!unlocked && countdownMs != null && (
-                      <span className="absolute top-1 left-1 right-1 text-[9px] text-amber-400/90 font-medium">
-                        {formatCountdown(countdownMs)}
-                      </span>
-                    )}
-                    <span className="text-2xl font-bold">{day}</span>
-                    <span className="text-[10px] mt-1 opacity-80 text-center">
-                      {dc ? (locale === "vi" ? dc.titleVi : dc.titleEn) : ""}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="rounded-xl bg-slate-800/60 border border-slate-600 p-4 text-center text-slate-300 text-sm">
-              {locale === "vi"
-                ? "Mỗi ngày mở khóa sau 24h. ~20–30 phút/ngày. XP: +10/bài, +50 hoàn thành ngày, +100 quiz hoàn hảo, +100 thưởng ngày hoàn hảo."
-                : "Each day unlocks 24h after the previous. ~20–30 min/day. XP: +10/lesson, +50 day complete, +100 perfect quiz, +100 Perfect Day Bonus."}
-            </div>
-          </section>
-        )}
-
         {phase === "day_complete_menu" && content && currentDay && (
           <section className="rounded-2xl bg-slate-800/80 border border-slate-600 p-6 max-w-md mx-auto space-y-4">
             <h2 className="text-xl font-bold text-white">

@@ -881,7 +881,7 @@ export default function DashboardPage() {
           if (tab) setDashboardTab(tab);
         }}
         getCanAdvance={tourPhase === "onboarding" ? (i) => (i === 0 ? !!member?.waiver_signed : i === 1 ? canCheckIn : !!member?.profile_photo_url) : undefined}
-        onOnboardingComplete={() => setTourPhase("main")}
+        onOnboardingComplete={tourPhase === "onboarding" ? () => setTourPhase("main") : undefined}
       />
 
       {/* MAIN CONTENT */}
