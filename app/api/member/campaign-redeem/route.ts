@@ -61,16 +61,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid or expired code" }, { status: 404 });
   }
 
+  const reward = getRewardForSegment(campaignLog.segment);
   const { data: recipientRows } = await supabase
     .from("campaign_log_recipients")
     .select("member_id")
     .eq("campaign_log_id", campaignLog.id);
   const recipientIds = new Set((recipientRows ?? []).map((r: { member_id: string }) => r.member_id));
-  if (recipientIds.size > 0 && !recipientIds.has(member.id)) {
-    return NextResponse.json(
-      { error: "This code was sent to a different recipient. Only the person who received the email can use it." },
-      { status: 403 }
-    );
+  const isRecipient = recipientIds.has(member.id);
+
+  if (reward.type === "guest_pass") {
+    if (recipientIds.size > 0 && isRecipient) {
+      return NextResponse.json(
+        { error: "This guest pass code was sent to you to give to someone else. Share the code with a friend — only they can redeem it to add the guest pass to their profile." },
+        { status: 403 }
+      );
+    }
+  } else if (reward.type === "visits") {
+    if (recipientIds.size > 0 && !isRecipient) {
+      return NextResponse.json(
+        { error: "This free visit code was sent to a different recipient. Only the person who received the email can redeem it." },
+        { status: 403 }
+      );
+    }
   }
 
   const { data: existing } = await supabase
@@ -98,7 +110,6 @@ export async function POST(request: NextRequest) {
   }
 
   // Apply segment-specific reward: visits (for lapsed) or guest_pass (for active membership / active visit pass)
-  const reward = getRewardForSegment(campaignLog.segment);
   const { data: profile } = await supabase
     .from("member_profiles")
     .select("visits_remaining, guest_passes_remaining")
