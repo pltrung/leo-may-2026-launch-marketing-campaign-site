@@ -1309,6 +1309,81 @@ export default function AdminPage() {
     return <AdminLoginForm locale={locale} onLocaleChange={setLocaleAndStore} />;
   }
 
+  // Staff and frontdesk: until checked in today, show only the QR check-in module (no tabs, no other content).
+  const today = getGymToday();
+  const hasShiftToday = shiftCheckInAttendance != null && shiftCheckInAttendance.date === today;
+  const isCheckedInToday = hasShiftToday && shiftCheckInAttendance!.status === "IN";
+  const isStaffOrFrontdesk = role === "staff" || role === "frontdesk";
+  const needsCheckInOnlyView = isStaffOrFrontdesk && staffId != null && !isCheckedInToday;
+
+  if (needsCheckInOnlyView) {
+    const staffMsg = getMessages(locale).staff;
+    const isMarkedNotWorking = hasShiftToday && shiftCheckInAttendance!.status !== "IN";
+    return (
+      <div className="min-h-screen flex flex-col bg-slate-900 text-slate-50">
+        <header className="border-b border-slate-800 bg-slate-900/95 backdrop-blur shrink-0">
+          <div className="max-w-[1100px] mx-auto px-3 py-2 md:px-4 md:py-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <img src="/logo-white.svg" alt="Leo Mây logo" className="h-6 w-auto shrink-0 md:h-7" />
+                <p className="text-sm text-slate-300 truncate">{locale === "vi" ? "Check-in ca làm" : "Shift check-in"}</p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex gap-0.5 rounded-full border border-slate-600 bg-slate-800/80 p-0.5">
+                  <button type="button" onClick={() => setLocaleAndStore("en")} className={`px-2 py-0.5 rounded-full text-[10px] font-medium md:px-3 md:py-1 md:text-xs ${locale === "en" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}>EN</button>
+                  <button type="button" onClick={() => setLocaleAndStore("vi")} className={`px-2 py-0.5 rounded-full text-[10px] font-medium md:px-3 md:py-1 md:text-xs ${locale === "vi" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}>VN</button>
+                </div>
+                <button type="button" onClick={() => signOut()} className="px-2 py-0.5 rounded-lg border border-slate-500 text-slate-200 hover:bg-slate-700 hover:text-white text-[10px] md:text-xs md:px-3 md:py-1">
+                  {t.logout}
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+        <main className="flex-1 min-h-0 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-800/95 p-6 shadow-xl">
+            <h2 className="text-lg font-bold text-white uppercase tracking-wider mb-1">{staffMsg.dailyAttendance}</h2>
+            {isMarkedNotWorking ? (
+              <p className="text-slate-300 text-sm">{staffMsg.youAreMarkedNotWorking}</p>
+            ) : (
+              <>
+                {staffCheckInSuccess && (
+                  <div className="mb-4 rounded-lg px-4 py-3 bg-emerald-900/40 border border-emerald-500/50 text-emerald-200 text-sm font-medium">{staffMsg.checkedInSuccess}</div>
+                )}
+                <p className="text-slate-300 text-sm mb-4">{staffMsg.checkInAtFrontDesk}</p>
+                <p className="text-slate-400 text-xs mb-4">{staffMsg.checkInAtFrontDeskHint}</p>
+                <div className="flex flex-col items-center gap-4">
+                  {shiftCheckInQrToken ? (
+                    <button type="button" onClick={() => shiftCheckInQrToken && setAdminQrModalVariant("shift")} className="rounded-xl bg-white p-3 inline-block hover:ring-2 ring-emerald-400 focus:outline-none focus:ring-2 ring-emerald-400" title={locale === "vi" ? "Phóng to mã QR" : "Tap QR to enlarge"}>
+                      <QRCodeSVG value={shiftCheckInQrToken} size={200} level="M" />
+                    </button>
+                  ) : (
+                    <div className="rounded-xl bg-slate-700/80 p-8 flex items-center justify-center min-h-[200px]">
+                      <p className="text-slate-400 text-sm">{m.loading}</p>
+                    </div>
+                  )}
+                  <p className="text-slate-500 text-xs">{locale === "vi" ? "Chạm để phóng to" : "Tap QR to enlarge"}</p>
+                  <button type="button" disabled={shiftCheckInLoading} onClick={async () => { setShiftCheckInLoading(true); try { await adminFetch("/api/admin/staff/my-attendance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "NOT_IN" }) }); const r = await adminFetch("/api/admin/staff/my-attendance"); const d = await r.json(); setShiftCheckInAttendance(d.attendance ?? null); } finally { setShiftCheckInLoading(false); } }} className="w-full max-w-xs py-2.5 rounded-lg font-medium bg-slate-600 text-slate-200 hover:bg-slate-500 disabled:opacity-50">
+                    {staffMsg.notWorkingToday}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </main>
+        {adminQrModalVariant === "shift" && shiftCheckInQrToken && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setAdminQrModalVariant(null)}>
+            <div className="bg-slate-900 rounded-2xl p-6 max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
+              <p className="text-slate-300 text-sm mb-4">{locale === "vi" ? "Mã QR của bạn — đưa cho admin quét" : "Your QR code — show to admin to scan"}</p>
+              <QRCodeSVG value={shiftCheckInQrToken} size={280} level="M" />
+              <button type="button" onClick={() => setAdminQrModalVariant(null)} className="mt-4 w-full py-2 rounded-lg bg-slate-600 text-slate-200 text-sm">{locale === "vi" ? "Đóng" : "Close"}</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-900 text-slate-50">
       <header className="border-b border-slate-800 bg-slate-900/95 backdrop-blur shrink-0">
