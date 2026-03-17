@@ -14,13 +14,12 @@ import {
   type QuizQuestion,
   type OnboardingPhase,
   HEARTS_MAX,
-  DAY_UNLOCK_HOURS_MS,
   PRIMARY_SKILL_BY_DAY,
 } from "@/lib/onboardingContent";
 import type { Locale } from "@/lib/i18n";
 import { getMessages } from "@/lib/messages";
 
-type Phase = "map" | OnboardingPhase | "simulation_result" | "key_takeaway" | "day_complete_menu" | "hard_mode" | "advanced_lessons";
+type Phase = "map" | OnboardingPhase | "simulation_result" | "key_takeaway";
 
 const ONBOARDING_LOCALE_KEY = "onboarding-locale";
 
@@ -75,7 +74,6 @@ export default function OnboardingPage() {
   } | null>(null);
   const [showKeyTakeaway, setShowKeyTakeaway] = useState(false);
   const [lessonReorderSubmitted, setLessonReorderSubmitted] = useState(false);
-  const [, setCountdownTick] = useState(0);
   const [hardScenarioIndex, setHardScenarioIndex] = useState(0);
   const [advancedLessonIndex, setAdvancedLessonIndex] = useState(0);
   const [rankingOrder, setRankingOrder] = useState<number[] | null>(null);
@@ -130,12 +128,6 @@ export default function OnboardingPage() {
     if (hasAccess) fetchProgress();
   }, [hasAccess, fetchProgress]);
 
-  useEffect(() => {
-    if (phase !== "map") return;
-    const interval = setInterval(() => setCountdownTick((t) => t + 1), 60_000);
-    return () => clearInterval(interval);
-  }, [phase]);
-
   const updateProgress = useCallback(async (action: string, payload?: Record<string, unknown>) => {
     setSaving(true);
     try {
@@ -184,20 +176,7 @@ export default function OnboardingPage() {
     if (!progress) return day === 1;
     if (day === 1) return true;
     const prev = progress.day_completion[day - 1];
-    if (!prev?.completed) return false;
-    const completedAt = prev.completed_at;
-    if (!completedAt) return true;
-    const elapsed = Date.now() - new Date(completedAt).getTime();
-    return elapsed >= DAY_UNLOCK_HOURS_MS;
-  };
-
-  const getCountdownMs = (day: number): number | null => {
-    if (day <= 1 || !progress) return null;
-    const prev = progress.day_completion[day - 1];
-    if (!prev?.completed || !prev.completed_at) return null;
-    const elapsed = Date.now() - new Date(prev.completed_at).getTime();
-    if (elapsed >= DAY_UNLOCK_HOURS_MS) return null;
-    return DAY_UNLOCK_HOURS_MS - elapsed;
+    return !!prev?.completed;
   };
 
   const handleStartDay = (day: number) => {
@@ -216,11 +195,8 @@ export default function OnboardingPage() {
     const completed = progress?.day_completion[day]?.completed ?? false;
     const savedStep = progress?.day_completion[day]?.current_step ?? 0;
     if (completed) {
-      setPhase("day_complete_menu");
-      setHardScenarioIndex(0);
-      setAdvancedLessonIndex(0);
-      setScenarioResult(null);
-      setScenarioResponse("");
+      setCurrentDay(null);
+      setPhase("map");
       return;
     }
     const { phase, lessonIndex, scenarioIndex, simulationStepIndex: simIdx, quizIndex, rapidIndex: savedRapidIndex } = stepToPhase(savedStep, dayContent);
@@ -750,13 +726,7 @@ export default function OnboardingPage() {
                   {[1, 2, 3, 4, 5, 6, 7].map((day) => {
                     const unlocked = isDayUnlocked(day);
                     const completed = progress?.day_completion[day]?.completed ?? false;
-                    const countdownMs = getCountdownMs(day);
                     const dc = getDayContent(day);
-                    const formatCountdown = (ms: number) => {
-                      const h = Math.floor(ms / 3600000);
-                      const m = Math.floor((ms % 3600000) / 60000);
-                      return locale === "vi" ? `${h}h ${m}m` : `${h}h ${m}m`;
-                    };
                     const isNext = unlocked && !completed && (day === 1 || progress?.day_completion[day - 1]?.completed);
                     const isCurrent = isNext || (unlocked && !completed && day === 1);
                     return (
@@ -776,12 +746,7 @@ export default function OnboardingPage() {
                         }`}
                       >
                         {completed && <span className="absolute top-2 right-2 text-emerald-400 text-sm">✓</span>}
-                        {!unlocked && countdownMs != null && (
-                          <span className="absolute top-1.5 left-1 right-1 text-[10px] text-amber-400/90 font-medium text-center leading-tight">
-                            {formatCountdown(countdownMs)}
-                          </span>
-                        )}
-                        <span className={`font-bold ${!unlocked && countdownMs != null ? "text-lg" : "text-2xl"} ${completed ? "text-emerald-300" : unlocked ? "text-white" : "text-slate-500"}`}>{day}</span>
+                        <span className={`font-bold text-2xl ${completed ? "text-emerald-300" : unlocked ? "text-white" : "text-slate-500"}`}>{day}</span>
                         <span className="text-[10px] mt-1 opacity-90 text-center text-slate-400 line-clamp-2">
                           {dc ? (locale === "vi" ? dc.titleVi : dc.titleEn) : ""}
                         </span>
@@ -821,128 +786,6 @@ export default function OnboardingPage() {
           ) : null}
 
           <div className="max-w-2xl mx-auto">
-        {phase === "day_complete_menu" && content && currentDay && (
-          <section className="rounded-2xl bg-slate-800/80 border border-slate-600 p-6 max-w-md mx-auto space-y-4">
-            <h2 className="text-xl font-bold text-white">
-              {locale === "vi" ? `Ngày ${currentDay} đã hoàn thành` : `Day ${currentDay} complete`}
-            </h2>
-            <p className="text-slate-300 text-sm">
-              {locale === "vi" ? "Mở khóa: thử thách khó hơn và bài nâng cao." : "Unlocked: try harder scenarios and advanced lessons."}
-            </p>
-            <div className="flex flex-col gap-3">
-              {(content.hardModeScenarios?.length ?? 0) > 0 && (
-                <button
-                  type="button"
-                  onClick={() => { setPhase("hard_mode"); setHardScenarioIndex(0); setScenarioResult(null); setScenarioResponse(""); }}
-                  className="w-full py-3 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-200 font-medium hover:bg-amber-500/30"
-                >
-                  {locale === "vi" ? `Chế độ khó (${content.hardModeScenarios!.length} kịch bản)` : `Hard mode (${content.hardModeScenarios!.length} scenarios)`}
-                </button>
-              )}
-              {(content.advancedLessons?.length ?? 0) > 0 && (
-                <button
-                  type="button"
-                  onClick={() => { setPhase("advanced_lessons"); setAdvancedLessonIndex(0); setSelectedChoice(null); setLessonReorderSubmitted(false); }}
-                  className="w-full py-3 rounded-xl bg-slate-600/80 border border-slate-500 text-slate-200 font-medium hover:bg-slate-600"
-                >
-                  {locale === "vi" ? `Bài nâng cao (${content.advancedLessons!.length} bài)` : `Advanced lessons (${content.advancedLessons!.length})`}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => { setCurrentDay(null); setPhase("map"); }}
-                className="w-full py-2 rounded-xl text-slate-400 hover:text-white text-sm"
-              >
-                {locale === "vi" ? "← Quay lại bản đồ" : "← Back to map"}
-              </button>
-            </div>
-          </section>
-        )}
-
-        {phase === "hard_mode" && content?.hardModeScenarios && content.hardModeScenarios.length > 0 && (() => {
-          const hardScenario = content.hardModeScenarios[hardScenarioIndex];
-          const isLast = hardScenarioIndex >= content.hardModeScenarios.length - 1;
-          if (!hardScenario) {
-            return (
-              <section className="space-y-4">
-                <p className="text-slate-400 text-sm">{locale === "vi" ? "Không có tình huống." : "No scenario."}</p>
-                <button type="button" onClick={() => setPhase("day_complete_menu")} className="text-sm text-slate-400 hover:text-white">
-                  {locale === "vi" ? "← Quay lại menu ngày" : "← Back to day menu"}
-                </button>
-              </section>
-            );
-          }
-          return (
-            <section className="space-y-4">
-              <button type="button" onClick={() => setPhase("day_complete_menu")} className="text-sm text-slate-400 hover:text-white">
-                {locale === "vi" ? "← Quay lại menu ngày" : "← Back to day menu"}
-              </button>
-              <ScenarioCard
-                key={`hard-${hardScenarioIndex}-${hardScenario.id}`}
-                scenario={hardScenario}
-                locale={locale}
-                index={hardScenarioIndex}
-                total={content.hardModeScenarios.length}
-                response={scenarioResponse}
-                onResponseChange={setScenarioResponse}
-                result={scenarioResult}
-                onSubmit={handleHardScenarioSubmit}
-                onNext={() => {
-                  setScenarioResult(null);
-                  setScenarioResponse("");
-                  if (isLast) {
-                    setPhase("day_complete_menu");
-                  } else {
-                    setHardScenarioIndex((i) => i + 1);
-                  }
-                }}
-                saving={saving}
-              />
-            </section>
-          );
-        })()}
-
-        {phase === "advanced_lessons" && content?.advancedLessons && content.advancedLessons.length > 0 && (() => {
-          const advSection = content.advancedLessons[advancedLessonIndex];
-          const isLast = advancedLessonIndex >= content.advancedLessons.length - 1;
-          if (!advSection) {
-            return (
-              <section className="space-y-4">
-                <p className="text-slate-400 text-sm">{locale === "vi" ? "Không có bài." : "No lesson."}</p>
-                <button type="button" onClick={() => setPhase("day_complete_menu")} className="text-sm text-slate-400 hover:text-white">
-                  {locale === "vi" ? "← Quay lại menu ngày" : "← Back to day menu"}
-                </button>
-              </section>
-            );
-          }
-          return (
-            <section className="space-y-4">
-              <button type="button" onClick={() => setPhase("day_complete_menu")} className="text-sm text-slate-400 hover:text-white">
-                {locale === "vi" ? "← Quay lại menu ngày" : "← Back to day menu"}
-              </button>
-              <LessonCard
-                key={`adv-${advancedLessonIndex}-${advSection.id}`}
-                section={advSection}
-                locale={locale}
-                lessonIndex={advancedLessonIndex}
-                total={content.advancedLessons.length}
-                selectedChoice={selectedChoice}
-                onSelectChoice={setSelectedChoice}
-                onNext={() => {
-                  setSelectedChoice(null);
-                  setLessonReorderSubmitted(false);
-                  if (isLast) setPhase("day_complete_menu");
-                  else setAdvancedLessonIndex((i) => i + 1);
-                }}
-                onReorderSubmit={() => setLessonReorderSubmitted(true)}
-                canProceed={advSection.type === "text" || advSection.type === "list" || advSection.type === "goodvsbad" || (advSection.type === "choice" && selectedChoice !== null) || (advSection.type === "reorder_steps" && lessonReorderSubmitted) || ((advSection.type === "choose_better" || advSection.type === "fix_sentence" || advSection.type === "tap_mistake") && selectedChoice !== null)}
-                saving={saving}
-                onBackToMap={() => { setCurrentDay(null); setPhase("map"); }}
-              />
-            </section>
-          );
-        })()}
-
         {phase === "lesson" && section && content && (
           <LessonCard
             section={section}
