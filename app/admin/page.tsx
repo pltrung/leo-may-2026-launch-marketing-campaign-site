@@ -112,6 +112,7 @@ export default function AdminPage() {
   }, []);
   const [searchMode, setSearchMode] = useState<"id" | "name" | "qr">("id");
   const [scannerIntent, setScannerIntent] = useState<"quick_checkin" | "member_lookup" | null>(null);
+  const [usbScanInputValue, setUsbScanInputValue] = useState("");
   const [foundMember, setFoundMember] = useState<AdminMember | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -900,6 +901,55 @@ export default function AdminPage() {
     setActionMessage(null);
     setScannerModalOpen(true);
   }, []);
+
+  /** When USB barcode scanner "types" member QR + Enter in the check-in tab input. */
+  const handleUsbScanSubmit = useCallback(async () => {
+    const raw = usbScanInputValue.trim();
+    setUsbScanInputValue("");
+    setActionError(null);
+    setActionMessage(null);
+    if (!raw) return;
+
+    const memberIdFromUrl = raw.match(/[?&]member_id=([^&\s#]+)/)?.[1]?.trim();
+    const qrFromUrl = raw.match(/[?&]qr=([^&\s#]+)/)?.[1]?.trim();
+    const leoMemberId = raw.startsWith("leo-member:") ? raw.split(":")[1]?.trim() : null;
+    const memberId = memberIdFromUrl ?? leoMemberId ?? "";
+
+    if (!memberId) {
+      setActionError(m.couldNotReadQrPayload);
+      return;
+    }
+
+    try {
+      if (qrFromUrl && memberIdFromUrl) {
+        const res = await fetch("/api/checkin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ member_id: memberId, qr: decodeURIComponent(qrFromUrl), location: "turnstile" }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          setActionMessage(data?.already_checked_in_today ? m.welcomeBackAgainToday : m.checkinRecorded);
+        } else {
+          setActionError(data?.error || m.checkinFailed);
+        }
+      } else {
+        const res = await adminFetch("/api/admin/checkin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ member_id: memberId, location: "front_desk" }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          setActionMessage(data?.already_checked_in_today ? m.welcomeBackAgainToday : m.checkinRecorded);
+        } else {
+          setActionError(data?.error ?? "Check-in failed");
+        }
+      }
+    } catch {
+      setActionError(m.unableToRecordCheckin);
+    }
+  }, [usbScanInputValue, adminFetch, m]);
 
   const handleQrScanned = useCallback(
     async (result: { type: "member"; raw: string; id?: string } | { type: "staff"; raw: string; id?: string }) => {
@@ -1778,6 +1828,25 @@ export default function AdminPage() {
                 <button type="button" data-tour="qr-scan" onClick={handleQuickCheckInScan} className="w-full sm:w-auto min-w-0 sm:min-w-[200px] px-4 py-3 md:px-6 md:py-4 rounded-xl text-sm md:text-base font-bold bg-emerald-500 text-slate-900 hover:bg-emerald-400 active:scale-[0.98] transition shadow-lg shadow-emerald-900/30">
                   {m.scanToCheckIn}
                 </button>
+                <p className="text-[10px] md:text-sm text-slate-400 mt-3 mb-1.5">{m.usbScannerHint}</p>
+                <input
+                  type="text"
+                  value={usbScanInputValue}
+                  onChange={(e) => setUsbScanInputValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleUsbScanSubmit();
+                    }
+                  }}
+                  placeholder={m.usbScannerPlaceholder}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-500 bg-slate-800/80 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                />
+                {frontDeskTab === "checkin" && (actionMessage || actionError) && (
+                  <p className={`mt-2 text-xs font-medium ${actionError ? "text-red-400" : "text-emerald-300"}`}>
+                    {actionError ?? actionMessage}
+                  </p>
+                )}
               </div>
               <div className="rounded-xl md:rounded-2xl bg-slate-900/95 border border-slate-700 p-3 md:p-6">
                 <h3 className="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">{m.gymOccupancy}</h3>
@@ -1872,6 +1941,12 @@ export default function AdminPage() {
                     }
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleSearch();
+                      }
+                    }}
                   />
                 </label>
                 {searchError && <p className="text-xs text-red-500">{searchError}</p>}
