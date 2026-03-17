@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getUnifiedAdminOrStaffFromRequest } from "@/lib/unifiedAdminAuth";
 import { getGymToday } from "@/lib/gymTimezone";
-import { XP_LESSON, XP_DAY_COMPLETE, XP_PERFECT_QUIZ } from "@/lib/onboardingContent";
+import { XP_LESSON, XP_DAY_COMPLETE, XP_PERFECT_QUIZ, XP_PERFECT_DAY_BONUS } from "@/lib/onboardingContent";
 
 /**
  * GET /api/admin/onboarding/progress
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   let { data: progress, error: fetchErr } = await supabase
     .from("onboarding_progress")
-    .select("id, xp_total, streak_days, hearts_remaining, last_activity_date, badges")
+    .select("id, xp_total, streak_days, hearts_remaining, last_activity_date, badges, skill_scores")
     .eq("auth_id", authId)
     .maybeSingle();
 
@@ -28,12 +28,14 @@ export async function GET(req: NextRequest) {
     const { data: newRow, error: insertErr } = await supabase
       .from("onboarding_progress")
       .insert({ auth_id: authId, staff_id: staffId })
-      .select("id, xp_total, streak_days, hearts_remaining, last_activity_date, badges")
+      .select("id, xp_total, streak_days, hearts_remaining, last_activity_date, badges, skill_scores")
       .single();
 
     if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
     progress = newRow;
   }
+
+  const defaultSkills = { communication: 50, safety: 50, sales: 50, teamwork: 50 };
 
   const { data: dayRows } = await supabase
     .from("onboarding_day_completion")
@@ -52,6 +54,7 @@ export async function GET(req: NextRequest) {
     hearts_remaining: progress.hearts_remaining ?? 5,
     last_activity_date: progress.last_activity_date ?? null,
     badges: progress.badges ?? [],
+    skill_scores: progress.skill_scores ?? defaultSkills,
     day_completion: dayCompletion,
   });
 }
@@ -64,14 +67,14 @@ export async function PATCH(req: NextRequest) {
   const result = await getUnifiedAdminOrStaffFromRequest(req);
   if (!result) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: { action: string; day?: number; lesson_index?: number; quiz_perfect?: boolean; current_step?: number };
+  let body: { action: string; day?: number; lesson_index?: number; quiz_perfect?: boolean; current_step?: number; perfect_day?: boolean; simulation_complete?: { performed_well: boolean; xp_earned: number } };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { action, day, lesson_index, quiz_perfect, current_step } = body;
+  const { action, day, lesson_index, quiz_perfect, current_step, perfect_day, simulation_complete } = body;
   const supabase = createServerClient();
 
   const { data: progress } = await supabase
@@ -103,7 +106,7 @@ export async function PATCH(req: NextRequest) {
         .upsert(upsertPayload, { onConflict: "progress_id,day" });
     }
   } else if (action === "day_complete" && day != null) {
-    xpDelta = XP_DAY_COMPLETE;
+    xpDelta = XP_DAY_COMPLETE + (perfect_day === true ? XP_PERFECT_DAY_BONUS : 0);
     const { data: existing } = await supabase
       .from("onboarding_day_completion")
       .select("xp_earned")
@@ -152,6 +155,19 @@ export async function PATCH(req: NextRequest) {
         { onConflict: "progress_id,day" }
       );
     return NextResponse.json({ ok: true });
+  } else if (action === "simulation_complete" && simulation_complete && day != null) {
+    const addXp = simulation_complete.performed_well ? Math.max(0, simulation_complete.xp_earned ?? 0) : 0;
+    if (addXp > 0) {
+      await supabase
+        .from("onboarding_progress")
+        .update({
+          xp_total: (progress.xp_total as number) + addXp,
+          last_activity_date: today,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", progress.id);
+    }
+    return NextResponse.json({ ok: true, xp_added: addXp });
   } else if (action === "lose_heart") {
     const hearts = Math.max(0, ((progress.hearts_remaining as number) ?? 5) - 1);
     await supabase

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getUnifiedAdminOrStaffFromRequest } from "@/lib/unifiedAdminAuth";
-import { getDayContent } from "@/lib/onboardingContent";
+import { getDayContent, isSimulationStepDecision } from "@/lib/onboardingContent";
 import type { Locale } from "@/lib/i18n";
 
 /**
@@ -29,11 +29,31 @@ export async function POST(req: NextRequest) {
   const content = getDayContent(day);
   if (!content) return NextResponse.json({ error: "Invalid day" }, { status: 400 });
 
-  const scenario = content.scenarios.find((s) => s.id === scenario_key);
-  if (!scenario) return NextResponse.json({ error: "Scenario not found" }, { status: 400 });
+  let perfectAnswer: string;
+  let rubric: string[];
+  let goodKeywords: string[] | undefined;
+  let badKeywords: string[] | undefined;
 
-  const perfectAnswer = locale === "vi" ? scenario.perfectAnswerVi : scenario.perfectAnswerEn;
-  const rubric = (locale === "vi" ? scenario.rubricVi : scenario.rubricEn) ?? [];
+  const simMatch = scenario_key.match(/^sim:(.+):(.+)$/);
+  if (simMatch) {
+    const [, simId, stepId] = simMatch;
+    const sim = content.simulation;
+    if (!sim || sim.id !== simId) return NextResponse.json({ error: "Simulation not found" }, { status: 400 });
+    const step = sim.steps.find((s) => s.id === stepId);
+    if (!step || isSimulationStepDecision(step)) return NextResponse.json({ error: "Simulation step not found or not AI step" }, { status: 400 });
+    perfectAnswer = locale === "vi" ? step.perfectAnswerVi : step.perfectAnswerEn;
+    rubric = (locale === "vi" ? step.rubricVi : step.rubricEn) ?? [];
+    goodKeywords = step.goodKeywords;
+    badKeywords = step.badKeywords;
+  } else {
+    const scenario = content.scenarios.find((s) => s.id === scenario_key);
+    if (!scenario) return NextResponse.json({ error: "Scenario not found" }, { status: 400 });
+    perfectAnswer = locale === "vi" ? scenario.perfectAnswerVi : scenario.perfectAnswerEn;
+    rubric = (locale === "vi" ? scenario.rubricVi : scenario.rubricEn) ?? [];
+    goodKeywords = scenario.goodKeywords;
+    badKeywords = scenario.badKeywords;
+  }
+
   const response = user_response.trim();
 
   if (response.length < 5) {
@@ -53,7 +73,7 @@ export async function POST(req: NextRequest) {
   const lower = response.toLowerCase();
   const foundKeywords: string[] = [];
   const missingKeywords: string[] = [];
-  (scenario.goodKeywords ?? []).forEach((kw) => {
+  (goodKeywords ?? []).forEach((kw) => {
     if (lower.includes(kw.toLowerCase())) {
       score += 10;
       foundKeywords.push(kw);
@@ -62,7 +82,7 @@ export async function POST(req: NextRequest) {
     }
   });
   const usedBadKeywords: { kw: string; why: string }[] = [];
-  (scenario.badKeywords ?? []).forEach((kw) => {
+  (badKeywords ?? []).forEach((kw) => {
     if (lower.includes(kw.toLowerCase())) {
       score -= 15;
       const why = locale === "vi"
@@ -95,7 +115,7 @@ export async function POST(req: NextRequest) {
         : `• Phrases to avoid in your response:\n${usedBadKeywords.map(({ why }) => `  - ${why}`).join("\n")}`;
       parts.push(badSection);
     }
-    if (missingKeywords.length > 0 && (scenario.goodKeywords ?? []).length > 0) {
+    if (missingKeywords.length > 0 && (goodKeywords ?? []).length > 0) {
       const hint = locale === "vi"
         ? `• Bạn chưa thể hiện đủ: cần thêm sự ấm áp, xác nhận cảm xúc, hoặc đề nghị hỗ trợ. Một số từ/cụm nên có: "${missingKeywords.slice(0, 5).join(", ")}".`
         : `• You didn't fully show: warmth, acknowledgment of feelings, or offering help. Consider including: "${missingKeywords.slice(0, 5).join(", ")}".`;

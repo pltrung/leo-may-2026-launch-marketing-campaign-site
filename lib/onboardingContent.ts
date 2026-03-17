@@ -55,13 +55,86 @@ export interface Reflection {
   promptVi: string;
 }
 
+/** Base fields for every simulation step. */
+export interface SimulationStepBase {
+  id: string;
+  sceneEn: string;
+  sceneVi: string;
+  characters: { id: string; labelEn: string; labelVi: string; state?: string }[];
+  promptEn: string;
+  promptVi: string;
+}
+
+/** Decision step: multiple choice; wrong choice shows why wrong, impact, correct behavior. */
+export interface SimulationStepDecision extends SimulationStepBase {
+  type: "decision";
+  correctChoiceId: string;
+  options: { id: string; textEn: string; textVi: string }[];
+  wrongFeedbackEn: Record<string, string>;
+  wrongFeedbackVi: Record<string, string>;
+  correctFeedbackEn: string;
+  correctFeedbackVi: string;
+}
+
+/** AI response step: free text evaluated like a scenario. */
+export interface SimulationStepAI extends SimulationStepBase {
+  type: "ai_response";
+  hintEn: string;
+  hintVi: string;
+  perfectAnswerEn: string;
+  perfectAnswerVi: string;
+  goodKeywords?: string[];
+  badKeywords?: string[];
+  rubricEn?: string[];
+  rubricVi?: string[];
+}
+
+export type SimulationStep = SimulationStepDecision | SimulationStepAI;
+
+export function isSimulationStepDecision(s: SimulationStep): s is SimulationStepDecision {
+  return s.type === "decision";
+}
+
+/** Good performance result screen (e.g. "Peak Hour Completed"). */
+export interface SimulationResultGood {
+  titleEn: string;
+  titleVi: string;
+  strengthsEn: string[];
+  strengthsVi: string[];
+  xpReward: number;
+  skillDeltas: { communication?: number; safety?: number; sales?: number; teamwork?: number };
+}
+
+/** Poor performance result screen (e.g. "Needs Improvement"). */
+export interface SimulationResultPoor {
+  titleEn: string;
+  titleVi: string;
+  keyIssuesEn: string[];
+  keyIssuesVi: string[];
+  focusEn: string[];
+  focusVi: string[];
+}
+
+export interface DaySimulation {
+  id: string;
+  titleEn: string;
+  titleVi: string;
+  steps: SimulationStep[];
+  resultGood: SimulationResultGood;
+  resultPoor: SimulationResultPoor;
+}
+
 export interface DayContent {
   day: number;
   titleEn: string;
   titleVi: string;
   roleFilter?: OnboardingRole[];
+  /** End-of-day memory hook. */
+  keyTakeawayEn: string;
+  keyTakeawayVi: string;
   sections: LessonSection[];
   scenarios: AIScenario[];
+  simulation?: DaySimulation;
   quiz: QuizQuestion[];
   reflection: Reflection;
 }
@@ -104,8 +177,12 @@ export function getQuizContent(
 export const XP_LESSON = 10;
 export const XP_DAY_COMPLETE = 50;
 export const XP_PERFECT_QUIZ = 100;
+export const XP_PERFECT_DAY_BONUS = 100;
 export const HEARTS_MAX = 5;
 export const HEARTS_LOST_PER_MISTAKE = 1;
+
+/** 24 hours in ms for day unlock. */
+export const DAY_UNLOCK_HOURS_MS = 24 * 60 * 60 * 1000;
 
 export const BADGES = {
   leo_may_certified: { en: "Leo Mây Certified", vi: "Chứng nhận Leo Mây" },
@@ -118,6 +195,8 @@ export const DAY1: DayContent = {
   day: 1,
   titleEn: "The Leo Mây Way",
   titleVi: "Cách Leo Mây",
+  keyTakeawayEn: "Community over ego",
+  keyTakeawayVi: "Cộng đồng hơn cái tôi",
   sections: [
     {
       id: "d1s1",
@@ -230,6 +309,122 @@ export const DAY1: DayContent = {
       goodKeywords: ["sorry", "you", "help", "xin lỗi", "bạn", "giúp"],
     },
   ],
+  simulation: {
+    id: "day1_multi",
+    titleEn: "Peak hour at the front desk",
+    titleVi: "Giờ cao điểm ở quầy",
+    steps: [
+      {
+        type: "decision",
+        id: "step1",
+        sceneEn: "Member A (nervous, first time) is at the counter. Member B (regular, in a hurry) just walked in. Your teammate is busy with a group.",
+        sceneVi: "Thành viên A (lo lắng, lần đầu) đang ở quầy. Thành viên B (quen, đang vội) vừa bước vào. Đồng đội của bạn đang bận với một nhóm.",
+        characters: [
+          { id: "nervous", labelEn: "Member A (nervous)", labelVi: "Thành viên A (lo lắng)" },
+          { id: "impatient", labelEn: "Member B (in a hurry)", labelVi: "Thành viên B (vội)" },
+        ],
+        promptEn: "Who do you respond to first?",
+        promptVi: "Bạn phản hồi ai trước?",
+        correctChoiceId: "nervous",
+        options: [
+          { id: "nervous", textEn: "Acknowledge Member A first — they were there first and are nervous", textVi: "Chú ý Thành viên A trước — họ đến trước và đang lo" },
+          { id: "impatient", textEn: "Help Member B first — they're in a hurry", textVi: "Giúp Thành viên B trước — họ đang vội" },
+        ],
+        wrongFeedbackEn: {
+          impatient: "Wrong. Member B is in a hurry, but Member A was there first and is nervous. If you skip A, they feel invisible and their anxiety grows. Impact: A may leave or never return. Correct behavior: acknowledge who was there first; say to B: 'One sec!' then focus on A.",
+        },
+        wrongFeedbackVi: {
+          impatient: "Sai. Thành viên B đang vội nhưng Thành viên A đến trước và đang lo. Nếu bỏ qua A, họ cảm thấy vô hình và lo lắng tăng. Tác động: A có thể bỏ đi hoặc không quay lại. Cách đúng: chú ý người đến trước; nói với B: 'Chờ chút nhé!' rồi tập trung vào A.",
+        },
+        correctFeedbackEn: "Correct. Member A was there first and is nervous — they need to feel seen. Acknowledge B briefly then help A. Community over ego.",
+        correctFeedbackVi: "Đúng. Thành viên A đến trước và đang lo — họ cần cảm thấy được chú ý. Chào B ngắn gọn rồi giúp A. Cộng đồng hơn cái tôi.",
+      },
+      {
+        type: "ai_response",
+        id: "step2",
+        sceneEn: "You've turned to Member A. They're clearly nervous and say: 'I've never done this before. I'm scared I'll look stupid.'",
+        sceneVi: "Bạn đã quay sang Thành viên A. Họ rõ ràng lo lắng và nói: 'Tôi chưa bao giờ làm điều này. Tôi sợ trông mình ngớ ngẩn.'",
+        characters: [
+          { id: "nervous", labelEn: "Member A", labelVi: "Thành viên A" },
+        ],
+        promptEn: "What do you say to them? (Type your response)",
+        promptVi: "Bạn nói gì với họ? (Gõ phản hồi của bạn)",
+        hintEn: "Normalize fear. Reassure. Offer to help. Warm tone.",
+        hintVi: "Chuẩn hóa nỗi sợ. Động viên. Đề nghị giúp. Giọng ấm áp.",
+        perfectAnswerEn: "Hey, no worries at all — lots of people feel that way their first time. You won't look stupid; we're here to help and everyone starts somewhere. I'll walk you through it. Ready when you are!",
+        perfectAnswerVi: "Chào bạn, không sao — nhiều người lần đầu cũng vậy. Bạn sẽ không trông ngớ ngẩn đâu; chúng tôi ở đây để giúp và ai cũng bắt đầu từ đâu đó. Tôi sẽ hướng dẫn từng bước. Sẵn sàng thì bắt đầu nhé!",
+        goodKeywords: ["help", "first", "worries", "normal", "giúp", "đầu", "bình thường"],
+        badKeywords: ["stupid", "easy", "just", "ngớ ngẩn", "dễ mà"],
+        rubricEn: ["Normalize fear", "Reassure", "Offer to help"],
+        rubricVi: ["Chuẩn hóa nỗi sợ", "Động viên", "Đề nghị giúp"],
+      },
+      {
+        type: "decision",
+        id: "step3",
+        sceneEn: "Member B (still waiting) calls out: 'I just need a quick check-in. Can you hurry?' Member A is filling the waiver. You're with A.",
+        sceneVi: "Thành viên B (vẫn đang chờ) gọi: 'Tôi chỉ cần check-in nhanh thôi. Làm nhanh được không?' Thành viên A đang điền form. Bạn đang ở với A.",
+        characters: [
+          { id: "nervous", labelEn: "Member A (with you)", labelVi: "Thành viên A (đang với bạn)" },
+          { id: "impatient", labelEn: "Member B (calling)", labelVi: "Thành viên B (đang gọi)" },
+        ],
+        promptEn: "What do you do?",
+        promptVi: "Bạn làm gì?",
+        correctChoiceId: "ack_both",
+        options: [
+          { id: "ack_both", textEn: "Acknowledge B: 'One sec!' — then stay with A until they're ready, then check in B", textVi: "Chào B: 'Chờ chút nhé!' — rồi ở với A đến khi họ xong, sau đó check-in B" },
+          { id: "drop_a", textEn: "Leave A and go check in B to avoid conflict", textVi: "Bỏ A và đi check-in B để tránh xung đột" },
+        ],
+        wrongFeedbackEn: {
+          drop_a: "Wrong. Leaving A mid-process makes them feel abandoned and increases anxiety. Impact: A may not complete sign-up; trust is broken. Correct behavior: acknowledge B briefly so they feel seen, but finish with A first — then serve B. Both members get clear communication.",
+        },
+        wrongFeedbackVi: {
+          drop_a: "Sai. Bỏ A giữa chừng khiến họ cảm thấy bị bỏ rơi và lo lắng tăng. Tác động: A có thể không hoàn tất; niềm tin mất. Cách đúng: chào B ngắn gọn để họ thấy được chú ý, nhưng hoàn tất với A trước — rồi mới phục vụ B.",
+        },
+        correctFeedbackEn: "Correct. Acknowledge B so they don't feel ignored, but don't abandon A. Finish with A, then serve B. Clear communication and prioritization.",
+        correctFeedbackVi: "Đúng. Chào B để họ không cảm thấy bị lờ, nhưng không bỏ A. Hoàn tất với A rồi phục vụ B. Giao tiếp và ưu tiên rõ ràng.",
+      },
+      {
+        type: "decision",
+        id: "step4",
+        sceneEn: "A is done with the waiver. B is next. Your teammate is still busy. You have two people to help onto the wall. How do you coordinate?",
+        sceneVi: "A đã xong form. B là người tiếp theo. Đồng đội vẫn bận. Bạn có hai người cần hướng dẫn lên tường. Bạn phối hợp thế nào?",
+        characters: [
+          { id: "teammate", labelEn: "Teammate (busy)", labelVi: "Đồng đội (bận)" },
+        ],
+        promptEn: "Best approach?",
+        promptVi: "Cách làm tốt nhất?",
+        correctChoiceId: "signal",
+        options: [
+          { id: "signal", textEn: "Signal teammate: 'Got two ready — can you take one?' Then brief both members so they know the plan", textVi: "Ra hiệu đồng đội: 'Hai người sẵn sàng — bạn nhận một nhé?' Rồi brief cả hai để họ biết kế hoạch" },
+          { id: "solo", textEn: "Handle both yourself; don't bother teammate", textVi: "Tự xử cả hai; không làm phiền đồng đội" },
+        ],
+        wrongFeedbackEn: {
+          solo: "Wrong. Trying to handle both alone can mean rushed service and safety risk. Impact: members may feel hurried or unsupervised. Correct behavior: quick team coordination — signal teammate, brief members so everyone knows who's helping whom. Team coordination keeps everyone safe and seen.",
+        },
+        wrongFeedbackVi: {
+          solo: "Sai. Cố xử cả hai một mình có thể dẫn đến phục vụ vội và rủi ro an toàn. Tác động: thành viên có thể cảm thấy bị vội hoặc không được giám sát. Cách đúng: phối hợp nhanh với đồng đội — ra hiệu, brief thành viên để mọi người biết ai giúp ai.",
+        },
+        correctFeedbackEn: "Correct. Signal teammate and brief both members. Team coordination keeps the floor safe and both members feel guided.",
+        correctFeedbackVi: "Đúng. Ra hiệu đồng đội và brief cả hai. Phối hợp đội giữ sàn an toàn và cả hai đều được hướng dẫn.",
+      },
+    ],
+    resultGood: {
+      titleEn: "Peak hour completed",
+      titleVi: "Hoàn thành giờ cao điểm",
+      strengthsEn: ["Prioritization", "Communication", "Team coordination"],
+      strengthsVi: ["Ưu tiên", "Giao tiếp", "Phối hợp đội"],
+      xpReward: 120,
+      skillDeltas: { communication: 8, teamwork: 10 },
+    },
+    resultPoor: {
+      titleEn: "Needs improvement",
+      titleVi: "Cần cải thiện",
+      keyIssuesEn: ["Missed prioritization (who was first)", "Weak communication tone with nervous member", "Left member feeling invisible or rushed"],
+      keyIssuesVi: ["Bỏ lỡ ưu tiên (ai đến trước)", "Giọng giao tiếp yếu với thành viên lo lắng", "Để thành viên cảm thấy vô hình hoặc bị vội"],
+      focusEn: ["→ Acknowledge who was there first", "→ Stay proactive with both members", "→ Keep Leo Mây energy: warm, clear, team-minded"],
+      focusVi: ["→ Chú ý ai đến trước", "→ Chủ động với cả hai thành viên", "→ Giữ năng lượng Leo Mây: ấm áp, rõ ràng, tinh thần đội"],
+    },
+  },
   quiz: [
     {
       id: "q1",
@@ -349,6 +544,8 @@ export const DAY2: DayContent = {
   day: 2,
   titleEn: "Experience & Safety",
   titleVi: "Trải nghiệm & An toàn",
+  keyTakeawayEn: "Guide safely, never guarantee",
+  keyTakeawayVi: "Hướng dẫn an toàn, không bao giờ đảm bảo tuyệt đối",
   sections: [
     {
       id: "d2s1",
@@ -451,6 +648,54 @@ export const DAY2: DayContent = {
       goodKeywords: ["supervision", "guide", "minimize", "giám sát", "hướng dẫn", "giảm"],
     },
   ],
+  simulation: {
+    id: "day2_safety",
+    titleEn: "Safety first",
+    titleVi: "An toàn trước",
+    steps: [
+      {
+        type: "decision",
+        id: "step1",
+        sceneEn: "A parent and child (age 6) are at the counter. The parent asks if it's safe. A regular member is waiting behind them to check in.",
+        sceneVi: "Phụ huynh và trẻ (6 tuổi) ở quầy. Phụ huynh hỏi có an toàn không. Một thành viên quen đang chờ check-in phía sau.",
+        characters: [
+          { id: "parent", labelEn: "Parent (safety question)", labelVi: "Phụ huynh (câu hỏi an toàn)" },
+          { id: "regular", labelEn: "Regular (waiting)", labelVi: "Thành viên quen (đang chờ)" },
+        ],
+        promptEn: "Who do you address first, and why?",
+        promptVi: "Bạn trả lời ai trước, và tại sao?",
+        correctChoiceId: "parent",
+        options: [
+          { id: "parent", textEn: "Address the parent first — safety questions need a clear, honest answer", textVi: "Trả lời phụ huynh trước — câu hỏi an toàn cần câu trả lời rõ, trung thực" },
+          { id: "regular", textEn: "Check in the regular first — they're in a hurry", textVi: "Check-in thành viên quen trước — họ đang vội" },
+        ],
+        wrongFeedbackEn: {
+          regular: "Wrong. The parent is asking about safety for a child. If you serve the regular first, the parent may feel dismissed or that you don't take their concern seriously. Safety and reassurance come first; then you can quickly check in the regular. Guide safely, never guarantee.",
+        },
+        wrongFeedbackVi: {
+          regular: "Sai. Phụ huynh đang hỏi về an toàn cho trẻ. Nếu bạn phục vụ thành viên quen trước, phụ huynh có thể cảm thấy bị coi thường. An toàn và động viên trước; sau đó check-in nhanh. Hướng dẫn an toàn, không đảm bảo tuyệt đối.",
+        },
+        correctFeedbackEn: "Correct. Address the parent first. Safety questions deserve a clear, honest answer (we guide safely, we don't guarantee). The regular can wait a moment. Then acknowledge them: 'One sec!' and check them in.",
+        correctFeedbackVi: "Đúng. Trả lời phụ huynh trước. Câu hỏi an toàn cần câu trả lời rõ, trung thực (chúng ta hướng dẫn an toàn, không đảm bảo tuyệt đối). Thành viên quen chờ chút. Sau đó chào họ: 'Chờ chút nhé!' rồi check-in.",
+      },
+    ],
+    resultGood: {
+      titleEn: "Safety briefing completed",
+      titleVi: "Hoàn thành phần an toàn",
+      strengthsEn: ["Prioritized safety question", "Clear safety language", "Member confidence"],
+      strengthsVi: ["Ưu tiên câu hỏi an toàn", "Ngôn ngữ an toàn rõ", "Sự tự tin thành viên"],
+      xpReward: 100,
+      skillDeltas: { safety: 10, communication: 5 },
+    },
+    resultPoor: {
+      titleEn: "Needs improvement",
+      titleVi: "Cần cải thiện",
+      keyIssuesEn: ["Safety question not prioritized", "Unclear or guaranteed safety language", "Parent or member felt dismissed"],
+      keyIssuesVi: ["Câu hỏi an toàn chưa được ưu tiên", "Ngôn ngữ an toàn không rõ hoặc đảm bảo tuyệt đối", "Phụ huynh hoặc thành viên cảm thấy bị coi thường"],
+      focusEn: ["→ Address safety questions first", "→ Guide safely, never guarantee", "→ Keep Leo Mây energy: honest, clear"],
+      focusVi: ["→ Trả lời câu hỏi an toàn trước", "→ Hướng dẫn an toàn, không đảm bảo tuyệt đối", "→ Giữ năng lượng Leo Mây: trung thực, rõ ràng"],
+    },
+  },
   quiz: [
     {
       id: "q1",
@@ -570,6 +815,8 @@ export const DAY3: DayContent = {
   day: 3,
   titleEn: "Role & Responsibility",
   titleVi: "Vai trò & Trách nhiệm",
+  keyTakeawayEn: "If you see it, you own it",
+  keyTakeawayVi: "Thấy là xử lý",
   sections: [
     {
       id: "d3s1",
@@ -637,6 +884,54 @@ export const DAY3: DayContent = {
       rubricVi: ["Chú ý thành viên", "Ra hiệu đồng đội", "Đừng lờ"],
     },
   ],
+  simulation: {
+    id: "day3_ownership",
+    titleEn: "Who handles it?",
+    titleVi: "Ai xử lý?",
+    steps: [
+      {
+        type: "decision",
+        id: "step1",
+        sceneEn: "You see a spill on the floor. A member is at the counter. Your teammate is with a group. Who handles the spill?",
+        sceneVi: "Bạn thấy nước đổ trên sàn. Một thành viên đang ở quầy. Đồng đội đang với một nhóm. Ai xử lý nước đổ?",
+        characters: [
+          { id: "you", labelEn: "You (handle it)", labelVi: "Bạn (xử lý)" },
+          { id: "teammate", labelEn: "Wait for teammate", labelVi: "Chờ đồng đội" },
+        ],
+        promptEn: "What do you do?",
+        promptVi: "Bạn làm gì?",
+        correctChoiceId: "you",
+        options: [
+          { id: "you", textEn: "I handle it — signal the member 'One sec', clean or block the spill, then help them", textVi: "Tôi xử lý — ra hiệu thành viên 'Chờ chút', dọn hoặc chặn vết đổ, rồi giúp họ" },
+          { id: "teammate", textEn: "Wait for teammate to finish and they can clean it", textVi: "Chờ đồng đội xong rồi họ dọn" },
+        ],
+        wrongFeedbackEn: {
+          teammate: "Wrong. If you see it, you own it. Leaving the spill for someone else risks a member slipping. Acknowledge the member briefly, then fix the hazard. Ownership means you take responsibility when you notice something.",
+        },
+        wrongFeedbackVi: {
+          teammate: "Sai. Thấy là xử lý. Để nước đổ cho người khác có thể khiến thành viên trượt. Chào thành viên ngắn gọn rồi xử lý nguy cơ. Làm chủ nghĩa là bạn chịu trách nhiệm khi bạn nhận ra.",
+        },
+        correctFeedbackEn: "Correct. If you see it, you own it. Don't pass the buck. Quick signal to the member, deal with the spill (clean or block), then help them. That's the Leo Mây way.",
+        correctFeedbackVi: "Đúng. Thấy là xử lý. Không đùn đẩy. Ra hiệu nhanh với thành viên, xử lý nước đổ (dọn hoặc chặn), rồi giúp họ. Đó là cách Leo Mây.",
+      },
+    ],
+    resultGood: {
+      titleEn: "Ownership in action",
+      titleVi: "Làm chủ trong hành động",
+      strengthsEn: ["Ownership (saw it, handled it)", "Member acknowledged", "Hazard removed"],
+      strengthsVi: ["Làm chủ (thấy là xử lý)", "Thành viên được chú ý", "Nguy cơ được xử lý"],
+      xpReward: 100,
+      skillDeltas: { teamwork: 8 },
+    },
+    resultPoor: {
+      titleEn: "Needs improvement",
+      titleVi: "Cần cải thiện",
+      keyIssuesEn: ["Passed the buck instead of owning", "Spill left — member at risk", "Member may feel unheard"],
+      keyIssuesVi: ["Đùn đẩy thay vì làm chủ", "Nước đổ còn — thành viên gặp rủi ro", "Thành viên có thể cảm thấy không được nghe"],
+      focusEn: ["→ If you see it, you own it", "→ Acknowledge member briefly, then fix", "→ Keep Leo Mây energy: proactive"],
+      focusVi: ["→ Thấy là xử lý", "→ Chào thành viên ngắn gọn rồi xử lý", "→ Giữ năng lượng Leo Mây: chủ động"],
+    },
+  },
   quiz: [
     {
       id: "q1",
@@ -722,6 +1017,8 @@ export const DAY4: DayContent = {
   day: 4,
   titleEn: "Sales & System",
   titleVi: "Bán hàng & Hệ thống",
+  keyTakeawayEn: "Selling is helping",
+  keyTakeawayVi: "Bán hàng là giúp đỡ",
   sections: [
     {
       id: "d4s1",
@@ -794,6 +1091,54 @@ export const DAY4: DayContent = {
       rubricVi: ["Quét QR", "Xác nhận gói", "Hoàn tất"],
     },
   ],
+  simulation: {
+    id: "day4_checkin",
+    titleEn: "Check-in or upsell?",
+    titleVi: "Check-in hay gợi ý?",
+    steps: [
+      {
+        type: "decision",
+        id: "step1",
+        sceneEn: "A day-pass member is at the counter. They've been coming often. They say they love the gym. Do you mention membership?",
+        sceneVi: "Thành viên vé ngày ở quầy. Họ đến thường. Họ nói rất thích gym. Bạn có nhắc gói thành viên không?",
+        characters: [
+          { id: "mention", labelEn: "Mention membership (help)", labelVi: "Nhắc gói (giúp)" },
+          { id: "silent", labelEn: "Just check them in, say nothing", labelVi: "Chỉ check-in, không nói gì" },
+        ],
+        promptEn: "What do you do?",
+        promptVi: "Bạn làm gì?",
+        correctChoiceId: "mention",
+        options: [
+          { id: "mention", textEn: "Mention it naturally — e.g. if they're here often, a membership could save them money; no pressure", textVi: "Nhắc tự nhiên — vd nếu họ đến thường, gói có thể tiết kiệm; không ép" },
+          { id: "silent", textEn: "Just check them in and say nothing about membership", textVi: "Chỉ check-in và không nói gì về gói" },
+        ],
+        wrongFeedbackEn: {
+          silent: "Wrong. Selling is helping. If they love the gym and come often, not mentioning membership misses a chance to help them save and belong. Do it naturally: 'Sounds like you're here a lot — a membership might save you. No pressure.'",
+        },
+        wrongFeedbackVi: {
+          silent: "Sai. Bán là giúp. Nếu họ thích gym và đến thường, không nhắc gói là bỏ lỡ cơ hội giúp họ tiết kiệm và thuộc về. Nhắc tự nhiên: 'Có vẻ bạn đến nhiều — gói có thể tiết kiệm. Không ép.'",
+        },
+        correctFeedbackEn: "Correct. Selling is helping. Mention membership in a low-pressure way when it fits — e.g. they come often, they'd save money. You're not pushing; you're making it easier for them to get what's right.",
+        correctFeedbackVi: "Đúng. Bán là giúp. Nhắc gói một cách thoải mái khi phù hợp — vd họ đến thường, họ sẽ tiết kiệm. Bạn không ép; bạn giúp họ dễ có thứ phù hợp.",
+      },
+    ],
+    resultGood: {
+      titleEn: "Selling as helping completed",
+      titleVi: "Hoàn thành bán hàng là giúp",
+      strengthsEn: ["Natural membership mention", "Low-pressure tone", "Member felt helped"],
+      strengthsVi: ["Nhắc gói tự nhiên", "Giọng không ép", "Thành viên cảm thấy được giúp"],
+      xpReward: 100,
+      skillDeltas: { sales: 10, communication: 5 },
+    },
+    resultPoor: {
+      titleEn: "Needs improvement",
+      titleVi: "Cần cải thiện",
+      keyIssuesEn: ["Missed chance to help (membership)", "Silent check-in when mention would help", "Member may overpay or feel unsupported"],
+      keyIssuesVi: ["Bỏ lỡ cơ hội giúp (gói)", "Check-in im lặng khi nhắc sẽ hữu ích", "Thành viên có thể trả nhiều hơn hoặc cảm thấy không được hỗ trợ"],
+      focusEn: ["→ Selling is helping — mention when it fits", "→ Natural, no pressure", "→ Keep Leo Mây energy: helpful, not pushy"],
+      focusVi: ["→ Bán là giúp — nhắc khi phù hợp", "→ Tự nhiên, không ép", "→ Giữ năng lượng Leo Mây: hữu ích, không ép"],
+    },
+  },
   quiz: [
     {
       id: "q1",
@@ -879,6 +1224,8 @@ export const DAY5: DayContent = {
   day: 5,
   titleEn: "Team & Excellence",
   titleVi: "Đội & Xuất sắc",
+  keyTakeawayEn: "Make the team stronger",
+  keyTakeawayVi: "Làm đội mạnh hơn",
   sections: [
     {
       id: "d5s1",
@@ -964,6 +1311,54 @@ export const DAY5: DayContent = {
       rubricVi: ["Đề nghị giúp", "Đề nghị cụ thể", "Tư duy đội"],
     },
   ],
+  simulation: {
+    id: "day5_chaos",
+    titleEn: "Chaos at the counter",
+    titleVi: "Hỗn loạn ở quầy",
+    steps: [
+      {
+        type: "decision",
+        id: "step1",
+        sceneEn: "Three members at counter: one nervous first-timer, one regular in a hurry, one asking about a birthday party. Your teammate is on the wall. What do you do first?",
+        sceneVi: "Ba thành viên ở quầy: một người mới lo lắng, một quen đang vội, một hỏi về tiệc sinh nhật. Đồng đội đang ở tường. Bạn làm gì trước?",
+        characters: [
+          { id: "ack_all", labelEn: "Acknowledge all, then prioritize", labelVi: "Chú ý tất cả, rồi ưu tiên" },
+          { id: "first_only", labelEn: "Serve the first in line only", labelVi: "Chỉ phục vụ người đứng đầu" },
+        ],
+        promptEn: "Choose the best approach.",
+        promptVi: "Chọn cách làm tốt nhất.",
+        correctChoiceId: "ack_all",
+        options: [
+          { id: "ack_all", textEn: "Acknowledge everyone quickly ('I see you all — one moment'), then prioritize: e.g. first-timer needs reassurance, regular is quick check-in", textVi: "Chú ý mọi người nhanh ('Tôi thấy các bạn — chờ chút'), rồi ưu tiên: vd người mới cần động viên, người quen check-in nhanh" },
+          { id: "first_only", textEn: "Just serve whoever is first in line; ignore the others until their turn", textVi: "Chỉ phục vụ người đứng trước; lờ những người khác đến lượt" },
+        ],
+        wrongFeedbackEn: {
+          first_only: "Wrong. Ignoring the others makes them feel invisible and can increase frustration. At Leo Mây we acknowledge everyone quickly so no one feels left behind. Then prioritize and get backup if needed. Make the team stronger.",
+        },
+        wrongFeedbackVi: {
+          first_only: "Sai. Lờ những người khác khiến họ cảm thấy vô hình và dễ bực. Ở Leo Mây chúng ta chú ý mọi người nhanh để không ai cảm thấy bị bỏ lại. Rồi ưu tiên và gọi hỗ trợ nếu cần. Làm đội mạnh hơn.",
+        },
+        correctFeedbackEn: "Correct. Acknowledge everyone quickly so no one feels invisible. Then prioritize (e.g. first-timer needs reassurance; regular is fast). Signal your teammate if you need backup. Stay calm — make the team stronger.",
+        correctFeedbackVi: "Đúng. Chú ý mọi người nhanh để không ai cảm thấy vô hình. Rồi ưu tiên (vd người mới cần động viên; người quen nhanh). Ra hiệu đồng đội nếu cần hỗ trợ. Giữ bình tĩnh — làm đội mạnh hơn.",
+      },
+    ],
+    resultGood: {
+      titleEn: "Peak hour completed",
+      titleVi: "Hoàn thành giờ cao điểm",
+      strengthsEn: ["Prioritization", "Communication", "Team coordination"],
+      strengthsVi: ["Ưu tiên", "Giao tiếp", "Phối hợp đội"],
+      xpReward: 120,
+      skillDeltas: { communication: 8, teamwork: 10 },
+    },
+    resultPoor: {
+      titleEn: "Needs improvement",
+      titleVi: "Cần cải thiện",
+      keyIssuesEn: ["Missed prioritization", "Weak communication tone", "Members felt invisible or rushed"],
+      keyIssuesVi: ["Bỏ lỡ ưu tiên", "Giọng giao tiếp yếu", "Thành viên cảm thấy vô hình hoặc bị vội"],
+      focusEn: ["→ Acknowledge first", "→ Stay proactive", "→ Keep Leo Mây energy"],
+      focusVi: ["→ Chú ý trước", "→ Chủ động", "→ Giữ năng lượng Leo Mây"],
+    },
+  },
   quiz: [
     {
       id: "q1",
@@ -1051,32 +1446,39 @@ export function getDayContent(day: number): DayContent | undefined {
 }
 
 /** Map current_step to phase and indices for resume. Step 0 = first lesson, etc. */
+const SIM_STEPS = (content: DayContent) => content.simulation?.steps.length ?? 0;
+
 export function stepToPhase(
   step: number,
   content: DayContent
-): { phase: "lesson" | "scenario" | "quiz" | "reflection"; lessonIndex: number; scenarioIndex: number; quizIndex: number } {
+): { phase: "lesson" | "scenario" | "simulation" | "quiz" | "reflection"; lessonIndex: number; scenarioIndex: number; simulationStepIndex: number; quizIndex: number } {
   const L = content.sections.length;
   const S = content.scenarios.length;
+  const Sim = SIM_STEPS(content);
   const Q = content.quiz.length;
-  if (step < L) return { phase: "lesson", lessonIndex: step, scenarioIndex: 0, quizIndex: 0 };
-  if (step < L + S) return { phase: "scenario", lessonIndex: L - 1, scenarioIndex: step - L, quizIndex: 0 };
-  if (step < L + S + Q) return { phase: "quiz", lessonIndex: L - 1, scenarioIndex: S - 1, quizIndex: step - L - S };
-  return { phase: "reflection", lessonIndex: L - 1, scenarioIndex: S - 1, quizIndex: Q - 1 };
+  if (step < L) return { phase: "lesson", lessonIndex: step, scenarioIndex: 0, simulationStepIndex: 0, quizIndex: 0 };
+  if (step < L + S) return { phase: "scenario", lessonIndex: L - 1, scenarioIndex: step - L, simulationStepIndex: 0, quizIndex: 0 };
+  if (step < L + S + Sim) return { phase: "simulation", lessonIndex: L - 1, scenarioIndex: S - 1, simulationStepIndex: step - L - S, quizIndex: 0 };
+  if (step < L + S + Sim + Q) return { phase: "quiz", lessonIndex: L - 1, scenarioIndex: S - 1, simulationStepIndex: Sim - 1, quizIndex: step - L - S - Sim };
+  return { phase: "reflection", lessonIndex: L - 1, scenarioIndex: S - 1, simulationStepIndex: Math.max(0, Sim - 1), quizIndex: Q - 1 };
 }
 
 /** Compute current_step from phase and indices. */
 export function phaseToStep(
-  phase: "lesson" | "scenario" | "quiz" | "reflection",
+  phase: "lesson" | "scenario" | "simulation" | "quiz" | "reflection",
   lessonIndex: number,
   scenarioIndex: number,
+  simulationStepIndex: number,
   quizIndex: number,
   content: DayContent
 ): number {
   const L = content.sections.length;
   const S = content.scenarios.length;
+  const Sim = SIM_STEPS(content);
   const Q = content.quiz.length;
   if (phase === "lesson") return lessonIndex;
   if (phase === "scenario") return L + scenarioIndex;
-  if (phase === "quiz") return L + S + quizIndex;
-  return L + S + Q;
+  if (phase === "simulation") return L + S + simulationStepIndex;
+  if (phase === "quiz") return L + S + Sim + quizIndex;
+  return L + S + Sim + Q;
 }
