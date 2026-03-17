@@ -16,6 +16,7 @@ import PaymentModal from "@/components/dashboard/PaymentModal";
 import EventDetailModal, { type DashboardEvent } from "@/components/dashboard/EventDetailModal";
 import WaiverModal from "@/components/dashboard/WaiverModal";
 import AchievementUnlockModal, { type AchievementUnlockData } from "@/components/dashboard/AchievementUnlockModal";
+import { GuidedTour, TOUR_STEPS_DASHBOARD } from "@/components/admin/GuidedTour";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -141,6 +142,11 @@ export default function DashboardPage() {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (!mounted || typeof window === "undefined") return;
+    if (!window.localStorage.getItem("dashboard_tour_done")) setGuidedTourActive(true);
+  }, [mounted]);
+
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isVietQrModalOpen, setIsVietQrModalOpen] = useState(false);
   const wakeLockRef = useRef<any | null>(null);
@@ -216,6 +222,7 @@ export default function DashboardPage() {
   const [achievementUnlock, setAchievementUnlock] = useState<AchievementUnlockData | null>(null);
   const [showAchievementUnlock, setShowAchievementUnlock] = useState(false);
   const [leaderboardPeriod, setLeaderboardPeriod] = useState<"week" | "month" | "all">("month");
+  const [guidedTourActive, setGuidedTourActive] = useState(false);
   const [newbieClass, setNewbieClass] = useState<{
     session_id: string;
     start_time: string;
@@ -807,9 +814,16 @@ export default function DashboardPage() {
       <header className="w-full sticky top-0 z-20 backdrop-blur-xl border-b border-white/[0.12]" style={{ background: "rgba(0,0,0,0.5)" }}>
         <div className="max-w-[720px] mx-auto flex items-center justify-between px-4 py-3 md:px-6 md:py-4">
           <div className="flex items-center gap-3">
-            <div className="h-10 md:h-11">
+            <div className="h-10 md:h-11 shrink-0">
               <Logo className="h-full w-auto object-contain" />
             </div>
+            <button
+              type="button"
+              onClick={() => setGuidedTourActive(true)}
+              className="text-[13px] font-medium px-3 py-1.5 rounded-full border border-white/20 text-white/90 hover:bg-white/10 transition-colors"
+            >
+              {isVi ? "Tour" : "Tour"}
+            </button>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1 text-[13px] rounded-full px-2 py-1 transition-transform duration-150" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}>
@@ -844,6 +858,20 @@ export default function DashboardPage() {
         </div>
       </header>
 
+      <GuidedTour
+        steps={TOUR_STEPS_DASHBOARD}
+        isActive={guidedTourActive}
+        onClose={() => {
+          setGuidedTourActive(false);
+          if (typeof window !== "undefined") window.localStorage.setItem("dashboard_tour_done", "1");
+        }}
+        locale={locale as "en" | "vi"}
+        onNavigate={(step) => {
+          const tab = step.navigate?.dashboardTab;
+          if (tab) setDashboardTab(tab);
+        }}
+      />
+
       {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col items-center px-4 pb-10 pt-6 md:pt-10 relative" style={{ zIndex: 10 }}>
         {paymentSuccess && (
@@ -864,9 +892,10 @@ export default function DashboardPage() {
             </div>
           </section>
           {/* GREETING + PROFILE */}
-          <section>
+          <section data-tour="dashboard-welcome">
             <button
               type="button"
+              data-tour="dashboard-profile"
               onClick={() => setProfileModalOpen(true)}
               className="flex items-center gap-3 w-full text-left transition-opacity hover:opacity-90"
             >
@@ -953,7 +982,7 @@ export default function DashboardPage() {
 
           {/* CHECK-IN REQUIREMENTS NOTICE - show above waiver when any step is missing */}
           {!canShowQR && (
-            <section>
+            <section data-tour="dashboard-qr">
               <div className="w-full rounded-[20px] px-6 py-4 text-[15px] transition-transform duration-200" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
                 <div className="flex items-center justify-between gap-3 mb-3">
                   <span className="text-amber-200 font-medium">
@@ -1008,7 +1037,7 @@ export default function DashboardPage() {
 
           {/* CHECK IN - only show when all 3 steps (waiver, package, profile photo) are done */}
           {canShowQR && (
-          <section>
+          <section data-tour="dashboard-qr">
             {checkInSuccess && (
               <div className="w-full mb-4 rounded-[20px] px-6 py-4 flex flex-col gap-1 border-2 border-emerald-400/60 shadow-lg shadow-emerald-500/20 animate-in fade-in slide-in-from-top-2 duration-300" style={{ background: glassCard, backdropFilter: "blur(20px)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
                 <p className="text-[18px] font-medium text-emerald-200">
@@ -1092,7 +1121,7 @@ export default function DashboardPage() {
           )}
 
           {/* GYM STATUS */}
-          <section>
+          <section data-tour="dashboard-gym-status">
             <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               <h2 className="text-[22px] font-semibold text-white/90 mb-4">
                 {isVi ? "TÌNH TRẠNG PHÒNG GYM" : "GYM STATUS"}
@@ -1112,6 +1141,7 @@ export default function DashboardPage() {
 
           {/* STICKY TAB NAV */}
           <nav
+            data-tour="dashboard-tabs"
             className="sticky top-14 z-20 flex gap-1 rounded-xl p-1 mb-4"
             style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 4px 20px rgba(0,0,0,0.3)" }}
             aria-label={isVi ? "Điều hướng dashboard" : "Dashboard tabs"}
@@ -1137,7 +1167,7 @@ export default function DashboardPage() {
 
           {/* TAB: MEMBERSHIP */}
           {dashboardTab === "membership" && (
-          <section>
+          <section data-tour="dashboard-membership">
             <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               <h2 className="text-[22px] font-semibold text-white/90 mb-4">
                 {isVi ? "THẺ THÀNH VIÊN" : "MEMBERSHIP"}
@@ -1366,7 +1396,7 @@ export default function DashboardPage() {
 
           {/* TAB: ACTIVITY — Climbing Progress */}
           {dashboardTab === "activity" && (
-          <section>
+          <section data-tour="dashboard-activity">
             <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               <h2 className="text-[22px] font-semibold text-white/90 mb-4">
                 {isVi ? "TIẾN ĐỘ LEO" : "CLIMBING PROGRESS"}
@@ -1449,6 +1479,7 @@ export default function DashboardPage() {
           {/* TAB: EVENTS */}
           {dashboardTab === "events" && (
           <section
+            data-tour="dashboard-events"
             className="rounded-[18px] p-6 transition-transform duration-200 hover:-translate-y-0.5"
             style={{
               background: glassCard,
@@ -1546,7 +1577,7 @@ export default function DashboardPage() {
 
           {/* TAB: LEADERBOARD */}
           {dashboardTab === "leaderboard" && (
-          <section>
+          <section data-tour="dashboard-leaderboard">
             <div className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
                 <h2 className="text-[22px] font-semibold text-white/90">

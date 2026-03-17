@@ -10,6 +10,8 @@ export interface TourStepNavigate {
   staffSubTab?: "routes" | "coaching";
   operationsTab?: "overview" | "tasks" | "attendance" | "coaching" | "routes";
   analyticsTab?: "overview" | "revenue" | "members" | "retention" | "behavior" | "funnel" | "operations" | "staff" | "onboarding";
+  /** Dashboard member app: switch tab so target is visible. */
+  dashboardTab?: "membership" | "activity" | "events" | "leaderboard";
 }
 
 export interface TourStep {
@@ -193,4 +195,17 @@ export const TOUR_STEPS_ADMIN: TourStep[] = [
   // 4. ANALYTICS (fourth tab, right)
   { id: "area-analytics", target: "[data-tour=area-analytics]", titleEn: "Analytics", titleVi: "Phân tích", contentEn: "Analytics: revenue, members, retention, behavior, funnel, operations, staff, and onboarding reports. Use filters for date and member type.", contentVi: "Phân tích: doanh thu, thành viên, giữ chân, hành vi, phễu, vận hành, nhân sự và báo cáo đào tạo. Dùng bộ lọc theo ngày và loại thành viên.", navigate: { area: "analytics" } },
   { id: "onboarding-analytics", target: "[data-tour=tab-onboarding]", titleEn: "Onboarding analytics", titleVi: "Đào tạo", contentEn: "In Analytics, open the Onboarding tab to see per-staff: average AI score, quiz accuracy, days completed, weakest skill, and completion time.", contentVi: "Trong Phân tích, mở tab Đào tạo để xem theo từng nhân sự: điểm AI trung bình, độ chính xác quiz, số ngày hoàn thành, kỹ năng yếu nhất và thời gian hoàn thành.", navigate: { area: "analytics", analyticsTab: "onboarding" } },
+];
+
+/** Member dashboard app: welcome, profile, check-in QR, gym status, tabs, membership, activity, events, leaderboard. */
+export const TOUR_STEPS_DASHBOARD: TourStep[] = [
+  { id: "dash-welcome", target: "[data-tour=dashboard-welcome]", titleEn: "Welcome to your dashboard", titleVi: "Chào mừng đến trang tổng quan", contentEn: "This is your member dashboard. Here you can check in, view your membership, activity, events, and leaderboard.", contentVi: "Đây là trang tổng quan thành viên. Tại đây bạn có thể check-in, xem thẻ thành viên, hoạt động, sự kiện và bảng xếp hạng." },
+  { id: "dash-profile", target: "[data-tour=dashboard-profile]", titleEn: "Your profile", titleVi: "Hồ sơ của bạn", contentEn: "Tap here to view and update your profile, photo, and waiver status.", contentVi: "Chạm vào đây để xem và cập nhật hồ sơ, ảnh và trạng thái waiver." },
+  { id: "dash-qr", target: "[data-tour=dashboard-qr]", titleEn: "Check-in at the gym", titleVi: "Check-in tại gym", contentEn: "Show this QR code at the front desk to check in. Tap to enlarge for scanning.", contentVi: "Đưa mã QR này cho quầy lễ tân để check-in. Chạm để phóng to khi quét." },
+  { id: "dash-gym-status", target: "[data-tour=dashboard-gym-status]", titleEn: "Gym status", titleVi: "Tình trạng gym", contentEn: "See how many members have checked in recently. Useful before you head in.", contentVi: "Xem số thành viên đã check-in gần đây. Hữu ích trước khi bạn tới gym." },
+  { id: "dash-tabs", target: "[data-tour=dashboard-tabs]", titleEn: "Dashboard tabs", titleVi: "Các tab", contentEn: "Switch between Membership, Activity, Events, and Leaderboard to see your card, history, upcoming events, and rankings.", contentVi: "Chuyển giữa Thẻ thành viên, Hoạt động, Sự kiện và Bảng xếp hạng để xem thẻ, lịch sử, sự kiện và thứ hạng." },
+  { id: "dash-membership", target: "[data-tour=dashboard-membership]", titleEn: "Membership", titleVi: "Thẻ thành viên", contentEn: "Your tier, status, valid until, and member ID. You can also pay or renew and see payment history here.", contentVi: "Hạng, trạng thái, có hiệu lực đến và mã thành viên. Bạn cũng có thể thanh toán hoặc gia hạn và xem lịch sử thanh toán tại đây.", navigate: { dashboardTab: "membership" } },
+  { id: "dash-activity", target: "[data-tour=dashboard-activity]", titleEn: "Activity", titleVi: "Hoạt động", contentEn: "Your check-in history and visit summary. See when you last visited and your activity over time.", contentVi: "Lịch sử check-in và tóm tắt lượt đến. Xem lần đến gần nhất và hoạt động theo thời gian.", navigate: { dashboardTab: "activity" } },
+  { id: "dash-events", target: "[data-tour=dashboard-events]", titleEn: "Events", titleVi: "Sự kiện", contentEn: "Upcoming gym events: route setting, workshops, competitions, and more. Tap an event for details.", contentVi: "Sự kiện sắp tới: thay tuyến, workshop, thi đấu và hơn thế. Chạm vào sự kiện để xem chi tiết.", navigate: { dashboardTab: "events" } },
+  { id: "dash-leaderboard", target: "[data-tour=dashboard-leaderboard]", titleEn: "Leaderboard", titleVi: "Bảng xếp hạng", contentEn: "See top climbers by check-ins. Filter by period and category. Climb more to climb the ranks.", contentVi: "Xem thành viên leo nhiều nhất theo check-in. Lọc theo kỳ và nhóm. Leo nhiều để leo lên bảng xếp hạng.", navigate: { dashboardTab: "leaderboard" } },
 ];
