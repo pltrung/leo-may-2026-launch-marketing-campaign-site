@@ -252,6 +252,7 @@ export default function AdminPage() {
   } | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [opsOverviewExpanded, setOpsOverviewExpanded] = useState(false);
+  const [frontdeskBannerData, setFrontdeskBannerData] = useState<{ gym_ready: boolean; checkins_today: number; inventory_need_restock: number } | null>(null);
   const [staffSubTab, setStaffSubTab] = useState<"routes" | "coaching">("routes");
   const [staffAttendanceLoading, setStaffAttendanceLoading] = useState(false);
   const [staffCompletedTasksExpanded, setStaffCompletedTasksExpanded] = useState(false);
@@ -459,7 +460,7 @@ export default function AdminPage() {
       .catch(() => setCheckinsData({ checkins: [], byDay: {} }));
   }, [isCheckinActive, adminFetch]);
 
-  // Fetch staff operations when Operations area is active, or when admin (so top operations overview bar has data)
+  // Fetch staff operations when Operations area is active, or when admin (so top operations overview bar has data), or when staff (for staff banner)
   useEffect(() => {
     if (!canAccessOperations && !isStaffAreaActive) return;
     adminFetch("/api/admin/staff")
@@ -467,6 +468,25 @@ export default function AdminPage() {
       .then((d) => setStaffOpsData(d))
       .catch(() => setStaffOpsData(null));
   }, [canAccessOperations, isStaffAreaActive, adminFetch]);
+
+  // Fetch frontdesk banner data (gym ready, check-ins today, inventory need restock)
+  useEffect(() => {
+    if (role !== "frontdesk") {
+      setFrontdeskBannerData(null);
+      return;
+    }
+    adminFetch("/api/admin/dashboard-banner")
+      .then((r) => r.json())
+      .then((d) => setFrontdeskBannerData({ gym_ready: !!d.gym_ready, checkins_today: typeof d.checkins_today === "number" ? d.checkins_today : 0, inventory_need_restock: typeof d.inventory_need_restock === "number" ? d.inventory_need_restock : 0 }))
+      .catch(() => setFrontdeskBannerData(null));
+    const id = setInterval(() => {
+      adminFetch("/api/admin/dashboard-banner")
+        .then((r) => r.json())
+        .then((d) => setFrontdeskBannerData({ gym_ready: !!d.gym_ready, checkins_today: typeof d.checkins_today === "number" ? d.checkins_today : 0, inventory_need_restock: typeof d.inventory_need_restock === "number" ? d.inventory_need_restock : 0 }))
+        .catch(() => {});
+    }, 60000);
+    return () => clearInterval(id);
+  }, [role, adminFetch]);
 
   // Refresh operations overview for admin every 60s so top bar stays current
   useEffect(() => {
@@ -1451,8 +1471,72 @@ export default function AdminPage() {
             );
           })()}
 
+          {/* Staff banner — role staff: Gym, Tasks at phase, Coaching today, Route reset today */}
+          {role === "staff" && staffOpsData && (() => {
+            const sum = staffOpsData.summary;
+            const phase = staffOpsData.phase?.current_phase ?? "gym_open";
+            const preOpenDone = sum.pre_open_completed ?? 0;
+            const preOpenTotal = sum.pre_open_total ?? 0;
+            const duringDone = (staffOpsData.during ?? []).filter((t: { status: string }) => t.status === "completed").length;
+            const duringTotal = (staffOpsData.during ?? []).length;
+            const closingDone = (staffOpsData.closing ?? []).filter((t: { status: string }) => t.status === "completed").length;
+            const closingTotal = (staffOpsData.closing ?? []).length;
+            const phaseLabel = phase === "pre_open" ? (locale === "vi" ? "Pre-Open" : "Pre-Open") : phase === "closing" ? (locale === "vi" ? "Đóng cửa" : "Closing") : (locale === "vi" ? "Giờ mở" : "Gym open");
+            const tasksDone = phase === "pre_open" ? preOpenDone : phase === "closing" ? closingDone : duringDone;
+            const tasksTotal = phase === "pre_open" ? preOpenTotal : phase === "closing" ? closingTotal : duringTotal;
+            const gymReady = staffOpsData.phase?.current_phase === "closing" ? staffOpsData.ready_to_close === true : staffOpsData.gym_ready === true;
+            const sessionsToday = (staffOpsData.sessionsToday ?? staffOpsData.sessions ?? []).length;
+            const routeResetToday = staffOpsData.summary?.zones_overdue ?? (staffOpsData.zones ?? []).filter((z: { overdue?: boolean }) => z.overdue).length;
+            return (
+              <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div className="flex flex-wrap gap-2 md:gap-4 px-2.5 py-1.5 md:px-3 md:py-2">
+                  <div className={`rounded border px-2 py-1 min-w-0 ${gymReady ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200"}`}>
+                    <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Gym" : "Gym"}</p>
+                    <p className="text-xs font-bold text-slate-800">{gymReady ? (locale === "vi" ? "Sẵn sàng" : "Ready") : (locale === "vi" ? "Chưa sẵn sàng" : "Not ready")}</p>
+                  </div>
+                  <div className="rounded border px-2 py-1 min-w-0 bg-slate-50 border-slate-200">
+                    <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Nhiệm vụ" : "Tasks"} ({phaseLabel})</p>
+                    <p className="text-xs font-bold text-slate-800">{tasksDone} / {tasksTotal}</p>
+                  </div>
+                  <div className="rounded border px-2 py-1 min-w-0 bg-slate-50 border-slate-200">
+                    <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Coaching hôm nay" : "Coaching today"}</p>
+                    <p className="text-xs font-bold text-slate-800">{sessionsToday}</p>
+                  </div>
+                  <div className="rounded border px-2 py-1 min-w-0 bg-slate-50 border-slate-200">
+                    <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Route reset hôm nay" : "Route reset today"}</p>
+                    <p className="text-xs font-bold text-slate-800">{routeResetToday}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Front desk banner — role frontdesk: Gym, Total check-ins today, Inventory need restock */}
+          {role === "frontdesk" && (() => {
+            if (frontdeskBannerData === null) return <div className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 md:p-3"><p className="text-xs md:text-sm text-slate-500">{m.loading}</p></div>;
+            const { gym_ready, checkins_today, inventory_need_restock } = frontdeskBannerData;
+            return (
+              <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div className="flex flex-wrap gap-2 md:gap-4 px-2.5 py-1.5 md:px-3 md:py-2">
+                  <div className={`rounded border px-2 py-1 min-w-0 ${gym_ready ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200"}`}>
+                    <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Gym" : "Gym"}</p>
+                    <p className="text-xs font-bold text-slate-800">{gym_ready ? (locale === "vi" ? "Sẵn sàng" : "Ready") : (locale === "vi" ? "Chưa sẵn sàng" : "Not ready")}</p>
+                  </div>
+                  <div className="rounded border px-2 py-1 min-w-0 bg-slate-50 border-slate-200">
+                    <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Check-in hôm nay" : "Total check-ins today"}</p>
+                    <p className="text-xs font-bold text-slate-800">{checkins_today}</p>
+                  </div>
+                  <div className="rounded border px-2 py-1 min-w-0 bg-slate-50 border-slate-200">
+                    <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Cần nhập thêm" : "Inventory need restock"}</p>
+                    <p className="text-xs font-bold text-slate-800">{inventory_need_restock}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Operations overview — admin only: compact summary, expand for full details */}
-          {canAccessOperations && (() => {
+          {role === "admin" && canAccessOperations && (() => {
             const sum = staffOpsData?.summary;
             if (!sum) return <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 md:p-3"><p className="text-xs md:text-sm text-slate-500">{m.loading}</p></div>;
             const req = sum.staff_required ?? 3;
@@ -1548,32 +1632,6 @@ export default function AdminPage() {
               ))}
             </div>
           </nav>
-            );
-          })()}
-
-          {/* Shift check-in — compact on mobile */}
-          {adminArea === "front_desk" && staffId != null && (() => {
-            const today = getGymToday();
-            const hasShiftToday = shiftCheckInAttendance != null && shiftCheckInAttendance.date === today;
-            const isShiftIn = hasShiftToday && shiftCheckInAttendance!.status === "IN";
-            const staffMsg = getMessages(locale).staff;
-            return (
-              <div className="rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 md:p-4">
-                <h3 className="text-xs md:text-sm font-semibold text-slate-300 uppercase tracking-wider mb-1 md:mb-3">{staffMsg.dailyAttendance}</h3>
-                {!hasShiftToday && (
-                  <>
-                    <p className="text-slate-200 text-xs md:text-sm mb-1">{staffMsg.checkInAtFrontDesk}</p>
-                    <div className="flex flex-wrap items-center gap-2 md:gap-4">
-                      <button type="button" onClick={() => shiftCheckInQrToken && setAdminQrModalVariant("shift")} className="rounded bg-white p-1.5 inline-block hover:ring-2 ring-emerald-400 focus:outline-none focus:ring-2 ring-emerald-400" title={locale === "vi" ? "Phóng to mã QR" : "Enlarge QR"}>
-                        {shiftCheckInQrToken ? <QRCodeSVG value={shiftCheckInQrToken} size={80} level="M" /> : <span className="text-slate-500 text-xs">{m.loading}</span>}
-                      </button>
-                      <button type="button" disabled={shiftCheckInLoading} onClick={async () => { setShiftCheckInLoading(true); try { await adminFetch("/api/admin/staff/my-attendance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "NOT_IN" }) }); adminFetch("/api/admin/staff/my-attendance").then((r) => r.json()).then((d) => setShiftCheckInAttendance(d.attendance ?? null)); } finally { setShiftCheckInLoading(false); } }} className="py-1.5 px-3 rounded-lg text-xs md:text-sm font-medium bg-slate-600 text-slate-200 hover:bg-slate-500 disabled:opacity-50">{staffMsg.notWorkingToday}</button>
-                    </div>
-                  </>
-                )}
-                {hasShiftToday && !isShiftIn && <p className="text-slate-400 text-xs md:text-sm">{staffMsg.youAreMarkedNotWorking}</p>}
-                {hasShiftToday && isShiftIn && <p className="text-slate-200 text-xs md:text-sm"><span className="text-emerald-400 font-medium">{staffMsg.youAreCheckedIn}</span></p>}
-              </div>
             );
           })()}
 
@@ -3346,7 +3404,6 @@ export default function AdminPage() {
 
                 {isIn && staffOpsData && (
                   <>
-                    {staffCheckInSuccess && <div className="rounded-xl px-4 py-3 bg-emerald-900/40 border border-emerald-500/50 text-emerald-200 text-sm font-medium">{staffMsg.checkedInSuccess}</div>}
                     {staffOpsData.route_reset_day && (
                       <div className="rounded-xl bg-amber-900/40 border border-amber-600 p-3">
                         <p className="text-sm font-semibold text-amber-200">⚠ {staffMsg.routeResetDay}</p>
