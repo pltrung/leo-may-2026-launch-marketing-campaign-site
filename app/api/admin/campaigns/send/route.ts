@@ -82,14 +82,29 @@ export async function POST(req: NextRequest) {
     if (b < batches.length - 1) await sleep(BATCH_DELAY_MS);
   }
 
-  await supabase.from("campaign_logs").insert({
-    segment: segmentId,
-    subject: subjectWithBrand,
-    recipient_count: sent,
-    sent_at: new Date().toISOString(),
-    status: "completed",
-    promo_code: promoCode,
-  });
+  const { data: insertedLog, error: logErr } = await supabase
+    .from("campaign_logs")
+    .insert({
+      segment: segmentId,
+      subject: subjectWithBrand,
+      recipient_count: sent,
+      sent_at: new Date().toISOString(),
+      status: "completed",
+      promo_code: promoCode,
+    })
+    .select("id")
+    .single();
+
+  if (logErr || !insertedLog?.id) {
+    console.error("Campaign log insert error:", logErr);
+    return NextResponse.json({ ok: false, sent, error: "Failed to save campaign log" }, { status: 500 });
+  }
+
+  if (recipients.length > 0) {
+    await supabase.from("campaign_log_recipients").insert(
+      recipients.map((r) => ({ campaign_log_id: insertedLog.id, member_id: r.member_id }))
+    );
+  }
 
   return NextResponse.json({ ok: true, sent, promoCode });
 }

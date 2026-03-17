@@ -61,6 +61,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid or expired code" }, { status: 404 });
   }
 
+  const { data: recipientRows } = await supabase
+    .from("campaign_log_recipients")
+    .select("member_id")
+    .eq("campaign_log_id", campaignLog.id);
+  const recipientIds = new Set((recipientRows ?? []).map((r: { member_id: string }) => r.member_id));
+  if (recipientIds.size > 0 && !recipientIds.has(member.id)) {
+    return NextResponse.json(
+      { error: "This code was sent to a different recipient. Only the person who received the email can use it." },
+      { status: 403 }
+    );
+  }
+
   const { data: existing } = await supabase
     .from("campaign_code_redemptions")
     .select("id")

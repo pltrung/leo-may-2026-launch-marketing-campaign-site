@@ -133,11 +133,11 @@ export async function getSegmentRecipients(
       return [];
   }
 
-  const result: { email: string; name: string }[] = [];
+  const result: { email: string; name: string; member_id: string }[] = [];
   for (const id of memberIds) {
     const p = byId.get(id);
     if (!p?.email?.trim()) continue;
-    result.push({ email: p.email.trim(), name: displayName(p) });
+    result.push({ email: p.email.trim(), name: displayName(p), member_id: id });
   }
   return result;
 }

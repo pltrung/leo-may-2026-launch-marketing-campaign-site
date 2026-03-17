@@ -296,15 +296,17 @@ export default function AnalyticsCharts({
                 type="text"
                 value={campaignModal.subject}
                 onChange={(e) => setCampaignModal((m) => (m ? { ...m, subject: e.target.value } : null))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm mb-4"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 mb-4"
               />
+              <p className="text-xs text-slate-500 mb-2">{t("Subject will be prefixed with “Leo Mây — ” and “ · Code inside” when sent.", "Khi gửi, tiêu đề sẽ có thêm “Leo Mây — ” và “ · Mã nằm trong email”.")}</p>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t("Body", "Nội dung")}</label>
               <textarea
                 value={campaignModal.body}
                 onChange={(e) => setCampaignModal((m) => (m ? { ...m, body: e.target.value } : null))}
                 rows={10}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm mb-4 font-mono text-sm"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 mb-2 font-mono"
               />
+              <p className="text-xs text-slate-500 mb-4">{t("A unique promo code will be added to the email when you send.", "Một mã ưu đãi sẽ được thêm vào email khi bạn gửi.")}</p>
               <button type="button" onClick={() => setShowPreview((v) => !v)} className="mb-4 text-sm text-teal-600 hover:underline">
                 {showPreview ? t("Hide preview", "Ẩn xem trước") : t("Preview message", "Xem trước nội dung")}
               </button>

@@ -235,11 +235,14 @@ export function getRewardForSegment(segmentId: string): CampaignSegmentReward {
   };
 }
 
-/** Subject line: always make clear it's from Leo Mây */
+/** Subject line: always make clear it's from Leo Mây and that a code is inside */
 export function getSubjectWithBrand(subject: string): string {
   const trimmed = subject?.trim() || "";
-  if (trimmed.toLowerCase().startsWith("leo mây") || trimmed.toLowerCase().startsWith("[leo mây]")) return trimmed;
-  return `Leo Mây — ${trimmed}`;
+  const withBrand = trimmed.toLowerCase().startsWith("leo mây") || trimmed.toLowerCase().startsWith("[leo mây]")
+    ? trimmed
+    : `Leo Mây — ${trimmed}`;
+  if (withBrand.toLowerCase().includes("code inside") || withBrand.toLowerCase().includes("mã trong")) return withBrand;
+  return `${withBrand} · Code inside`;
 }
 
 /** Replace [Name] with display name or full_name fallback */
@@ -271,10 +274,10 @@ export function bodyToHtml(
 ): string {
   const baseUrl = getCampaignBaseUrl();
   const logoUrl = getCampaignLogoUrl();
-  const gymPath = options?.locale === "vi" ? "/vi/gym" : "/en/gym";
+  const gymPath = options?.locale === "vi" ? "/vi/gym#intro" : "/en/gym#intro";
   const loginUrl = `${baseUrl}${gymPath}`;
-  const ctaEn = `Log in at <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${baseUrl}${gymPath}</a> to earn benefits and visit the gym.`;
-  const ctaVi = `Đăng nhập tại <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${baseUrl}${gymPath}</a> để nhận ưu đãi và tới phòng tập.`;
+  const ctaEn = `Go to <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${baseUrl}${gymPath.replace(/#intro$/, "")}</a>, sign in with your email, and redeem your code in the dashboard to earn your benefits and visit the gym.`;
+  const ctaVi = `Truy cập <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${baseUrl}${gymPath.replace(/#intro$/, "")}</a>, đăng nhập bằng email của bạn và nhập mã trong dashboard để nhận ưu đãi và tới phòng tập.`;
   const cta = options?.locale === "vi" ? ctaVi : ctaEn;
   const codeBlock =
     options?.promoCode && options.promoCode.trim()
