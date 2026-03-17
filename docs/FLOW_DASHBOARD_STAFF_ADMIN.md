@@ -320,7 +320,7 @@ Access to `/admin` is unified: **admin**, **frontdesk**, and **staff** roles (fr
 | **Operations** | Staff overview (attendance, sessions, zones, tasks), zone resets and setter assignments, task completion, staff check-in, reset attendance. |
 | **Management** | **Inventory** (scan, create product, stock in/out, view inventory, product detail), **Reporting** (revenue by day/week/month), **Admin Tools** (e.g. monthly attendance). |
 
-**Can do:** Check-in (auto + manual), undo check-in, member lookup, full member profile and membership controls (collect payment, extend, freeze, cancel, upgrade), POS (cart, checkout, confirm VietQR/cash), revenue view, inventory (full), staff ops (record staff check-in, reset attendance, zone resets, task completion). Admin does not see a separate “staff” area; staff ops are under Operations and Management.
+**Can do:** Check-in (auto + manual), undo check-in, member lookup, full member profile and membership controls (collect payment, extend, freeze, cancel, upgrade), POS (cart, checkout, confirm VietQR/cash), revenue view, inventory (full), staff ops (record staff check-in, reset attendance, zone resets, task completion). **Profile** tab in header opens modal (email, role). **Header:** “Leo May Admin” + “Admin Dashboard”. Admin does not see a separate “staff” area; staff ops are under Operations and Management.
 
 **Modules behind:** All `/api/admin/*` routes; `lib/unifiedAdminAuth` (role admin), `lib/performCheckIn`, `lib/auditLog`, `lib/gymTimezone`, `lib/messages`, product/inventory/pos/plans/vietqr/payments/membership/checkin/checkins/revenue/staff/routes APIs.
 
@@ -333,7 +333,7 @@ Access to `/admin` is unified: **admin**, **frontdesk**, and **staff** roles (fr
 | **Front Desk** | Same as admin: Check-in (scan QR, quick check-in, occupancy, recent check-ins), Member (lookup, Summary, Membership, Sales, History). |
 | **Management** | **Inventory only** (no Reporting, no Admin Tools). |
 
-**Can do:** Check-in (auto + manual), undo check-in, member lookup, full member profile and membership (collect payment, extend, freeze, cancel, upgrade), POS (cart, checkout, confirm VietQR/cash), **inventory** (scan, create product, stock in/out, view inventory, product detail). Cannot: access Operations tab, revenue/reporting, admin tools, staff check-in, reset attendance.
+**Can do:** Check-in (auto + manual), undo check-in, member lookup, full member profile and membership (collect payment, extend, freeze, cancel, upgrade), POS (cart, checkout, confirm VietQR/cash), **inventory** (scan, create product, stock in/out, view inventory, product detail). **Shift check-in** (when frontdesk has `staffId`): QR for front desk to scan or “Not working today” (GET/POST staff/my-attendance, GET staff/qr-token) on Front Desk tab. **Profile** tab in header opens modal (email, role, display name editable). **Header:** “Leo May Admin” + “Front Desk Dashboard”; current gym phase. Cannot: access Operations tab, revenue/reporting, admin tools, staff check-in (record others), reset attendance.
 
 **Modules behind:** Same as admin for Front Desk + Inventory: `canAccessFrontDeskFull`, `canAccessManagement`, `canAccessInventory`; APIs: checkin, checkins, occupancy, members, members/purchases, membership, payments, payments/confirm, vietqr, plans, pos/checkout, pos/confirm, products (GET/POST), products/[id], products/with-variants, variants/by-barcode, variants/[id], inventory (GET/POST/PATCH), upload/product-image.
 
@@ -341,14 +341,16 @@ Access to `/admin` is unified: **admin**, **frontdesk**, and **staff** roles (fr
 
 ### 8.3 Staff
 
+**Staff do not see the Operations tab.** The Operations tab (Overview with staff-in count, operations alerts, gym ready, full Tasks/Attendance/Coaching/Routes control board) is **admin-only**. Staff instead see a **Staff** tab that reproduces the **old /staff route setter workflow**: phase-based tasks, their own check-in, their zones and coaching—no bird’s-eye view, no “how many staff present”, no operations alerts.
+
 | Tabs visible | What they see |
 |--------------|----------------|
-| **Front Desk** | **Member tab only** (no Check-in tab): member lookup, profile with **Summary**, **Sales** (POS), **History** only (no Membership sub-tab). |
-| **Operations** | Same as admin: staff overview (attendance, sessions, zones, tasks), zone resets and setter assignments, task completion. No staff check-in or reset attendance (admin-only). |
+| **Front Desk** | **Member tab only** (no Check-in tab): member lookup, profile with **Summary**, **Sales** (POS), **History** only (no Membership sub-tab). **Shift check-in** block at top when user has `staffId`: QR code (for front desk to scan) and “Not working today” until checked in. |
+| **Staff** | **Same as old /staff** (not the admin Operations board): **Daily attendance** (QR for front desk to scan, “Not working today”); when **IN**: profile, “You’re checked in”, route reset day banner, **current gym phase**, **active tasks for this phase only** (complete buttons), team timeline, **Routes** tab (zones, assign to me, mark reset complete), **Coaching** tab (my sessions, unassigned with assign to me). No Overview, no staff-present count, no operations alerts, no Management. |
 
-**Can do:** Member lookup, view member Summary/Sales/History, **POS** (cart, checkout—transactions attributed to their `staff_id` with commission). **Operations:** view attendance/sessions/zones/tasks, complete tasks, assign/unassign zones, trigger zone resets. Sees **“My Sales Today”** and **“My Commission Earned”** (from `GET /api/admin/me/sales-summary`). Cannot: check-in or manual check-in, membership create/modify, payment confirm, revenue, inventory, admin tools, staff check-in, reset attendance.
+**Can do:** Member lookup, view member Summary/Sales/History, **POS** (cart, checkout—transactions attributed to their `staff_id` with commission). **Shift check-in:** show QR for front desk to scan or mark “Not working today” (GET/POST staff/my-attendance, GET staff/qr-token). **Staff tab only:** focus on **tasks for current gym phase** (pre-open / gym open / closing), complete tasks (PATCH staff/tasks/[id]), assign self to zones, assign session to me (POST staff/sessions/assign), mark zone reset complete. **Profile** tab in header opens modal (email, role, display name editable). **Header:** “Leo May Admin” + “Staff Dashboard”; current gym phase. Sees “My Sales Today” and “My Commission Earned” when `staffId` set. Cannot: see Operations tab, check-in members or manual check-in, membership create/modify, payment confirm, revenue, inventory, admin tools, staff check-in (record others), reset attendance.
 
-**Modules behind:** `canAccessFrontDeskLimited`, `canAccessOperations`; APIs: me, me/sales-summary, members, members/purchases, products (GET), variants/by-barcode, pos/checkout, staff (GET), staff/attendance-summary, routes/zones, routes/zones/assignments, routes/zones/reset. POS checkout records `staff_id`, `commission_rate`, `commission_amount` on `pos_transactions`.
+**Modules behind:** `canAccessFrontDeskLimited`; Staff tab uses GET staff (canAccessOperations) only for data (zones, tasks, sessions, myAttendance). APIs: me (phase, staffProfile), me/sales-summary, staff (GET, includes myAttendance), staff/qr-token, staff/my-attendance (GET/POST), staff/profile (PATCH), staff/tasks/[id] (PATCH), staff/sessions/assign (POST), routes/zones/assignments (PUT), routes/zones/reset (POST). POS checkout records `staff_id`, `commission_rate`, `commission_amount` on `pos_transactions`.
 
 ---
 

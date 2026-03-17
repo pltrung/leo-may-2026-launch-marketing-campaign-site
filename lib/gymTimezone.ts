@@ -139,6 +139,74 @@ export function formatInGymTZ(
   return new Date(iso).toLocaleString("en-US", { ...options, timeZone: GYM_TZ_DISPLAY });
 }
 
+export type ShiftPhase = "pre_open" | "gym_open" | "closing";
+
+/** Minutes from midnight in gym TZ for current moment. */
+function getGymMinutesFromMidnight(): number {
+  const t = new Date().toLocaleString("en-GB", {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: GYM_TZ,
+  }).slice(0, 5);
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+/**
+ * Current shift phase in gym TZ.
+ * Before 10:00 → pre_open; 10:00–22:00 → gym_open; 22:00+ → closing.
+ */
+export function getCurrentPhase(): ShiftPhase {
+  const mins = getGymMinutesFromMidnight();
+  if (mins < 10 * 60) return "pre_open";
+  if (mins >= 10 * 60 && mins < 22 * 60) return "gym_open";
+  return "closing";
+}
+
+/** Minutes until next phase boundary in gym TZ. */
+export function getMinutesUntilNextPhase(phase: ShiftPhase): number {
+  const nowMins = getGymMinutesFromMidnight();
+  if (phase === "pre_open") {
+    const next = 10 * 60;
+    return nowMins < next ? next - nowMins : 0;
+  }
+  if (phase === "gym_open") {
+    const next = 22 * 60;
+    return nowMins < next ? next - nowMins : 0;
+  }
+  // closing: next is tomorrow 09:00
+  return 24 * 60 - nowMins + 9 * 60;
+}
+
+/**
+ * Current gym phase info for header/UI. Used by /api/admin/me and Operations.
+ */
+export function getCurrentPhaseInfo(): {
+  current_phase: ShiftPhase;
+  phase_label: string;
+  countdown_message: string;
+  minutes_until_next_phase: number;
+} {
+  const phase = getCurrentPhase();
+  const minutes = getMinutesUntilNextPhase(phase);
+  const labels: Record<ShiftPhase, string> = {
+    pre_open: "Pre-open",
+    gym_open: "Gym Open",
+    closing: "Closing",
+  };
+  let countdown = "";
+  if (phase === "pre_open") countdown = minutes <= 0 ? "Gym is opening." : `Opens in ${minutes} min`;
+  else if (phase === "gym_open") countdown = minutes <= 0 ? "Closing phase soon." : `Closing in ${minutes} min`;
+  else countdown = minutes <= 0 ? "All tasks due soon." : `Closing tasks in ${minutes} min`;
+  return {
+    current_phase: phase,
+    phase_label: labels[phase],
+    countdown_message: countdown,
+    minutes_until_next_phase: minutes,
+  };
+}
+
 /**
  * Given a date (YYYY-MM-DD) and time (HH:MM or HH:MM:SS) in gym TZ, return ISO string.
  * Used for coaching session slots (e.g. 09:00, 09:30 in LA).

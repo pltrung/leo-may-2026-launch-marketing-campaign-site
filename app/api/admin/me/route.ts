@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAdminOrStaffFromRequest } from "@/lib/unifiedAdminAuth";
+import { getCurrentPhaseInfo } from "@/lib/gymTimezone";
 
 /**
  * GET /api/admin/me
  * Authorization: Bearer <access_token>
  * Returns current user and unified role (admin | frontdesk | staff) and staffId when applicable.
- * Accepts both admin emails and staff_profiles users (route setters, frontdesk, etc.).
+ * Includes current gym phase for header (Staff and Frontdesk see phase at a glance).
  */
 export async function GET(req: NextRequest) {
   const result = await getUnifiedAdminOrStaffFromRequest(req);
   if (!result) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const phase = getCurrentPhaseInfo();
   return NextResponse.json({
     user: { id: result.user.id, email: result.user.email },
     role: result.role,
@@ -25,5 +27,6 @@ export async function GET(req: NextRequest) {
           display_name: result.staffProfile.display_name,
         }
       : null,
+    phase: { current_phase: phase.current_phase, phase_label: phase.phase_label, countdown_message: phase.countdown_message },
   });
 }

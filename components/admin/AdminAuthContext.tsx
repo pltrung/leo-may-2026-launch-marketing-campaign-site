@@ -14,6 +14,8 @@ interface AdminAuthContextValue {
   /** Unified role from staff_profiles (or admin email). Null until /api/admin/me has been fetched. */
   role: UnifiedRole | null;
   staffId: string | null;
+  /** Display name from staff_profiles (for profile modal). */
+  staffDisplayName: string | null;
   loading: boolean;
   accessToken: string | null;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
@@ -32,6 +34,11 @@ interface AdminAuthContextValue {
   canDoCheckIn: boolean;
   canAccessInventory: boolean;
   canAccessAdminTools: boolean;
+  /** Current gym phase (Pre-open / Gym Open / Closing) from /api/admin/me. Shown in header for Staff and Frontdesk. */
+  phase: { phase_label: string; countdown_message: string } | null;
+  staffDisplayName: string | null;
+  /** Re-fetch /api/admin/me to refresh role, staffId, staffDisplayName, phase. */
+  refreshMe: () => void;
 }
 
 const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
@@ -70,6 +77,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<UnifiedRole | null>(null);
   const [staffId, setStaffId] = useState<string | null>(null);
+  const [staffDisplayName, setStaffDisplayName] = useState<string | null>(null);
+  const [phase, setPhase] = useState<{ phase_label: string; countdown_message: string } | null>(null);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -93,10 +102,26 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     [session?.access_token]
   );
 
+  const refreshMe = useCallback(() => {
+    if (!session?.access_token) return;
+    adminFetch("/api/admin/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.role) {
+          setRole(data.role as UnifiedRole);
+          setStaffId(data.staffId ?? null);
+          setStaffDisplayName(data.staffProfile?.display_name ?? null);
+          setPhase(data.phase ? { phase_label: data.phase.phase_label, countdown_message: data.phase.countdown_message } : null);
+        }
+      });
+  }, [session?.access_token, adminFetch]);
+
   useEffect(() => {
     if (!session?.access_token) {
       setRole(null);
       setStaffId(null);
+      setStaffDisplayName(null);
+      setPhase(null);
       return;
     }
     adminFetch("/api/admin/me")
@@ -105,14 +130,19 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         if (data?.role) {
           setRole(data.role as UnifiedRole);
           setStaffId(data.staffId ?? null);
+          setStaffDisplayName(data.staffProfile?.display_name ?? null);
+          setPhase(data.phase ? { phase_label: data.phase.phase_label, countdown_message: data.phase.countdown_message } : null);
         } else {
           setRole(null);
           setStaffId(null);
+          setStaffDisplayName(null);
+          setPhase(null);
         }
       })
       .catch(() => {
         setRole(null);
         setStaffId(null);
+        setPhase(null);
       });
   }, [session?.access_token, adminFetch]);
 
@@ -147,6 +177,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     await getSupabaseBrowserClient().auth.signOut();
     setRole(null);
     setStaffId(null);
+    setStaffDisplayName(null);
+    setPhase(null);
   }, []);
 
   const perms = perm(role);
@@ -163,6 +195,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     adminFetch,
     hasAccess,
     ...perms,
+    phase,
+    staffDisplayName,
+    refreshMe,
   };
 
   return (

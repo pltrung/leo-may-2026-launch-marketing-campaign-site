@@ -353,8 +353,16 @@ export async function GET(request: NextRequest) {
       return getGymDateFromISO(z.next_reset_at) === todayGym;
     }) || zonesOverdueCount > 0;
 
+  const myAttendanceRecord = unified.staffId
+    ? attendance.find((a) => (a as { staff_id?: string }).staff_id === unified.staffId)
+    : null;
+  const myAttendance = myAttendanceRecord
+    ? { date: (myAttendanceRecord as { date?: string }).date ?? today, status: (myAttendanceRecord as { status?: string }).status ?? "IN" }
+    : null;
+
   return NextResponse.json({
     attendance: { in: staffIn, out: staffOut, all: attendance },
+    myAttendance: unified.staffId ? myAttendance : undefined,
     sessions: sessionsWithNewbieCount,
     sessionsToday: sessionsTodayWithLocation,
     zones: zonesWithStatus,

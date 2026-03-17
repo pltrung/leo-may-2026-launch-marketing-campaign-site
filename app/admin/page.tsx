@@ -5,11 +5,13 @@ import dynamic from "next/dynamic";
 import { useAdminAuth } from "@/components/admin/AdminAuthContext";
 import AdminLoginForm from "@/components/admin/AdminLoginForm";
 import { getMessages } from "@/lib/messages";
+import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import type { Locale } from "@/lib/i18n";
-import { formatInGymTZ, getGymToday, getGymDateFromISO } from "@/lib/gymTimezone";
+import { formatInGymTZ, getGymToday, getGymDateFromISO, getCurrentPhase } from "@/lib/gymTimezone";
 
 const QrScannerModal = dynamic(() => import("@/components/admin/QrScannerModal"), { ssr: false });
 const BarcodeScannerModal = dynamic(() => import("@/components/admin/BarcodeScannerModal"), { ssr: false });
+const QRCodeSVG = dynamic(() => import("qrcode.react").then((m) => m.QRCodeSVG), { ssr: false });
 
 const ADMIN_LOCALE_KEY = "admin-locale";
 
@@ -85,6 +87,9 @@ export default function AdminPage() {
     canAccessRevenue,
     canAccessInventory,
     canAccessAdminTools,
+    phase,
+    staffDisplayName,
+    refreshMe,
   } = useAdminAuth();
   const [locale, setLocale] = useState<Locale>("vi");
   const [searchQuery, setSearchQuery] = useState("");
@@ -123,7 +128,11 @@ export default function AdminPage() {
   const [nameResults, setNameResults] = useState<NameSearchResult[]>([]);
   const [paymentReceived, setPaymentReceived] = useState(false);
   const lastPaymentCountRef = React.useRef<number | null>(null);
-  const [adminArea, setAdminArea] = useState<"front_desk" | "operations" | "management">("front_desk");
+  const [adminArea, setAdminArea] = useState<"front_desk" | "operations" | "management" | "staff">("front_desk");
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [adminProfileDisplayName, setAdminProfileDisplayName] = useState("");
+  const [adminProfileEditing, setAdminProfileEditing] = useState(false);
+  const [adminProfileSaving, setAdminProfileSaving] = useState(false);
   const [frontDeskTab, setFrontDeskTab] = useState<"checkin" | "member">("checkin");
   const [memberProfileSubTab, setMemberProfileSubTab] = useState<"summary" | "membership" | "sales" | "history">("summary");
   const [managementTab, setManagementTab] = useState<"inventory" | "reporting" | "admin_tools">("inventory");
@@ -196,9 +205,20 @@ export default function AdminPage() {
   const [posAddQty, setPosAddQty] = useState(1);
   const productDetailPhotoInputRef = React.useRef<HTMLInputElement>(null);
   const [staffSalesSummary, setStaffSalesSummary] = useState<{ sales_today: number; commission_today: number } | null>(null);
+  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
+  const [assigningSessionId, setAssigningSessionId] = useState<string | null>(null);
+  const [staffQrToken, setStaffQrToken] = useState<string | null>(null);
+  const [staffCheckInSuccess, setStaffCheckInSuccess] = useState(false);
+  const [staffSubTab, setStaffSubTab] = useState<"routes" | "coaching">("routes");
+  const [staffAttendanceLoading, setStaffAttendanceLoading] = useState(false);
+  const [staffCompletedTasksExpanded, setStaffCompletedTasksExpanded] = useState(false);
+  const [shiftCheckInAttendance, setShiftCheckInAttendance] = useState<{ date: string; status: string } | null>(null);
+  const [shiftCheckInQrToken, setShiftCheckInQrToken] = useState<string | null>(null);
+  const [shiftCheckInLoading, setShiftCheckInLoading] = useState(false);
   // Derived for data-loading: when in Front Desk we need member/sales data when on those tabs; Operations/Management drive inventory and staff ops
   const isInventoryActive = adminArea === "management" && managementTab === "inventory";
   const isOperationsActive = adminArea === "operations";
+  const isStaffAreaActive = adminArea === "staff";
   const isCheckinActive = adminArea === "front_desk" && frontDeskTab === "checkin";
   const isReportingActive = adminArea === "management" && managementTab === "reporting";
   type StaffTaskRow = { id: string; title: string; status: string; block?: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | { display_name?: string | null; email?: string | null }[] | null };
@@ -274,15 +294,17 @@ export default function AdminPage() {
   // When role loads, ensure current area is allowed; otherwise switch to first allowed. Staff on Front Desk default to Member tab.
   useEffect(() => {
     if (role === null) return;
-    const allowed: ("front_desk" | "operations" | "management")[] = [];
+    const allowed: ("front_desk" | "operations" | "management" | "staff")[] = [];
     if (canAccessFrontDeskFull || canAccessFrontDeskLimited) allowed.push("front_desk");
-    if (canAccessOperations) allowed.push("operations");
+    if (role === "staff") allowed.push("staff");
+    else if (canAccessOperations) allowed.push("operations");
     if (canAccessManagement) allowed.push("management");
     if (allowed.length > 0 && !allowed.includes(adminArea)) setAdminArea(allowed[0]);
     if (adminArea === "front_desk" && !canDoCheckIn && frontDeskTab === "checkin") setFrontDeskTab("member");
     if (!canDoMembershipModify && memberProfileSubTab === "membership") setMemberProfileSubTab("summary");
     if (adminArea === "management" && !canAccessRevenue && !canAccessAdminTools && managementTab !== "inventory") setManagementTab("inventory");
   }, [role, canAccessFrontDeskFull, canAccessFrontDeskLimited, canAccessOperations, canAccessManagement, adminArea, canDoCheckIn, frontDeskTab, canDoMembershipModify, memberProfileSubTab, canAccessRevenue, canAccessAdminTools, managementTab]);
+  const dashboardSubtitle = role === "admin" ? t.subtitleAdmin : role === "frontdesk" ? t.subtitleFrontDesk : t.subtitleStaff;
 
   // Fetch products for front desk sales and management inventory
   useEffect(() => {
@@ -391,12 +413,12 @@ export default function AdminPage() {
 
   // Fetch staff operations when Operations area is active
   useEffect(() => {
-    if (!isOperationsActive) return;
+    if (!isOperationsActive && !isStaffAreaActive) return;
     adminFetch("/api/admin/staff")
       .then((r) => r.json())
       .then((d) => setStaffOpsData(d))
       .catch(() => setStaffOpsData(null));
-  }, [isOperationsActive, adminFetch]);
+  }, [isOperationsActive, isStaffAreaActive, adminFetch]);
 
   useEffect(() => {
     if (!isOperationsActive || staffModalTab !== "attendance") return;
@@ -408,6 +430,94 @@ export default function AdminPage() {
       .then((d) => setMonthlyAttendanceData({ label: d.label, staff: d.staff ?? [] }))
       .catch(() => setMonthlyAttendanceData(null));
   }, [isOperationsActive, staffModalTab, adminFetch]);
+
+  // Staff tab: fetch QR token when not checked in today (for front desk to scan)
+  useEffect(() => {
+    if (!isStaffAreaActive || !staffId || !staffOpsData) {
+      setStaffQrToken(null);
+      return;
+    }
+    const myAtt = (staffOpsData as { myAttendance?: { date: string; status: string } | null }).myAttendance;
+    const today = getGymToday();
+    if (myAtt && myAtt.date === today) {
+      setStaffQrToken(null);
+      return;
+    }
+    let cancelled = false;
+    const fetchToken = async () => {
+      try {
+        const res = await adminFetch("/api/admin/staff/qr-token");
+        const data = await res.json();
+        if (!cancelled && res.ok && data?.token) setStaffQrToken(data.token);
+      } catch {
+        if (!cancelled) setStaffQrToken(null);
+      }
+    };
+    fetchToken();
+    const id = window.setInterval(fetchToken, 20000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [isStaffAreaActive, staffId, staffOpsData, adminFetch]);
+
+  // Realtime: when front desk scans staff QR, staff_attendance updates → show success and refetch
+  useEffect(() => {
+    if (!isStaffAreaActive || !staffId) return;
+    const supabase = getSupabaseBrowserClient();
+    const channel = supabase.channel(`admin-staff-attendance-${staffId}`).on("postgres_changes", { event: "*", schema: "public", table: "staff_attendance", filter: `staff_id=eq.${staffId}` }, () => {
+      setStaffCheckInSuccess(true);
+      setTimeout(() => setStaffCheckInSuccess(false), 15000);
+      adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d));
+    }).subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [isStaffAreaActive, staffId, adminFetch]);
+
+  // Front Desk tab: fetch my-attendance for shift check-in block (frontdesk + staff with staffId)
+  useEffect(() => {
+    if (adminArea !== "front_desk" || !staffId) {
+      setShiftCheckInAttendance(null);
+      setShiftCheckInQrToken(null);
+      return;
+    }
+    adminFetch("/api/admin/staff/my-attendance")
+      .then((r) => r.json())
+      .then((d) => setShiftCheckInAttendance(d.attendance ?? null))
+      .catch(() => setShiftCheckInAttendance(null));
+  }, [adminArea, staffId, adminFetch]);
+
+  // Front Desk tab: QR token for shift check-in when not checked in today
+  useEffect(() => {
+    if (adminArea !== "front_desk" || !staffId) {
+      setShiftCheckInQrToken(null);
+      return;
+    }
+    const today = getGymToday();
+    if (shiftCheckInAttendance && shiftCheckInAttendance.date === today) {
+      setShiftCheckInQrToken(null);
+      return;
+    }
+    let cancelled = false;
+    const fetchToken = async () => {
+      try {
+        const res = await adminFetch("/api/admin/staff/qr-token");
+        const data = await res.json();
+        if (!cancelled && res.ok && data?.token) setShiftCheckInQrToken(data.token);
+      } catch {
+        if (!cancelled) setShiftCheckInQrToken(null);
+      }
+    };
+    fetchToken();
+    const id = window.setInterval(fetchToken, 20000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [adminArea, staffId, shiftCheckInAttendance, adminFetch]);
+
+  // Realtime: when on Front Desk and staffId, refetch my-attendance when staff_attendance changes (e.g. front desk scanned our QR)
+  useEffect(() => {
+    if (adminArea !== "front_desk" || !staffId) return;
+    const supabase = getSupabaseBrowserClient();
+    const channel = supabase.channel(`admin-frontdesk-attendance-${staffId}`).on("postgres_changes", { event: "*", schema: "public", table: "staff_attendance", filter: `staff_id=eq.${staffId}` }, () => {
+      adminFetch("/api/admin/staff/my-attendance").then((r) => r.json()).then((d) => setShiftCheckInAttendance(d.attendance ?? null));
+    }).subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [adminArea, staffId, adminFetch]);
 
   // Poll real-time-ish occupancy from backend.
   useEffect(() => {
@@ -1070,10 +1180,24 @@ export default function AdminPage() {
               >
                 {t.title}
               </h1>
-              <p className="text-xs md:text-sm text-slate-300">{t.subtitle}</p>
+              <p className="text-xs md:text-sm text-slate-300">{dashboardSubtitle}</p>
             </div>
           </div>
           <div className="flex items-center gap-3 md:gap-4 text-xs md:text-sm text-slate-200">
+            {/* Gym phase first so everyone sees it at a glance */}
+            {phase && (
+              <div className="border border-amber-500/50 rounded-xl px-3 py-2 bg-amber-500/10 shadow-sm" title={phase.countdown_message}>
+                <span className="text-slate-400 text-[10px] font-medium uppercase tracking-wider block leading-tight">{locale === "vi" ? "Ca hiện tại" : "Current phase"}</span>
+                <span className="text-amber-300 font-bold text-sm">{phase.phase_label}</span>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => { setProfileModalOpen(true); setAdminProfileDisplayName(staffDisplayName ?? session?.user?.email?.split("@")[0] ?? ""); setAdminProfileEditing(false); }}
+              className="px-3 py-1.5 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-700"
+            >
+              {t.profileTab}
+            </button>
             <div className="flex gap-1 rounded-full border border-slate-600 bg-slate-800/80 p-0.5">
               <button
                 type="button"
@@ -1109,11 +1233,12 @@ export default function AdminPage() {
 
       <main className="flex-1">
         <div className="max-w-[1100px] mx-auto px-4 py-6 md:py-8 space-y-8 md:space-y-10">
-          {/* AREA NAVIGATION (role-based visibility) */}
+          {/* AREA NAVIGATION: Staff see only Front Desk + Staff (old /staff workflow). They never see Operations (overview, alerts, bird's-eye). Admin sees Front Desk + Operations + Management. */}
           {(() => {
-            const allowedAreas: ("front_desk" | "operations" | "management")[] = [];
+            const allowedAreas: ("front_desk" | "operations" | "management" | "staff")[] = [];
             if (canAccessFrontDeskFull || canAccessFrontDeskLimited) allowedAreas.push("front_desk");
-            if (canAccessOperations) allowedAreas.push("operations");
+            if (role === "staff") allowedAreas.push("staff"); // Staff tab = old /staff (phase-based tasks). Not the Operations control board.
+            else if (canAccessOperations) allowedAreas.push("operations");
             if (canAccessManagement) allowedAreas.push("management");
             return (
           <nav className="sticky top-0 z-20 rounded-xl p-1 mb-4 bg-white/95 border border-slate-200 shadow-md backdrop-blur-md overflow-x-auto" aria-label="Admin areas">
@@ -1130,10 +1255,36 @@ export default function AdminPage() {
                   {area === "front_desk" ? (locale === "vi" ? "Quầy lễ tân" : "Front Desk") : null}
                   {area === "operations" ? (locale === "vi" ? "Vận hành" : "Operations") : null}
                   {area === "management" ? (locale === "vi" ? "Quản lý" : "Management") : null}
+                  {area === "staff" ? (locale === "vi" ? "Nhân sự / Ca làm" : "Staff") : null}
                 </button>
               ))}
             </div>
           </nav>
+            );
+          })()}
+
+          {/* Shift check-in (QR + Not working) for Front Desk tab when user has staffId — frontdesk and staff */}
+          {adminArea === "front_desk" && staffId != null && (() => {
+            const today = getGymToday();
+            const hasShiftToday = shiftCheckInAttendance != null && shiftCheckInAttendance.date === today;
+            const isShiftIn = hasShiftToday && shiftCheckInAttendance!.status === "IN";
+            const staffMsg = getMessages(locale).staff;
+            return (
+              <div className="rounded-xl border border-slate-200 bg-slate-800/80 p-4 mb-4">
+                <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">{staffMsg.dailyAttendance}</h3>
+                {!hasShiftToday && (
+                  <>
+                    <p className="text-slate-200 font-medium mb-1">{staffMsg.checkInAtFrontDesk}</p>
+                    <p className="text-slate-400 text-sm mb-3">{staffMsg.checkInAtFrontDeskHint}</p>
+                    <div className="flex flex-wrap items-center gap-4">
+                      <div className="rounded-lg bg-white p-2 inline-block">{shiftCheckInQrToken ? <QRCodeSVG value={shiftCheckInQrToken} size={120} level="M" /> : <span className="text-slate-500 text-sm">{m.loading}</span>}</div>
+                      <button type="button" disabled={shiftCheckInLoading} onClick={async () => { setShiftCheckInLoading(true); try { await adminFetch("/api/admin/staff/my-attendance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "NOT_IN" }) }); adminFetch("/api/admin/staff/my-attendance").then((r) => r.json()).then((d) => setShiftCheckInAttendance(d.attendance ?? null)); } finally { setShiftCheckInLoading(false); } }} className="py-2 px-4 rounded-lg font-medium bg-slate-600 text-slate-200 hover:bg-slate-500 disabled:opacity-50">{staffMsg.notWorkingToday}</button>
+                    </div>
+                  </>
+                )}
+                {hasShiftToday && !isShiftIn && <p className="text-slate-400">{staffMsg.youAreMarkedNotWorking}</p>}
+                {hasShiftToday && isShiftIn && <p className="text-slate-200"><span className="text-emerald-400 font-medium">{staffMsg.youAreCheckedIn}</span></p>}
+              </div>
             );
           })()}
 
@@ -2246,7 +2397,7 @@ export default function AdminPage() {
           </section>
           )}
 
-          {/* OPERATIONS area (Staff Operations inline) */}
+          {/* OPERATIONS area — admin only. Overview (staff-in count, alerts, gym ready), Tasks, Attendance, Coaching, Routes. Staff never see this; they have the "Staff" tab (old /staff workflow) instead. */}
           {adminArea === "operations" && (
             <section className="rounded-2xl bg-white border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.12)] p-4 md:p-6">
               <h2 className="text-lg font-semibold text-slate-900">{m.staffOperations}</h2>
@@ -2692,7 +2843,7 @@ export default function AdminPage() {
                       <>
                         <div className="rounded-lg border border-slate-200 overflow-hidden">
                           <table className="w-full text-sm">
-                            <thead><tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase"><th className="px-3 py-2">{locale === "vi" ? "Công việc" : "Task Name"}</th><th className="px-3 py-2">{m.phaseColumn}</th><th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th><th className="px-3 py-2">{m.completedBy}</th><th className="px-3 py-2">{m.completionTime}</th></tr></thead>
+                            <thead><tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase"><th className="px-3 py-2">{locale === "vi" ? "Công việc" : "Task Name"}</th><th className="px-3 py-2">{m.phaseColumn}</th><th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th><th className="px-3 py-2">{m.completedBy}</th><th className="px-3 py-2">{m.completionTime}</th><th className="px-3 py-2">{locale === "vi" ? "Thao tác" : "Action"}</th></tr></thead>
                             <tbody>
                               {allByPhase.flatMap(({ phaseLabel, tasks: phaseTasks }) =>
                                 phaseTasks.map((t) => {
@@ -2708,6 +2859,26 @@ export default function AdminPage() {
                                       <td className={`px-3 py-2 font-medium ${statusColor}`}>{statusText}</td>
                                       <td className="px-3 py-2 text-slate-600">{name ?? "—"}</td>
                                       <td className="px-3 py-2 text-slate-600">{t.completed_at ? formatInGymTZ(t.completed_at, { hour: "numeric", minute: "2-digit" }) : "—"}</td>
+                                      <td className="px-3 py-2">
+                                        {t.status !== "completed" && (
+                                          <button
+                                            type="button"
+                                            disabled={completingTaskId === t.id}
+                                            onClick={async () => {
+                                              setCompletingTaskId(t.id);
+                                              try {
+                                                const res = await adminFetch(`/api/admin/staff/tasks/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) });
+                                                if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d));
+                                              } finally {
+                                                setCompletingTaskId(null);
+                                              }
+                                            }}
+                                            className="px-2 py-1 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-500 disabled:opacity-50"
+                                          >
+                                            {completingTaskId === t.id ? "…" : m.complete}
+                                          </button>
+                                        )}
+                                      </td>
                                     </tr>
                                   );
                                 })
@@ -2768,13 +2939,38 @@ export default function AdminPage() {
                       </div>
                       <div className="rounded-lg border border-slate-200 overflow-hidden">
                         <table className="w-full text-sm">
-                          <thead><tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase"><th className="px-3 py-2">{m.time}</th><th className="px-3 py-2">{m.wallArea}</th><th className="px-3 py-2">{m.coachAssigned}</th><th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th></tr></thead>
+                          <thead><tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase"><th className="px-3 py-2">{m.time}</th><th className="px-3 py-2">{m.wallArea}</th><th className="px-3 py-2">{m.coachAssigned}</th><th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th><th className="px-3 py-2">{locale === "vi" ? "Thao tác" : "Action"}</th></tr></thead>
                           <tbody>
                             {((staffOpsData.sessionsToday ?? staffOpsData.sessions) as { id: string; start_time: string; coach_id: string | null; location?: string; staff_profiles?: { display_name?: string; email?: string } | unknown }[]).map((s) => {
                               const p = Array.isArray(s.staff_profiles) ? s.staff_profiles[0] : s.staff_profiles;
                               const name = (p as { display_name?: string; email?: string })?.display_name || (p as { display_name?: string; email?: string })?.email;
                               return (
-                                <tr key={s.id} className="border-t border-slate-100"><td className="px-3 py-2 text-slate-800">{new Date(s.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</td><td className="px-3 py-2 text-slate-700">{s.location ?? "—"}</td><td className="px-3 py-2">{s.coach_id ? (name ?? m.assigned) : "—"}</td><td className="px-3 py-2">{s.coach_id ? <span className="text-emerald-700">{m.assigned}</span> : <span className="text-amber-700">⚠ {m.unassigned}</span>}</td></tr>
+                                <tr key={s.id} className="border-t border-slate-100">
+                                  <td className="px-3 py-2 text-slate-800">{new Date(s.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</td>
+                                  <td className="px-3 py-2 text-slate-700">{s.location ?? "—"}</td>
+                                  <td className="px-3 py-2">{s.coach_id ? (name ?? m.assigned) : "—"}</td>
+                                  <td className="px-3 py-2">{s.coach_id ? <span className="text-emerald-700">{m.assigned}</span> : <span className="text-amber-700">⚠ {m.unassigned}</span>}</td>
+                                  <td className="px-3 py-2">
+                                    {!s.coach_id && staffId && (
+                                      <button
+                                        type="button"
+                                        disabled={assigningSessionId === s.id}
+                                        onClick={async () => {
+                                          setAssigningSessionId(s.id);
+                                          try {
+                                            const res = await adminFetch("/api/admin/staff/sessions/assign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: s.id }) });
+                                            if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d));
+                                          } finally {
+                                            setAssigningSessionId(null);
+                                          }
+                                        }}
+                                        className="px-2 py-1 rounded-lg bg-amber-600 text-white text-xs font-medium hover:bg-amber-500 disabled:opacity-50"
+                                      >
+                                        {assigningSessionId === s.id ? "…" : m.assignToMe}
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
                               );
                             })}
                           </tbody>
@@ -2888,8 +3084,186 @@ export default function AdminPage() {
               </div>
             </section>
           )}
+
+          {/* STAFF area (route setter workflow: shift check-in QR, tasks, zones, coaching) — only for role staff */}
+          {isStaffAreaActive && role === "staff" && (() => {
+            const staffMsg = getMessages(locale).staff;
+            if (!staffOpsData) return <section className="rounded-2xl bg-white border border-slate-200 p-6"><p className="text-slate-500">{m.loading}</p></section>;
+            const myAtt = (staffOpsData as { myAttendance?: { date: string; status: string } | null }).myAttendance ?? null;
+            const today = getGymToday();
+            const hasAttendanceForToday = myAtt != null && myAtt.date === today;
+            const isIn = hasAttendanceForToday && myAtt.status === "IN";
+            const currentBlock = getCurrentPhase();
+            const preOpen = (staffOpsData?.preOpen ?? []) as { id: string; title: string; status: string; block?: string; due_time?: string | null; completed_by_name?: string | null; completers?: string[] }[];
+            const during = (staffOpsData?.during ?? []) as typeof preOpen;
+            const closing = (staffOpsData?.closing ?? []) as typeof preOpen;
+            const rawActiveTasks = currentBlock === "pre_open" ? preOpen : currentBlock === "closing" ? closing : during;
+            const isRouteResetDay = (staffOpsData?.zones ?? []).some((z: { next_reset_at?: string | null; overdue?: boolean }) => z.overdue || (z.next_reset_at && getGymDateFromISO(z.next_reset_at) === today));
+            const isEssentialTask = (title: string) => /anchor|crash|rental|shoe|front desk|pos|bathroom|safety|check bathroom/i.test(title.toLowerCase());
+            const activeTasks = isRouteResetDay ? rawActiveTasks.filter((t) => isEssentialTask(t.title)) : rawActiveTasks;
+            const activePending = activeTasks.filter((t) => t.status === "pending" || t.status === "upcoming");
+            const activeCompleted = activeTasks.filter((t) => t.status === "completed");
+            const overdueTasksList = [...preOpen, ...during, ...closing].filter((t) => t.status === "overdue");
+            const phaseLabel = currentBlock === "pre_open" ? staffMsg.phasePreOpen : currentBlock === "closing" ? staffMsg.phaseClosing : staffMsg.phaseGymOpen;
+            const sessionsToday = (staffOpsData?.sessionsToday ?? staffOpsData?.sessions ?? []) as { id: string; start_time: string; end_time?: string; coach_id: string | null; location?: string }[];
+            const mySessions = staffId ? sessionsToday.filter((s) => s.coach_id === staffId) : [];
+            const unassignedSessions = sessionsToday.filter((s) => !s.coach_id);
+            const formatTime = (iso: string) => new Date(iso).toLocaleTimeString(locale === "vi" ? "vi-VN" : "en-US", { hour: "numeric", minute: "2-digit", hour12: locale === "en" });
+            const formatDate = (iso: string | null) => iso ? new Date(iso).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+            const timeline = (staffOpsData?.timeline ?? []) as { staff_name: string; task_title: string; completed_at: string }[];
+
+            return (
+              <section className="space-y-6 rounded-2xl bg-white border border-slate-200 shadow-lg p-4 md:p-6">
+                <h2 className="text-lg font-semibold text-slate-900">{staffMsg.tabRoutes} / {staffMsg.tabCoaching}</h2>
+
+                {!hasAttendanceForToday && (
+                  <div className="rounded-xl bg-slate-800 border border-slate-700 p-4">
+                    <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">{staffMsg.dailyAttendance}</h3>
+                    {staffCheckInSuccess && (
+                      <div className="mb-4 rounded-lg px-4 py-3 bg-emerald-900/40 border border-emerald-500/50 text-emerald-200 text-sm font-medium">{staffMsg.checkedInSuccess}</div>
+                    )}
+                    <p className="text-slate-200 font-medium mb-1">{staffMsg.checkInAtFrontDesk}</p>
+                    <p className="text-slate-400 text-sm mb-4">{staffMsg.checkInAtFrontDeskHint}</p>
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="rounded-xl bg-white p-3 inline-block">{staffQrToken ? <QRCodeSVG value={staffQrToken} size={180} level="M" /> : null}</div>
+                      <button type="button" disabled={staffAttendanceLoading} onClick={async () => { setStaffAttendanceLoading(true); try { const res = await adminFetch("/api/admin/staff/my-attendance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "NOT_IN" }) }); if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d)); } finally { setStaffAttendanceLoading(false); } }} className="w-full max-w-xs py-2.5 rounded-lg font-medium bg-slate-600 text-slate-200 hover:bg-slate-500 disabled:opacity-50">{staffMsg.notWorkingToday}</button>
+                    </div>
+                  </div>
+                )}
+
+                {hasAttendanceForToday && !isIn && (
+                  <div className="rounded-xl bg-slate-800 border border-slate-700 p-4">
+                    <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">{staffMsg.dailyAttendance}</h3>
+                    <p className="text-slate-400">{staffMsg.youAreMarkedNotWorking}</p>
+                  </div>
+                )}
+
+                {isIn && staffOpsData && (
+                  <>
+                    {staffCheckInSuccess && <div className="rounded-xl px-4 py-3 bg-emerald-900/40 border border-emerald-500/50 text-emerald-200 text-sm font-medium">{staffMsg.checkedInSuccess}</div>}
+                    <div className="rounded-xl bg-slate-800 border border-slate-700 p-4">
+                      <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">{staffMsg.profile}</h3>
+                      <p className="text-slate-200"><span className="text-slate-400 text-sm">{staffMsg.nameShownAsCoach} </span><strong>{staffDisplayName || staffMsg.notSet}</strong></p>
+                      <p className="text-slate-500 text-xs mt-2">{staffMsg.profileHint}</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-800 border border-slate-700 p-4">
+                      <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">{staffMsg.dailyAttendance}</h3>
+                      <p className="text-slate-200"><span className="text-emerald-400 font-medium">{staffMsg.youAreCheckedIn}</span></p>
+                    </div>
+                    {staffOpsData.route_reset_day && (
+                      <div className="rounded-xl bg-amber-900/40 border border-amber-600 p-3">
+                        <p className="text-sm font-semibold text-amber-200">⚠ {staffMsg.routeResetDay}</p>
+                        <p className="text-xs text-amber-100/90 mt-0.5">{staffMsg.routeResetDayFocus}</p>
+                      </div>
+                    )}
+                    <div className="rounded-xl bg-slate-800 border border-slate-700 p-4">
+                      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{staffMsg.currentShiftPhase}</h3>
+                      <p className="text-lg font-semibold text-white">{phaseLabel}</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-800 border border-slate-700 p-4 space-y-3">
+                      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{staffMsg.activeTasks}</h3>
+                      {activeTasks.length > 0 && (
+                        <>
+                          <div className="flex items-center justify-between text-sm"><span className="text-slate-300">{(staffMsg.tasksProgress as string).replace("{done}", String(activeCompleted.length)).replace("{total}", String(activeTasks.length))}</span></div>
+                          <div className="h-2 rounded-full bg-slate-700 overflow-hidden"><div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${activeTasks.length ? (activeCompleted.length / activeTasks.length) * 100 : 0}%` }} /></div>
+                        </>
+                      )}
+                      {overdueTasksList.filter((t) => !isRouteResetDay || isEssentialTask(t.title)).map((t) => (
+                        <div key={t.id} className="flex justify-between items-center gap-2 text-sm py-1.5">
+                          <span className="text-slate-200">{t.title}</span>
+                          <button type="button" disabled={completingTaskId === t.id} onClick={async () => { setCompletingTaskId(t.id); try { const res = await adminFetch(`/api/admin/staff/tasks/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) }); if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d)); } finally { setCompletingTaskId(null); } }} className="px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-500 disabled:opacity-50">{completingTaskId === t.id ? "…" : staffMsg.complete}</button>
+                        </div>
+                      ))}
+                      {activePending.map((t) => (
+                        <div key={t.id} className="flex justify-between items-center gap-2 py-1.5 border-b border-slate-700 last:border-b-0">
+                          <span className="text-slate-200 text-sm">{t.title}</span>
+                          <button type="button" disabled={completingTaskId === t.id} onClick={async () => { setCompletingTaskId(t.id); try { const res = await adminFetch(`/api/admin/staff/tasks/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) }); if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d)); } finally { setCompletingTaskId(null); } }} className="shrink-0 px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-500 disabled:opacity-50">{completingTaskId === t.id ? "…" : staffMsg.complete}</button>
+                        </div>
+                      ))}
+                      {activeCompleted.length > 0 && (
+                        <div>
+                          <button type="button" onClick={() => setStaffCompletedTasksExpanded(!staffCompletedTasksExpanded)} className="w-full text-left text-xs font-semibold text-slate-400 uppercase tracking-wider py-0.5 flex items-center justify-between">{staffMsg.completedTasks} ({activeCompleted.length})<span className="text-slate-500">{staffCompletedTasksExpanded ? "▼" : "▶"}</span></button>
+                          {staffCompletedTasksExpanded && <ul className="space-y-0.5 mt-1">{activeCompleted.map((t) => <li key={t.id} className="text-sm"><span className="text-emerald-400 line-through">{t.title}</span></li>)}</ul>}
+                        </div>
+                      )}
+                    </div>
+                    {timeline.length > 0 && (
+                      <div className="rounded-xl bg-slate-800 border border-slate-700 p-4">
+                        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{staffMsg.teamStatus}</h3>
+                        <ul className="space-y-1 text-sm max-h-32 overflow-y-auto">{timeline.slice(0, 20).map((c, i) => <li key={i} className="flex justify-between gap-2 py-0.5 border-b border-slate-700/50 last:border-0"><span className="text-slate-200 truncate">{c.staff_name} — {c.task_title}</span><span className="text-slate-500 shrink-0">{new Date(c.completed_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span></li>)}</ul>
+                      </div>
+                    )}
+                    <div className="flex gap-1 p-1 rounded-xl bg-slate-800 border border-slate-700">
+                      <button type="button" onClick={() => setStaffSubTab("routes")} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${staffSubTab === "routes" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>{staffMsg.tabRoutes}</button>
+                      <button type="button" onClick={() => setStaffSubTab("coaching")} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${staffSubTab === "coaching" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>{staffMsg.tabCoaching}</button>
+                    </div>
+                    {staffSubTab === "routes" && (
+                      <div className="rounded-xl bg-slate-800 border border-slate-700 p-4 space-y-4">
+                        <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">{staffMsg.routeResetSchedule}</h3>
+                        {(staffOpsData.zones ?? []).map((z: { id: string; name: string; next_reset_at: string | null; assigned_setters?: { staff_id: string; name: string }[]; reset_status?: string }) => {
+                          const setters = (z.assigned_setters ?? []);
+                          const isAssigned = staffId && setters.some((s) => s.staff_id === staffId);
+                          return (
+                            <div key={z.id} className="rounded-xl border border-slate-700 bg-slate-900/30 p-4 space-y-3">
+                              <div className="text-slate-100 font-semibold">{z.name}</div>
+                              <div className="text-xs text-slate-400">{staffMsg.next}: <span className="text-slate-200">{formatDate(z.next_reset_at)}</span></div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                {setters.length === 0 && <span className="text-sm text-slate-500">{staffMsg.noAssignments}</span>}
+                                {setters.map((s) => <span key={s.staff_id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-700/70 border border-slate-600 text-slate-200 text-xs">{s.name}{staffId && s.staff_id === staffId && <span className="text-emerald-400">{staffMsg.assignedToYou}</span>}</span>)}
+                                <button type="button" onClick={async () => { const nextIds = Array.from(new Set([...setters.map((s) => s.staff_id), staffId].filter(Boolean))); const res = await adminFetch(`/api/admin/routes/zones/${z.id}/assignments`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ staff_ids: nextIds }) }); const d = await res.json(); if (res.ok && d?.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x)); }} className="px-2 py-1 rounded-full bg-slate-800 border border-slate-600 text-slate-200 text-xs hover:bg-slate-700">+ {staffMsg.assignToMe}</button>
+                              </div>
+                              {(z.reset_status === "in_progress" || z.reset_status === "pending") && (
+                                <button type="button" onClick={async () => { if (!window.confirm(m.confirmMarkResetComplete)) return; const res = await adminFetch(`/api/admin/routes/zones/${z.id}/reset`, { method: "POST" }); if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x)); }} className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-100 text-sm hover:bg-slate-600">{staffMsg.markResetComplete}</button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {staffSubTab === "coaching" && (
+                      <div className="rounded-xl bg-slate-800 border border-slate-700 p-4">
+                        <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">{staffMsg.todayCoachingSessions}</h3>
+                        {mySessions.length > 0 && <div className="mb-3"><p className="text-xs text-slate-400 mb-2">{staffMsg.yourSessions}</p><ul className="space-y-1.5">{mySessions.map((s) => <li key={s.id} className="py-2 px-3 rounded-lg bg-slate-700/50 text-sm"><div className="flex justify-between items-center"><span>{formatTime(s.start_time)} – {s.end_time ? formatTime(s.end_time) : ""}</span><span className="text-emerald-400">{staffMsg.assignedToYou}</span></div></li>)}</ul></div>}
+                        {unassignedSessions.length > 0 && <div><p className="text-xs text-slate-400 mb-2">{staffMsg.unassignedTapToTake}</p><ul className="space-y-1.5">{unassignedSessions.map((s) => <li key={s.id} className="py-2 px-3 rounded-lg bg-slate-700/50 text-sm"><div className="flex justify-between items-center"><span>{formatTime(s.start_time)}</span><button type="button" disabled={assigningSessionId === s.id} onClick={async () => { setAssigningSessionId(s.id); try { const res = await adminFetch("/api/admin/staff/sessions/assign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: s.id }) }); if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d)); } finally { setAssigningSessionId(null); } }} className="text-amber-400 hover:text-amber-300 text-sm font-medium disabled:opacity-50">{assigningSessionId === s.id ? "…" : staffMsg.assignToMe}</button></div></li>)}</ul></div>}
+                      </div>
+                    )}
+                  </>
+                )}
+              </section>
+            );
+          })()}
         </div>
       </main>
+
+      {/* Profile modal — who is logged in, edit display name for staff */}
+      {profileModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setProfileModalOpen(false)}>
+          <div className="bg-slate-800 rounded-2xl border border-slate-600 shadow-xl max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-white">{t.profileTab}</h3>
+              <button type="button" onClick={() => setProfileModalOpen(false)} className="text-slate-400 hover:text-white text-xl">&times;</button>
+            </div>
+            <p className="text-sm text-slate-300"><span className="text-slate-500">{locale === "vi" ? "Email" : "Email"}:</span> {session?.user?.email ?? "—"}</p>
+            <p className="text-sm text-slate-300"><span className="text-slate-500">{locale === "vi" ? "Vai trò" : "Role"}:</span> {role === "admin" ? "Admin" : role === "frontdesk" ? (locale === "vi" ? "Quầy lễ tân" : "Front Desk") : "Staff"}</p>
+            {(staffId || role === "staff" || role === "frontdesk") && (
+              <>
+                {adminProfileEditing ? (
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-400">{locale === "vi" ? "Tên hiển thị" : "Display name"}</label>
+                    <input type="text" value={adminProfileDisplayName} onChange={(e) => setAdminProfileDisplayName(e.target.value)} placeholder={locale === "vi" ? "Tên hiển thị khi làm coach" : "Name shown as coach"} className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-500 text-sm" />
+                    <div className="flex gap-2">
+                      <button type="button" disabled={adminProfileSaving} onClick={async () => { setAdminProfileSaving(true); try { const res = await adminFetch("/api/admin/staff/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ display_name: adminProfileDisplayName.trim() || null }) }); if (res.ok) { refreshMe(); setProfileModalOpen(false); } } finally { setAdminProfileSaving(false); }} className="px-3 py-1.5 rounded-lg bg-amber-600 text-slate-900 text-sm font-medium hover:bg-amber-500 disabled:opacity-50">{adminProfileSaving ? "…" : (locale === "vi" ? "Lưu" : "Save")}</button>
+                      <button type="button" onClick={() => { setAdminProfileEditing(false); setAdminProfileDisplayName(staffDisplayName ?? session?.user?.email?.split("@")[0] ?? ""); }} className="px-3 py-1.5 rounded-lg border border-slate-500 text-slate-300 text-sm">{m.cancel}</button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-300"><span className="text-slate-500">{locale === "vi" ? "Tên hiển thị" : "Display name"}:</span> {staffDisplayName || (locale === "vi" ? "Chưa đặt" : "Not set")} <button type="button" onClick={() => setAdminProfileEditing(true)} className="ml-2 text-xs text-amber-400 hover:underline">{locale === "vi" ? "Sửa" : "Edit"}</button></p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Product / Variant Detail Modal */}
       {productDetailProductId && (
