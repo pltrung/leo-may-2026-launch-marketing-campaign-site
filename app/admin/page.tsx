@@ -18,6 +18,9 @@ const AnalyticsCharts = dynamic(() => import("@/components/admin/AnalyticsCharts
 import { GuidedTour, TOUR_STEPS_FRONTDESK, TOUR_STEPS_STAFF, TOUR_STEPS_ADMIN } from "@/components/admin/GuidedTour";
 
 const ADMIN_LOCALE_KEY = "admin-locale";
+/** Used for "Busy" status when occupancy exceeds this share of capacity. */
+const GYM_CAPACITY = 30;
+const BUSY_THRESHOLD = 0.7;
 
 function getStoredLocale(): Locale {
   if (typeof window === "undefined") return "vi";
@@ -255,6 +258,7 @@ export default function AdminPage() {
   const [onboardingAnalytics, setOnboardingAnalytics] = useState<{ byStaff: { staff_name: string; avg_ai_score: number | null; quiz_accuracy: number | null; days_completed: number; weakest_skill: string; weakest_skill_value: number; completion_time_days: number | null; xp_total: number }[]; summary: { total_staff: number; avg_ai_score_overall: number | null; quiz_accuracy_overall: number | null } } | null>(null);
   const [onboardingAnalyticsLoading, setOnboardingAnalyticsLoading] = useState(false);
   const [guidedTourActive, setGuidedTourActive] = useState(false);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [opsOverviewExpanded, setOpsOverviewExpanded] = useState(false);
   const [frontdeskBannerData, setFrontdeskBannerData] = useState<{ gym_ready: boolean; checkins_today: number; inventory_need_restock: number } | null>(null);
   const [staffSubTab, setStaffSubTab] = useState<"routes" | "coaching">("routes");
@@ -1304,7 +1308,6 @@ export default function AdminPage() {
   );
 
   const t = getMessages(locale).admin;
-  const dashboardSubtitle = role === "admin" ? t.subtitleAdmin : role === "frontdesk" ? t.subtitleFrontDesk : t.subtitleStaff;
 
   if (loading) {
     return (
@@ -1357,18 +1360,27 @@ export default function AdminPage() {
         <header className="border-b border-slate-800 bg-slate-900/95 backdrop-blur shrink-0">
           <div className="max-w-[1100px] mx-auto px-3 py-2 md:px-4 md:py-3">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <img src="/logo-white.svg" alt="Leo Mây logo" className="h-6 w-auto shrink-0 md:h-7" />
-                <p className="text-sm text-slate-300 truncate">{locale === "vi" ? "Check-in ca làm" : "Shift check-in"}</p>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <div className="flex gap-0.5 rounded-full border border-slate-600 bg-slate-800/80 p-0.5">
-                  <button type="button" onClick={() => setLocaleAndStore("en")} className={`px-2 py-0.5 rounded-full text-[10px] font-medium md:px-3 md:py-1 md:text-xs ${locale === "en" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}>EN</button>
-                  <button type="button" onClick={() => setLocaleAndStore("vi")} className={`px-2 py-0.5 rounded-full text-[10px] font-medium md:px-3 md:py-1 md:text-xs ${locale === "vi" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}>VN</button>
-                </div>
-                <button type="button" onClick={() => signOut()} className="px-2 py-0.5 rounded-lg border border-slate-500 text-slate-200 hover:bg-slate-700 hover:text-white text-[10px] md:text-xs md:px-3 md:py-1">
-                  {t.logout}
+              <img src="/logo-white.svg" alt="Leo Mây" className="h-6 w-auto shrink-0 md:h-7" />
+              <div className="relative">
+                <button type="button" onClick={() => setHeaderMenuOpen((o) => !o)} className="p-1.5 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white" aria-label="Menu">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
                 </button>
+                {headerMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" aria-hidden onClick={() => setHeaderMenuOpen(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-xl border border-slate-700 bg-slate-800 shadow-xl py-1">
+                      <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{locale === "vi" ? "Ngôn ngữ" : "Preferences"}</div>
+                      <div className="flex gap-0.5 p-2">
+                        <button type="button" onClick={() => { setLocaleAndStore("en"); setHeaderMenuOpen(false); }} className={`flex-1 py-1 rounded-lg text-xs font-medium ${locale === "en" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}>EN</button>
+                        <button type="button" onClick={() => { setLocaleAndStore("vi"); setHeaderMenuOpen(false); }} className={`flex-1 py-1 rounded-lg text-xs font-medium ${locale === "vi" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}>VN</button>
+                      </div>
+                      <div className="border-t border-slate-700 my-1" />
+                      <button type="button" onClick={() => { signOut(); setHeaderMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700">
+                        {t.logout}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1419,9 +1431,22 @@ export default function AdminPage() {
 
   const tourSteps = role === "frontdesk" ? TOUR_STEPS_FRONTDESK : role === "staff" ? TOUR_STEPS_STAFF : TOUR_STEPS_ADMIN;
 
+  // Gym status pill: only computed when rendering main dashboard (after all early returns).
+  const currentPhase = phase?.current_phase ?? "gym_open";
+  const isBusy = currentPhase === "gym_open" && gymOccupancy > GYM_CAPACITY * BUSY_THRESHOLD;
+  const gymPill = (() => {
+    if (currentPhase === "pre_open") return { dot: "⚪", labelEn: "Pre-open", labelVi: "Pre-open", bg: "bg-slate-600/30 border-slate-500/50", text: "text-slate-200" };
+    if (currentPhase === "closing") return { dot: "🔴", labelEn: "Closed", labelVi: "Đóng cửa", bg: "bg-red-900/30 border-red-500/50", text: "text-red-200" };
+    if (isBusy) return { dot: "🟡", labelEn: "Busy", labelVi: "Đông", bg: "bg-amber-900/30 border-amber-500/50", text: "text-amber-200" };
+    return { dot: "🟢", labelEn: "Open", labelVi: "Mở cửa", bg: "bg-emerald-900/30 border-emerald-500/50", text: "text-emerald-200" };
+  })();
+  const showOccupancy = currentPhase !== "closing";
+  const gymPillLabel = locale === "vi" ? gymPill.labelVi : gymPill.labelEn;
+  const gymPillText = showOccupancy ? `${gymPillLabel} • ${gymOccupancy} ${locale === "vi" ? "trong" : "inside"}` : gymPillLabel;
+
   const handleTourNavigate = useCallback((step: { navigate?: { area?: "front_desk" | "operations" | "management" | "staff" | "analytics"; frontDeskTab?: "checkin" | "member"; managementTab?: "inventory" | "admin_tools"; staffSubTab?: "routes" | "coaching"; analyticsTab?: "overview" | "revenue" | "members" | "retention" | "behavior" | "funnel" | "operations" | "staff" | "onboarding" } }) => {
+    if (!step?.navigate) return;
     const n = step.navigate;
-    if (!n) return;
     if (n.area) setAdminArea(n.area);
     if (n.frontDeskTab) setFrontDeskTab(n.frontDeskTab);
     if (n.managementTab) setManagementTab(n.managementTab);
@@ -1433,46 +1458,61 @@ export default function AdminPage() {
     <div className="min-h-screen flex flex-col bg-slate-900 text-slate-50">
       <GuidedTour steps={tourSteps} isActive={guidedTourActive} onClose={() => setGuidedTourActive(false)} locale={locale} onNavigate={handleTourNavigate} />
       <header className="border-b border-slate-800 bg-slate-900/95 backdrop-blur shrink-0">
-        {/* Compact header: one row on mobile (logo+title+utils), second row = status line */}
         <div className="max-w-[1100px] mx-auto px-3 py-2 md:px-4 md:py-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <img src="/logo-white.svg" alt="Leo Mây logo" className="h-6 w-auto shrink-0 md:h-7" />
-              <div className="min-w-0 hidden sm:block">
-                <h1 className="text-base md:text-2xl font-bold text-white tracking-tight truncate" style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}>{t.title}</h1>
-                <p className="text-[10px] md:text-sm text-slate-300">{dashboardSubtitle}</p>
-              </div>
+          {/* Row 1: Logo (left) | Status pill (center/right) | Tour + Hamburger (right). No wrap. */}
+          <div className="flex items-center justify-between gap-2 min-h-[2rem]">
+            <div className="flex items-center min-w-0 shrink-0">
+              <img src="/logo-white.svg" alt="Leo Mây" className="h-6 w-auto md:h-7" />
+            </div>
+            {/* Pill on same row from sm up; on smallest screens move to row 2 */}
+            <div className="hidden sm:flex items-center justify-center flex-1 min-w-0">
+              <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium whitespace-nowrap ${gymPill.bg} ${gymPill.text}`} title={phase?.countdown_message}>
+                <span className="text-[10px] leading-none">{gymPill.dot}</span>
+                <span>{gymPillText}</span>
+              </span>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
-              {phase && (
-                <span className="hidden sm:inline-flex border border-amber-500/50 rounded-lg px-2 py-0.5 bg-amber-500/10 text-amber-300 text-[10px] font-semibold md:text-xs" title={phase.countdown_message}>{phase.phase_label}</span>
-              )}
-              <div className="border border-slate-700 rounded-lg px-1.5 py-0.5 bg-slate-800/80 text-[10px] md:text-xs text-slate-200">
-                <span className="text-slate-400">{t.gymOccupancy}</span> <span className="font-medium text-slate-50">{gymOccupancy}</span>
-              </div>
-              <div className="flex gap-0.5 rounded-full border border-slate-600 bg-slate-800/80 p-0.5">
-                <button type="button" onClick={() => setLocaleAndStore("en")} className={`px-2 py-0.5 rounded-full text-[10px] font-medium md:px-3 md:py-1 md:text-xs ${locale === "en" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}>EN</button>
-                <button type="button" onClick={() => setLocaleAndStore("vi")} className={`px-2 py-0.5 rounded-full text-[10px] font-medium md:px-3 md:py-1 md:text-xs ${locale === "vi" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}>VN</button>
-              </div>
-              <a href="/onboarding" className="px-2 py-0.5 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-700 text-[10px] md:text-xs md:px-3 md:py-1" title={locale === "vi" ? "Đào tạo" : "Onboarding"}>
-                {locale === "vi" ? "Đào tạo" : "Onboarding"}
-              </a>
-              <button type="button" onClick={() => setGuidedTourActive(true)} className="px-2 py-0.5 rounded-lg border border-amber-500/50 text-amber-200 hover:bg-amber-500/20 text-[10px] md:text-xs md:px-3 md:py-1" title={locale === "vi" ? "Tour hướng dẫn" : "Guided tour"}>
+              <button type="button" onClick={() => setGuidedTourActive(true)} className="px-2 py-1 rounded-lg border border-amber-500/50 text-amber-200 hover:bg-amber-500/20 text-xs font-medium" title={locale === "vi" ? "Tour hướng dẫn" : "Guided tour"}>
                 {locale === "vi" ? "Tour" : "Tour"}
               </button>
-              <button type="button" onClick={() => { setProfileModalOpen(true); setAdminProfileDisplayName(staffDisplayName ?? (role === "frontdesk" ? "Front Desk" : session?.user?.email?.split("@")[0] ?? "")); setAdminProfileEditing(false); }} className="px-2 py-0.5 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-700 text-[10px] md:text-xs md:px-3 md:py-1" title={staffDisplayName ? `${staffDisplayName} · ${t.profileTab}` : t.profileTab}>
-                {(role === "staff" || role === "frontdesk") && (staffDisplayName || (role === "frontdesk" ? "Front Desk" : null) || session?.user?.email) ? ((staffDisplayName || (role === "frontdesk" ? "Front Desk" : "") || session?.user?.email?.split("@")[0]) ?? "") : t.profileTab}
-              </button>
-              <button type="button" onClick={() => signOut()} className="px-2 py-0.5 rounded-lg border border-slate-500 text-slate-200 hover:bg-slate-700 hover:text-white text-[10px] md:text-xs md:px-3 md:py-1">
-                {t.logout}
-              </button>
+              <div className="relative">
+                <button type="button" onClick={() => setHeaderMenuOpen((o) => !o)} className="p-1.5 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white" aria-label="Menu">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                </button>
+                {headerMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" aria-hidden onClick={() => setHeaderMenuOpen(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-xl border border-slate-700 bg-slate-800 shadow-xl py-1">
+                      <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{locale === "vi" ? "Tài khoản" : "Account"}</div>
+                      <button type="button" onClick={() => { setProfileModalOpen(true); setAdminProfileDisplayName(staffDisplayName ?? (role === "frontdesk" ? "Front Desk" : session?.user?.email?.split("@")[0] ?? "")); setAdminProfileEditing(false); setHeaderMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700">
+                        {t.profileTab}
+                      </button>
+                      <button type="button" onClick={() => { signOut(); setHeaderMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700">
+                        {t.logout}
+                      </button>
+                      <div className="border-t border-slate-700 my-1" />
+                      <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{locale === "vi" ? "Đào tạo" : "Training"}</div>
+                      <a href="/onboarding" onClick={() => setHeaderMenuOpen(false)} className="block w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700">
+                        {locale === "vi" ? "Đào tạo" : "Onboarding"}
+                      </a>
+                      <div className="border-t border-slate-700 my-1" />
+                      <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{locale === "vi" ? "Ngôn ngữ" : "Preferences"}</div>
+                      <div className="flex gap-0.5 p-2">
+                        <button type="button" onClick={() => { setLocaleAndStore("en"); setHeaderMenuOpen(false); }} className={`flex-1 py-1 rounded-lg text-xs font-medium ${locale === "en" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}>EN</button>
+                        <button type="button" onClick={() => { setLocaleAndStore("vi"); setHeaderMenuOpen(false); }} className={`flex-1 py-1 rounded-lg text-xs font-medium ${locale === "vi" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}>VN</button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
-          {/* Second row only on smallest screens (phase not in first row below sm) */}
-          <div className="mt-1 flex flex-wrap items-center gap-2 sm:hidden">
-            {phase && (
-              <span className="inline-flex border border-amber-500/50 rounded-lg px-2 py-0.5 bg-amber-500/10 text-amber-300 text-[10px] font-semibold" title={phase.countdown_message}>{phase.phase_label}</span>
-            )}
+          {/* Row 2: Status pill only on very small screens so header doesn't wrap */}
+          <div className="sm:hidden mt-1.5 flex justify-center">
+            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium whitespace-nowrap ${gymPill.bg} ${gymPill.text}`} title={phase?.countdown_message}>
+              <span className="text-[10px] leading-none">{gymPill.dot}</span>
+              <span>{gymPillText}</span>
+            </span>
           </div>
         </div>
       </header>

@@ -49,8 +49,8 @@ interface AdminAuthContextValue {
   canAccessInventory: boolean;
   canAccessAdminTools: boolean;
   canAccessAnalytics: boolean;
-  /** Current gym phase (Pre-open / Gym Open / Closing) from /api/admin/me. Shown in header for Staff and Frontdesk. */
-  phase: { phase_label: string; countdown_message: string } | null;
+  /** Current gym phase from /api/admin/me. Includes current_phase for status pill (Open/Closed/Busy/Pre-open). */
+  phase: { current_phase?: string; phase_label: string; countdown_message: string } | null;
   /** Re-fetch /api/admin/me to refresh role, staffId, staffDisplayName, phase. */
   refreshMe: () => void;
 }
@@ -95,7 +95,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [staffId, setStaffId] = useState<string | null>(null);
   const [staffDisplayName, setStaffDisplayName] = useState<string | null>(null);
   const [staffProfile, setStaffProfile] = useState<AdminAuthContextValue["staffProfile"]>(null);
-  const [phase, setPhase] = useState<{ phase_label: string; countdown_message: string } | null>(null);
+  const [phase, setPhase] = useState<{ current_phase?: string; phase_label: string; countdown_message: string } | null>(null);
   const [meFetched, setMeFetched] = useState(false);
 
   useEffect(() => {
@@ -130,7 +130,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           setStaffId(data.staffId ?? null);
           setStaffDisplayName(data.staffProfile?.display_name ?? null);
           setStaffProfile(data.staffProfile ?? null);
-          setPhase(data.phase ? { phase_label: data.phase.phase_label, countdown_message: data.phase.countdown_message } : null);
+          setPhase(data.phase ? { current_phase: data.phase.current_phase, phase_label: data.phase.phase_label, countdown_message: data.phase.countdown_message } : null);
         }
       });
   }, [session?.access_token, adminFetch]);
@@ -155,7 +155,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           setStaffId(data.staffId ?? null);
           setStaffDisplayName(data.staffProfile?.display_name ?? null);
           setStaffProfile(data.staffProfile ?? null);
-          setPhase(data.phase ? { phase_label: data.phase.phase_label, countdown_message: data.phase.countdown_message } : null);
+          setPhase(data.phase ? { current_phase: data.phase.current_phase, phase_label: data.phase.phase_label, countdown_message: data.phase.countdown_message } : null);
         } else {
           setRole(null);
           setStaffId(null);
@@ -168,6 +168,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         setMeFetched(true);
         setRole(null);
         setStaffId(null);
+        setStaffDisplayName(null);
         setStaffProfile(null);
         setPhase(null);
       });
@@ -194,7 +195,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           setStaffId(body.staffId ?? null);
           setStaffDisplayName(body.staffProfile?.display_name ?? null);
           setStaffProfile(body.staffProfile ?? null);
-          setPhase(body.phase ? { phase_label: body.phase.phase_label, countdown_message: body.phase.countdown_message } : null);
+          setPhase(body.phase ? { current_phase: body.phase.current_phase, phase_label: body.phase.phase_label, countdown_message: body.phase.countdown_message } : null);
           return {};
         }
         if (!res.ok && body.error) return { error: body.error };

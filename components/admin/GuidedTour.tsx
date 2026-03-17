@@ -43,7 +43,7 @@ export function GuidedTour({ steps, isActive, onClose, locale, onNavigate }: Gui
       setHighlightRect(null);
       return;
     }
-    onNavigate?.(step);
+    if (typeof onNavigate === "function") onNavigate(step);
   }, [isActive, stepIndex, step?.id, onNavigate]);
 
   useEffect(() => {
@@ -68,10 +68,10 @@ export function GuidedTour({ steps, isActive, onClose, locale, onNavigate }: Gui
     }
   }, [isActive, stepIndex, step?.target, step?.navigate]);
 
-  if (!isActive || steps.length === 0) return null;
+  if (!isActive || steps.length === 0 || !step) return null;
 
-  const title = step ? t(step.titleEn, step.titleVi) : "";
-  const content = step ? t(step.contentEn, step.contentVi) : "";
+  const title = t(step.titleEn, step.titleVi);
+  const content = t(step.contentEn, step.contentVi);
 
   return (
     <div className="fixed inset-0 z-[100] pointer-events-auto">
