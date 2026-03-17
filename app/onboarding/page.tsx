@@ -240,6 +240,16 @@ export default function OnboardingPage() {
         }),
       });
       const d = await res.json();
+      if (!res.ok) {
+        setScenarioResult({
+          score: 0,
+          feedback: d?.error ?? (locale === "vi" ? "Không thể chấm điểm." : "Could not evaluate."),
+          whyNot100: null,
+          perfectAnswer: locale === "vi" ? scenario.perfectAnswerVi : scenario.perfectAnswerEn,
+          improved_answer: locale === "vi" ? scenario.perfectAnswerVi : scenario.perfectAnswerEn,
+        });
+        return;
+      }
       setScenarioResult({
         score: d.score,
         feedback: d.feedback,
@@ -255,6 +265,14 @@ export default function OnboardingPage() {
           updateProgress("update_skills", { skill_deltas: { [primarySkill]: delta } });
         }
       }
+    } catch {
+      setScenarioResult({
+        score: 0,
+        feedback: locale === "vi" ? "Lỗi kết nối. Xem đáp án mẫu và nhấn Tiếp." : "Connection error. See sample answer and click Next.",
+        whyNot100: null,
+        perfectAnswer: locale === "vi" ? scenario.perfectAnswerVi : scenario.perfectAnswerEn,
+        improved_answer: locale === "vi" ? scenario.perfectAnswerVi : scenario.perfectAnswerEn,
+      });
     } finally {
       setSaving(false);
     }
@@ -277,6 +295,17 @@ export default function OnboardingPage() {
         }),
       });
       const d = await res.json();
+      if (!res.ok) {
+        const msg = d?.error ?? (locale === "vi" ? "Không thể chấm điểm. Thử lại." : "Could not evaluate. Try again.");
+        setScenarioResult({
+          score: 0,
+          feedback: msg,
+          whyNot100: msg,
+          perfectAnswer: locale === "vi" ? hardScenario.perfectAnswerVi : hardScenario.perfectAnswerEn,
+          improved_answer: locale === "vi" ? hardScenario.perfectAnswerVi : hardScenario.perfectAnswerEn,
+        });
+        return;
+      }
       setScenarioResult({
         score: d.score,
         feedback: d.feedback,
@@ -292,6 +321,14 @@ export default function OnboardingPage() {
           updateProgress("update_skills", { skill_deltas: { [primarySkill]: delta } });
         }
       }
+    } catch {
+      setScenarioResult({
+        score: 0,
+        feedback: locale === "vi" ? "Lỗi kết nối. Bạn vẫn có thể xem đáp án mẫu và nhấn Tiếp." : "Connection error. You can still see the sample answer and click Next.",
+        whyNot100: null,
+        perfectAnswer: locale === "vi" ? hardScenario.perfectAnswerVi : hardScenario.perfectAnswerEn,
+        improved_answer: locale === "vi" ? hardScenario.perfectAnswerVi : hardScenario.perfectAnswerEn,
+      });
     } finally {
       setSaving(false);
     }
@@ -656,7 +693,7 @@ export default function OnboardingPage() {
               {(content.advancedLessons?.length ?? 0) > 0 && (
                 <button
                   type="button"
-                  onClick={() => { setPhase("advanced_lessons"); setAdvancedLessonIndex(0); setSelectedChoice(null); }}
+                  onClick={() => { setPhase("advanced_lessons"); setAdvancedLessonIndex(0); setSelectedChoice(null); setLessonReorderSubmitted(false); }}
                   className="w-full py-3 rounded-xl bg-slate-600/80 border border-slate-500 text-slate-200 font-medium hover:bg-slate-600"
                 >
                   {locale === "vi" ? `Bài nâng cao (${content.advancedLessons!.length} bài)` : `Advanced lessons (${content.advancedLessons!.length})`}
@@ -676,51 +713,84 @@ export default function OnboardingPage() {
         {phase === "hard_mode" && content?.hardModeScenarios && content.hardModeScenarios.length > 0 && (() => {
           const hardScenario = content.hardModeScenarios[hardScenarioIndex];
           const isLast = hardScenarioIndex >= content.hardModeScenarios.length - 1;
+          if (!hardScenario) {
+            return (
+              <section className="space-y-4">
+                <p className="text-slate-400 text-sm">{locale === "vi" ? "Không có tình huống." : "No scenario."}</p>
+                <button type="button" onClick={() => setPhase("day_complete_menu")} className="text-sm text-slate-400 hover:text-white">
+                  {locale === "vi" ? "← Quay lại menu ngày" : "← Back to day menu"}
+                </button>
+              </section>
+            );
+          }
           return (
-            <ScenarioCard
-              scenario={hardScenario}
-              locale={locale}
-              index={hardScenarioIndex}
-              total={content.hardModeScenarios.length}
-              response={scenarioResponse}
-              onResponseChange={setScenarioResponse}
-              result={scenarioResult}
-              onSubmit={handleHardScenarioSubmit}
-              onNext={() => {
-                setScenarioResult(null);
-                setScenarioResponse("");
-                if (isLast) {
-                  setPhase("day_complete_menu");
-                } else {
-                  setHardScenarioIndex((i) => i + 1);
-                }
-              }}
-              saving={saving}
-            />
+            <section className="space-y-4">
+              <button type="button" onClick={() => setPhase("day_complete_menu")} className="text-sm text-slate-400 hover:text-white">
+                {locale === "vi" ? "← Quay lại menu ngày" : "← Back to day menu"}
+              </button>
+              <ScenarioCard
+                key={`hard-${hardScenarioIndex}-${hardScenario.id}`}
+                scenario={hardScenario}
+                locale={locale}
+                index={hardScenarioIndex}
+                total={content.hardModeScenarios.length}
+                response={scenarioResponse}
+                onResponseChange={setScenarioResponse}
+                result={scenarioResult}
+                onSubmit={handleHardScenarioSubmit}
+                onNext={() => {
+                  setScenarioResult(null);
+                  setScenarioResponse("");
+                  if (isLast) {
+                    setPhase("day_complete_menu");
+                  } else {
+                    setHardScenarioIndex((i) => i + 1);
+                  }
+                }}
+                saving={saving}
+              />
+            </section>
           );
         })()}
 
         {phase === "advanced_lessons" && content?.advancedLessons && content.advancedLessons.length > 0 && (() => {
           const advSection = content.advancedLessons[advancedLessonIndex];
           const isLast = advancedLessonIndex >= content.advancedLessons.length - 1;
+          if (!advSection) {
+            return (
+              <section className="space-y-4">
+                <p className="text-slate-400 text-sm">{locale === "vi" ? "Không có bài." : "No lesson."}</p>
+                <button type="button" onClick={() => setPhase("day_complete_menu")} className="text-sm text-slate-400 hover:text-white">
+                  {locale === "vi" ? "← Quay lại menu ngày" : "← Back to day menu"}
+                </button>
+              </section>
+            );
+          }
           return (
-            <LessonCard
-              section={advSection}
-              locale={locale}
-              lessonIndex={advancedLessonIndex}
-              total={content.advancedLessons.length}
-              selectedChoice={selectedChoice}
-              onSelectChoice={setSelectedChoice}
-              onNext={() => {
-                setSelectedChoice(null);
-                if (isLast) setPhase("day_complete_menu");
-                else setAdvancedLessonIndex((i) => i + 1);
-              }}
-              onReorderSubmit={() => setLessonReorderSubmitted(true)}
-              canProceed={advSection.type === "text" || advSection.type === "list" || advSection.type === "goodvsbad" || (advSection.type === "choice" && selectedChoice !== null) || (advSection.type === "reorder_steps" && lessonReorderSubmitted) || ((advSection.type === "choose_better" || advSection.type === "fix_sentence" || advSection.type === "tap_mistake") && selectedChoice !== null)}
-              saving={saving}
-              onBackToMap={() => { setCurrentDay(null); setPhase("map"); }}
-            />
+            <section className="space-y-4">
+              <button type="button" onClick={() => setPhase("day_complete_menu")} className="text-sm text-slate-400 hover:text-white">
+                {locale === "vi" ? "← Quay lại menu ngày" : "← Back to day menu"}
+              </button>
+              <LessonCard
+                key={`adv-${advancedLessonIndex}-${advSection.id}`}
+                section={advSection}
+                locale={locale}
+                lessonIndex={advancedLessonIndex}
+                total={content.advancedLessons.length}
+                selectedChoice={selectedChoice}
+                onSelectChoice={setSelectedChoice}
+                onNext={() => {
+                  setSelectedChoice(null);
+                  setLessonReorderSubmitted(false);
+                  if (isLast) setPhase("day_complete_menu");
+                  else setAdvancedLessonIndex((i) => i + 1);
+                }}
+                onReorderSubmit={() => setLessonReorderSubmitted(true)}
+                canProceed={advSection.type === "text" || advSection.type === "list" || advSection.type === "goodvsbad" || (advSection.type === "choice" && selectedChoice !== null) || (advSection.type === "reorder_steps" && lessonReorderSubmitted) || ((advSection.type === "choose_better" || advSection.type === "fix_sentence" || advSection.type === "tap_mistake") && selectedChoice !== null)}
+                saving={saving}
+                onBackToMap={() => { setCurrentDay(null); setPhase("map"); }}
+              />
+            </section>
           );
         })()}
 
