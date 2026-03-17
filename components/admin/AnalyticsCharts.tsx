@@ -335,7 +335,7 @@ export default function AnalyticsCharts({
   }
 
   if (tab === "overview") {
-    const o: Partial<NonNullable<AnalyticsData["overview"]>> = data.overview ?? {};
+    const o: Partial<NonNullable<AnalyticsData["overview"]>> = data?.overview ?? {};
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -347,11 +347,11 @@ export default function AnalyticsCharts({
           <KpiCard label={t("Active (in period)", "Hoạt động (trong kỳ)")} value={o.active_members ?? 0} />
           <KpiCard label={t("Total visits", "Tổng lượt vào")} value={o.total_visits ?? 0} />
         </div>
-        {data.revenue?.over_time && data.revenue.over_time.length > 0 && (
+        {data?.revenue?.over_time && data?.revenue.over_time.length > 0 && (
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <p className="text-sm font-semibold text-slate-700 mb-3">{t("Revenue over time", "Doanh thu theo thời gian")}</p>
             <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={data.revenue.over_time}>
+              <LineChart data={data?.revenue?.over_time ?? []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
@@ -366,7 +366,7 @@ export default function AnalyticsCharts({
   }
 
   if (tab === "revenue") {
-    const r: Partial<NonNullable<AnalyticsData["revenue"]>> = data.revenue ?? {};
+    const r: Partial<NonNullable<AnalyticsData["revenue"]>> = data?.revenue ?? {};
     const byCat = r.by_category ?? {};
     const catEntries = Object.entries(byCat).filter(([, v]) => v > 0);
     return (
@@ -409,7 +409,7 @@ export default function AnalyticsCharts({
   }
 
   if (tab === "members") {
-    const m: Partial<NonNullable<AnalyticsData["members"]>> = data.members ?? {};
+    const m: Partial<NonNullable<AnalyticsData["members"]>> = data?.members ?? {};
     const isVi = locale === "vi";
     const newOverTime = m.new_over_time ?? [];
     const dist = m.membership_distribution;
@@ -562,7 +562,7 @@ export default function AnalyticsCharts({
   }
 
   if (tab === "retention") {
-    const r: Partial<NonNullable<AnalyticsData["retention"]>> = data.retention ?? {};
+    const r: Partial<NonNullable<AnalyticsData["retention"]>> = data?.retention ?? {};
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -583,7 +583,7 @@ export default function AnalyticsCharts({
   }
 
   if (tab === "behavior") {
-    const b: Partial<NonNullable<AnalyticsData["behavior"]>> = data.behavior ?? {};
+    const b: Partial<NonNullable<AnalyticsData["behavior"]>> = data?.behavior ?? {};
     const dau = b.dau ?? [];
     const peak = b.peak_hours ?? [];
     const peakData = peak.map(({ hour, count }) => ({ hour: `${hour}:00`, count }));
@@ -626,7 +626,7 @@ export default function AnalyticsCharts({
   }
 
   if (tab === "funnel") {
-    const f: Partial<NonNullable<AnalyticsData["funnel"]>> = data.funnel ?? {};
+    const f: Partial<NonNullable<AnalyticsData["funnel"]>> = data?.funnel ?? {};
     return (
       <div className="space-y-6">
         <div className="rounded-xl border border-slate-200 bg-white p-6">
@@ -652,7 +652,7 @@ export default function AnalyticsCharts({
   }
 
   if (tab === "operations") {
-    const op: Partial<NonNullable<AnalyticsData["operations"]>> = data.operations ?? {};
+    const op: Partial<NonNullable<AnalyticsData["operations"]>> = data?.operations ?? {};
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -668,7 +668,7 @@ export default function AnalyticsCharts({
   }
 
   if (tab === "staff") {
-    const staffList = data.staff ?? [];
+    const staffList = data?.staff ?? [];
     return (
       <div className="space-y-6">
         <p className="text-sm font-semibold text-slate-700">{t("Staff performance (period)", "Hiệu suất nhân sự (kỳ)")}</p>

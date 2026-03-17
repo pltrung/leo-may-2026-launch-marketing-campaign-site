@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
+import { getGymStartOfDay, getGymEndOfDay } from "@/lib/gymTimezone";
 import { computeStreakUpdate, evaluateAndGrantAchievements } from "@/lib/achievements";
 
 /**
  * Core check-in logic: validate member, insert gym_checkins, update streaks and achievements.
- * Used by /api/checkin (GET/POST) and /api/admin/checkin (POST).
+ * Only the first check-in per calendar day (gym TZ) counts: visits_remaining decrement, streaks, achievements.
+ * Subsequent same-day check-ins are recorded but do not affect stats (prevents gaming).
  */
 export async function performCheckIn(memberId: string, location: string | null): Promise<NextResponse> {
   try {
@@ -47,6 +49,21 @@ export async function performCheckIn(memberId: string, location: string | null):
         { error: "Membership inactive or expired. Purchase a pass to check in." },
         { status: 403 }
       );
+    }
+
+    const startOfToday = getGymStartOfDay();
+    const endOfToday = getGymEndOfDay();
+    const { count: todayCount } = await supabase
+      .from("gym_checkins")
+      .select("id", { count: "exact", head: true })
+      .eq("member_id", memberId)
+      .gte("timestamp", startOfToday)
+      .lte("timestamp", endOfToday);
+
+    const alreadyCheckedInToday = (todayCount ?? 0) >= 1;
+
+    if (alreadyCheckedInToday) {
+      return NextResponse.json({ ok: true, already_checked_in_today: true });
     }
 
     const { data: inserted, error } = await supabase
