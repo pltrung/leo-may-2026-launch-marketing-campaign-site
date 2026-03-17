@@ -47,24 +47,20 @@ export async function getSegmentRecipients(
     .eq("status", "success");
   const allPayments = (payments ?? []) as { member_id: string; plan_id: string; created_at: string }[];
 
-  // Last visit per member
   const lastVisitByMember = new Map<string, string>();
   for (const c of allCheckins) {
     const ex = lastVisitByMember.get(c.member_id);
     if (!ex || c.timestamp > ex) lastVisitByMember.set(c.member_id, c.timestamp);
   }
-  // Total visits per member
   const totalVisitsByMember = new Map<string, number>();
   for (const c of allCheckins) {
     totalVisitsByMember.set(c.member_id, (totalVisitsByMember.get(c.member_id) ?? 0) + 1);
   }
-  // Visits in last 4 weeks
   const visitsLast4Weeks = new Map<string, number>();
   for (const c of allCheckins) {
     if (c.timestamp >= fourWeeksAgo)
       visitsLast4Weeks.set(c.member_id, (visitsLast4Weeks.get(c.member_id) ?? 0) + 1);
   }
-  // Latest plan per member (most recent payment by created_at)
   const latestPlanByMember2 = new Map<string, string>();
   const uniqueMemberIds = Array.from(new Set(allPayments.map((p) => p.member_id)));
   for (let i = 0; i < uniqueMemberIds.length; i++) {
@@ -80,7 +76,6 @@ export async function getSegmentRecipients(
 
   switch (segmentId) {
     case "inactive_members_30d": {
-      // last_visit_at < now - 30 days (and has at least one visit ever)
       memberIds = allProfiles
         .filter((p) => {
           const last = lastVisitByMember.get(p.id);
@@ -90,7 +85,6 @@ export async function getSegmentRecipients(
       break;
     }
     case "visit_pass_users": {
-      // Latest plan is visit_5, visit_10, or visit_20
       memberIds = allProfiles.filter((p) => {
         const plan = latestPlanByMember2.get(p.id);
         return plan && visitPassPlans.has(plan);
@@ -98,15 +92,13 @@ export async function getSegmentRecipients(
       break;
     }
     case "highly_active_users": {
-      // visits per week >= 3 in last 4 weeks
       memberIds = allProfiles.filter((p) => {
         const visits = visitsLast4Weeks.get(p.id) ?? 0;
-        return visits >= 12; // 3 per week * 4 weeks
+        return visits >= 12;
       }).map((p) => p.id);
       break;
     }
     case "first_time_no_return": {
-      // total_visits === 1 and last visit > 7 days ago
       memberIds = allProfiles.filter((p) => {
         const total = totalVisitsByMember.get(p.id) ?? 0;
         const last = lastVisitByMember.get(p.id);
@@ -115,7 +107,6 @@ export async function getSegmentRecipients(
       break;
     }
     case "near_conversion_users": {
-      // total_visits >= 3 and no membership plan
       memberIds = allProfiles.filter((p) => {
         const total = totalVisitsByMember.get(p.id) ?? 0;
         const plan = latestPlanByMember2.get(p.id);
@@ -125,7 +116,6 @@ export async function getSegmentRecipients(
       break;
     }
     case "dropped_active_users": {
-      // Had visit(s) between 60-30 days ago, zero visits in last 30 days
       const hadVisit30to60 = new Set<string>();
       const hadVisitLast30 = new Set<string>();
       for (const c of allCheckins) {
@@ -136,7 +126,6 @@ export async function getSegmentRecipients(
       break;
     }
     case "new_members_recent": {
-      // created_at within last 3 days
       memberIds = allProfiles.filter((p) => p.created_at >= threeDaysAgo).map((p) => p.id);
       break;
     }

@@ -2,12 +2,12 @@
  * POST /api/admin/campaigns/send
  * Admin-only. Sends campaign email to segment recipients via Gmail API.
  * Body: { segment: string, subject: string, body: string }
- * Batches of 15, 500ms delay between batches. Logs to campaign_logs.
+ * Generates a promo code per send; logs to campaign_logs. Batches of 15, 500ms delay.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAdminOrStaffFromRequest, canAccessAnalytics } from "@/lib/unifiedAdminAuth";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getSegmentById, renderBody, bodyToHtml } from "@/lib/campaignSegments";
+import { getSegmentById, renderBody, bodyToHtml, getSubjectWithBrand } from "@/lib/campaignSegments";
 import { getSegmentRecipients } from "@/lib/campaignSegmentQueries";
 import type { CampaignSegmentId } from "@/lib/campaignSegments";
 import { sendEmail } from "@/lib/email/sendGmail";
@@ -17,6 +17,13 @@ const BATCH_DELAY_MS = 500;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function generatePromoCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "LEO-";
+  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
 }
 
 export async function POST(req: NextRequest) {
@@ -52,6 +59,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ sent: 0, message: "No recipients in segment" });
   }
 
+  const promoCode = generatePromoCode();
+  const subjectWithBrand = getSubjectWithBrand(subject);
+
   let sent = 0;
   const batches: { email: string; name: string }[][] = [];
   for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
@@ -63,8 +73,8 @@ export async function POST(req: NextRequest) {
     await Promise.all(
       batch.map((r) => {
         const text = renderBody(emailBody, r.name);
-        const html = bodyToHtml(text);
-        return sendEmail({ to: r.email, subject, html, text }).then(() => {
+        const html = bodyToHtml(text, { promoCode, locale: "en", subject: subjectWithBrand });
+        return sendEmail({ to: r.email, subject: subjectWithBrand, html, text }).then(() => {
           sent++;
         });
       })
@@ -74,11 +84,12 @@ export async function POST(req: NextRequest) {
 
   await supabase.from("campaign_logs").insert({
     segment: segmentId,
-    subject,
+    subject: subjectWithBrand,
     recipient_count: sent,
     sent_at: new Date().toISOString(),
     status: "completed",
+    promo_code: promoCode,
   });
 
-  return NextResponse.json({ ok: true, sent });
+  return NextResponse.json({ ok: true, sent, promoCode });
 }

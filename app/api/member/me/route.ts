@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     const { data: existing, error: rowError } = await supabase
       .from("member_profiles")
-      .select("id, auth_id, email, phone, full_name, display_name, tier, waiver_signed, waiver_signed_at, created_at, member_code, membership_status, membership_expires_at, visits_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender, address, id_verified_from_cccd, current_streak, best_streak")
+      .select("id, auth_id, email, phone, full_name, display_name, tier, waiver_signed, waiver_signed_at, created_at, member_code, membership_status, membership_expires_at, visits_remaining, guest_passes_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender, address, id_verified_from_cccd, current_streak, best_streak")
       .eq("auth_id", user.id)
       .maybeSingle();
 
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
             tier,
             membership_status: "inactive",
           })
-          .select("id, auth_id, email, phone, full_name, display_name, tier, waiver_signed, waiver_signed_at, created_at, member_code, membership_status, membership_expires_at, visits_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender, address, id_verified_from_cccd, current_streak, best_streak")
+          .select("id, auth_id, email, phone, full_name, display_name, tier, waiver_signed, waiver_signed_at, created_at, member_code, membership_status, membership_expires_at, visits_remaining, guest_passes_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender, address, id_verified_from_cccd, current_streak, best_streak")
           .single();
 
         if (!insertErr && inserted) memberRow = inserted;

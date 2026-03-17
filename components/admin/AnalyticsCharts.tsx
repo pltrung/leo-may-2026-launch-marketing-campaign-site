@@ -150,16 +150,26 @@ export default function AnalyticsCharts({
   const [campaignSending, setCampaignSending] = useState(false);
   const [campaignSuccess, setCampaignSuccess] = useState<number | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [campaignLogs, setCampaignLogs] = useState<{ id: string; segment: string; subject: string; recipient_count: number; sent_at: string; status: string; promo_code?: string | null; redemption_count?: number }[]>([]);
+
+  const fetchCampaignLogs = useCallback(() => {
+    if (!adminFetch) return;
+    adminFetch("/api/admin/campaigns/logs?limit=10")
+      .then((r) => r.json())
+      .then((d) => setCampaignLogs(d.logs ?? []))
+      .catch(() => setCampaignLogs([]));
+  }, [adminFetch]);
 
   useEffect(() => {
-    if (tab !== "members" || !adminFetch) return;
+    if (tab !== "email_campaigns" || !adminFetch) return;
     setCampaignSegmentsLoading(true);
     adminFetch("/api/admin/campaigns/segments")
       .then((r) => r.json())
       .then((d) => setCampaignSegments(d.segments ?? []))
       .catch(() => setCampaignSegments([]))
       .finally(() => setCampaignSegmentsLoading(false));
-  }, [tab, adminFetch]);
+    fetchCampaignLogs();
+  }, [tab, adminFetch, fetchCampaignLogs]);
 
   const openCampaignModal = useCallback((segment: CampaignSegmentRow) => {
     setCampaignModal({ segment, subject: segment.subject, body: segment.body });
@@ -183,6 +193,7 @@ export default function AnalyticsCharts({
       const d = await res.json();
       if (res.ok && d.sent != null) {
         setCampaignSuccess(d.sent);
+        fetchCampaignLogs();
         setTimeout(() => {
           setCampaignModal(null);
           setCampaignSuccess(null);
@@ -198,12 +209,127 @@ export default function AnalyticsCharts({
     } finally {
       setCampaignSending(false);
     }
-  }, [campaignModal, adminFetch]);
+  }, [campaignModal, adminFetch, fetchCampaignLogs]);
 
-  if (loading || !data) {
+  if (tab !== "email_campaigns" && (loading || !data)) {
     return (
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-8 text-center text-slate-500">
         {t("Loading analytics…", "Đang tải phân tích…")}
+      </div>
+    );
+  }
+
+  if (tab === "email_campaigns") {
+    return (
+      <div className="space-y-6">
+        {adminFetch ? (
+          <div className="rounded-xl border-2 border-teal-200 bg-teal-50/50 p-4 md:p-6">
+            <p className="text-sm font-semibold text-teal-900 mb-2">{t("Email campaigns", "Chiến dịch email")}</p>
+            <p className="text-xs text-teal-800/90 mb-4">{t("Send targeted emails with pre-built templates. Edit subject/body in the modal before sending.", "Gửi email theo đối tượng với mẫu có sẵn. Chỉnh sửa tiêu đề/nội dung trong hộp thoại trước khi gửi.")}</p>
+            {campaignSegmentsLoading ? (
+              <p className="text-sm text-slate-500">{t("Loading segments…", "Đang tải nhóm…")}</p>
+            ) : (
+              <ul className="space-y-3">
+                {campaignSegments.map((seg) => (
+                  <li key={seg.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-lg bg-white border border-teal-100">
+                    <div>
+                      <span className="font-medium text-slate-900">{isVi ? seg.nameVi : seg.nameEn}</span>
+                      <span className="ml-2 text-slate-600">({seg.count})</span>
+                      <p className="text-xs text-slate-500 mt-0.5">{isVi ? seg.descriptionVi : seg.descriptionEn}</p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={seg.count === 0}
+                      onClick={() => openCampaignModal(seg)}
+                      className="shrink-0 px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isVi ? seg.ctaVi : seg.ctaEn}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {campaignLogs.length > 0 && (
+              <div className="mt-6 pt-4 border-t border-teal-200">
+                <p className="text-sm font-semibold text-teal-900 mb-2">{t("Recent sends", "Đã gửi gần đây")}</p>
+                <ul className="space-y-2 text-sm">
+                  {campaignLogs.map((log) => (
+                    <li key={log.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 p-2 rounded-lg bg-white/80 border border-teal-100">
+                      <span className="font-medium text-slate-800">{log.segment}</span>
+                      <span className="text-slate-500">—</span>
+                      <span className="text-slate-600 truncate max-w-[200px]" title={log.subject}>{log.subject}</span>
+                      {log.promo_code && (
+                        <>
+                          <span className="text-slate-500">·</span>
+                          <code className="text-xs font-mono bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded">{log.promo_code}</code>
+                        </>
+                      )}
+                      <span className="text-slate-500">·</span>
+                      <span className="text-teal-700">{log.recipient_count} {t("recipients", "người nhận")}</span>
+                      {(log.redemption_count ?? 0) > 0 && (
+                        <>
+                          <span className="text-slate-500">·</span>
+                          <span className="text-emerald-700 font-medium">{log.redemption_count} {t("redemptions", "đã đổi mã")}</span>
+                        </>
+                      )}
+                      <span className="text-slate-400 text-xs">
+                        {new Date(log.sent_at).toLocaleString(locale === "vi" ? "vi-VN" : "en-US", { dateStyle: "short", timeStyle: "short" })}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-8 text-center text-slate-500">
+            {t("Admin access required for email campaigns.", "Cần quyền admin để dùng chiến dịch email.")}
+          </div>
+        )}
+        {campaignModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => !campaignSending && setCampaignModal(null)}>
+            <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">{isVi ? campaignModal.segment.nameVi : campaignModal.segment.nameEn}</h3>
+              <p className="text-sm text-slate-600 mb-4">{t("Recipients", "Người nhận")}: <strong>{campaignModal.segment.count}</strong></p>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t("Subject", "Tiêu đề")}</label>
+              <input
+                type="text"
+                value={campaignModal.subject}
+                onChange={(e) => setCampaignModal((m) => (m ? { ...m, subject: e.target.value } : null))}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm mb-4"
+              />
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t("Body", "Nội dung")}</label>
+              <textarea
+                value={campaignModal.body}
+                onChange={(e) => setCampaignModal((m) => (m ? { ...m, body: e.target.value } : null))}
+                rows={10}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm mb-4 font-mono text-sm"
+              />
+              <button type="button" onClick={() => setShowPreview((v) => !v)} className="mb-4 text-sm text-teal-600 hover:underline">
+                {showPreview ? t("Hide preview", "Ẩn xem trước") : t("Preview message", "Xem trước nội dung")}
+              </button>
+              {showPreview && (
+                <div className="mb-4 p-4 rounded-lg bg-slate-100 border border-slate-200 text-sm">
+                  <p className="font-medium text-slate-700 mb-1">{t("Subject", "Tiêu đề")}: {campaignModal.subject}</p>
+                  <pre className="whitespace-pre-wrap font-sans text-slate-800">{renderBody(campaignModal.body, "Alex")}</pre>
+                </div>
+              )}
+              {campaignSuccess !== null && (
+                <p className={`text-sm mb-4 ${campaignSuccess >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                  {campaignSuccess >= 0 ? t(`Sent to ${campaignSuccess} recipients.`, `Đã gửi tới ${campaignSuccess} người nhận.`) : t("Send failed. Check GMAIL_ACCESS_TOKEN and logs.", "Gửi thất bại. Kiểm tra GMAIL_ACCESS_TOKEN và nhật ký.")}
+                </p>
+              )}
+              <div className="flex gap-3 justify-end">
+                <button type="button" onClick={() => setCampaignModal(null)} disabled={campaignSending} className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                  {t("Cancel", "Hủy")}
+                </button>
+                <button type="button" onClick={sendCampaign} disabled={campaignSending || campaignModal.segment.count === 0} className="px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-500 disabled:opacity-50">
+                  {campaignSending ? t("Sending…", "Đang gửi…") : t("Confirm send", "Xác nhận gửi")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -412,102 +538,6 @@ export default function AnalyticsCharts({
               <KpiCard label={t("Moderate (1–2 visits/week)", "Trung bình (1–2 lượt/tuần)")} value={activitySeg.moderate} />
               <KpiCard label={t("Low activity", "Ít hoạt động")} value={activitySeg.low_activity} />
               <KpiCard label={t("Inactive (0 visits in period)", "Không hoạt động (0 lượt trong kỳ)")} value={activitySeg.inactive} className="border-slate-200 bg-slate-50" />
-            </div>
-          </div>
-        )}
-
-        {/* 5. Email campaigns (one-click) — admin only */}
-        {adminFetch && (
-          <div className="rounded-xl border-2 border-teal-200 bg-teal-50/50 p-4 md:p-6">
-            <p className="text-sm font-semibold text-teal-900 mb-2">{t("Email campaigns", "Chiến dịch email")}</p>
-            <p className="text-xs text-teal-800/90 mb-4">{t("Send targeted emails with pre-built templates. Edit subject/body in the modal before sending.", "Gửi email theo đối tượng với mẫu có sẵn. Chỉnh sửa tiêu đề/nội dung trong hộp thoại trước khi gửi.")}</p>
-            {campaignSegmentsLoading ? (
-              <p className="text-sm text-slate-500">{t("Loading segments…", "Đang tải nhóm…")}</p>
-            ) : (
-              <ul className="space-y-3">
-                {campaignSegments.map((seg) => (
-                  <li key={seg.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-lg bg-white border border-teal-100">
-                    <div>
-                      <span className="font-medium text-slate-900">{isVi ? seg.nameVi : seg.nameEn}</span>
-                      <span className="ml-2 text-slate-600">({seg.count})</span>
-                      <p className="text-xs text-slate-500 mt-0.5">{isVi ? seg.descriptionVi : seg.descriptionEn}</p>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={seg.count === 0}
-                      onClick={() => openCampaignModal(seg)}
-                      className="shrink-0 px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isVi ? seg.ctaVi : seg.ctaEn}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-
-        {/* 6. Action panel (insights) */}
-        {actions.length > 0 && (
-          <div className="rounded-xl border-2 border-slate-200 bg-slate-50/50 p-4 md:p-6">
-            <p className="text-sm font-semibold text-slate-800 mb-2">{t("Action panel", "Hành động đề xuất")}</p>
-            <p className="text-xs text-slate-600 mb-4">{t("Use these insights to decide campaigns and outreach.", "Dùng các gợi ý sau để quyết định chiến dịch và liên hệ.")}</p>
-            <ul className="space-y-3">
-              {actions.map((a) => (
-                <li key={a.type} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-lg bg-white border border-slate-200">
-                  <div>
-                    <span className="font-medium text-slate-900">{isVi ? a.label_vi : a.label_en}</span>
-                    <span className="ml-2 text-slate-600">({a.count})</span>
-                  </div>
-                  <p className="text-sm text-slate-700 sm:text-right">{isVi ? a.recommendation_vi : a.recommendation_en}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Campaign send modal */}
-        {campaignModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => !campaignSending && setCampaignModal(null)}>
-            <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-lg font-semibold text-slate-900 mb-4">{isVi ? campaignModal.segment.nameVi : campaignModal.segment.nameEn}</h3>
-              <p className="text-sm text-slate-600 mb-4">{t("Recipients", "Người nhận")}: <strong>{campaignModal.segment.count}</strong></p>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t("Subject", "Tiêu đề")}</label>
-              <input
-                type="text"
-                value={campaignModal.subject}
-                onChange={(e) => setCampaignModal((m) => (m ? { ...m, subject: e.target.value } : null))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm mb-4"
-              />
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t("Body", "Nội dung")}</label>
-              <textarea
-                value={campaignModal.body}
-                onChange={(e) => setCampaignModal((m) => (m ? { ...m, body: e.target.value } : null))}
-                rows={10}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm mb-4 font-mono text-sm"
-              />
-              <button type="button" onClick={() => setShowPreview((v) => !v)} className="mb-4 text-sm text-teal-600 hover:underline">
-                {showPreview ? t("Hide preview", "Ẩn xem trước") : t("Preview message", "Xem trước nội dung")}
-              </button>
-              {showPreview && (
-                <div className="mb-4 p-4 rounded-lg bg-slate-100 border border-slate-200 text-sm">
-                  <p className="font-medium text-slate-700 mb-1">{t("Subject", "Tiêu đề")}: {campaignModal.subject}</p>
-                  <pre className="whitespace-pre-wrap font-sans text-slate-800">{renderBody(campaignModal.body, "Alex")}</pre>
-                </div>
-              )}
-              {campaignSuccess !== null && (
-                <p className={`text-sm mb-4 ${campaignSuccess >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                  {campaignSuccess >= 0 ? t(`Sent to ${campaignSuccess} recipients.`, `Đã gửi tới ${campaignSuccess} người nhận.`) : t("Send failed. Check GMAIL_ACCESS_TOKEN and logs.", "Gửi thất bại. Kiểm tra GMAIL_ACCESS_TOKEN và nhật ký.")}
-                </p>
-              )}
-              <div className="flex gap-3 justify-end">
-                <button type="button" onClick={() => setCampaignModal(null)} disabled={campaignSending} className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-                  {t("Cancel", "Hủy")}
-                </button>
-                <button type="button" onClick={sendCampaign} disabled={campaignSending || campaignModal.segment.count === 0} className="px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-500 disabled:opacity-50">
-                  {campaignSending ? t("Sending…", "Đang gửi…") : t("Confirm send", "Xác nhận gửi")}
-                </button>
-              </div>
             </div>
           </div>
         )}

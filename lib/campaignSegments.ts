@@ -1,7 +1,6 @@
 /**
  * Email campaign segments for Analytics Action Panel.
- * Each segment has a key, display labels, template (subject/body), and CTA.
- * Recipient resolution is done in API using Supabase (see getSegmentRecipients).
+ * Many cohorts for targeted campaigns. Rewards: guest pass for those who already have access; free visits for lapsed / no pass.
  */
 
 export type CampaignSegmentId =
@@ -165,8 +164,82 @@ Leo Mây Team`,
   },
 ];
 
+/**
+ * Reward by segment. Active / visit-pass cohorts get guest pass; lapsed or no-pass cohorts get free visit(s).
+ */
+export type CampaignSegmentReward = {
+  type: "visits" | "guest_pass";
+  amount: number;
+  labelEn: string;
+  labelVi: string;
+};
+
+export const CAMPAIGN_SEGMENT_REWARDS: Record<CampaignSegmentId, CampaignSegmentReward> = {
+  inactive_members_30d: {
+    type: "visits",
+    amount: 2,
+    labelEn: "2 free visits (come back on us)",
+    labelVi: "2 lượt miễn phí (quay lại với chúng tôi)",
+  },
+  visit_pass_users: {
+    type: "guest_pass",
+    amount: 1,
+    labelEn: "1 guest pass (bring a friend)",
+    labelVi: "1 vé khách (dẫn bạn bè cùng leo)",
+  },
+  highly_active_users: {
+    type: "guest_pass",
+    amount: 1,
+    labelEn: "1 guest pass (bring a friend)",
+    labelVi: "1 vé khách (dẫn bạn bè cùng leo)",
+  },
+  first_time_no_return: {
+    type: "visits",
+    amount: 2,
+    labelEn: "2 free visits (your second climb is on us)",
+    labelVi: "2 lượt miễn phí (lần leo thứ hai của bạn do chúng tôi tặng)",
+  },
+  near_conversion_users: {
+    type: "visits",
+    amount: 1,
+    labelEn: "1 free visit (one more climb before you join)",
+    labelVi: "1 lượt miễn phí (một lần leo nữa trước khi bạn trở thành thành viên)",
+  },
+  dropped_active_users: {
+    type: "visits",
+    amount: 2,
+    labelEn: "2 free visits (we saved your spot)",
+    labelVi: "2 lượt miễn phí (chúng tôi đã giữ chỗ cho bạn)",
+  },
+  new_members_recent: {
+    type: "visits",
+    amount: 1,
+    labelEn: "1 free visit (welcome — come again soon)",
+    labelVi: "1 lượt miễn phí (chào mừng — hẹn gặp lại bạn)",
+  },
+};
+
 export function getSegmentById(id: CampaignSegmentId): CampaignSegmentDefinition | undefined {
   return CAMPAIGN_SEGMENTS.find((s) => s.id === id);
+}
+
+/** Get reward config for a segment (for redemption). Legacy segment ids (from old campaign_logs) get 1 free visit. */
+export function getRewardForSegment(segmentId: string): CampaignSegmentReward {
+  const known = CAMPAIGN_SEGMENT_REWARDS[segmentId as CampaignSegmentId];
+  if (known) return known;
+  return {
+    type: "visits",
+    amount: 1,
+    labelEn: "1 free visit",
+    labelVi: "1 lượt miễn phí",
+  };
+}
+
+/** Subject line: always make clear it's from Leo Mây */
+export function getSubjectWithBrand(subject: string): string {
+  const trimmed = subject?.trim() || "";
+  if (trimmed.toLowerCase().startsWith("leo mây") || trimmed.toLowerCase().startsWith("[leo mây]")) return trimmed;
+  return `Leo Mây — ${trimmed}`;
 }
 
 /** Replace [Name] with display name or full_name fallback */
@@ -175,10 +248,60 @@ export function renderBody(body: string, name: string): string {
   return body.replace(/\[Name\]/g, displayName);
 }
 
-/** Convert plain text body to simple HTML for Gmail */
-export function bodyToHtml(body: string): string {
-  return `<div style="font-family: sans-serif; line-height: 1.5; color: #334155;">${body
+/** Base URL for dashboard/gym (env or default). No trailing slash. */
+export function getCampaignBaseUrl(): string {
+  const url = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL;
+  if (url) return url.startsWith("http") ? url.replace(/\/$/, "") : `https://${url}`;
+  return "https://leo-may-2026.com";
+}
+
+/** Logo URL for emails (full URL so it loads in Gmail) */
+export function getCampaignLogoUrl(): string {
+  const base = getCampaignBaseUrl();
+  return `${base}/logo.svg`;
+}
+
+/**
+ * Build full campaign email HTML: dark text throughout, logo top + bottom, clear title, body, promo code (if any), CTA.
+ * All text uses explicit dark color (#1e293b / #0f172a) so it's visible in any email client.
+ */
+export function bodyToHtml(
+  body: string,
+  options?: { promoCode?: string; locale?: "en" | "vi"; subject?: string }
+): string {
+  const baseUrl = getCampaignBaseUrl();
+  const logoUrl = getCampaignLogoUrl();
+  const gymPath = options?.locale === "vi" ? "/vi/gym" : "/en/gym";
+  const loginUrl = `${baseUrl}${gymPath}`;
+  const ctaEn = `Log in at <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${baseUrl}${gymPath}</a> to earn benefits and visit the gym.`;
+  const ctaVi = `Đăng nhập tại <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${baseUrl}${gymPath}</a> để nhận ưu đãi và tới phòng tập.`;
+  const cta = options?.locale === "vi" ? ctaVi : ctaEn;
+  const codeBlock =
+    options?.promoCode && options.promoCode.trim()
+      ? `<p style="margin: 1em 0 0 0; font-size: 14px; color: #1e293b;"><strong>${options.locale === "vi" ? "Mã ưu đãi của bạn" : "Your promo code"}:</strong> <code style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 16px; color: #0f766e;">${options.promoCode}</code></p>`
+      : "";
+
+  const rawTitle = options?.subject?.trim() || "Leo Mây";
+  const titleText = rawTitle.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const bodyHtml = body
     .split("\n\n")
-    .map((p) => `<p style="margin: 0 0 1em 0;">${p.replace(/\n/g, "<br/>")}</p>`)
-    .join("")}</div>`;
+    .map((p) => `<p style="margin: 0 0 1em 0; color: #1e293b; font-size: 15px; line-height: 1.6;">${p.replace(/\n/g, "<br/>")}</p>`)
+    .join("");
+
+  return `
+<div style="font-family: sans-serif; max-width: 560px; margin: 0 auto; background-color: #ffffff; color: #1e293b;">
+  <div style="text-align: center; margin-bottom: 16px;">
+    <img src="${logoUrl}" alt="Leo Mây" width="120" height="40" style="display: inline-block;" />
+  </div>
+  <h1 style="margin: 0 0 1em 0; font-size: 20px; font-weight: 700; color: #0f172a; line-height: 1.3;">${titleText}</h1>
+  <div style="line-height: 1.6;">
+    ${bodyHtml}
+    <p style="margin: 1.5em 0 0 0; font-size: 15px; color: #1e293b;">${cta}</p>
+    ${codeBlock}
+  </div>
+  <p style="margin: 2em 0 0 0; font-size: 13px; color: #475569;">Leo Mây Team</p>
+  <div style="text-align: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
+    <img src="${logoUrl}" alt="Leo Mây" width="100" height="34" style="display: inline-block;" />
+  </div>
+</div>`;
 }

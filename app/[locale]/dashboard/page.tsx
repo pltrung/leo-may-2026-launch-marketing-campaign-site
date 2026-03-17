@@ -229,6 +229,9 @@ export default function DashboardPage() {
   const [leaderboardPeriod, setLeaderboardPeriod] = useState<"week" | "month" | "all">("month");
   const [guidedTourActive, setGuidedTourActive] = useState(false);
   const [tourPhase, setTourPhase] = useState<"onboarding" | "main">("onboarding");
+  const [campaignCode, setCampaignCode] = useState("");
+  const [campaignRedeemLoading, setCampaignRedeemLoading] = useState(false);
+  const [campaignRedeemMessage, setCampaignRedeemMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [newbieClass, setNewbieClass] = useState<{
     session_id: string;
     start_time: string;
@@ -1240,6 +1243,12 @@ export default function DashboardPage() {
                     />
                   </div>
                 )}
+                {(member as { guest_passes_remaining?: number }).guest_passes_remaining > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">{isVi ? "Vé khách" : "Guest passes"}</span>
+                    <span className="font-medium text-emerald-300/90">{(member as { guest_passes_remaining?: number }).guest_passes_remaining} {isVi ? "vé" : "pass(es)"}</span>
+                  </div>
+                )}
               </div>
               <div className="mt-4 pt-3 border-t border-white/[0.08] text-[13px] text-white/70 space-y-1">
                 {canCheckIn && (
@@ -1275,6 +1284,69 @@ export default function DashboardPage() {
                 <p className="text-[11px] text-white/65 font-mono break-all pt-1">
                   {isVi ? "ID nội bộ:" : "Internal ID:"} {member.id}
                 </p>
+              </div>
+
+              {/* Redeem campaign code */}
+              <div className="mt-6 pt-4 border-t border-white/[0.08]">
+                <h3 className="text-[18px] font-medium text-white/90 mb-2">
+                  {isVi ? "Mã ưu đãi từ email" : "Redeem campaign code"}
+                </h3>
+                <p className="text-[13px] text-white/60 mb-3">
+                  {isVi ? "Nhập mã từ email chiến dịch Leo Mây để áp dụng ưu đãi." : "Enter the code from your Leo Mây campaign email to apply your benefit."}
+                </p>
+                <div className="flex gap-2 flex-wrap">
+                  <input
+                    type="text"
+                    value={campaignCode}
+                    onChange={(e) => { setCampaignCode(e.target.value.trim().toUpperCase()); setCampaignRedeemMessage(null); }}
+                    placeholder={isVi ? "VD: LEO-XXXXXXXX" : "e.g. LEO-XXXXXXXX"}
+                    className="flex-1 min-w-[140px] rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-[15px] text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+                  />
+                  <button
+                    type="button"
+                    disabled={campaignRedeemLoading || !campaignCode.trim()}
+                    onClick={async () => {
+                      if (!accessToken || !campaignCode.trim()) return;
+                      setCampaignRedeemLoading(true);
+                      setCampaignRedeemMessage(null);
+                      try {
+                        const res = await fetch("/api/member/campaign-redeem", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+                          body: JSON.stringify({ code: campaignCode.trim() }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (res.ok && data?.success) {
+                          const successText = data.alreadyRedeemed
+                              ? (isVi ? "Bạn đã dùng mã này rồi." : "You have already redeemed this code.")
+                              : (isVi && typeof data.messageVi === "string" ? data.messageVi : typeof data.message === "string" ? data.message : (isVi ? "Áp dụng mã thành công." : "Code redeemed successfully."));
+                          setCampaignRedeemMessage({ type: "success", text: successText });
+                          if (!data.alreadyRedeemed) setCampaignCode("");
+                          refresh();
+                        } else {
+                          setCampaignRedeemMessage({
+                            type: "error",
+                            text: data?.error === "Invalid or expired code"
+                              ? (isVi ? "Mã không hợp lệ hoặc đã hết hạn." : "Invalid or expired code.")
+                              : (data?.error ?? (isVi ? "Không thể áp dụng mã." : "Could not redeem code.")),
+                          });
+                        }
+                      } catch {
+                        setCampaignRedeemMessage({ type: "error", text: isVi ? "Lỗi kết nối." : "Connection error." });
+                      } finally {
+                        setCampaignRedeemLoading(false);
+                      }
+                    }}
+                    className="shrink-0 px-4 py-2 rounded-lg bg-emerald-500/90 text-white font-medium text-[14px] hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {campaignRedeemLoading ? (isVi ? "Đang xử lý…" : "Processing…") : isVi ? "Áp dụng mã" : "Redeem"}
+                  </button>
+                </div>
+                {campaignRedeemMessage && (
+                  <p className={`mt-2 text-[13px] ${campaignRedeemMessage.type === "success" ? "text-emerald-300" : "text-amber-300"}`}>
+                    {campaignRedeemMessage.text}
+                  </p>
+                )}
               </div>
 
               <div className="mt-6 pt-4 border-t border-white/[0.08]">

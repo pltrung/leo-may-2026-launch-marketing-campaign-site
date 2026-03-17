@@ -224,7 +224,7 @@ export default function AdminPage() {
   const [assigningSessionId, setAssigningSessionId] = useState<string | null>(null);
   const [staffQrToken, setStaffQrToken] = useState<string | null>(null);
   const [staffCheckInSuccess, setStaffCheckInSuccess] = useState(false);
-  const [analyticsTab, setAnalyticsTab] = useState<"overview" | "revenue" | "members" | "retention" | "behavior" | "funnel" | "operations" | "staff" | "onboarding">("overview");
+  const [analyticsTab, setAnalyticsTab] = useState<"overview" | "revenue" | "members" | "email_campaigns" | "retention" | "behavior" | "funnel" | "operations" | "staff" | "onboarding">("overview");
   const [analyticsPeriod, setAnalyticsPeriod] = useState<"day" | "week" | "month" | "custom">("month");
   const [analyticsFrom, setAnalyticsFrom] = useState("");
   const [analyticsTo, setAnalyticsTo] = useState("");
@@ -336,7 +336,7 @@ export default function AdminPage() {
     if (n.managementTab) setManagementTab(n.managementTab);
     if (n.staffSubTab) setStaffSubTab(n.staffSubTab);
     if (n.operationsTab) setStaffModalTab(n.operationsTab);
-    if (n.analyticsTab) setAnalyticsTab(n.analyticsTab);
+    if (n.analyticsTab) setAnalyticsTab(n.analyticsTab as "overview" | "revenue" | "members" | "email_campaigns" | "retention" | "behavior" | "funnel" | "operations" | "staff" | "onboarding");
   }, []);
 
   const m = getMessages(locale).admin;
@@ -3651,7 +3651,7 @@ export default function AdminPage() {
 
               {/* Analytics sub-tabs */}
               <nav className="mt-4 flex gap-1 p-1 border-b border-slate-200 overflow-x-auto" aria-label="Analytics tabs">
-                {(["overview", "revenue", "members", "retention", "behavior", "funnel", "operations", "staff", "onboarding"] as const).map((t) => (
+                {(["overview", "revenue", "members", "email_campaigns", "retention", "behavior", "funnel", "operations", "staff", "onboarding"] as const).map((t) => (
                   <button
                     key={t}
                     type="button"
@@ -3664,6 +3664,7 @@ export default function AdminPage() {
                     {t === "overview" ? (locale === "vi" ? "Tổng quan" : "Overview") : null}
                     {t === "revenue" ? (locale === "vi" ? "Doanh thu" : "Revenue") : null}
                     {t === "members" ? (locale === "vi" ? "Thành viên" : "Members") : null}
+                    {t === "email_campaigns" ? (locale === "vi" ? "Chiến dịch email" : "Email campaigns") : null}
                     {t === "retention" ? (locale === "vi" ? "Giữ chân" : "Retention") : null}
                     {t === "behavior" ? (locale === "vi" ? "Hành vi" : "Behavior") : null}
                     {t === "funnel" ? (locale === "vi" ? "Phễu" : "Funnel") : null}
