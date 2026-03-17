@@ -101,14 +101,32 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    let settled = false;
+    const finish = (s: Session | null) => {
+      if (settled) return;
+      settled = true;
       setSession(s);
       setLoading(false);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
+    };
+    // Unblock as soon as we have auth state. Supabase often fires onAuthStateChange (e.g. INITIAL_SESSION)
+    // immediately, so we don't rely only on getSession() which can be slow or hang on some mobile browsers.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
+      finish(s);
     });
-    return () => subscription.unsubscribe();
+    const FALLBACK_MS = 20000;
+    const fallback = setTimeout(() => finish(null), FALLBACK_MS);
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      clearTimeout(fallback);
+      finish(s);
+    }).catch(() => {
+      clearTimeout(fallback);
+      finish(null);
+    });
+    return () => {
+      clearTimeout(fallback);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const adminFetch = useCallback(
