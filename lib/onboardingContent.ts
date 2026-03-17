@@ -13,11 +13,39 @@ export interface LessonSection {
   titleVi: string;
   contentEn: string;
   contentVi: string;
-  type: "text" | "choice" | "goodvsbad" | "list";
+  type: "text" | "choice" | "goodvsbad" | "list" | "choose_better" | "fix_sentence" | "reorder_steps" | "tap_mistake";
   choices?: { en: string; vi: string }[];
+  /** For type "choice": which index is correct (so we can show wrong-answer feedback). */
+  correctChoiceIndex?: number;
+  /** Per-option explanation (why wrong / why right, impact, example). Same length as choices. */
+  choiceExplanationsEn?: string[];
+  choiceExplanationsVi?: string[];
   good?: { en: string; vi: string };
   bad?: { en: string; vi: string };
   items?: { en: string; vi: string }[];
+  /** choose_better: two options [wrong, right] or [right, wrong], correctIndex 0 or 1 */
+  options?: { en: string; vi: string }[];
+  correctIndex?: number;
+  /** Why the wrong option is wrong, impact, correct behavior, example. */
+  wrongExplanationEn?: string;
+  wrongExplanationVi?: string;
+  rightExplanationEn?: string;
+  rightExplanationVi?: string;
+  /** fix_sentence: the wrong sentence to fix */
+  wrongSentenceEn?: string;
+  wrongSentenceVi?: string;
+  /** reorder_steps: steps in correct order (we shuffle for display) */
+  stepsOrderEn?: string[];
+  stepsOrderVi?: string[];
+  /** tap_mistake: paragraph containing the wrong phrase */
+  paragraphEn?: string;
+  paragraphVi?: string;
+  /** The phrase that is wrong (user taps to identify) */
+  wrongPhraseEn?: string;
+  wrongPhraseVi?: string;
+  /** Why it's wrong, impact, correct phrasing */
+  tapMistakeExplanationEn?: string;
+  tapMistakeExplanationVi?: string;
 }
 
 export interface AIScenario {
@@ -151,6 +179,17 @@ export function getLessonContent(s: LessonSection, locale: Locale) {
     bad: s.bad ? t(s.bad, locale) : undefined,
     choices: s.choices?.map((c) => t(c, locale)),
     items: s.items?.map((i) => t(i, locale)),
+    correctChoiceIndex: s.correctChoiceIndex,
+    choiceExplanations: locale === "vi" ? (s.choiceExplanationsVi ?? []) : (s.choiceExplanationsEn ?? []),
+    options: s.options?.map((o) => t(o, locale)),
+    correctIndex: s.correctIndex,
+    wrongExplanation: s.wrongExplanationEn != null && s.wrongExplanationVi != null ? (locale === "vi" ? s.wrongExplanationVi : s.wrongExplanationEn) : undefined,
+    rightExplanation: s.rightExplanationEn != null && s.rightExplanationVi != null ? (locale === "vi" ? s.rightExplanationVi : s.rightExplanationEn) : undefined,
+    wrongSentence: s.wrongSentenceEn != null && s.wrongSentenceVi != null ? (locale === "vi" ? s.wrongSentenceVi : s.wrongSentenceEn) : undefined,
+    stepsOrder: locale === "vi" ? (s.stepsOrderVi ?? []) : (s.stepsOrderEn ?? []),
+    paragraph: s.paragraphEn != null && s.paragraphVi != null ? (locale === "vi" ? s.paragraphVi : s.paragraphEn) : undefined,
+    wrongPhrase: s.wrongPhraseEn != null && s.wrongPhraseVi != null ? (locale === "vi" ? s.wrongPhraseVi : s.wrongPhraseEn) : undefined,
+    tapMistakeExplanation: s.tapMistakeExplanationEn != null && s.tapMistakeExplanationVi != null ? (locale === "vi" ? s.tapMistakeExplanationVi : s.tapMistakeExplanationEn) : undefined,
   };
 }
 
@@ -205,10 +244,21 @@ export const DAY1: DayContent = {
       titleVi: "Ấn tượng đầu tiên",
       contentEn: "A member walks into the gym. What do you do in the first 5 seconds?",
       contentVi: "Một thành viên bước vào phòng gym. Bạn làm gì trong 5 giây đầu tiên?",
+      correctChoiceIndex: 1,
       choices: [
         { en: "Wave and say hi", vi: "Vẫy tay và chào" },
         { en: "Make eye contact, smile, walk toward them", vi: "Giao tiếp bằng mắt, mỉm cười, bước về phía họ" },
         { en: "Wait for them to come to you", vi: "Chờ họ đến" },
+      ],
+      choiceExplanationsEn: [
+        "Why wrong: Waving from a distance still feels distant. Impact: The member may not feel truly welcomed or know where to go. Correct: Move toward them with eye contact and a smile. Example: Make eye contact, smile, and walk toward them — \"Hi! First time or coming back?\"",
+        "Correct. This creates the warm, present first impression we want. The member feels seen and welcomed.",
+        "Why wrong: Waiting for them to approach can make them feel unwelcome or unsure. Impact: They may feel like they're interrupting or not know the next step. Correct: You go to them first. Example: Step out from behind the counter, make eye contact, smile, and say \"Hey, welcome! Need a hand?\"",
+      ],
+      choiceExplanationsVi: [
+        "Sai vì: Vẫy từ xa vẫn tạo cảm giác xa cách. Tác động: Thành viên có thể không cảm thấy được chào đón thực sự. Đúng: Bước về phía họ với giao tiếp mắt và nụ cười. Ví dụ: Giao tiếp mắt, mỉm cười, bước lại — \"Chào! Lần đầu hay quay lại?\"",
+        "Đúng. Cách này tạo ấn tượng đầu ấm áp, có mặt mà chúng ta muốn.",
+        "Sai vì: Chờ họ đến có thể khiến họ cảm thấy không được chào hoặc không rõ bước tiếp. Tác động: Họ có thể cảm thấy đang làm phiền. Đúng: Bạn đến với họ trước. Ví dụ: Bước ra khỏi quầy, giao tiếp mắt, cười và nói \"Chào bạn! Cần tôi giúp gì?\"",
       ],
     },
     {
@@ -262,6 +312,42 @@ export const DAY1: DayContent = {
         { en: "Confident — appreciates efficiency", vi: "Tự tin — đánh giá cao sự hiệu quả" },
         { en: "Lost — needs guidance", vi: "Bối rối — cần hướng dẫn" },
       ],
+    },
+    {
+      id: "d1s7",
+      type: "choose_better",
+      titleEn: "Choose the better response",
+      titleVi: "Chọn phản hồi tốt hơn",
+      contentEn: "A member asks where to sign the waiver. Which response is better?",
+      contentVi: "Thành viên hỏi ký waiver ở đâu. Phản hồi nào tốt hơn?",
+      options: [
+        { en: "\"Go sign there.\"", vi: "\"Đi ký kia đi.\"" },
+        { en: "\"Hey! First time? I'll show you — it's right here. Want me to walk you through it?\"", vi: "\"Chào! Lần đầu à? Tôi chỉ cho bạn — ngay đây. Bạn muốn tôi hướng dẫn từng bước không?\"" },
+      ],
+      correctIndex: 1,
+      wrongExplanationEn: "Why wrong: Pointing without engagement feels cold. Impact: Member may feel like a number. Correct: Acknowledge them, show the way, offer to help. Example: \"I'll show you — it's right here. Need anything else?\"",
+      wrongExplanationVi: "Sai vì: Chỉ tay mà không kết nối cảm giác lạnh. Tác động: Thành viên có thể cảm thấy như con số. Đúng: Chú ý họ, chỉ đường, đề nghị giúp. Ví dụ: \"Tôi chỉ cho bạn — ngay đây. Cần gì nữa không?\"",
+      rightExplanationEn: "Correct. This is warm, personal, and helpful. It turns a transaction into a welcome.",
+      rightExplanationVi: "Đúng. Cách này ấm áp, cá nhân và hữu ích. Biến giao dịch thành lời chào.",
+    },
+    {
+      id: "d1s8",
+      type: "fix_sentence",
+      titleEn: "Fix the sentence",
+      titleVi: "Sửa câu",
+      contentEn: "A staff member said this to a nervous first-timer. Which fix is best?",
+      contentVi: "Nhân viên nói thế này với người mới lo lắng. Sửa nào đúng nhất?",
+      wrongSentenceEn: "\"Just go over there and read the form.\"",
+      wrongSentenceVi: "\"Cứ đi kia đọc form đi.\"",
+      options: [
+        { en: "\"The form is over there.\"", vi: "\"Form ở kia.\"" },
+        { en: "\"I'll show you — the waiver's right here. I can walk you through it if you like.\"", vi: "\"Tôi chỉ cho bạn — waiver ngay đây. Tôi có thể hướng dẫn từng bước nếu bạn muốn.\"" },
+      ],
+      correctIndex: 1,
+      wrongExplanationEn: "Why wrong: Still distant; no offer to help. Impact: Nervous member may feel dismissed. Correct: Show and offer to walk through. Example: \"I'll show you — I can walk you through it if you like.\"",
+      wrongExplanationVi: "Sai vì: Vẫn xa cách; không đề nghị giúp. Tác động: Thành viên lo có thể cảm thấy bị phớt lờ. Đúng: Chỉ và đề nghị hướng dẫn. Ví dụ: \"Tôi chỉ cho bạn — tôi có thể hướng dẫn từng bước nếu bạn muốn.\"",
+      rightExplanationEn: "Correct. You show the way and offer support. The member feels guided, not pointed at.",
+      rightExplanationVi: "Đúng. Bạn chỉ đường và đề nghị hỗ trợ. Thành viên cảm thấy được hướng dẫn, không bị chỉ tay.",
     },
   ],
   scenarios: [
@@ -602,6 +688,43 @@ export const DAY2: DayContent = {
         { en: "Dismiss fear", vi: "Phủ nhận nỗi sợ" },
       ],
     },
+    {
+      id: "d2s6",
+      type: "reorder_steps",
+      titleEn: "Put the steps in order",
+      titleVi: "Sắp xếp đúng thứ tự",
+      contentEn: "What is the correct order for a first-time climber? Drag or select the right sequence.",
+      contentVi: "Thứ tự đúng cho người leo lần đầu là gì? Chọn đúng thứ tự.",
+      stepsOrderEn: ["Proper shoes", "Warm up", "Start with an easy route"],
+      stepsOrderVi: ["Giày phù hợp", "Khởi động", "Bắt đầu với đường dễ"],
+      wrongExplanationEn: "Why wrong: Wrong order can increase injury risk or confuse the member. Impact: They may skip warm-up and get hurt, or feel lost. Correct order: Shoes → Warm up → Easy route. Example: \"Let's get you in the right shoes, do a quick warm-up, then we'll find an easy route.\"",
+      wrongExplanationVi: "Sai vì: Thứ tự sai tăng rủi ro chấn thương hoặc làm thành viên bối rối. Tác động: Họ có thể bỏ khởi động và bị thương. Thứ tự đúng: Giày → Khởi động → Đường dễ. Ví dụ: \"Chúng ta đi giày đúng, khởi động nhanh, rồi tìm đường dễ.\"",
+      rightExplanationEn: "Correct. This order keeps the member safe and sets them up for a good first experience.",
+      rightExplanationVi: "Đúng. Thứ tự này giữ thành viên an toàn và tạo trải nghiệm đầu tốt.",
+    },
+    {
+      id: "d2s7",
+      type: "tap_mistake",
+      titleEn: "Tap the mistake",
+      titleVi: "Chạm vào câu sai",
+      contentEn: "Which phrase should you never say? Tap it.",
+      contentVi: "Cụm từ nào bạn không bao giờ nên nói? Chạm vào đó.",
+      paragraphEn: "We have great routes here. This is 100% safe for everyone. We minimize risks with proper gear and supervision.",
+      paragraphVi: "Chúng tôi có đường leo tuyệt. Cái này 100% an toàn cho mọi người. Chúng tôi giảm thiểu rủi ro bằng đồ và giám sát đúng.",
+      wrongPhraseEn: "This is 100% safe for everyone",
+      wrongPhraseVi: "Cái này 100% an toàn cho mọi người",
+      options: [
+        { en: "This is 100% safe for everyone", vi: "Cái này 100% an toàn cho mọi người" },
+        { en: "We minimize risks with proper gear", vi: "Chúng tôi giảm thiểu rủi ro bằng đồ đúng" },
+      ],
+      correctIndex: 0,
+      tapMistakeExplanationEn: "Why wrong: We never guarantee 100% safety — climbing has inherent risks. Impact: Legal and trust risk; if something happens, the member may feel misled. Correct phrasing: \"We guide you safely and work to minimize risks.\"",
+      tapMistakeExplanationVi: "Sai vì: Chúng ta không bao giờ đảm bảo 100% an toàn — leo có rủi ro vốn có. Tác động: Rủi ro pháp lý và tin cậy. Cách nói đúng: \"Chúng tôi hướng dẫn an toàn và giảm thiểu rủi ro.\"",
+      wrongExplanationEn: "That phrase is correct — we do minimize risks. The mistake is guaranteeing \"100% safe.\"",
+      wrongExplanationVi: "Cụm đó đúng — chúng ta giảm thiểu rủi ro. Sai là đảm bảo \"100% an toàn\".",
+      rightExplanationEn: "Correct. You identified the phrase we must never say. We guide safely; we don't guarantee 100%.",
+      rightExplanationVi: "Đúng. Bạn đã chỉ ra cụm không bao giờ nên nói. Chúng ta hướng dẫn an toàn; không đảm bảo 100%.",
+    },
   ],
   scenarios: [
     {
@@ -677,6 +800,56 @@ export const DAY2: DayContent = {
         },
         correctFeedbackEn: "Correct. Address the parent first. Safety questions deserve a clear, honest answer (we guide safely, we don't guarantee). The regular can wait a moment. Then acknowledge them: 'One sec!' and check them in.",
         correctFeedbackVi: "Đúng. Trả lời phụ huynh trước. Câu hỏi an toàn cần câu trả lời rõ, trung thực (chúng ta hướng dẫn an toàn, không đảm bảo tuyệt đối). Thành viên quen chờ chút. Sau đó chào họ: 'Chờ chút nhé!' rồi check-in.",
+      },
+      {
+        type: "decision",
+        id: "step2",
+        sceneEn: "You've answered the parent: we guide safely, we don't guarantee 100%. The regular is still waiting. The parent says: 'So is it safe or not?'",
+        sceneVi: "Bạn đã trả lời phụ huynh: chúng tôi hướng dẫn an toàn, không đảm bảo 100%. Thành viên quen vẫn chờ. Phụ huynh nói: 'Vậy là an toàn hay không?'",
+        characters: [
+          { id: "honest", labelEn: "Stay honest", labelVi: "Giữ trung thực" },
+          { id: "guarantee", labelEn: "Say 100% safe to reassure", labelVi: "Nói 100% an toàn để trấn an" },
+        ],
+        promptEn: "How do you respond?",
+        promptVi: "Bạn trả lời thế nào?",
+        correctChoiceId: "honest",
+        options: [
+          { id: "honest", textEn: "Repeat clearly: we minimize risks and supervise closely, but we never say 100% — that's our policy and it keeps everyone informed", textVi: "Nhắc lại rõ: chúng tôi giảm thiểu rủi ro và giám sát sát, nhưng không nói 100% — đó là chính sách và giúp mọi người được thông tin" },
+          { id: "guarantee", textEn: "Say 'Yes, it's 100% safe' to reassure the parent", textVi: "Nói 'Có, 100% an toàn' để trấn an phụ huynh" },
+        ],
+        wrongFeedbackEn: {
+          guarantee: "Wrong. We never guarantee 100% safety — legally and ethically risky. Impact: If something happens, the parent may feel misled; we could be liable. Correct: Stay honest; explain we minimize risks and supervise. Example: 'We take safety seriously and minimize risks — we just don't say 100% because climbing has inherent risks.'",
+        },
+        wrongFeedbackVi: {
+          guarantee: "Sai. Chúng ta không bao giờ đảm bảo 100% an toàn — rủi ro pháp lý và đạo đức. Tác động: Nếu có chuyện, phụ huynh có thể cảm thấy bị lừa. Đúng: Giữ trung thực; giải thích chúng ta giảm thiểu rủi ro và giám sát.",
+        },
+        correctFeedbackEn: "Correct. We guide safely, never guarantee. Honest communication builds trust.",
+        correctFeedbackVi: "Đúng. Chúng ta hướng dẫn an toàn, không đảm bảo. Giao tiếp trung thực xây niềm tin.",
+      },
+      {
+        type: "decision",
+        id: "step3",
+        sceneEn: "Parent is satisfied. You turn to the regular. They say: 'Took a while.' What do you say?",
+        sceneVi: "Phụ huynh hài lòng. Bạn quay sang thành viên quen. Họ nói: 'Lâu quá.' Bạn nói gì?",
+        characters: [
+          { id: "ack", labelEn: "Acknowledge briefly", labelVi: "Chào ngắn gọn" },
+          { id: "ignore", labelEn: "Ignore the comment, just check in", labelVi: "Lờ comment, chỉ check-in" },
+        ],
+        promptEn: "Best response?",
+        promptVi: "Phản hồi tốt nhất?",
+        correctChoiceId: "ack",
+        options: [
+          { id: "ack", textEn: "\"Sorry for the wait — safety question needed a proper answer. You're up!\"", textVi: "\"Xin lỗi vì chờ — câu hỏi an toàn cần trả lời đúng. Đến lượt bạn!\"" },
+          { id: "ignore", textEn: "Say nothing about the wait; just scan and check in", textVi: "Không nói gì về việc chờ; chỉ quét và check-in" },
+        ],
+        wrongFeedbackEn: {
+          ignore: "Wrong. Ignoring their comment can feel dismissive. Impact: They may feel unheard or frustrated. Correct: Brief acknowledgment, then serve. Example: 'Sorry for the wait — you're up!'",
+        },
+        wrongFeedbackVi: {
+          ignore: "Sai. Lờ comment có thể khiến họ cảm thấy bị phớt lờ. Tác động: Họ có thể cảm thấy không được nghe. Đúng: Chào ngắn gọn rồi phục vụ.",
+        },
+        correctFeedbackEn: "Correct. Acknowledge briefly, then move on. Both members feel seen.",
+        correctFeedbackVi: "Đúng. Chào ngắn gọn rồi tiếp tục. Cả hai đều cảm thấy được chú ý.",
       },
     ],
     resultGood: {
@@ -842,6 +1015,44 @@ export const DAY3: DayContent = {
       contentEn: "If you see something — you own it. A mess? Clean it. A confused member? Help them.",
       contentVi: "Thấy gì — bạn xử lý. Bẩn? Dọn. Thành viên bối rối? Giúp họ.",
     },
+    {
+      id: "d3s4",
+      type: "list",
+      titleEn: "Handoff Checklist",
+      titleVi: "Checklist chuyển giao",
+      contentEn: "When handing a member to another team:",
+      contentVi: "Khi chuyển thành viên sang bộ phận khác:",
+      items: [
+        { en: "Escort them (don't just point)", vi: "Đưa họ đi (đừng chỉ tay)" },
+        { en: "Introduce the member and their need", vi: "Giới thiệu thành viên và nhu cầu" },
+        { en: "Stay until the handoff is clear", vi: "Ở lại đến khi chuyển giao rõ ràng" },
+      ],
+    },
+    {
+      id: "d3s5",
+      type: "choose_better",
+      titleEn: "Choose the better response",
+      titleVi: "Chọn phản hồi tốt hơn",
+      contentEn: "A member asks about membership but you're staff (not frontdesk). Which response is better?",
+      contentVi: "Thành viên hỏi về gói nhưng bạn là staff (không phải frontdesk). Phản hồi nào tốt hơn?",
+      options: [
+        { en: "\"That's not my job. Go to the counter.\"", vi: "\"Đó không phải việc tôi. Ra quầy đi.\"" },
+        { en: "\"I'll take you to the counter — they can help with that.\"", vi: "\"Tôi đưa bạn ra quầy — họ sẽ giúp việc đó.\"" },
+      ],
+      correctIndex: 1,
+      wrongExplanationEn: "Why wrong: Dismissive; member feels rejected. Impact: They may leave or feel unwelcome. Correct: Escort and hand off. Example: \"I'll take you to the counter — they can help with that.\"",
+      wrongExplanationVi: "Sai vì: Từ chối; thành viên cảm thấy bị xua đuổi. Tác động: Họ có thể bỏ đi. Đúng: Đưa đi và chuyển giao. Ví dụ: \"Tôi đưa bạn ra quầy — họ sẽ giúp việc đó.\"",
+      rightExplanationEn: "Correct. You own the moment and hand off properly. The member feels helped.",
+      rightExplanationVi: "Đúng. Bạn làm chủ tình huống và chuyển giao đúng cách.",
+    },
+    {
+      id: "d3s6",
+      type: "text",
+      titleEn: "Same culture",
+      titleVi: "Cùng văn hóa",
+      contentEn: "Staff and frontdesk have different main tasks but the same Leo Mây culture: warmth, ownership, member first.",
+      contentVi: "Staff và frontdesk có nhiệm vụ chính khác nhau nhưng cùng văn hóa Leo Mây: ấm áp, làm chủ, thành viên trước.",
+    },
   ],
   scenarios: [
     {
@@ -913,6 +1124,56 @@ export const DAY3: DayContent = {
         },
         correctFeedbackEn: "Correct. If you see it, you own it. Don't pass the buck. Quick signal to the member, deal with the spill (clean or block), then help them. That's the Leo Mây way.",
         correctFeedbackVi: "Đúng. Thấy là xử lý. Không đùn đẩy. Ra hiệu nhanh với thành viên, xử lý nước đổ (dọn hoặc chặn), rồi giúp họ. Đó là cách Leo Mây.",
+      },
+      {
+        type: "decision",
+        id: "step2",
+        sceneEn: "A member asks about membership prices. You're staff (wall). Who should answer?",
+        sceneVi: "Thành viên hỏi giá gói. Bạn là staff (tường). Ai nên trả lời?",
+        characters: [
+          { id: "escort", labelEn: "Escort to frontdesk", labelVi: "Đưa ra quầy" },
+          { id: "point", labelEn: "Point and say 'Ask at the counter'", labelVi: "Chỉ tay và nói 'Hỏi ở quầy'" },
+        ],
+        promptEn: "What do you do?",
+        promptVi: "Bạn làm gì?",
+        correctChoiceId: "escort",
+        options: [
+          { id: "escort", textEn: "I'll take you to the counter — they can give you the details", textVi: "Tôi đưa bạn ra quầy — họ sẽ cho bạn thông tin chi tiết" },
+          { id: "point", textEn: "Ask at the counter (point)", textVi: "Hỏi ở quầy (chỉ tay)" },
+        ],
+        wrongFeedbackEn: {
+          point: "Wrong. Pointing feels cold; the member may feel dismissed. Impact: They may get lost or feel unwelcome. Correct: Escort them to frontdesk and hand off. Example: 'I'll take you to the counter — they can help with that.'",
+        },
+        wrongFeedbackVi: {
+          point: "Sai. Chỉ tay cảm giác lạnh; thành viên có thể cảm thấy bị phớt lờ. Đúng: Đưa họ ra quầy và chuyển giao.",
+        },
+        correctFeedbackEn: "Correct. You own the moment: escort and hand off. The member feels helped.",
+        correctFeedbackVi: "Đúng. Bạn làm chủ tình huống: đưa đi và chuyển giao. Thành viên cảm thấy được giúp.",
+      },
+      {
+        type: "decision",
+        id: "step3",
+        sceneEn: "You're busy with a group. A member is waiting at the desk. A frontdesk teammate is free. What do you do?",
+        sceneVi: "Bạn đang bận với một nhóm. Một thành viên đang chờ ở quầy. Đồng đội frontdesk rảnh. Bạn làm gì?",
+        characters: [
+          { id: "signal", labelEn: "Signal teammate to help", labelVi: "Ra hiệu đồng đội giúp" },
+          { id: "ignore", labelEn: "Keep working; they'll wait", labelVi: "Tiếp tục làm; họ sẽ chờ" },
+        ],
+        promptEn: "Best action?",
+        promptVi: "Hành động tốt nhất?",
+        correctChoiceId: "signal",
+        options: [
+          { id: "signal", textEn: "Make eye contact with the member — 'One sec!' — then signal teammate to help", textVi: "Giao tiếp mắt với thành viên — 'Chờ chút!' — rồi ra hiệu đồng đội giúp" },
+          { id: "ignore", textEn: "Keep working; the member will wait", textVi: "Tiếp tục làm; thành viên sẽ chờ" },
+        ],
+        wrongFeedbackEn: {
+          ignore: "Wrong. Letting the member stand there ignored hurts the experience. Impact: They may leave or feel invisible. Correct: Acknowledge them and get help. Example: 'One sec!' then signal your teammate.",
+        },
+        wrongFeedbackVi: {
+          ignore: "Sai. Để thành viên đứng đó bị lờ làm hỏng trải nghiệm. Đúng: Chú ý họ và nhờ đồng đội giúp.",
+        },
+        correctFeedbackEn: "Correct. Member first: acknowledge, then hand off. Community over ego.",
+        correctFeedbackVi: "Đúng. Thành viên trước: chú ý rồi chuyển giao. Cộng đồng hơn cái tôi.",
       },
     ],
     resultGood: {
@@ -1049,6 +1310,46 @@ export const DAY4: DayContent = {
         { en: "Inventory — stock in/out", vi: "Kho — nhập/xuất" },
       ],
     },
+    {
+      id: "d4s4",
+      type: "fix_sentence",
+      titleEn: "Fix the sentence",
+      titleVi: "Sửa câu",
+      contentEn: "A member is browsing chalk bags. Which response is better?",
+      contentVi: "Thành viên đang xem túi phấn. Phản hồi nào tốt hơn?",
+      wrongSentenceEn: "\"You need to buy one of these.\"",
+      wrongSentenceVi: "\"Bạn cần mua một cái này.\"",
+      options: [
+        { en: "\"You need to buy one of these.\"", vi: "\"Bạn cần mua một cái này.\"" },
+        { en: "\"Those are popular — we have a few colors if you want to try one.\"", vi: "\"Loại đó nhiều người dùng — chúng tôi có vài màu nếu bạn muốn thử.\"" },
+      ],
+      correctIndex: 1,
+      wrongExplanationEn: "Why wrong: Pushy; member may feel pressured. Impact: They may leave or lose trust. Correct: Natural, helpful mention. Example: \"Those are popular — we have a few colors if you want to try one.\"",
+      wrongExplanationVi: "Sai vì: Ép; thành viên có thể cảm thấy bị áp lực. Tác động: Họ có thể bỏ đi. Đúng: Nhắc tự nhiên, hữu ích. Ví dụ: \"Loại đó nhiều người dùng — chúng tôi có vài màu nếu bạn muốn thử.\"",
+      rightExplanationEn: "Correct. Natural and helpful — selling is helping.",
+      rightExplanationVi: "Đúng. Tự nhiên và hữu ích — bán là giúp.",
+    },
+    {
+      id: "d4s5",
+      type: "text",
+      titleEn: "Check-in flow",
+      titleVi: "Luồng check-in",
+      contentEn: "Scan QR → verify membership or day-pass → confirm they're in. Quick and clear.",
+      contentVi: "Quét QR → xác nhận gói hoặc vé ngày → xác nhận đã vào. Nhanh và rõ.",
+    },
+    {
+      id: "d4s6",
+      type: "list",
+      titleEn: "When to mention membership",
+      titleVi: "Khi nào nhắc gói",
+      contentEn: "Good moments:",
+      contentVi: "Thời điểm tốt:",
+      items: [
+        { en: "They come often (save money)", vi: "Họ đến thường (tiết kiệm)" },
+        { en: "They love the gym (belong)", vi: "Họ thích gym (thuộc về)" },
+        { en: "Never push — natural mention only", vi: "Không ép — chỉ nhắc tự nhiên" },
+      ],
+    },
   ],
   scenarios: [
     {
@@ -1120,6 +1421,56 @@ export const DAY4: DayContent = {
         },
         correctFeedbackEn: "Correct. Selling is helping. Mention membership in a low-pressure way when it fits — e.g. they come often, they'd save money. You're not pushing; you're making it easier for them to get what's right.",
         correctFeedbackVi: "Đúng. Bán là giúp. Nhắc gói một cách thoải mái khi phù hợp — vd họ đến thường, họ sẽ tiết kiệm. Bạn không ép; bạn giúp họ dễ có thứ phù hợp.",
+      },
+      {
+        type: "decision",
+        id: "step2",
+        sceneEn: "They say they're not sure about committing. Do you push or back off?",
+        sceneVi: "Họ nói chưa chắc về việc đăng ký. Bạn ép hay lùi?",
+        characters: [
+          { id: "backoff", labelEn: "Back off, no pressure", labelVi: "Lùi, không ép" },
+          { id: "push", labelEn: "Push once more", labelVi: "Ép thêm lần nữa" },
+        ],
+        promptEn: "What do you do?",
+        promptVi: "Bạn làm gì?",
+        correctChoiceId: "backoff",
+        options: [
+          { id: "backoff", textEn: "No pressure at all — just so you know the option. Enjoy your session!", textVi: "Không ép đâu — chỉ để bạn biết lựa chọn. Tận hưởng buổi leo!" },
+          { id: "push", textEn: "You should really get it — it's a great deal", textVi: "Bạn nên đăng ký đi — giá tốt lắm" },
+        ],
+        wrongFeedbackEn: {
+          push: "Wrong. Pushing after they said they're not sure feels salesy and can hurt trust. Impact: They may feel pressured and avoid the desk next time. Correct: Back off warmly. Example: 'No pressure at all — just so you know. Enjoy!'",
+        },
+        wrongFeedbackVi: {
+          push: "Sai. Ép sau khi họ nói chưa chắc cảm giác bán hàng và làm mất tin cậy. Đúng: Lùi ấm áp.",
+        },
+        correctFeedbackEn: "Correct. No pressure. You've given the info; the rest is their choice. That's Leo Mây.",
+        correctFeedbackVi: "Đúng. Không ép. Bạn đã cho thông tin; còn lại là lựa chọn của họ.",
+      },
+      {
+        type: "decision",
+        id: "step3",
+        sceneEn: "Another member is at the counter with a QR code. They're in a hurry. What's your priority?",
+        sceneVi: "Thành viên khác ở quầy với mã QR. Họ đang vội. Ưu tiên của bạn là gì?",
+        characters: [
+          { id: "fast", labelEn: "Check them in fast, no extras", labelVi: "Check-in nhanh, không thêm" },
+          { id: "upsell", labelEn: "Mention membership first", labelVi: "Nhắc gói trước" },
+        ],
+        promptEn: "Best approach?",
+        promptVi: "Cách tốt nhất?",
+        correctChoiceId: "fast",
+        options: [
+          { id: "fast", textEn: "Scan, verify, confirm — quick and clear. Maybe a brief 'Have a good one!'", textVi: "Quét, xác nhận, xong — nhanh và rõ. Có thể 'Chúc leo vui!' ngắn gọn" },
+          { id: "upsell", textEn: "Before scanning: 'Have you thought about a membership?'", textVi: "Trước khi quét: 'Bạn đã nghĩ đến gói chưa?'" },
+        ],
+        wrongFeedbackEn: {
+          upsell: "Wrong. When they're in a hurry, adding an upsell can feel pushy and slow them down. Impact: They may get frustrated. Correct: Match their energy — fast check-in first. You can mention membership when they're not rushed.",
+        },
+        wrongFeedbackVi: {
+          upsell: "Sai. Khi họ vội, thêm upsell có thể cảm giác ép và làm chậm. Đúng: Khớp năng lượng — check-in nhanh trước.",
+        },
+        correctFeedbackEn: "Correct. Match the member: when they're in a hurry, be efficient first. Selling is helping at the right moment.",
+        correctFeedbackVi: "Đúng. Khớp thành viên: khi họ vội, hiệu quả trước. Bán là giúp đúng lúc.",
       },
     ],
     resultGood: {
@@ -1269,6 +1620,23 @@ export const DAY5: DayContent = {
       bad: { en: "Good: minimum effort", vi: "Tốt: nỗ lực tối thiểu" },
       good: { en: "Great: proactive, helpful", vi: "Tuyệt: chủ động, hữu ích" },
     },
+    {
+      id: "d5s6",
+      type: "choose_better",
+      titleEn: "Choose the better response",
+      titleVi: "Chọn phản hồi tốt hơn",
+      contentEn: "Your teammate is overwhelmed. You have capacity. What do you say?",
+      contentVi: "Đồng đội quá tải. Bạn còn sức. Bạn nói gì?",
+      options: [
+        { en: "\"Not my problem.\"", vi: "\"Không phải việc tôi.\"" },
+        { en: "\"Need a hand? I can take the next check-in.\"", vi: "\"Cần tôi giúp không? Tôi nhận check-in tiếp theo.\"" },
+      ],
+      correctIndex: 1,
+      wrongExplanationEn: "Why wrong: Not team-minded; teammate may burn out. Impact: Members get worse service; culture suffers. Correct: Offer specific help. Example: \"Need a hand? I can take the next check-in.\"",
+      wrongExplanationVi: "Sai vì: Không tinh thần đội; đồng đội có thể kiệt sức. Tác động: Thành viên bị phục vụ kém. Đúng: Đề nghị giúp cụ thể. Ví dụ: \"Cần tôi giúp không? Tôi nhận check-in tiếp.\"",
+      rightExplanationEn: "Correct. Community over ego — we cover for each other.",
+      rightExplanationVi: "Đúng. Cộng đồng hơn cái tôi — chúng ta hỗ trợ nhau.",
+    },
   ],
   scenarios: [
     {
@@ -1340,6 +1708,56 @@ export const DAY5: DayContent = {
         },
         correctFeedbackEn: "Correct. Acknowledge everyone quickly so no one feels invisible. Then prioritize (e.g. first-timer needs reassurance; regular is fast). Signal your teammate if you need backup. Stay calm — make the team stronger.",
         correctFeedbackVi: "Đúng. Chú ý mọi người nhanh để không ai cảm thấy vô hình. Rồi ưu tiên (vd người mới cần động viên; người quen nhanh). Ra hiệu đồng đội nếu cần hỗ trợ. Giữ bình tĩnh — làm đội mạnh hơn.",
+      },
+      {
+        type: "decision",
+        id: "step2",
+        sceneEn: "Your teammate just arrived to help. The first-timer is still nervous. Do you hand off or finish yourself?",
+        sceneVi: "Đồng đội vừa đến giúp. Người mới vẫn lo. Bạn chuyển giao hay tự xong?",
+        characters: [
+          { id: "handoff", labelEn: "Brief handoff, then teammate helps first-timer", labelVi: "Chuyển giao ngắn, đồng đội giúp người mới" },
+          { id: "solo", labelEn: "Keep everyone yourself", labelVi: "Tự xử lý hết" },
+        ],
+        promptEn: "Best approach?",
+        promptVi: "Cách tốt nhất?",
+        correctChoiceId: "handoff",
+        options: [
+          { id: "handoff", textEn: "Quick handoff: 'This one's first time — can you walk them through?' Then I take the regular and birthday question", textVi: "Chuyển giao nhanh: 'Bạn này lần đầu — bạn hướng dẫn giúp?' Rồi tôi nhận người quen và câu hỏi tiệc" },
+          { id: "solo", textEn: "I'll handle everyone myself so it's consistent", textVi: "Tôi tự xử lý hết cho nhất quán" },
+        ],
+        wrongFeedbackEn: {
+          solo: "Wrong. When backup is there, use it. Trying to do everything alone slows everyone down. Impact: Members wait longer; you burn out. Correct: Brief handoff so teammate takes first-timer (needs more time); you take the quicker ones. Team coordination.",
+        },
+        wrongFeedbackVi: {
+          solo: "Sai. Khi có hỗ trợ, dùng nó. Cố làm hết một mình làm mọi người chờ lâu. Đúng: Chuyển giao ngắn để đồng đội phụ trách người mới; bạn xử lý những người nhanh hơn.",
+        },
+        correctFeedbackEn: "Correct. Use the team. Brief handoff so the first-timer gets proper attention; you clear the queue faster. That's teamwork.",
+        correctFeedbackVi: "Đúng. Dùng đội. Chuyển giao ngắn để người mới được chú ý đúng; bạn xử lý hàng nhanh hơn. Đó là làm việc đội.",
+      },
+      {
+        type: "decision",
+        id: "step3",
+        sceneEn: "The birthday question is complex (group booking). You're not sure of the details. What do you say?",
+        sceneVi: "Câu hỏi tiệc sinh nhật phức tạp (đặt nhóm). Bạn không chắc chi tiết. Bạn nói gì?",
+        characters: [
+          { id: "find", labelEn: "Find someone who knows or get info", labelVi: "Tìm người biết hoặc lấy thông tin" },
+          { id: "guess", labelEn: "Guess and give a quick answer", labelVi: "Đoán và trả lời nhanh" },
+        ],
+        promptEn: "What do you do?",
+        promptVi: "Bạn làm gì?",
+        correctChoiceId: "find",
+        options: [
+          { id: "find", textEn: "I'll get you the right info — one sec (check with lead or system)", textVi: "Tôi lấy thông tin đúng cho bạn — chờ chút (hỏi lead hoặc hệ thống)" },
+          { id: "guess", textEn: "I think it's X — just book it", textVi: "Tôi nghĩ là X — cứ đặt đi" },
+        ],
+        wrongFeedbackEn: {
+          guess: "Wrong. Guessing on bookings can cause errors and member frustration. Impact: Wrong info, double bookings, or lost trust. Correct: Get the right info — 'One sec, I'll confirm' — then give an accurate answer. Clarity over speed when it matters.",
+        },
+        wrongFeedbackVi: {
+          guess: "Sai. Đoán khi đặt có thể gây sai sót và bực cho thành viên. Đúng: Lấy thông tin đúng — 'Chờ chút, tôi xác nhận' — rồi trả lời chính xác.",
+        },
+        correctFeedbackEn: "Correct. Don't guess on important details. Get the right info and give a clear answer. That's professional.",
+        correctFeedbackVi: "Đúng. Đừng đoán với chi tiết quan trọng. Lấy thông tin đúng và trả lời rõ. Đó là chuyên nghiệp.",
       },
     ],
     resultGood: {

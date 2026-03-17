@@ -65,6 +65,7 @@ export default function OnboardingPage() {
     perfectAnswer: string;
   } | null>(null);
   const [showKeyTakeaway, setShowKeyTakeaway] = useState(false);
+  const [lessonReorderSubmitted, setLessonReorderSubmitted] = useState(false);
   const [, setCountdownTick] = useState(0);
 
   const setLocaleAndStore = useCallback((l: Locale) => {
@@ -148,6 +149,7 @@ export default function OnboardingPage() {
     setCurrentDay(day);
     setSelectedChoice(null);
     setShowKeyTakeaway(false);
+    setLessonReorderSubmitted(false);
     setSimulationChoice(null);
     setSimulationStepResults([]);
     setSimulationAiResponse("");
@@ -176,6 +178,7 @@ export default function OnboardingPage() {
 
   const handleLessonNext = () => {
     if (!content) return;
+    setLessonReorderSubmitted(false);
     if (lessonIndex < content.sections.length - 1) {
       const nextStep = lessonIndex + 1;
       updateProgress("lesson", { day: currentDay, lesson_index: nextStep, current_step: nextStep });
@@ -507,7 +510,11 @@ export default function OnboardingPage() {
             selectedChoice={selectedChoice}
             onSelectChoice={setSelectedChoice}
             onNext={handleLessonNext}
-            canProceed={section.type !== "choice" || selectedChoice !== null}
+            onReorderSubmit={() => setLessonReorderSubmitted(true)}
+            canProceed={
+              (section.type !== "choice" && section.type !== "choose_better" && section.type !== "fix_sentence" && section.type !== "tap_mistake" && section.type !== "reorder_steps") ||
+              (section.type === "reorder_steps" ? lessonReorderSubmitted : selectedChoice !== null)
+            }
             saving={saving}
           />
         )}
@@ -825,6 +832,15 @@ export default function OnboardingPage() {
   );
 }
 
+function shuffleArray<T>(arr: T[]): T[] {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 function LessonCard({
   section,
   locale,
@@ -833,6 +849,7 @@ function LessonCard({
   selectedChoice,
   onSelectChoice,
   onNext,
+  onReorderSubmit,
   canProceed,
   saving,
 }: {
@@ -843,10 +860,44 @@ function LessonCard({
   selectedChoice: number | null;
   onSelectChoice: (i: number) => void;
   onNext: () => void;
+  onReorderSubmit?: () => void;
   canProceed: boolean;
   saving: boolean;
 }) {
   const c = getLessonContent(section, locale);
+  const [reorderOrder, setReorderOrder] = React.useState<(number | null)[]>([]);
+  const [reorderSubmitted, setReorderSubmitted] = React.useState(false);
+  const [reorderCorrect, setReorderCorrect] = React.useState<boolean | null>(null);
+  const shuffledSteps = React.useMemo(() => (c.stepsOrder?.length ? shuffleArray(c.stepsOrder) : []), [section.id]);
+  const correctReorder = React.useMemo(
+    () => (c.stepsOrder?.length ? c.stepsOrder.map((s) => shuffledSteps.indexOf(s)) : []),
+    [c.stepsOrder, shuffledSteps]
+  );
+
+  React.useEffect(() => {
+    setReorderOrder(shuffledSteps.map(() => null));
+    setReorderSubmitted(false);
+    setReorderCorrect(null);
+  }, [section.id, shuffledSteps.length]);
+
+  const isReorderComplete = section.type === "reorder_steps" && reorderOrder.length === shuffledSteps.length && reorderOrder.every((x) => x !== null);
+  const handleReorderNext = () => {
+    if (section.type !== "reorder_steps" || !onReorderSubmit) return;
+    if (!reorderSubmitted) {
+      const correct = reorderOrder.length === correctReorder.length && reorderOrder.every((v, i) => v === correctReorder[i]);
+      setReorderCorrect(correct);
+      setReorderSubmitted(true);
+      onReorderSubmit();
+    } else {
+      onNext();
+    }
+  };
+
+  const showChoiceFeedback = (section.type === "choice" || section.type === "choose_better" || section.type === "fix_sentence" || section.type === "tap_mistake") && selectedChoice !== null;
+  const isCorrectChoice = section.type === "choice" && c.correctChoiceIndex != null ? selectedChoice === c.correctChoiceIndex
+    : (section.type === "choose_better" || section.type === "fix_sentence" || section.type === "tap_mistake") && c.correctIndex != null ? selectedChoice === c.correctIndex
+    : false;
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between text-xs text-slate-400">
@@ -885,22 +936,127 @@ function LessonCard({
                 type="button"
                 onClick={() => onSelectChoice(i)}
                 className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
-                  selectedChoice === i ? "border-amber-500 bg-amber-500/10" : "border-slate-600 hover:border-slate-500"
+                  selectedChoice === i
+                    ? (c.correctChoiceIndex != null && c.choiceExplanations?.length ? (i === c.correctChoiceIndex ? "border-emerald-500 bg-emerald-500/10" : "border-red-500/60 bg-red-500/10")
+                    : "border-amber-500 bg-amber-500/10")
+                    : "border-slate-600 hover:border-slate-500"
                 }`}
               >
                 {opt}
+                {showChoiceFeedback && selectedChoice === i && c.choiceExplanations?.[i] && (
+                  <p className={`mt-2 text-xs ${i === c.correctChoiceIndex ? "text-emerald-300" : "text-red-300"}`}>{c.choiceExplanations[i]}</p>
+                )}
               </button>
             ))}
+          </div>
+        )}
+        {(section.type === "choose_better" || section.type === "fix_sentence") && c.options && (
+          <div className="space-y-2 mt-4">
+            {section.type === "fix_sentence" && c.wrongSentence && (
+              <p className="text-slate-400 text-sm mb-2">&quot;{c.wrongSentence}&quot;</p>
+            )}
+            {c.options.map((opt, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onSelectChoice(i)}
+                className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
+                  selectedChoice === i
+                    ? (c.correctIndex != null ? (i === c.correctIndex ? "border-emerald-500 bg-emerald-500/10" : "border-red-500/60 bg-red-500/10") : "border-amber-500 bg-amber-500/10")
+                    : "border-slate-600 hover:border-slate-500"
+                }`}
+              >
+                {opt}
+                {showChoiceFeedback && selectedChoice === i && (
+                  <p className={`mt-2 text-xs ${i === c.correctIndex ? "text-emerald-300" : "text-red-300"}`}>
+                    {i === c.correctIndex ? (c.rightExplanation ?? "") : (c.wrongExplanation ?? "")}
+                  </p>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+        {section.type === "tap_mistake" && c.options && (
+          <div className="space-y-2 mt-4">
+            {c.paragraph && <p className="text-slate-300 text-sm mb-2">{c.paragraph}</p>}
+            <p className="text-xs text-slate-400 mb-2">{locale === "vi" ? "Chạm vào cụm từ sai:" : "Tap the wrong phrase:"}</p>
+            {c.options.map((opt, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onSelectChoice(i)}
+                className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
+                  selectedChoice === i
+                    ? (c.correctIndex != null ? (i === c.correctIndex ? "border-emerald-500 bg-emerald-500/10" : "border-red-500/60 bg-red-500/10") : "border-amber-500 bg-amber-500/10")
+                    : "border-slate-600 hover:border-slate-500"
+                }`}
+              >
+                &quot;{opt}&quot;
+                {showChoiceFeedback && selectedChoice === i && (
+                  <p className={`mt-2 text-xs ${i === c.correctIndex ? "text-emerald-300" : "text-red-300"}`}>
+                    {i === c.correctIndex ? (c.rightExplanation ?? c.tapMistakeExplanation ?? "") : (c.wrongExplanation ?? c.tapMistakeExplanation ?? "")}
+                  </p>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+        {section.type === "reorder_steps" && shuffledSteps.length > 0 && (
+          <div className="space-y-3 mt-4">
+            {shuffledSteps.map((_, pos) => (
+              <div key={pos} className="flex items-center gap-2">
+                <span className="text-slate-400 font-medium w-8">{pos + 1}.</span>
+                <select
+                  value={reorderOrder[pos] ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value === "" ? null : Number(e.target.value);
+                    setReorderOrder((prev) => {
+                      const next = [...prev];
+                      const existing = next.indexOf(v as number);
+                      if (existing >= 0) next[existing] = null;
+                      next[pos] = v;
+                      return next;
+                    });
+                  }}
+                  className="flex-1 rounded-lg bg-slate-900 border border-slate-600 text-white px-3 py-2 text-sm"
+                >
+                  <option value="">{locale === "vi" ? "Chọn..." : "Select..."}</option>
+                  {shuffledSteps.map((step, idx) => (
+                    <option key={idx} value={idx} disabled={reorderOrder.includes(idx) && reorderOrder.indexOf(idx) !== pos}>
+                      {step}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+            {reorderSubmitted && (
+              <div className={`rounded-xl p-4 mt-4 ${reorderCorrect ? "bg-emerald-500/10 border border-emerald-500/30" : "bg-red-500/10 border border-red-500/30"}`}>
+                <p className={`text-sm font-medium ${reorderCorrect ? "text-emerald-300" : "text-red-300"}`}>
+                  {reorderCorrect ? (c.rightExplanation ?? (locale === "vi" ? "Đúng thứ tự." : "Correct order.")) : (c.wrongExplanation ?? (locale === "vi" ? "Sai thứ tự." : "Wrong order."))}
+                </p>
+                {!reorderCorrect && c.stepsOrder?.length && (
+                  <p className="text-xs text-slate-300 mt-2">
+                    {locale === "vi" ? "Thứ tự đúng:" : "Correct order:"} {c.stepsOrder.join(" → ")}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
       <button
         type="button"
-        onClick={onNext}
-        disabled={!canProceed || saving}
+        onClick={section.type === "reorder_steps" ? handleReorderNext : onNext}
+        disabled={
+          section.type === "reorder_steps"
+            ? (!reorderSubmitted && !isReorderComplete) || saving
+            : !canProceed || saving
+        }
         className="w-full py-3 rounded-xl bg-amber-500 text-slate-900 font-bold hover:bg-amber-400 disabled:opacity-50"
       >
-        {locale === "vi" ? "Tiếp" : "Next"}
+        {section.type === "reorder_steps" && !reorderSubmitted
+          ? (locale === "vi" ? "Kiểm tra thứ tự" : "Check order")
+          : (locale === "vi" ? "Tiếp" : "Next")}
       </button>
       <button
         type="button"
