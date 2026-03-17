@@ -1333,6 +1333,9 @@ export default function AdminPage() {
                 <button type="button" onClick={() => setLocaleAndStore("en")} className={`px-2 py-0.5 rounded-full text-[10px] font-medium md:px-3 md:py-1 md:text-xs ${locale === "en" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}>EN</button>
                 <button type="button" onClick={() => setLocaleAndStore("vi")} className={`px-2 py-0.5 rounded-full text-[10px] font-medium md:px-3 md:py-1 md:text-xs ${locale === "vi" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}>VN</button>
               </div>
+              <a href="/onboarding" className="px-2 py-0.5 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-700 text-[10px] md:text-xs md:px-3 md:py-1" title={locale === "vi" ? "Đào tạo" : "Onboarding"}>
+                {locale === "vi" ? "Đào tạo" : "Onboarding"}
+              </a>
               <button type="button" onClick={() => { setProfileModalOpen(true); setAdminProfileDisplayName(staffDisplayName ?? (role === "frontdesk" ? "Front Desk" : session?.user?.email?.split("@")[0] ?? "")); setAdminProfileEditing(false); }} className="px-2 py-0.5 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-700 text-[10px] md:text-xs md:px-3 md:py-1" title={staffDisplayName ? `${staffDisplayName} · ${t.profileTab}` : t.profileTab}>
                 {(role === "staff" || role === "frontdesk") && (staffDisplayName || (role === "frontdesk" ? "Front Desk" : null) || session?.user?.email) ? ((staffDisplayName || (role === "frontdesk" ? "Front Desk" : "") || session?.user?.email?.split("@")[0]) ?? "") : t.profileTab}
               </button>
