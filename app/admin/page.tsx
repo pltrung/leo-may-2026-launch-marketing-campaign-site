@@ -304,6 +304,16 @@ export default function AdminPage() {
     summary: { staff_in_today: number; staff_out_today: number; staff_total?: number; sessions_today: number; newbie_attendance_today?: number; zones_overdue: number; tasks_pending: number; tasks_completed?: number; tasks_overdue?: number; tasks_total?: number; pre_open_completed?: number; pre_open_total?: number; closing_overdue?: number; unassigned_sessions?: number; staff_required?: number };
   } | null>(null);
 
+  const handleTourNavigate = useCallback((step: { navigate?: { area?: "front_desk" | "operations" | "management" | "staff" | "analytics"; frontDeskTab?: "checkin" | "member"; managementTab?: "inventory" | "admin_tools"; staffSubTab?: "routes" | "coaching"; analyticsTab?: "overview" | "revenue" | "members" | "retention" | "behavior" | "funnel" | "operations" | "staff" | "onboarding" } }) => {
+    if (!step?.navigate) return;
+    const n = step.navigate;
+    if (n.area) setAdminArea(n.area);
+    if (n.frontDeskTab) setFrontDeskTab(n.frontDeskTab);
+    if (n.managementTab) setManagementTab(n.managementTab);
+    if (n.staffSubTab) setStaffSubTab(n.staffSubTab);
+    if (n.analyticsTab) setAnalyticsTab(n.analyticsTab);
+  }, []);
+
   const m = getMessages(locale).admin;
 
   // Fetch plans
@@ -1443,16 +1453,6 @@ export default function AdminPage() {
   const showOccupancy = currentPhase !== "closing";
   const gymPillLabel = locale === "vi" ? gymPill.labelVi : gymPill.labelEn;
   const gymPillText = showOccupancy ? `${gymPillLabel} • ${gymOccupancy} ${locale === "vi" ? "trong" : "inside"}` : gymPillLabel;
-
-  const handleTourNavigate = useCallback((step: { navigate?: { area?: "front_desk" | "operations" | "management" | "staff" | "analytics"; frontDeskTab?: "checkin" | "member"; managementTab?: "inventory" | "admin_tools"; staffSubTab?: "routes" | "coaching"; analyticsTab?: "overview" | "revenue" | "members" | "retention" | "behavior" | "funnel" | "operations" | "staff" | "onboarding" } }) => {
-    if (!step?.navigate) return;
-    const n = step.navigate;
-    if (n.area) setAdminArea(n.area);
-    if (n.frontDeskTab) setFrontDeskTab(n.frontDeskTab);
-    if (n.managementTab) setManagementTab(n.managementTab);
-    if (n.staffSubTab) setStaffSubTab(n.staffSubTab);
-    if (n.analyticsTab) setAnalyticsTab(n.analyticsTab);
-  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-900 text-slate-50">
