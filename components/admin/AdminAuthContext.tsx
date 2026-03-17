@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { isAdminEmail } from "@/lib/adminAuth";
 import { isRouteSetterEmail } from "@/lib/routeSetterAuth";
@@ -97,17 +97,31 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [staffProfile, setStaffProfile] = useState<AdminAuthContextValue["staffProfile"]>(null);
   const [phase, setPhase] = useState<{ current_phase?: string; phase_label: string; countdown_message: string } | null>(null);
   const [meFetched, setMeFetched] = useState(false);
+  const meRequestIdRef = useRef(0);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
+    let settled = false;
+    const fallback = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      setSession(null);
+      setLoading(false);
+    }, 10000);
     supabase.auth.getSession().then(({ data: { session: s } }) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(fallback);
       setSession(s);
       setLoading(false);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
     });
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(fallback);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const adminFetch = useCallback(
@@ -146,9 +160,17 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     setMeFetched(false);
-    adminFetch("/api/admin/me")
+    const requestId = ++meRequestIdRef.current;
+    const abort = new AbortController();
+    const timeout = setTimeout(() => {
+      abort.abort();
+    }, 15000);
+    const opts: RequestInit = { signal: abort.signal };
+    adminFetch("/api/admin/me", opts)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
+        clearTimeout(timeout);
+        if (requestId !== meRequestIdRef.current) return;
         setMeFetched(true);
         if (data?.role) {
           setRole(data.role as UnifiedRole);
@@ -165,6 +187,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .catch(() => {
+        clearTimeout(timeout);
+        if (requestId !== meRequestIdRef.current) return;
         setMeFetched(true);
         setRole(null);
         setStaffId(null);
@@ -172,6 +196,10 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         setStaffProfile(null);
         setPhase(null);
       });
+    return () => {
+      clearTimeout(timeout);
+      abort.abort();
+    };
   }, [session?.access_token, adminFetch]);
 
   const isAdmin = role === "admin";

@@ -139,7 +139,7 @@ export function formatInGymTZ(
   return new Date(iso).toLocaleString("en-US", { ...options, timeZone: GYM_TZ_DISPLAY });
 }
 
-export type ShiftPhase = "pre_open" | "gym_open" | "closing";
+export type ShiftPhase = "closed" | "pre_open" | "gym_open" | "closing";
 
 /** Minutes from midnight in gym TZ for current moment. */
 function getGymMinutesFromMidnight(): number {
@@ -155,18 +155,24 @@ function getGymMinutesFromMidnight(): number {
 
 /**
  * Current shift phase in gym TZ.
- * Before 10:00 → pre_open; 10:00–22:00 → gym_open; 22:00+ → closing.
+ * 00:00–06:00 → closed; 06:00–10:00 → pre_open; 10:00–22:00 → gym_open; 22:00–24:00 → closing.
+ * After closing (post-gym tasks), status is Closed until 6AM next day.
  */
 export function getCurrentPhase(): ShiftPhase {
   const mins = getGymMinutesFromMidnight();
+  if (mins < 6 * 60) return "closed";
   if (mins < 10 * 60) return "pre_open";
-  if (mins >= 10 * 60 && mins < 22 * 60) return "gym_open";
+  if (mins < 22 * 60) return "gym_open";
   return "closing";
 }
 
 /** Minutes until next phase boundary in gym TZ. */
 export function getMinutesUntilNextPhase(phase: ShiftPhase): number {
   const nowMins = getGymMinutesFromMidnight();
+  if (phase === "closed") {
+    const next = 6 * 60;
+    return nowMins < next ? next - nowMins : 0;
+  }
   if (phase === "pre_open") {
     const next = 10 * 60;
     return nowMins < next ? next - nowMins : 0;
@@ -175,8 +181,8 @@ export function getMinutesUntilNextPhase(phase: ShiftPhase): number {
     const next = 22 * 60;
     return nowMins < next ? next - nowMins : 0;
   }
-  // closing: next is tomorrow 09:00
-  return 24 * 60 - nowMins + 9 * 60;
+  // closing: next is tomorrow 06:00 (closed)
+  return 24 * 60 - nowMins + 6 * 60;
 }
 
 /**
@@ -191,14 +197,16 @@ export function getCurrentPhaseInfo(): {
   const phase = getCurrentPhase();
   const minutes = getMinutesUntilNextPhase(phase);
   const labels: Record<ShiftPhase, string> = {
+    closed: "Closed",
     pre_open: "Pre-open",
     gym_open: "Gym Open",
     closing: "Closing",
   };
   let countdown = "";
-  if (phase === "pre_open") countdown = minutes <= 0 ? "Gym is opening." : `Opens in ${minutes} min`;
+  if (phase === "closed") countdown = minutes <= 0 ? "Pre-open soon." : `Opens at 6AM (${minutes} min)`;
+  else if (phase === "pre_open") countdown = minutes <= 0 ? "Gym is opening." : `Opens in ${minutes} min`;
   else if (phase === "gym_open") countdown = minutes <= 0 ? "Closing phase soon." : `Closing in ${minutes} min`;
-  else countdown = minutes <= 0 ? "All tasks due soon." : `Closing tasks in ${minutes} min`;
+  else countdown = minutes <= 0 ? "Closed after tasks." : `Closing tasks in ${minutes} min`;
   return {
     current_phase: phase,
     phase_label: labels[phase],

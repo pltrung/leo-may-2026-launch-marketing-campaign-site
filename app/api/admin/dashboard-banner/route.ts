@@ -17,12 +17,13 @@ function getGymMinutesFromMidnight(): number {
   return h * 60 + m;
 }
 
-type ShiftPhase = "pre_open" | "gym_open" | "closing";
+type ShiftPhase = "closed" | "pre_open" | "gym_open" | "closing";
 
 function getCurrentPhase(): ShiftPhase {
   const mins = getGymMinutesFromMidnight();
+  if (mins < 6 * 60) return "closed";
   if (mins < 10 * 60) return "pre_open";
-  if (mins >= 10 * 60 && mins < 22 * 60) return "gym_open";
+  if (mins < 22 * 60) return "gym_open";
   return "closing";
 }
 
@@ -72,7 +73,9 @@ export async function GET(request: NextRequest) {
     SAFETY_TASK_TITLES.some((title) => (t.title ?? "").trim().toLowerCase() === title.toLowerCase())
   );
   const gymReady =
-    phase === "pre_open"
+    phase === "closed"
+      ? false
+      : phase === "pre_open"
       ? safetyTasks.length >= 3 && safetyTasks.every((t) => t.status === "completed")
       : phase === "gym_open" || phase === "closing";
 

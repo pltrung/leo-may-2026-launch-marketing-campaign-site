@@ -1447,11 +1447,11 @@ export default function AdminPage() {
   const isBusy = currentPhase === "gym_open" && gymOccupancy > GYM_CAPACITY * BUSY_THRESHOLD;
   const gymPill = (() => {
     if (currentPhase === "pre_open") return { dot: "⚪", labelEn: "Pre-open", labelVi: "Pre-open", bg: "bg-slate-600/30 border-slate-500/50", text: "text-slate-200" };
-    if (currentPhase === "closing") return { dot: "🔴", labelEn: "Closed", labelVi: "Đóng cửa", bg: "bg-red-900/30 border-red-500/50", text: "text-red-200" };
+    if (currentPhase === "closing" || currentPhase === "closed") return { dot: "🔴", labelEn: "Closed", labelVi: "Đóng cửa", bg: "bg-red-900/30 border-red-500/50", text: "text-red-200" };
     if (isBusy) return { dot: "🟡", labelEn: "Busy", labelVi: "Đông", bg: "bg-amber-900/30 border-amber-500/50", text: "text-amber-200" };
     return { dot: "🟢", labelEn: "Open", labelVi: "Mở cửa", bg: "bg-emerald-900/30 border-emerald-500/50", text: "text-emerald-200" };
   })();
-  const showOccupancy = currentPhase !== "closing";
+  const showOccupancy = currentPhase !== "closing" && currentPhase !== "closed";
   const gymPillLabel = locale === "vi" ? gymPill.labelVi : gymPill.labelEn;
   const gymPillText = showOccupancy ? `${gymPillLabel} • ${gymOccupancy} ${locale === "vi" ? "trong" : "inside"}` : gymPillLabel;
 
@@ -1460,19 +1460,19 @@ export default function AdminPage() {
       <GuidedTour steps={tourSteps} isActive={guidedTourActive} onClose={() => setGuidedTourActive(false)} locale={locale} onNavigate={handleTourNavigate} />
       <header className="relative z-30 border-b border-slate-800 bg-slate-900/95 backdrop-blur shrink-0">
         <div className="max-w-[1100px] mx-auto px-3 py-2 md:px-4 md:py-3">
-          {/* Row 1: Logo | Pill | Tour + Hamburger. Single row on all screens; pill is smaller on mobile so it fits. */}
-          <div className="flex items-center justify-between gap-1.5 min-h-[2rem] flex-nowrap">
+          {/* Row 1: Logo | (Pill on sm+) | Tour + Hamburger. On mobile, pill moves to row 2 to avoid layout issues that could block main thread / hydration. */}
+          <div className="flex items-center justify-between gap-2 min-h-[2rem] flex-nowrap">
             <div className="flex items-center shrink-0">
               <img src="/logo-white.svg" alt="Leo Mây" className="h-6 w-auto md:h-7" />
             </div>
-            <div className="flex items-center justify-center flex-1 min-w-0">
-              <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 sm:gap-1.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-xs font-medium whitespace-nowrap ${gymPill.bg} ${gymPill.text}`} title={phase?.countdown_message}>
-                <span className="text-[8px] sm:text-[10px] leading-none shrink-0">{gymPill.dot}</span>
+            <div className="hidden sm:flex items-center justify-center flex-1 min-w-0">
+              <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium whitespace-nowrap ${gymPill.bg} ${gymPill.text}`} title={phase?.countdown_message}>
+                <span className="text-[10px] leading-none shrink-0">{gymPill.dot}</span>
                 <span>{gymPillText}</span>
               </span>
             </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <button type="button" onClick={() => setGuidedTourActive(true)} className="px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg border border-amber-500/50 text-amber-200 hover:bg-amber-500/20 text-[10px] sm:text-xs font-medium" title={locale === "vi" ? "Tour hướng dẫn" : "Guided tour"}>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button type="button" onClick={() => setGuidedTourActive(true)} className="px-2 py-1 rounded-lg border border-amber-500/50 text-amber-200 hover:bg-amber-500/20 text-xs font-medium" title={locale === "vi" ? "Tour hướng dẫn" : "Guided tour"}>
                 {locale === "vi" ? "Tour" : "Tour"}
               </button>
               <div className="relative">
@@ -1506,6 +1506,13 @@ export default function AdminPage() {
                 )}
               </div>
             </div>
+          </div>
+          {/* Row 2: Status pill only on mobile (sm and up: pill is in row 1). Restores pre-b457af6 layout to fix mobile Loading forever. */}
+          <div className="sm:hidden mt-1.5 flex justify-center">
+            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium whitespace-nowrap ${gymPill.bg} ${gymPill.text}`} title={phase?.countdown_message}>
+              <span className="text-[10px] leading-none">{gymPill.dot}</span>
+              <span>{gymPillText}</span>
+            </span>
           </div>
         </div>
       </header>
@@ -1543,10 +1550,10 @@ export default function AdminPage() {
             const duringTotal = (staffOpsData.during ?? []).length;
             const closingDone = (staffOpsData.closing ?? []).filter((t: { status: string }) => t.status === "completed").length;
             const closingTotal = (staffOpsData.closing ?? []).length;
-            const phaseLabel = phase === "pre_open" ? (locale === "vi" ? "Pre-Open" : "Pre-Open") : phase === "closing" ? (locale === "vi" ? "Đóng cửa" : "Closing") : (locale === "vi" ? "Giờ mở" : "Gym open");
-            const tasksDone = phase === "pre_open" ? preOpenDone : phase === "closing" ? closingDone : duringDone;
-            const tasksTotal = phase === "pre_open" ? preOpenTotal : phase === "closing" ? closingTotal : duringTotal;
-            const gymReady = staffOpsData.phase?.current_phase === "closing" ? staffOpsData.ready_to_close === true : staffOpsData.gym_ready === true;
+            const phaseLabel = phase === "closed" ? (locale === "vi" ? "Đóng cửa" : "Closed") : phase === "pre_open" ? (locale === "vi" ? "Pre-Open" : "Pre-Open") : phase === "closing" ? (locale === "vi" ? "Đóng cửa" : "Closing") : (locale === "vi" ? "Giờ mở" : "Gym open");
+            const tasksDone = phase === "closed" ? 0 : phase === "pre_open" ? preOpenDone : phase === "closing" ? closingDone : duringDone;
+            const tasksTotal = phase === "closed" ? 0 : phase === "pre_open" ? preOpenTotal : phase === "closing" ? closingTotal : duringTotal;
+            const gymReady = staffOpsData.phase?.current_phase === "closed" ? false : staffOpsData.phase?.current_phase === "closing" ? staffOpsData.ready_to_close === true : staffOpsData.gym_ready === true;
             const sessionsToday = (staffOpsData.sessionsToday ?? staffOpsData.sessions ?? []).length;
             const routeResetToday = staffOpsData.summary?.zones_overdue ?? (staffOpsData.zones ?? []).filter((z: { overdue?: boolean }) => z.overdue).length;
             return (
@@ -1629,7 +1636,7 @@ export default function AdminPage() {
               alerts.push(`${z.name} ${locale === "vi" ? "reset quá hạn" : "reset overdue"}`),
             );
             if (unassigned > 0) alerts.push(`${unassigned} ${locale === "vi" ? "buổi coaching chưa giao" : "coaching sessions unassigned"}`);
-            const gymReady = staffOpsData?.phase?.current_phase === "closing" ? staffOpsData?.ready_to_close === true : staffOpsData?.gym_ready === true;
+            const gymReady = staffOpsData?.phase?.current_phase === "closed" ? false : staffOpsData?.phase?.current_phase === "closing" ? staffOpsData?.ready_to_close === true : staffOpsData?.gym_ready === true;
             const summaryLine = alerts.length === 0 ? (locale === "vi" ? "Không có sự cố hôm nay" : "No issues today") : `${alerts.length} ${locale === "vi" ? "cảnh báo" : "alerts"}`;
             return (
               <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -2874,7 +2881,11 @@ export default function AdminPage() {
                       if (s.start_time <= nowIso && s.end_time >= nowIso) staffIdInSessionNow.add(s.coach_id);
                     }
                     const phaseTaskLabel =
-                      phase.current_phase === "pre_open"
+                      phase.current_phase === "closed"
+                        ? locale === "vi"
+                          ? "Gym đóng cửa"
+                          : "Gym closed"
+                        : phase.current_phase === "pre_open"
                         ? locale === "vi"
                           ? "Công việc trước mở cửa"
                           : "Pre-Open Tasks"
@@ -3023,7 +3034,9 @@ export default function AdminPage() {
                                 readyToClose || gymReady ? "text-emerald-700" : "text-red-700"
                               }`}
                             >
-                              {phase.current_phase === "closing" && readyToClose
+                              {phase.current_phase === "closed"
+                                ? (locale === "vi" ? "Đóng cửa" : "Closed")
+                                : phase.current_phase === "closing" && readyToClose
                                 ? (m as { gymReadyToClose?: string }).gymReadyToClose ?? "Gym READY to be closed"
                                 : phase.current_phase === "gym_open"
                                 ? (m as { gymOperating?: string }).gymOperating ?? "Gym is operating great right now"
@@ -3428,7 +3441,7 @@ export default function AdminPage() {
             const preOpen = (staffOpsData?.preOpen ?? []) as { id: string; title: string; status: string; block?: string; due_time?: string | null; completed_by_name?: string | null; completers?: string[] }[];
             const during = (staffOpsData?.during ?? []) as typeof preOpen;
             const closing = (staffOpsData?.closing ?? []) as typeof preOpen;
-            const rawActiveTasks = currentBlock === "pre_open" ? preOpen : currentBlock === "closing" ? closing : during;
+            const rawActiveTasks = currentBlock === "closed" ? [] : currentBlock === "pre_open" ? preOpen : currentBlock === "closing" ? closing : during;
             const isRouteResetDay = (staffOpsData?.zones ?? []).some((z: { next_reset_at?: string | null; overdue?: boolean }) => z.overdue || (z.next_reset_at && getGymDateFromISO(z.next_reset_at) === today));
             const isEssentialTask = (title: string) => /anchor|crash|rental|shoe|front desk|pos|bathroom|safety|check bathroom/i.test(title.toLowerCase());
             const activeTasks = isRouteResetDay ? rawActiveTasks.filter((t) => isEssentialTask(t.title)) : rawActiveTasks;
@@ -3479,6 +3492,9 @@ export default function AdminPage() {
                     )}
                     <div className="rounded-xl bg-slate-800 border border-slate-700 p-4 space-y-3" data-tour="tasks-section">
                       <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{staffMsg.activeTasks}</h3>
+                      {currentBlock === "closed" && (
+                        <p className="text-sm text-slate-400">{locale === "vi" ? "Gym đóng cửa đến 6:00 sáng." : "Gym closed until 6:00 AM."}</p>
+                      )}
                       {activeTasks.length > 0 && (
                         <>
                           <div className="flex items-center justify-between text-sm"><span className="text-slate-300">{(staffMsg.tasksProgress as string).replace("{done}", String(activeCompleted.length)).replace("{total}", String(activeTasks.length))}</span></div>

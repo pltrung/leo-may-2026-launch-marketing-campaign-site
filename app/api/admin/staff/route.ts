@@ -6,7 +6,7 @@ import { getGymToday, getGymStartOfDay, getGymEndOfDay, getGymDateFromISO, parse
 const STAFF_REQUIRED_DEFAULT = 3;
 const GYM_TZ = "America/Los_Angeles";
 
-type ShiftPhase = "pre_open" | "gym_open" | "closing";
+type ShiftPhase = "closed" | "pre_open" | "gym_open" | "closing";
 
 /** Current time in gym TZ as HH:MM for comparison with DB time. */
 function getGymNowHHMM(): string {
@@ -24,22 +24,6 @@ function compareHHMM(a: string, b: string): number {
   return (ah * 60 + am) - (bh * 60 + bm);
 }
 
-/** Determine current shift phase in gym TZ.
- *  <09:00 → pre_open
- *  09:00–10:00 → pre_open
- *  10:00–22:00 → gym_open
- *  22:00–23:00 → closing
- *  ≥23:00 → closing
- */
-function getCurrentPhase(): ShiftPhase {
-  const mins = getGymMinutesFromMidnight();
-  if (mins < 9 * 60) return "pre_open";
-  if (mins >= 9 * 60 && mins < 10 * 60) return "pre_open";
-  if (mins >= 10 * 60 && mins < 22 * 60) return "gym_open";
-  if (mins >= 22 * 60 && mins < 23 * 60) return "closing";
-  return "closing";
-}
-
 /** Minutes from midnight in gym TZ for current moment. */
 function getGymMinutesFromMidnight(): number {
   const t = new Date().toLocaleTimeString("en-GB", {
@@ -52,22 +36,32 @@ function getGymMinutesFromMidnight(): number {
   return h * 60 + m;
 }
 
+/** Determine current shift phase in gym TZ.
+ *  00:00–06:00 → closed; 06:00–10:00 → pre_open; 10:00–22:00 → gym_open; 22:00–24:00 → closing.
+ */
+function getCurrentPhase(): ShiftPhase {
+  const mins = getGymMinutesFromMidnight();
+  if (mins < 6 * 60) return "closed";
+  if (mins < 10 * 60) return "pre_open";
+  if (mins < 22 * 60) return "gym_open";
+  return "closing";
+}
+
 /** Minutes until next phase (in gym TZ). */
 function getMinutesUntilNextPhase(phase: ShiftPhase): number {
   const nowMins = getGymMinutesFromMidnight();
-  const next: Record<ShiftPhase, number> = {
-    pre_open: 10 * 60,
-    gym_open: 22 * 60,
-    closing: 23 * 60,
-  };
-  const nextMins = next[phase];
-  if (nowMins < nextMins) return nextMins - nowMins;
-  if (phase === "closing") return 24 * 60 - nowMins + 9 * 60;
-  return 24 * 60 - nowMins + next[phase];
+  if (phase === "closed") return 6 * 60 - nowMins;
+  if (phase === "pre_open") return 10 * 60 - nowMins;
+  if (phase === "gym_open") return 22 * 60 - nowMins;
+  return 24 * 60 - nowMins + 6 * 60;
 }
 
 /** Human-readable countdown message. */
 function getCountdownMessage(phase: ShiftPhase, minutes: number): string {
+  if (phase === "closed") {
+    if (minutes <= 0) return "Pre-open soon.";
+    return `Opens at 6AM (${minutes} min)`;
+  }
   if (phase === "pre_open") {
     if (minutes <= 0) return "Gym is opening.";
     return `Gym opens in ${minutes} minute${minutes !== 1 ? "s" : ""}`;
@@ -76,7 +70,7 @@ function getCountdownMessage(phase: ShiftPhase, minutes: number): string {
     if (minutes <= 0) return "Closing phase starts.";
     return `Closing in ${minutes} minute${minutes !== 1 ? "s" : ""}`;
   }
-  if (minutes <= 0) return "All tasks due soon.";
+  if (minutes <= 0) return "Closed after tasks.";
   return `Closing tasks due in ${minutes} minute${minutes !== 1 ? "s" : ""}`;
 }
 
@@ -323,7 +317,7 @@ export async function GET(request: NextRequest) {
   const currentPhase = getCurrentPhase();
   const minutesUntilNext = getMinutesUntilNextPhase(currentPhase);
   const phaseLabel =
-    currentPhase === "pre_open" ? "Pre-Open" : currentPhase === "gym_open" ? "Gym Open" : "Closing";
+    currentPhase === "closed" ? "Closed" : currentPhase === "pre_open" ? "Pre-Open" : currentPhase === "gym_open" ? "Gym Open" : "Closing";
   const countdownMessage = getCountdownMessage(currentPhase, minutesUntilNext);
 
   const blockToPhase: Record<string, ShiftPhase> = {
@@ -331,21 +325,24 @@ export async function GET(request: NextRequest) {
     during_hours: "gym_open",
     closing: "closing",
   };
-  const currentPhaseTasks = tasks.filter(
-    (t) => blockToPhase[(t as { block?: string }).block ?? ""] === currentPhase
-  );
+  const currentPhaseTasks =
+    currentPhase === "closed"
+      ? []
+      : tasks.filter((t) => blockToPhase[(t as { block?: string }).block ?? ""] === currentPhase);
 
   const SAFETY_TASK_TITLES = ["Inspect anchors", "Inspect crash pads", "Check rental shoes"];
   const safetyTasks = preOpen.filter((t) =>
     SAFETY_TASK_TITLES.some((title) => (t.title ?? "").trim().toLowerCase() === title.toLowerCase())
   );
   const gymReady =
-    currentPhase === "pre_open"
+    currentPhase === "closed"
+      ? false
+      : currentPhase === "pre_open"
       ? safetyTasks.length >= 3 && safetyTasks.every((t) => t.status === "completed")
       : currentPhase === "gym_open" || currentPhase === "closing";
 
   const readyToClose =
-    currentPhase === "closing" &&
+    (currentPhase === "closing" || currentPhase === "closed") &&
     closing.length > 0 &&
     closing.every((t) => t.status === "completed");
 

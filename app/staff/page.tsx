@@ -365,8 +365,8 @@ export default function StaffPage() {
   const formatDate = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString(dateLocale, { month: "short", day: "numeric", year: "numeric" }) : "—";
 
-  // Current time window: 9:00–10:00 pre_open, 10:00–22:00 during_hours, 22:00–23:00 closing (gym TZ)
-  const getCurrentBlock = (): "pre_open" | "during_hours" | "closing" => {
+  // 00:00–06:00 closed; 06:00–10:00 pre_open; 10:00–22:00 during_hours; 22:00–24:00 closing (gym TZ)
+  const getCurrentBlock = (): "closed" | "pre_open" | "during_hours" | "closing" => {
     const t = new Date().toLocaleTimeString("en-GB", {
       hour12: false,
       hour: "2-digit",
@@ -375,14 +375,13 @@ export default function StaffPage() {
     });
     const [h, m] = t.slice(0, 5).split(":").map(Number);
     const mins = h * 60 + m;
-    if (mins < 9 * 60) return "pre_open";
-    if (mins >= 9 * 60 && mins < 10 * 60) return "pre_open";
-    if (mins >= 10 * 60 && mins < 22 * 60) return "during_hours";
-    if (mins >= 22 * 60 && mins < 23 * 60) return "closing";
+    if (mins < 6 * 60) return "closed";
+    if (mins < 10 * 60) return "pre_open";
+    if (mins < 22 * 60) return "during_hours";
     return "closing";
   };
   const currentBlock = getCurrentBlock();
-  const rawActiveTasks = currentBlock === "pre_open" ? preOpenTasks : currentBlock === "closing" ? closingTasks : duringTasks;
+  const rawActiveTasks = currentBlock === "closed" ? [] : currentBlock === "pre_open" ? preOpenTasks : currentBlock === "closing" ? closingTasks : duringTasks;
   const isRouteResetDay = zones.some((z) => z.status === "overdue" || (z.next_reset_at && getGymDateFromISO(z.next_reset_at) === today));
   const isEssentialTask = (title: string): boolean => {
     const lower = title.toLowerCase();
@@ -393,8 +392,8 @@ export default function StaffPage() {
   // Show upcoming tasks as part of the active checklist (matches admin view of "pending" before start_time)
   const activePending = activeTasks.filter((t) => t.status === "pending" || t.status === "upcoming");
   const activeCompleted = activeTasks.filter((t) => t.status === "completed");
-  const phaseLabel = currentBlock === "pre_open" ? m.phasePreOpen : currentBlock === "closing" ? m.phaseClosing : m.phaseGymOpen;
-  const phaseTimeWindow = currentBlock === "pre_open" ? m.timeWindow : currentBlock === "closing" ? m.timeWindowClosing : m.timeWindowOpen;
+  const phaseLabel = currentBlock === "closed" ? m.phaseClosed : currentBlock === "pre_open" ? m.phasePreOpen : currentBlock === "closing" ? m.phaseClosing : m.phaseGymOpen;
+  const phaseTimeWindow = currentBlock === "closed" ? m.timeWindowClosed : currentBlock === "pre_open" ? m.timeWindow : currentBlock === "closing" ? m.timeWindowClosing : m.timeWindowOpen;
   const minutesOverdue = (t: StaffTask): number => {
     if (!t.due_time) return 0;
     const due = String(t.due_time).slice(0, 5);
