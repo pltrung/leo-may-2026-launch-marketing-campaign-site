@@ -3728,7 +3728,7 @@ export default function AdminPage() {
                     {!onboardingAnalyticsLoading && !onboardingAnalytics && <p className="text-slate-500 text-sm">{locale === "vi" ? "Không có dữ liệu." : "No data."}</p>}
                   </>
                 ) : (
-                  <AnalyticsCharts data={analyticsData} tab={analyticsTab} locale={locale} loading={analyticsLoading} />
+                  <AnalyticsCharts data={analyticsData} tab={analyticsTab} locale={locale} loading={analyticsLoading} adminFetch={canAccessAnalytics ? adminFetch : undefined} />
                 )}
               </div>
             </section>
