@@ -262,28 +262,25 @@ export async function GET(req: NextRequest) {
     }
     const firstVisitCount = firstByMember.size;
     const { data: paidAfterFirst } = await supabase.from("payments").select("member_id, created_at").eq("status", "success");
-    let day1Return = 0,
-      day7Return = 0,
-      day30Return = 0;
+    // Unique members who returned (at least one check-in in window), not total check-in count
+    const day1ReturnMembers = new Set<string>();
+    const day7ReturnMembers = new Set<string>();
+    const day30ReturnMembers = new Set<string>();
     Array.from(firstByMember.entries()).forEach(([mid, firstTs]) => {
       const first = new Date(firstTs).getTime();
-      const hasCheckin = (checkins as { member_id: string; timestamp: string }[]).some(
-        (c) => c.member_id === mid && new Date(c.timestamp).getTime() > first
-      );
-      if (!hasCheckin) return;
       const checkinTimes = (checkins as { member_id: string; timestamp: string }[])
-        .filter((c) => c.member_id === mid)
+        .filter((c) => c.member_id === mid && new Date(c.timestamp).getTime() > first)
         .map((c) => new Date(c.timestamp).getTime());
       for (const t of checkinTimes) {
         const days = (t - first) / (24 * 60 * 60 * 1000);
-        if (days >= 1 && days < 2) day1Return++;
-        if (days >= 1 && days <= 7) day7Return++;
-        if (days >= 1 && days <= 30) day30Return++;
+        if (days >= 1 && days < 2) day1ReturnMembers.add(mid);
+        if (days >= 1 && days <= 7) day7ReturnMembers.add(mid);
+        if (days >= 1 && days <= 30) day30ReturnMembers.add(mid);
       }
     });
-    const day1Retention = firstVisitCount > 0 ? (day1Return / firstVisitCount) * 100 : 0;
-    const day7Retention = firstVisitCount > 0 ? (day7Return / firstVisitCount) * 100 : 0;
-    const day30Retention = firstVisitCount > 0 ? (day30Return / firstVisitCount) * 100 : 0;
+    const day1Retention = firstVisitCount > 0 ? (day1ReturnMembers.size / firstVisitCount) * 100 : 0;
+    const day7Retention = firstVisitCount > 0 ? (day7ReturnMembers.size / firstVisitCount) * 100 : 0;
+    const day30Retention = firstVisitCount > 0 ? (day30ReturnMembers.size / firstVisitCount) * 100 : 0;
 
     const { data: newbiePayments } = await supabase
       .from("payments")
@@ -332,10 +329,12 @@ export async function GET(req: NextRequest) {
       .slice(0, 5)
       .map(([hour, count]) => ({ hour, count }));
 
-    // ---- FUNNEL (simplified) ----
-    const firstVisitToPurchase = firstVisitCount > 0 && paidAfterFirst
-      ? (new Set((paidAfterFirst as { member_id: string }[]).map((p) => p.member_id)).size / firstVisitCount) * 100
-      : 0;
+    // ---- FUNNEL (simplified): % of first-time visitors who ever purchased (numerator only among those with first visit, so <= 100%)
+    const paidMemberIds = new Set(((paidAfterFirst ?? []) as { member_id: string }[]).map((p) => p.member_id));
+    const firstVisitToPurchase =
+      firstVisitCount > 0
+        ? (Array.from(firstByMember.keys()).filter((mid) => paidMemberIds.has(mid)).length / firstVisitCount) * 100
+        : 0;
     const newbieToReturn = newbiePurchased.size > 0 ? newbieReturn7Pct : 0;
     const returnToMembership =
       uniqueVisitors.size > 0
@@ -404,14 +403,13 @@ export async function GET(req: NextRequest) {
         (pos as { staff_id: string | null; commission_amount: number | null }[])
           .filter((p) => p.staff_id === staff.id)
           .reduce((sum, p) => sum + (p.commission_amount ?? 0), 0) ?? 0;
-      const { data: completedTaskRows } = await supabase
-        .from("staff_tasks")
+      const { data: completedTaskLogRows } = await supabase
+        .from("task_logs")
         .select("id")
-        .eq("assigned_to", staff.id)
-        .eq("status", "completed")
+        .eq("staff_id", staff.id)
         .gte("completed_at", since)
         .lte("completed_at", until);
-      const tasksCompletedStaff = (completedTaskRows ?? []).length;
+      const tasksCompletedStaff = (completedTaskLogRows ?? []).length;
       const { data: attRows } = await supabase
         .from("staff_attendance")
         .select("date")

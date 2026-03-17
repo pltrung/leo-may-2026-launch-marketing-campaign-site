@@ -108,6 +108,7 @@ export async function GET(request: NextRequest) {
     resetTrackerRes,
     zoneSettersRes,
     routeSetterListRes,
+    staffCountRes,
   ] = await Promise.all([
     supabase
       .from("staff_attendance")
@@ -143,6 +144,7 @@ export async function GET(request: NextRequest) {
       .eq("date", today)
       .order("completed_at", { ascending: true }),
     supabase.from("staff_daily_reset").select("last_reset_date").maybeSingle(),
+    supabase.from("staff_profiles").select("id", { count: "exact", head: true }),
     supabase
       .from("route_reset_assignments")
       .select("zone_id, staff_id, assigned_at, staff_profiles(display_name, email)")
@@ -315,6 +317,7 @@ export async function GET(request: NextRequest) {
   const tasksOverdue = preOpenOverdue + duringOverdue + closingOverdue;
 
   const staffRequired = STAFF_REQUIRED_DEFAULT;
+  const staffTotal = typeof staffCountRes.count === "number" ? staffCountRes.count : staffIn.length + staffOut.length;
   const zonesOverdueCount = zonesWithStatus.filter((z) => z.overdue).length;
 
   const currentPhase = getCurrentPhase();
@@ -386,6 +389,7 @@ export async function GET(request: NextRequest) {
     summary: {
       staff_in_today: staffIn.length,
       staff_out_today: staffOut.length,
+      staff_total: staffTotal,
       sessions_today: sessionsToday.length,
       newbie_attendance_today: totalNewbieAttendance,
       zones_overdue: zonesOverdueCount,

@@ -241,6 +241,7 @@ export default function AdminPage() {
   const [shiftCheckInAttendance, setShiftCheckInAttendance] = useState<{ date: string; status: string } | null>(null);
   const [shiftCheckInQrToken, setShiftCheckInQrToken] = useState<string | null>(null);
   const [shiftCheckInLoading, setShiftCheckInLoading] = useState(false);
+  const [adminQrModalVariant, setAdminQrModalVariant] = useState<"shift" | "staff" | null>(null);
   // Derived for data-loading: when in Front Desk we need member/sales data when on those tabs; Operations/Management drive inventory and staff ops
   const isInventoryActive = adminArea === "management" && managementTab === "inventory";
   const isOperationsActive = adminArea === "operations";
@@ -274,7 +275,7 @@ export default function AdminPage() {
     timeline?: { id: string; completed_at: string; task_title: string; staff_name: string }[];
     staffTaskPerformance?: { staff_id: string; display_name: string; tasks_completed: number; completion_rate_pct: number }[];
     route_setters?: { id: string; display_name?: string | null; email?: string | null }[];
-    summary: { staff_in_today: number; staff_out_today: number; sessions_today: number; newbie_attendance_today?: number; zones_overdue: number; tasks_pending: number; tasks_completed?: number; tasks_overdue?: number; tasks_total?: number; pre_open_completed?: number; pre_open_total?: number; closing_overdue?: number; unassigned_sessions?: number; staff_required?: number };
+    summary: { staff_in_today: number; staff_out_today: number; staff_total?: number; sessions_today: number; newbie_attendance_today?: number; zones_overdue: number; tasks_pending: number; tasks_completed?: number; tasks_overdue?: number; tasks_total?: number; pre_open_completed?: number; pre_open_total?: number; closing_overdue?: number; unassigned_sessions?: number; staff_required?: number };
   } | null>(null);
 
   const m = getMessages(locale).admin;
@@ -330,10 +331,10 @@ export default function AdminPage() {
     if (canAccessManagement) allowed.push("management");
     if (canAccessAnalytics) allowed.push("analytics");
     if (allowed.length > 0 && !allowed.includes(adminArea)) setAdminArea(allowed[0]);
-    if (adminArea === "front_desk" && !canDoCheckIn && frontDeskTab === "checkin") setFrontDeskTab("member");
+    if (adminArea === "front_desk" && meFetched && !canDoCheckIn && frontDeskTab === "checkin") setFrontDeskTab("member");
     if (!canDoMembershipModify && memberProfileSubTab === "membership") setMemberProfileSubTab("summary");
     if (adminArea === "management" && !canAccessAdminTools && managementTab !== "inventory") setManagementTab("inventory");
-  }, [role, canAccessFrontDeskFull, canAccessFrontDeskLimited, canAccessOperations, canAccessManagement, canAccessAnalytics, adminArea, canDoCheckIn, frontDeskTab, canDoMembershipModify, memberProfileSubTab, canAccessAdminTools, managementTab]);
+  }, [role, canAccessFrontDeskFull, canAccessFrontDeskLimited, canAccessOperations, canAccessManagement, canAccessAnalytics, adminArea, canDoCheckIn, frontDeskTab, canDoMembershipModify, memberProfileSubTab, canAccessAdminTools, managementTab, meFetched]);
 
   // Fetch products for front desk sales and management inventory
   useEffect(() => {
@@ -504,7 +505,7 @@ export default function AdminPage() {
       }
     };
     fetchToken();
-    const id = window.setInterval(fetchToken, 20000);
+    const id = window.setInterval(fetchToken, 30000);
     return () => { cancelled = true; clearInterval(id); };
   }, [isStaffAreaActive, staffId, staffOpsData, adminFetch]);
 
@@ -554,7 +555,7 @@ export default function AdminPage() {
       }
     };
     fetchToken();
-    const id = window.setInterval(fetchToken, 20000);
+    const id = window.setInterval(fetchToken, 30000);
     return () => { cancelled = true; clearInterval(id); };
   }, [staffId, shiftCheckInAttendance, adminFetch]);
 
@@ -1350,6 +1351,7 @@ export default function AdminPage() {
             if (!sum) return <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 md:p-3"><p className="text-xs md:text-sm text-slate-500">{m.loading}</p></div>;
             const req = sum.staff_required ?? 3;
             const present = sum.staff_in_today ?? 0;
+            const totalStaff = sum.staff_total ?? req;
             const unassigned = sum.unassigned_sessions ?? 0;
             const staffStatus = present >= req ? "green" : present >= req - 1 ? "yellow" : "red";
             const alerts: string[] = [];
@@ -1390,7 +1392,7 @@ export default function AdminPage() {
                     <div className="flex flex-wrap gap-2 md:gap-4">
                       <div className={`rounded border px-2 py-1 min-w-0 ${staffStatus === "green" ? "bg-emerald-50 border-emerald-200" : staffStatus === "yellow" ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200"}`}>
                         <p className="text-[10px] font-semibold text-slate-600 uppercase">{m.staffPresent}</p>
-                        <p className="text-xs font-bold text-slate-800">{present} / {req}</p>
+                        <p className="text-xs font-bold text-slate-800">{present} / {totalStaff}</p>
                       </div>
                       <div className={`rounded border px-2 py-1 min-w-0 ${gymReady ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200"}`}>
                         <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Gym" : "Gym"}</p>
@@ -1456,7 +1458,9 @@ export default function AdminPage() {
                   <>
                     <p className="text-slate-200 text-xs md:text-sm mb-1">{staffMsg.checkInAtFrontDesk}</p>
                     <div className="flex flex-wrap items-center gap-2 md:gap-4">
-                      <div className="rounded bg-white p-1.5 inline-block">{shiftCheckInQrToken ? <QRCodeSVG value={shiftCheckInQrToken} size={80} level="M" /> : <span className="text-slate-500 text-xs">{m.loading}</span>}</div>
+                      <button type="button" onClick={() => shiftCheckInQrToken && setAdminQrModalVariant("shift")} className="rounded bg-white p-1.5 inline-block hover:ring-2 ring-emerald-400 focus:outline-none focus:ring-2 ring-emerald-400" title={locale === "vi" ? "Phóng to mã QR" : "Enlarge QR"}>
+                        {shiftCheckInQrToken ? <QRCodeSVG value={shiftCheckInQrToken} size={80} level="M" /> : <span className="text-slate-500 text-xs">{m.loading}</span>}
+                      </button>
                       <button type="button" disabled={shiftCheckInLoading} onClick={async () => { setShiftCheckInLoading(true); try { await adminFetch("/api/admin/staff/my-attendance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "NOT_IN" }) }); adminFetch("/api/admin/staff/my-attendance").then((r) => r.json()).then((d) => setShiftCheckInAttendance(d.attendance ?? null)); } finally { setShiftCheckInLoading(false); } }} className="py-1.5 px-3 rounded-lg text-xs md:text-sm font-medium bg-slate-600 text-slate-200 hover:bg-slate-500 disabled:opacity-50">{staffMsg.notWorkingToday}</button>
                     </div>
                   </>
@@ -2568,6 +2572,7 @@ export default function AdminPage() {
                     const sum = staffOpsData.summary;
                     const req = sum.staff_required ?? 3;
                     const present = sum.staff_in_today ?? 0;
+                    const totalStaff = sum.staff_total ?? req;
                     const preOpenDone = sum.pre_open_completed ?? 0;
                     const preOpenTotal = sum.pre_open_total ?? 0;
                     const closingOver = sum.closing_overdue ?? 0;
@@ -2767,7 +2772,7 @@ export default function AdminPage() {
                               {m.staffPresent}
                             </p>
                             <p className="text-sm font-bold text-slate-800">
-                              {present} / {req}
+                              {present} / {totalStaff}
                             </p>
                           </div>
                           <div
@@ -3245,7 +3250,10 @@ export default function AdminPage() {
                     <p className="text-slate-200 font-medium mb-1">{staffMsg.checkInAtFrontDesk}</p>
                     <p className="text-slate-400 text-sm mb-4">{staffMsg.checkInAtFrontDeskHint}</p>
                     <div className="flex flex-col items-center gap-4">
-                      <div className="rounded-xl bg-white p-3 inline-block">{staffQrToken ? <QRCodeSVG value={staffQrToken} size={180} level="M" /> : null}</div>
+                      <button type="button" onClick={() => staffQrToken && setAdminQrModalVariant("staff")} className="rounded-xl bg-white p-3 inline-block hover:ring-2 ring-emerald-400 focus:outline-none focus:ring-2 ring-emerald-400" title={locale === "vi" ? "Phóng to mã QR" : "Enlarge QR"}>
+                        {staffQrToken ? <QRCodeSVG value={staffQrToken} size={180} level="M" /> : null}
+                      </button>
+                      <p className="text-slate-400 text-xs">{locale === "vi" ? "Nhấn vào mã QR để phóng to" : "Tap QR to enlarge"}</p>
                       <button type="button" disabled={staffAttendanceLoading} onClick={async () => { setStaffAttendanceLoading(true); try { const res = await adminFetch("/api/admin/staff/my-attendance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "NOT_IN" }) }); if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d)); } finally { setStaffAttendanceLoading(false); } }} className="w-full max-w-xs py-2.5 rounded-lg font-medium bg-slate-600 text-slate-200 hover:bg-slate-500 disabled:opacity-50">{staffMsg.notWorkingToday}</button>
                     </div>
                   </div>
@@ -3884,6 +3892,43 @@ export default function AdminPage() {
         title={locale === "vi" ? "Quét mã vạch" : "Scan barcode"}
         hint={locale === "vi" ? "Quét mã vạch sản phẩm để tìm SKU và giá." : "Scan product barcode to find SKU and price."}
       />
+
+      {/* Admin/Front desk check-in QR fullscreen modal (same idea as dashboard: enlarge, token rotates every 30s) */}
+      {adminQrModalVariant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xl" onClick={() => setAdminQrModalVariant(null)}>
+          <div className="absolute top-4 right-4">
+            <button
+              type="button"
+              onClick={() => setAdminQrModalVariant(null)}
+              className="w-9 h-9 rounded-full bg-white/10 border border-white/30 flex items-center justify-center text-white hover:bg-white/20"
+              aria-label={locale === "vi" ? "Đóng" : "Close"}
+            >
+              <span className="text-lg">&times;</span>
+            </button>
+          </div>
+          <div className="w-full max-w-sm mx-auto flex flex-col items-center px-6" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-sm font-semibold text-white/90 tracking-[0.18em] uppercase mb-2">
+              {locale === "vi" ? "CHECK-IN NHÂN VIÊN" : "STAFF CHECK-IN"}
+            </h2>
+            <div className="rounded-3xl bg-black border border-white/20 p-5 shadow-[0_28px_90px_rgba(0,0,0,0.9)]">
+              {(adminQrModalVariant === "shift" ? shiftCheckInQrToken : staffQrToken) ? (
+                <QRCodeSVG
+                  value={adminQrModalVariant === "shift" ? shiftCheckInQrToken! : staffQrToken!}
+                  size={320}
+                  level="M"
+                  bgColor="transparent"
+                  fgColor="#ffffff"
+                />
+              ) : (
+                <span className="block w-[320px] h-[320px] flex items-center justify-center text-white/60">{m.loading}</span>
+              )}
+            </div>
+            <p className="mt-4 text-xs text-white/80 text-center">
+              {locale === "vi" ? "Đưa mã này cho quầy lễ tân để chấm công. Mã thay đổi mỗi 30 giây." : "Show this code to the front desk to check in. Code refreshes every 30 seconds."}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
