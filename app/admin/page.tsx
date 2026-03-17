@@ -1419,9 +1419,19 @@ export default function AdminPage() {
 
   const tourSteps = role === "frontdesk" ? TOUR_STEPS_FRONTDESK : role === "staff" ? TOUR_STEPS_STAFF : TOUR_STEPS_ADMIN;
 
+  const handleTourNavigate = useCallback((step: { navigate?: { area?: "front_desk" | "operations" | "management" | "staff" | "analytics"; frontDeskTab?: "checkin" | "member"; managementTab?: "inventory" | "admin_tools"; staffSubTab?: "routes" | "coaching"; analyticsTab?: "overview" | "revenue" | "members" | "retention" | "behavior" | "funnel" | "operations" | "staff" | "onboarding" } }) => {
+    const n = step.navigate;
+    if (!n) return;
+    if (n.area) setAdminArea(n.area);
+    if (n.frontDeskTab) setFrontDeskTab(n.frontDeskTab);
+    if (n.managementTab) setManagementTab(n.managementTab);
+    if (n.staffSubTab) setStaffSubTab(n.staffSubTab);
+    if (n.analyticsTab) setAnalyticsTab(n.analyticsTab);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-900 text-slate-50">
-      <GuidedTour steps={tourSteps} isActive={guidedTourActive} onClose={() => setGuidedTourActive(false)} locale={locale} />
+      <GuidedTour steps={tourSteps} isActive={guidedTourActive} onClose={() => setGuidedTourActive(false)} locale={locale} onNavigate={handleTourNavigate} />
       <header className="border-b border-slate-800 bg-slate-900/95 backdrop-blur shrink-0">
         {/* Compact header: one row on mobile (logo+title+utils), second row = status line */}
         <div className="max-w-[1100px] mx-auto px-3 py-2 md:px-4 md:py-3">
@@ -1637,7 +1647,7 @@ export default function AdminPage() {
                 <button
                   key={area}
                   type="button"
-                  data-tour={area === "front_desk" ? "area-front_desk" : area === "staff" ? "area-staff" : area === "analytics" ? "area-analytics" : area === "operations" ? "area-operations" : undefined}
+                  data-tour={area === "front_desk" ? "area-front_desk" : area === "staff" ? "area-staff" : area === "analytics" ? "area-analytics" : area === "operations" ? "area-operations" : area === "management" ? "area-management" : undefined}
                   onClick={() => setAdminArea(area)}
                   className={`flex-none whitespace-nowrap py-2 px-3 md:py-2.5 rounded-md md:rounded-lg text-sm font-semibold md:text-[13px] md:font-medium transition-all ${
                     adminArea === area ? "bg-slate-900 text-white shadow" : "text-slate-700 hover:bg-slate-100 border border-transparent"
@@ -2231,6 +2241,7 @@ export default function AdminPage() {
                   <button
                     key={tab}
                     type="button"
+                    data-tour={tab === "inventory" ? "tab-inventory" : undefined}
                     onClick={() => setManagementTab(tab)}
                     className={`flex-none whitespace-nowrap py-2 px-3 rounded-lg text-sm font-medium ${
                       managementTab === tab ? "bg-white shadow border border-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-200"
@@ -2257,7 +2268,7 @@ export default function AdminPage() {
               </div>
             )}
             {/* 1) Scan Product — barcode triggers lookup or Create Product */}
-            <div>
+            <div data-tour="inventory-scan">
               <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">{m.scanProduct}</h4>
               <p className="text-xs text-slate-400 mb-2">{m.scanProductHint}</p>
               <div className="flex gap-2">
@@ -2329,7 +2340,7 @@ export default function AdminPage() {
                 <div className="flex flex-wrap gap-2 items-center">
                   <label className="text-xs font-medium text-slate-700">{m.quantity}</label>
                   <input ref={inventoryQtyInputRef} type="number" min={1} value={inventoryQty} onChange={(e) => setInventoryQty(e.target.value)} className="w-20 px-2 py-1.5 rounded-lg border-2 border-slate-500 bg-slate-800 text-slate-100 text-sm font-medium focus:ring-2 focus:ring-slate-400 focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                  <button type="button" onClick={async () => {
+                  <button type="button" data-tour="inventory-stock-in" onClick={async () => {
                     const qty = parseInt(inventoryQty, 10) || 1;
                     const res = await adminFetch("/api/admin/inventory", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ variant_id: scannedVariant.id, quantity: qty }) });
                     const d = await res.json();
@@ -3440,10 +3451,10 @@ export default function AdminPage() {
                           <div className="h-2 rounded-full bg-slate-700 overflow-hidden"><div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${activeTasks.length ? (activeCompleted.length / activeTasks.length) * 100 : 0}%` }} /></div>
                         </>
                       )}
-                      {overdueTasksList.filter((t) => !isRouteResetDay || isEssentialTask(t.title)).map((t) => (
+                      {overdueTasksList.filter((t) => !isRouteResetDay || isEssentialTask(t.title)).map((t, idx) => (
                         <div key={t.id} className="flex justify-between items-center gap-2 text-sm py-1.5">
                           <span className="text-slate-200">{t.title}</span>
-                          <button type="button" disabled={completingTaskId === t.id} onClick={async () => { setCompletingTaskId(t.id); try { const res = await adminFetch(`/api/admin/staff/tasks/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) }); if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d)); } finally { setCompletingTaskId(null); } }} className="px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-500 disabled:opacity-50">{completingTaskId === t.id ? "…" : staffMsg.complete}</button>
+                          <button type="button" data-tour={idx === 0 ? "task-complete" : undefined} disabled={completingTaskId === t.id} onClick={async () => { setCompletingTaskId(t.id); try { const res = await adminFetch(`/api/admin/staff/tasks/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) }); if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d)); } finally { setCompletingTaskId(null); } }} className="px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-500 disabled:opacity-50">{completingTaskId === t.id ? "…" : staffMsg.complete}</button>
                         </div>
                       ))}
                       {activePending.map((t) => (
@@ -3470,7 +3481,7 @@ export default function AdminPage() {
                       <button type="button" data-tour="tab-coaching" onClick={() => setStaffSubTab("coaching")} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${staffSubTab === "coaching" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>{staffMsg.tabCoaching}</button>
                     </div>
                     {staffSubTab === "routes" && (
-                      <div className="rounded-xl bg-slate-800 border border-slate-700 p-4">
+                      <div className="rounded-xl bg-slate-800 border border-slate-700 p-4" data-tour="routes-zones">
                         <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">{staffMsg.routeResetSchedule}</h3>
                         <div className="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory scrollbar-thin">
                           {(staffOpsData.zones ?? []).map((z: { id: string; name: string; next_reset_at: string | null; assigned_setters?: { staff_id: string; name: string }[]; reset_status?: string }) => {
@@ -3482,7 +3493,7 @@ export default function AdminPage() {
                                 <div className="flex flex-wrap items-center gap-2">
                                   {setters.length === 0 && <span className="text-sm text-slate-500">{staffMsg.noAssignments}</span>}
                                   {setters.map((s) => <span key={s.staff_id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-700/70 border border-slate-600 text-slate-200 text-xs">{s.name}{staffId && s.staff_id === staffId && <span className="text-emerald-400">{staffMsg.assignedToYou}</span>}</span>)}
-                                  <button type="button" onClick={async () => { const nextIds = Array.from(new Set([...setters.map((s) => s.staff_id), staffId].filter(Boolean))); const res = await adminFetch(`/api/admin/routes/zones/${z.id}/assignments`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ staff_ids: nextIds }) }); const d = await res.json(); if (res.ok && d?.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x)); }} className="px-2 py-1 rounded-full bg-slate-800 border border-slate-600 text-slate-200 text-xs hover:bg-slate-700">+ {staffMsg.assignToMe}</button>
+                                  <button type="button" data-tour="route-assign-me" onClick={async () => { const nextIds = Array.from(new Set([...setters.map((s) => s.staff_id), staffId].filter(Boolean))); const res = await adminFetch(`/api/admin/routes/zones/${z.id}/assignments`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ staff_ids: nextIds }) }); const d = await res.json(); if (res.ok && d?.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x)); }} className="px-2 py-1 rounded-full bg-slate-800 border border-slate-600 text-slate-200 text-xs hover:bg-slate-700">+ {staffMsg.assignToMe}</button>
                                 </div>
                                 {(z.reset_status === "in_progress" || z.reset_status === "pending") && (
                                   <button type="button" onClick={async () => { if (!window.confirm(m.confirmMarkResetComplete)) return; const res = await adminFetch(`/api/admin/routes/zones/${z.id}/reset`, { method: "POST" }); if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x)); }} className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-100 text-sm hover:bg-slate-600">{staffMsg.markResetComplete}</button>
@@ -3494,10 +3505,10 @@ export default function AdminPage() {
                       </div>
                     )}
                     {staffSubTab === "coaching" && (
-                      <div className="rounded-xl bg-slate-800 border border-slate-700 p-4">
+                      <div className="rounded-xl bg-slate-800 border border-slate-700 p-4" data-tour="coaching-sessions">
                         <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">{staffMsg.todayCoachingSessions}</h3>
                         {mySessions.length > 0 && <div className="mb-3"><p className="text-xs text-slate-400 mb-2">{staffMsg.yourSessions}</p><ul className="space-y-1.5">{mySessions.map((s) => <li key={s.id} className="py-2 px-3 rounded-lg bg-slate-700/50 text-sm"><div className="flex justify-between items-center"><span>{formatTime(s.start_time)} – {s.end_time ? formatTime(s.end_time) : ""}</span><span className="text-emerald-400">{staffMsg.assignedToYou}</span></div></li>)}</ul></div>}
-                        {unassignedSessions.length > 0 && <div><p className="text-xs text-slate-400 mb-2">{staffMsg.unassignedTapToTake}</p><ul className="space-y-1.5">{unassignedSessions.map((s) => <li key={s.id} className="py-2 px-3 rounded-lg bg-slate-700/50 text-sm"><div className="flex justify-between items-center"><span>{formatTime(s.start_time)}</span><button type="button" disabled={assigningSessionId === s.id} onClick={async () => { setAssigningSessionId(s.id); try { const res = await adminFetch("/api/admin/staff/sessions/assign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: s.id }) }); if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d)); } finally { setAssigningSessionId(null); } }} className="text-amber-400 hover:text-amber-300 text-sm font-medium disabled:opacity-50">{assigningSessionId === s.id ? "…" : staffMsg.assignToMe}</button></div></li>)}</ul></div>}
+                        {unassignedSessions.length > 0 && <div><p className="text-xs text-slate-400 mb-2">{staffMsg.unassignedTapToTake}</p><ul className="space-y-1.5">{unassignedSessions.map((s, idx) => <li key={s.id} className="py-2 px-3 rounded-lg bg-slate-700/50 text-sm"><div className="flex justify-between items-center"><span>{formatTime(s.start_time)}</span><button type="button" data-tour={idx === 0 ? "coaching-assign" : undefined} disabled={assigningSessionId === s.id} onClick={async () => { setAssigningSessionId(s.id); try { const res = await adminFetch("/api/admin/staff/sessions/assign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: s.id }) }); if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d)); } finally { setAssigningSessionId(null); } }} className="text-amber-400 hover:text-amber-300 text-sm font-medium disabled:opacity-50">{assigningSessionId === s.id ? "…" : staffMsg.assignToMe}</button></div></li>)}</ul></div>}
                       </div>
                     )}
                   </>
