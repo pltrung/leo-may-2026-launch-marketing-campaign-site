@@ -66,7 +66,9 @@ export async function getSegmentRecipients(
   }
   // Latest plan per member (most recent payment by created_at)
   const latestPlanByMember2 = new Map<string, string>();
-  for (const mid of new Set(allPayments.map((p) => p.member_id))) {
+  const uniqueMemberIds = Array.from(new Set(allPayments.map((p) => p.member_id)));
+  for (let i = 0; i < uniqueMemberIds.length; i++) {
+    const mid = uniqueMemberIds[i];
     const plans = allPayments.filter((p) => p.member_id === mid).sort((a, b) => b.created_at.localeCompare(a.created_at));
     if (plans[0]) latestPlanByMember2.set(mid, plans[0].plan_id);
   }
