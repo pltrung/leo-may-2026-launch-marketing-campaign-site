@@ -10,6 +10,7 @@ export interface MemberProfile {
   email: string | null;
   phone: string | null;
   full_name: string;
+  display_name?: string | null;
   member_code?: string | null;
   tier?: string;
   membership_status?: string;

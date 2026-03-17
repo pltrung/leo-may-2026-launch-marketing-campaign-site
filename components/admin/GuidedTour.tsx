@@ -32,14 +32,21 @@ interface GuidedTourProps {
   locale: "en" | "vi";
   /** Called when the current step changes (including step's optional navigate). Use to set admin area/tabs so the target element is visible. */
   onNavigate?: (step: TourStep) => void;
+  /** When provided, Next/Done is disabled until this returns true for the current step (e.g. onboarding: complete waiver, then pass, then photo). */
+  getCanAdvance?: (stepIndex: number) => boolean;
+  /** When provided and user clicks Done on the last step, call this instead of onClose (e.g. transition from onboarding to main tour). */
+  onOnboardingComplete?: () => void;
 }
 
-export function GuidedTour({ steps, isActive, onClose, locale, onNavigate }: GuidedTourProps) {
+export function GuidedTour({ steps, isActive, onClose, locale, onNavigate, getCanAdvance, onOnboardingComplete }: GuidedTourProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
+  const [modalAtTop, setModalAtTop] = useState(false);
 
   const step = steps[stepIndex];
   const t = (en: string, vi: string) => (locale === "vi" ? vi : en);
+  const canAdvance = typeof getCanAdvance === "function" ? getCanAdvance(stepIndex) : true;
+  const isLastStep = stepIndex === steps.length - 1;
 
   useEffect(() => {
     if (!isActive || !step) {
@@ -59,15 +66,33 @@ export function GuidedTour({ steps, isActive, onClose, locale, onNavigate }: Gui
       if (el) {
         const rect = el.getBoundingClientRect();
         setHighlightRect(rect);
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        const vh = typeof window !== "undefined" ? window.innerHeight : 600;
+        setModalAtTop(rect.bottom > vh * 0.55);
       } else {
         setHighlightRect(null);
       }
     };
-    updateRect();
-    if (step.navigate) {
-      const t = setTimeout(updateRect, 350);
-      return () => clearTimeout(t);
+    const el = document.querySelector(step.target);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      const delay = step.navigate ? 500 : 150;
+      const t0 = setTimeout(updateRect, delay);
+      const t1 = setTimeout(updateRect, delay + 200);
+      const onScroll = () => updateRect();
+      const onResize = () => updateRect();
+      window.addEventListener("scroll", onScroll, true);
+      document.addEventListener("scroll", onScroll, true);
+      window.addEventListener("resize", onResize);
+      return () => {
+        clearTimeout(t0);
+        clearTimeout(t1);
+        window.removeEventListener("scroll", onScroll, true);
+        document.removeEventListener("scroll", onScroll, true);
+        window.removeEventListener("resize", onResize);
+      };
+    } else {
+      setHighlightRect(null);
+      setModalAtTop(false);
     }
   }, [isActive, stepIndex, step?.target, step?.navigate]);
 
@@ -96,10 +121,17 @@ export function GuidedTour({ steps, isActive, onClose, locale, onNavigate }: Gui
           }}
         />
       )}
-      {/* Modal */}
-      <div className="absolute left-1/2 bottom-8 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md rounded-xl bg-slate-800 border border-slate-600 shadow-xl p-4 pointer-events-auto">
+      {/* Modal: above highlight when highlight is in lower half so it doesn't cover target */}
+      <div
+        className={`absolute left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md rounded-xl bg-slate-800 border border-slate-600 shadow-xl p-4 pointer-events-auto max-h-[min(70vh,400px)] overflow-y-auto ${modalAtTop && highlightRect ? "top-6" : "bottom-6 sm:bottom-8"}`}
+      >
         <h3 className="text-lg font-semibold text-white mb-1">{title}</h3>
         <p className="text-sm text-slate-300 whitespace-pre-wrap mb-4">{content}</p>
+        {!canAdvance && (
+          <p className="text-xs text-amber-300/90 mb-3">
+            {locale === "vi" ? "Hoàn thành bước này để tiếp tục." : "Complete this step to continue."}
+          </p>
+        )}
         <div className="flex justify-between items-center">
           <button
             type="button"
@@ -122,15 +154,20 @@ export function GuidedTour({ steps, isActive, onClose, locale, onNavigate }: Gui
               <button
                 type="button"
                 onClick={() => setStepIndex((i) => i + 1)}
-                className="px-3 py-1.5 rounded-lg text-sm bg-amber-500 text-slate-900 hover:bg-amber-400 font-medium"
+                disabled={!canAdvance}
+                className="px-3 py-1.5 rounded-lg text-sm bg-amber-500 text-slate-900 hover:bg-amber-400 font-medium disabled:opacity-50 disabled:pointer-events-none"
               >
                 {locale === "vi" ? "Tiếp" : "Next"}
               </button>
             ) : (
               <button
                 type="button"
-                onClick={onClose}
-                className="px-3 py-1.5 rounded-lg text-sm bg-amber-500 text-slate-900 hover:bg-amber-400 font-medium"
+                onClick={() => {
+                  if (isLastStep && onOnboardingComplete) onOnboardingComplete();
+                  else onClose();
+                }}
+                disabled={!canAdvance}
+                className="px-3 py-1.5 rounded-lg text-sm bg-amber-500 text-slate-900 hover:bg-amber-400 font-medium disabled:opacity-50 disabled:pointer-events-none"
               >
                 {locale === "vi" ? "Hoàn thành" : "Done"}
               </button>
@@ -195,6 +232,13 @@ export const TOUR_STEPS_ADMIN: TourStep[] = [
   // 4. ANALYTICS (fourth tab, right)
   { id: "area-analytics", target: "[data-tour=area-analytics]", titleEn: "Analytics", titleVi: "Phân tích", contentEn: "Analytics: revenue, members, retention, behavior, funnel, operations, staff, and onboarding reports. Use filters for date and member type.", contentVi: "Phân tích: doanh thu, thành viên, giữ chân, hành vi, phễu, vận hành, nhân sự và báo cáo đào tạo. Dùng bộ lọc theo ngày và loại thành viên.", navigate: { area: "analytics" } },
   { id: "onboarding-analytics", target: "[data-tour=tab-onboarding]", titleEn: "Onboarding analytics", titleVi: "Đào tạo", contentEn: "In Analytics, open the Onboarding tab to see per-staff: average AI score, quiz accuracy, days completed, weakest skill, and completion time.", contentVi: "Trong Phân tích, mở tab Đào tạo để xem theo từng nhân sự: điểm AI trung bình, độ chính xác quiz, số ngày hoàn thành, kỹ năng yếu nhất và thời gian hoàn thành.", navigate: { area: "analytics", analyticsTab: "onboarding" } },
+];
+
+/** Member dashboard first-time: 3 steps to unlock QR (waiver → pass → profile). Complete each before advancing. */
+export const TOUR_STEPS_ONBOARDING: TourStep[] = [
+  { id: "onb-waiver", target: "[data-tour=onboarding-waiver]", titleEn: "Step 1: Sign the waiver", titleVi: "Bước 1: Ký giấy từ chối trách nhiệm", contentEn: "Read and sign the safety waiver before using the gym. Tap \"Open Waiver\" below, then sign when ready.", contentVi: "Đọc và ký giấy từ chối trách nhiệm trước khi sử dụng phòng gym. Nhấn \"Mở giấy từ chối\" bên dưới, rồi ký khi sẵn sàng." },
+  { id: "onb-pass", target: "[data-tour=dashboard-membership]", titleEn: "Step 2: Get a Day Pass or membership", titleVi: "Bước 2: Mua Day Pass hoặc gói thành viên", contentEn: "Purchase a Day Pass or membership so you can check in at the gym. Use the Membership tab below to pay or choose a plan.", contentVi: "Mua Day Pass hoặc gói thành viên để có thể check-in tại gym. Dùng tab Thẻ thành viên bên dưới để thanh toán hoặc chọn gói.", navigate: { dashboardTab: "membership" } },
+  { id: "onb-profile", target: "[data-tour=dashboard-profile]", titleEn: "Step 3: Add your profile photo", titleVi: "Bước 3: Thêm ảnh hồ sơ", contentEn: "Add a profile photo so the front desk can identify you at check-in. Tap your name at the top to open your profile and add a photo.", contentVi: "Thêm ảnh hồ sơ để quầy lễ tân nhận diện khi check-in. Chạm vào tên của bạn ở trên để mở hồ sơ và thêm ảnh." },
 ];
 
 /** Member dashboard app: welcome, profile, check-in QR, gym status, tabs, membership, activity, events, leaderboard. */

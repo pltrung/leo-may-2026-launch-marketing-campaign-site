@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     const { data: memberRow, error: memberErr } = await supabase
       .from("member_profiles")
-      .select("id, full_name")
+      .select("id, full_name, display_name")
       .eq("auth_id", user.id)
       .maybeSingle();
 
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
 
     const { data: checkins, error: checkinErr } = await supabase
       .from("gym_checkins")
-      .select("member_id, member:member_profiles(full_name, instagram_handle, gender, profile_photo_url)")
+      .select("member_id, member:member_profiles(full_name, display_name, instagram_handle, gender, profile_photo_url)")
       .gte("timestamp", since);
 
     if (checkinErr) {
@@ -86,7 +86,8 @@ export async function GET(request: NextRequest) {
       const memberId = (row as any).member_id as string;
       if (!memberId) continue;
       const member = (row as any).member;
-      const fullName = (member?.full_name as string | null) ?? "Member";
+      const rawName = (member?.display_name as string | null)?.trim() || (member?.full_name as string | null)?.trim();
+      const fullName = rawName ?? "Member";
       const instagramHandle = (member?.instagram_handle as string | null) ?? null;
       const gender = (member?.gender as string | null) ?? null;
       const profilePhotoUrl = (member?.profile_photo_url as string | null) ?? null;
@@ -131,7 +132,7 @@ export async function GET(request: NextRequest) {
       currentUser: {
         rank: currentUserRank,
         visits: currentUserVisits,
-        full_name: memberRow.full_name ?? "Member",
+        full_name: (memberRow.display_name ?? memberRow.full_name)?.trim() || "Member",
       },
     });
   } catch (e) {

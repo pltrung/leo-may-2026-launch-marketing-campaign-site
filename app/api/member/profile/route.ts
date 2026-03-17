@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const supabase = createServerClient();
     const { data: member, error } = await supabase
       .from("member_profiles")
-      .select("id, profile_photo_url, id_number, date_of_birth, full_name, email, phone, instagram_handle, gender, address, id_verified_from_cccd")
+      .select("id, profile_photo_url, id_number, date_of_birth, full_name, display_name, email, phone, instagram_handle, gender, address, id_verified_from_cccd")
       .eq("auth_id", user.id)
       .maybeSingle();
 
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/member/profile
- * Body: { profile_photo_base64?, id_number?, date_of_birth?, full_name?, email?, phone?, instagram_handle?, gender?, address?, id_verified_from_cccd? }
+ * Body: { profile_photo_base64?, id_number?, date_of_birth?, full_name?, display_name?, email?, phone?, instagram_handle?, gender?, address?, id_verified_from_cccd? }
  * Updates profile (member_profiles + Supabase Auth) and optionally uploads photo.
  */
 export async function POST(req: NextRequest) {
@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
     const idNumber = typeof body.id_number === "string" ? body.id_number.trim() || null : null;
     const dateOfBirth = typeof body.date_of_birth === "string" ? body.date_of_birth.trim() || null : null;
     const fullName = typeof body.full_name === "string" ? body.full_name.trim() || null : undefined;
+    const displayName = typeof body.display_name === "string" ? body.display_name.trim() || null : undefined;
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() || null : undefined;
     const phone = typeof body.phone === "string" ? body.phone.trim().replace(/\s+/g, "") || null : undefined;
     const instagramHandle = typeof body.instagram_handle === "string"
@@ -152,6 +153,7 @@ export async function POST(req: NextRequest) {
     if (idNumber !== undefined) updates.id_number = idNumber;
     if (dateOfBirth !== undefined) updates.date_of_birth = dateOfBirth || null;
     if (fullName !== undefined) updates.full_name = fullName ?? "";
+    if (displayName !== undefined) updates.display_name = displayName;
     if (email !== undefined) updates.email = email;
     if (phone !== undefined) updates.phone = phone;
     if (instagramHandle !== undefined) updates.instagram_handle = instagramHandle ?? null;

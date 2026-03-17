@@ -16,7 +16,7 @@ import PaymentModal from "@/components/dashboard/PaymentModal";
 import EventDetailModal, { type DashboardEvent } from "@/components/dashboard/EventDetailModal";
 import WaiverModal from "@/components/dashboard/WaiverModal";
 import AchievementUnlockModal, { type AchievementUnlockData } from "@/components/dashboard/AchievementUnlockModal";
-import { GuidedTour, TOUR_STEPS_DASHBOARD } from "@/components/admin/GuidedTour";
+import { GuidedTour, TOUR_STEPS_DASHBOARD, TOUR_STEPS_ONBOARDING } from "@/components/admin/GuidedTour";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -143,9 +143,14 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (!mounted || typeof window === "undefined") return;
-    if (!window.localStorage.getItem("dashboard_tour_done")) setGuidedTourActive(true);
-  }, [mounted]);
+    if (!mounted || typeof window === "undefined" || member == null) return;
+    if (window.localStorage.getItem("dashboard_tour_done")) return;
+    const hasPass = (member.membership_expires_at && new Date(member.membership_expires_at).getTime() > Date.now()) || (member.visits_remaining ?? 0) > 0;
+    const readyForQr = member.waiver_signed && hasPass && !!member.profile_photo_url;
+    if (readyForQr) return;
+    setGuidedTourActive(true);
+    setTourPhase("onboarding");
+  }, [mounted, member?.id, member?.waiver_signed, member?.profile_photo_url, member?.visits_remaining, member?.membership_expires_at]);
 
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isVietQrModalOpen, setIsVietQrModalOpen] = useState(false);
@@ -223,6 +228,7 @@ export default function DashboardPage() {
   const [showAchievementUnlock, setShowAchievementUnlock] = useState(false);
   const [leaderboardPeriod, setLeaderboardPeriod] = useState<"week" | "month" | "all">("month");
   const [guidedTourActive, setGuidedTourActive] = useState(false);
+  const [tourPhase, setTourPhase] = useState<"onboarding" | "main">("onboarding");
   const [newbieClass, setNewbieClass] = useState<{
     session_id: string;
     start_time: string;
@@ -704,7 +710,7 @@ export default function DashboardPage() {
   }
 
   const isVi = locale === "vi";
-  const displayName = member.full_name?.trim() || (isVi ? "bạn" : "Member");
+  const displayName = member.display_name?.trim() || member.full_name?.trim() || (isVi ? "bạn" : "Member");
   const greeting = isVi ? `Chào lại, ${displayName}` : `Welcome back, ${displayName}`;
 
   // Short-lived signed QR token encoded into a URL; supports camera scan and admin scanner.
@@ -819,7 +825,10 @@ export default function DashboardPage() {
             </div>
             <button
               type="button"
-              onClick={() => setGuidedTourActive(true)}
+              onClick={() => {
+                setGuidedTourActive(true);
+                setTourPhase(canShowQR ? "main" : "onboarding");
+              }}
               className="text-[13px] font-medium px-3 py-1.5 rounded-full border border-white/20 text-white/90 hover:bg-white/10 transition-colors"
             >
               {isVi ? "Tour" : "Tour"}
@@ -859,17 +868,20 @@ export default function DashboardPage() {
       </header>
 
       <GuidedTour
-        steps={TOUR_STEPS_DASHBOARD}
+        key={tourPhase}
+        steps={tourPhase === "onboarding" ? TOUR_STEPS_ONBOARDING : TOUR_STEPS_DASHBOARD}
         isActive={guidedTourActive}
         onClose={() => {
           setGuidedTourActive(false);
-          if (typeof window !== "undefined") window.localStorage.setItem("dashboard_tour_done", "1");
+          if (tourPhase === "main" && typeof window !== "undefined") window.localStorage.setItem("dashboard_tour_done", "1");
         }}
         locale={locale as "en" | "vi"}
         onNavigate={(step) => {
           const tab = step.navigate?.dashboardTab;
           if (tab) setDashboardTab(tab);
         }}
+        getCanAdvance={tourPhase === "onboarding" ? (i) => (i === 0 ? !!member?.waiver_signed : i === 1 ? canCheckIn : !!member?.profile_photo_url) : undefined}
+        onOnboardingComplete={() => setTourPhase("main")}
       />
 
       {/* MAIN CONTENT */}
@@ -1013,7 +1025,7 @@ export default function DashboardPage() {
 
           {/* SIGN WAIVER - when not yet signed */}
           {member && !member.waiver_signed && (
-            <section>
+            <section data-tour="onboarding-waiver">
               <div
                 className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5"
                 style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}
@@ -1734,6 +1746,7 @@ export default function DashboardPage() {
         onClose={() => setProfileModalOpen(false)}
         member={{
           full_name: member.full_name,
+          display_name: member.display_name,
           email: member.email,
           phone: member.phone,
           profile_photo_url: member.profile_photo_url,

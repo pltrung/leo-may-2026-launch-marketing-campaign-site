@@ -10,6 +10,7 @@ interface ProfileModalProps {
   onClose: () => void;
   member: {
     full_name?: string | null;
+    display_name?: string | null;
     email?: string | null;
     phone?: string | null;
     instagram_handle?: string | null;
@@ -35,6 +36,7 @@ export default function ProfileModal({
 }: ProfileModalProps) {
   const d = getMessages(isVi ? "vi" : "en").dashboard;
   const [fullName, setFullName] = useState(member.full_name ?? "");
+  const [displayName, setDisplayName] = useState(member.display_name ?? "");
   const [email, setEmail] = useState(member.email ?? "");
   const [phone, setPhone] = useState(member.phone ?? "");
   const [instagramHandle, setInstagramHandle] = useState(member.instagram_handle ?? "");
@@ -83,7 +85,7 @@ export default function ProfileModal({
       setPasswordSuccess(false);
       setEidScannerOpen(false);
     }
-  }, [open, member.full_name, member.email, member.phone, member.instagram_handle, member.gender, member.id_number, member.date_of_birth, member.address, member.profile_photo_url]);
+  }, [open, member.full_name, member.display_name, member.email, member.phone, member.instagram_handle, member.gender, member.id_number, member.date_of_birth, member.address, member.profile_photo_url]);
 
   const lockedFromCccd = Boolean(member.id_verified_from_cccd);
 
@@ -183,6 +185,7 @@ export default function ProfileModal({
 
       const body: Record<string, unknown> = {
         full_name: fullName.trim() || null,
+        display_name: displayName.trim() || null,
         email: email.trim() || null,
         phone: phone.trim() || null,
         instagram_handle: instagramHandle.trim() || null,
@@ -212,7 +215,7 @@ export default function ProfileModal({
     } finally {
       setLoading(false);
     }
-  }, [accessToken, fullName, email, phone, instagramHandle, gender, idNumber, dateOfBirth, address, cccdScanPending, photoFile, onSaved, onClose, isVi]);
+  }, [accessToken, fullName, displayName, email, phone, instagramHandle, gender, idNumber, dateOfBirth, address, cccdScanPending, photoFile, onSaved, onClose, isVi]);
 
   const handleChangePassword = useCallback(async () => {
     if (!accessToken) return;
@@ -377,6 +380,16 @@ export default function ProfileModal({
                 placeholder={isVi ? "Họ tên đầy đủ" : "Full name"}
                 disabled={lockedFromCccd}
                 className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-70 disabled:cursor-not-allowed"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs text-white/70">{d.profileDisplayName}</span>
+              <input
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder={d.profileDisplayNamePlaceholder}
+                className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
               />
             </label>
             <label className="block">
