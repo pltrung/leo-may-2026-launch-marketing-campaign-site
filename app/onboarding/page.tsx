@@ -506,7 +506,7 @@ export default function OnboardingPage() {
                   <div className="hidden sm:flex flex-wrap gap-x-4 gap-y-1.5 text-[10px] max-w-[280px]">
                     {(["communication", "safety", "sales", "teamwork"] as const).map((key) => {
                       const label = key === "communication" ? (locale === "vi" ? "Giao tiếp" : "Communication") : key === "safety" ? (locale === "vi" ? "An toàn" : "Safety") : key === "sales" ? (locale === "vi" ? "Bán hàng" : "Sales") : (locale === "vi" ? "Đội nhóm" : "Teamwork");
-                      const val = progress.skill_scores[key] ?? 50;
+                      const val = progress.skill_scores?.[key] ?? 50;
                       return (
                         <div key={key} className="flex items-center gap-1.5 min-w-0">
                           <span className="text-slate-400 shrink-0">{label}</span>
