@@ -15,6 +15,7 @@ const BarcodeScannerModal = dynamic(() => import("@/components/admin/BarcodeScan
 const QRCodeSVG = dynamic(() => import("qrcode.react").then((m) => m.QRCodeSVG), { ssr: false });
 const EidQrScannerModal = dynamic(() => import("@/components/dashboard/EidQrScannerModal"), { ssr: false });
 const AnalyticsCharts = dynamic(() => import("@/components/admin/AnalyticsCharts"), { ssr: false });
+import { GuidedTour, TOUR_STEPS_FRONTDESK, TOUR_STEPS_STAFF, TOUR_STEPS_ADMIN } from "@/components/admin/GuidedTour";
 
 const ADMIN_LOCALE_KEY = "admin-locale";
 
@@ -220,7 +221,7 @@ export default function AdminPage() {
   const [assigningSessionId, setAssigningSessionId] = useState<string | null>(null);
   const [staffQrToken, setStaffQrToken] = useState<string | null>(null);
   const [staffCheckInSuccess, setStaffCheckInSuccess] = useState(false);
-  const [analyticsTab, setAnalyticsTab] = useState<"overview" | "revenue" | "members" | "retention" | "behavior" | "funnel" | "operations" | "staff">("overview");
+  const [analyticsTab, setAnalyticsTab] = useState<"overview" | "revenue" | "members" | "retention" | "behavior" | "funnel" | "operations" | "staff" | "onboarding">("overview");
   const [analyticsPeriod, setAnalyticsPeriod] = useState<"day" | "week" | "month" | "custom">("month");
   const [analyticsFrom, setAnalyticsFrom] = useState("");
   const [analyticsTo, setAnalyticsTo] = useState("");
@@ -251,6 +252,9 @@ export default function AdminPage() {
     staff?: { staff_id: string; display_name: string; email: string; role: string; sales: number; commission: number; tasks_completed: number; attendance_days: number }[];
   } | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [onboardingAnalytics, setOnboardingAnalytics] = useState<{ byStaff: { staff_name: string; avg_ai_score: number | null; quiz_accuracy: number | null; days_completed: number; weakest_skill: string; weakest_skill_value: number; completion_time_days: number | null; xp_total: number }[]; summary: { total_staff: number; avg_ai_score_overall: number | null; quiz_accuracy_overall: number | null } } | null>(null);
+  const [onboardingAnalyticsLoading, setOnboardingAnalyticsLoading] = useState(false);
+  const [guidedTourActive, setGuidedTourActive] = useState(false);
   const [opsOverviewExpanded, setOpsOverviewExpanded] = useState(false);
   const [frontdeskBannerData, setFrontdeskBannerData] = useState<{ gym_ready: boolean; checkins_today: number; inventory_need_restock: number } | null>(null);
   const [staffSubTab, setStaffSubTab] = useState<"routes" | "coaching">("routes");
@@ -518,6 +522,15 @@ export default function AdminPage() {
       .then((d) => { setAnalyticsData(d); setAnalyticsLoading(false); })
       .catch(() => { setAnalyticsData(null); setAnalyticsLoading(false); });
   }, [adminArea, canAccessAnalytics, analyticsPeriod, analyticsFrom, analyticsTo, analyticsMemberType, analyticsActivity, analyticsActivityLevel, adminFetch]);
+
+  useEffect(() => {
+    if (adminArea !== "analytics" || analyticsTab !== "onboarding" || !canAccessAnalytics) return;
+    setOnboardingAnalyticsLoading(true);
+    adminFetch("/api/admin/onboarding/analytics")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { setOnboardingAnalytics(d); setOnboardingAnalyticsLoading(false); })
+      .catch(() => { setOnboardingAnalytics(null); setOnboardingAnalyticsLoading(false); });
+  }, [adminArea, analyticsTab, canAccessAnalytics, adminFetch]);
 
   useEffect(() => {
     if (!isOperationsActive || staffModalTab !== "attendance") return;
@@ -1404,8 +1417,11 @@ export default function AdminPage() {
     );
   }
 
+  const tourSteps = role === "frontdesk" ? TOUR_STEPS_FRONTDESK : role === "staff" ? TOUR_STEPS_STAFF : TOUR_STEPS_ADMIN;
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-900 text-slate-50">
+      <GuidedTour steps={tourSteps} isActive={guidedTourActive} onClose={() => setGuidedTourActive(false)} locale={locale} />
       <header className="border-b border-slate-800 bg-slate-900/95 backdrop-blur shrink-0">
         {/* Compact header: one row on mobile (logo+title+utils), second row = status line */}
         <div className="max-w-[1100px] mx-auto px-3 py-2 md:px-4 md:py-3">
@@ -1431,6 +1447,9 @@ export default function AdminPage() {
               <a href="/onboarding" className="px-2 py-0.5 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-700 text-[10px] md:text-xs md:px-3 md:py-1" title={locale === "vi" ? "Đào tạo" : "Onboarding"}>
                 {locale === "vi" ? "Đào tạo" : "Onboarding"}
               </a>
+              <button type="button" onClick={() => setGuidedTourActive(true)} className="px-2 py-0.5 rounded-lg border border-amber-500/50 text-amber-200 hover:bg-amber-500/20 text-[10px] md:text-xs md:px-3 md:py-1" title={locale === "vi" ? "Tour hướng dẫn" : "Guided tour"}>
+                {locale === "vi" ? "Tour" : "Tour"}
+              </button>
               <button type="button" onClick={() => { setProfileModalOpen(true); setAdminProfileDisplayName(staffDisplayName ?? (role === "frontdesk" ? "Front Desk" : session?.user?.email?.split("@")[0] ?? "")); setAdminProfileEditing(false); }} className="px-2 py-0.5 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-700 text-[10px] md:text-xs md:px-3 md:py-1" title={staffDisplayName ? `${staffDisplayName} · ${t.profileTab}` : t.profileTab}>
                 {(role === "staff" || role === "frontdesk") && (staffDisplayName || (role === "frontdesk" ? "Front Desk" : null) || session?.user?.email) ? ((staffDisplayName || (role === "frontdesk" ? "Front Desk" : "") || session?.user?.email?.split("@")[0]) ?? "") : t.profileTab}
               </button>
@@ -1618,6 +1637,7 @@ export default function AdminPage() {
                 <button
                   key={area}
                   type="button"
+                  data-tour={area === "front_desk" ? "area-front_desk" : area === "staff" ? "area-staff" : area === "analytics" ? "area-analytics" : area === "operations" ? "area-operations" : undefined}
                   onClick={() => setAdminArea(area)}
                   className={`flex-none whitespace-nowrap py-2 px-3 md:py-2.5 rounded-md md:rounded-lg text-sm font-semibold md:text-[13px] md:font-medium transition-all ${
                     adminArea === area ? "bg-slate-900 text-white shadow" : "text-slate-700 hover:bg-slate-100 border border-transparent"
@@ -1650,6 +1670,7 @@ export default function AdminPage() {
                 {canDoCheckIn && (
                   <button
                     type="button"
+                    data-tour="fd-checkin"
                     onClick={() => setFrontDeskTab("checkin")}
                     className={`flex-none whitespace-nowrap py-1.5 px-2.5 md:py-2 md:px-3 rounded-md text-xs md:text-sm font-medium ${
                       frontDeskTab === "checkin" ? "bg-white shadow border border-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-200"
@@ -1660,6 +1681,7 @@ export default function AdminPage() {
                 )}
                 <button
                   type="button"
+                  data-tour="fd-member"
                   onClick={() => setFrontDeskTab("member")}
                   className={`flex-none whitespace-nowrap py-1.5 px-2.5 md:py-2 md:px-3 rounded-md text-xs md:text-sm font-medium ${
                     frontDeskTab === "member" ? "bg-white shadow border border-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-200"
@@ -1678,7 +1700,7 @@ export default function AdminPage() {
               <div className="rounded-xl md:rounded-2xl border-2 border-emerald-400/60 bg-gradient-to-br from-emerald-500/20 to-slate-800/95 shadow-lg p-3 md:p-7 ring-2 ring-emerald-400/30">
                 <h2 className="text-sm md:text-lg font-bold text-white mb-0.5">{m.scanToCheckIn}</h2>
                 <p className="text-[10px] md:text-sm text-slate-300 mb-2 md:mb-4">{m.quickCheckInScanHint}</p>
-                <button type="button" onClick={handleQuickCheckInScan} className="w-full sm:w-auto min-w-0 sm:min-w-[200px] px-4 py-3 md:px-6 md:py-4 rounded-xl text-sm md:text-base font-bold bg-emerald-500 text-slate-900 hover:bg-emerald-400 active:scale-[0.98] transition shadow-lg shadow-emerald-900/30">
+                <button type="button" data-tour="qr-scan" onClick={handleQuickCheckInScan} className="w-full sm:w-auto min-w-0 sm:min-w-[200px] px-4 py-3 md:px-6 md:py-4 rounded-xl text-sm md:text-base font-bold bg-emerald-500 text-slate-900 hover:bg-emerald-400 active:scale-[0.98] transition shadow-lg shadow-emerald-900/30">
                   {m.scanToCheckIn}
                 </button>
               </div>
@@ -1721,7 +1743,7 @@ export default function AdminPage() {
           {adminArea === "front_desk" && frontDeskTab === "member" && (
           <>
           {/* MEMBER LOOKUP */}
-          <section className="rounded-xl md:rounded-2xl bg-white/80 border border-slate-200 shadow-sm p-3 md:p-6">
+          <section className="rounded-xl md:rounded-2xl bg-white/80 border border-slate-200 shadow-sm p-3 md:p-6" data-tour="member-lookup">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-6">
               <div className="flex-1 space-y-2.5">
                 <div className="flex flex-wrap gap-2 text-xs text-slate-600">
@@ -3410,7 +3432,7 @@ export default function AdminPage() {
                         <p className="text-xs text-amber-100/90 mt-0.5">{staffMsg.routeResetDayFocus}</p>
                       </div>
                     )}
-                    <div className="rounded-xl bg-slate-800 border border-slate-700 p-4 space-y-3">
+                    <div className="rounded-xl bg-slate-800 border border-slate-700 p-4 space-y-3" data-tour="tasks-section">
                       <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{staffMsg.activeTasks}</h3>
                       {activeTasks.length > 0 && (
                         <>
@@ -3444,8 +3466,8 @@ export default function AdminPage() {
                       </div>
                     )}
                     <div className="flex gap-1 p-1 rounded-xl bg-slate-800 border border-slate-700">
-                      <button type="button" onClick={() => setStaffSubTab("routes")} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${staffSubTab === "routes" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>{staffMsg.tabRoutes}</button>
-                      <button type="button" onClick={() => setStaffSubTab("coaching")} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${staffSubTab === "coaching" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>{staffMsg.tabCoaching}</button>
+                      <button type="button" data-tour="tab-routes" onClick={() => setStaffSubTab("routes")} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${staffSubTab === "routes" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>{staffMsg.tabRoutes}</button>
+                      <button type="button" data-tour="tab-coaching" onClick={() => setStaffSubTab("coaching")} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${staffSubTab === "coaching" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>{staffMsg.tabCoaching}</button>
                     </div>
                     {staffSubTab === "routes" && (
                       <div className="rounded-xl bg-slate-800 border border-slate-700 p-4">
@@ -3544,10 +3566,11 @@ export default function AdminPage() {
 
               {/* Analytics sub-tabs */}
               <nav className="mt-4 flex gap-1 p-1 border-b border-slate-200 overflow-x-auto" aria-label="Analytics tabs">
-                {(["overview", "revenue", "members", "retention", "behavior", "funnel", "operations", "staff"] as const).map((t) => (
+                {(["overview", "revenue", "members", "retention", "behavior", "funnel", "operations", "staff", "onboarding"] as const).map((t) => (
                   <button
                     key={t}
                     type="button"
+                    data-tour={t === "onboarding" ? "tab-onboarding" : undefined}
                     onClick={() => setAnalyticsTab(t)}
                     className={`flex-none whitespace-nowrap px-3 py-2 rounded-lg text-sm font-medium ${
                       analyticsTab === t ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
@@ -3561,12 +3584,57 @@ export default function AdminPage() {
                     {t === "funnel" ? (locale === "vi" ? "Phễu" : "Funnel") : null}
                     {t === "operations" ? (locale === "vi" ? "Vận hành" : "Operations") : null}
                     {t === "staff" ? (locale === "vi" ? "Nhân sự" : "Staff") : null}
+                    {t === "onboarding" ? (locale === "vi" ? "Đào tạo" : "Onboarding") : null}
                   </button>
                 ))}
               </nav>
 
               <div className="mt-6">
-                <AnalyticsCharts data={analyticsData} tab={analyticsTab} locale={locale} loading={analyticsLoading} />
+                {analyticsTab === "onboarding" ? (
+                  <>
+                    {onboardingAnalyticsLoading && <p className="text-slate-500 text-sm">{locale === "vi" ? "Đang tải..." : "Loading…"}</p>}
+                    {!onboardingAnalyticsLoading && onboardingAnalytics && (
+                      <div className="space-y-4">
+                        <div className="flex flex-wrap gap-4 text-sm">
+                          <span className="font-medium text-slate-700">{locale === "vi" ? "Tổng số" : "Total staff"}: {onboardingAnalytics.summary.total_staff}</span>
+                          {onboardingAnalytics.summary.avg_ai_score_overall != null && <span className="text-slate-600">{locale === "vi" ? "Điểm AI trung bình" : "Avg AI score"}: {onboardingAnalytics.summary.avg_ai_score_overall}</span>}
+                          {onboardingAnalytics.summary.quiz_accuracy_overall != null && <span className="text-slate-600">{locale === "vi" ? "Độ chính xác quiz" : "Quiz accuracy"}: {onboardingAnalytics.summary.quiz_accuracy_overall}%</span>}
+                        </div>
+                        <div className="overflow-x-auto rounded-lg border border-slate-200">
+                          <table className="min-w-full text-sm">
+                            <thead className="bg-slate-100 text-left">
+                              <tr>
+                                <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Tên" : "Name"}</th>
+                                <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Điểm AI TB" : "Avg AI score"}</th>
+                                <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Quiz %" : "Quiz accuracy"}</th>
+                                <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Ngày xong" : "Days done"}</th>
+                                <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Kỹ năng yếu" : "Weakest skill"}</th>
+                                <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Thời gian hoàn thành (ngày)" : "Completion time (days)"}</th>
+                                <th className="px-3 py-2 font-semibold text-slate-700">XP</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                              {onboardingAnalytics.byStaff.map((row: { staff_name: string; avg_ai_score: number | null; quiz_accuracy: number | null; days_completed: number; weakest_skill: string; weakest_skill_value: number; completion_time_days: number | null; xp_total: number }) => (
+                                <tr key={row.staff_name + row.xp_total} className="hover:bg-slate-50">
+                                  <td className="px-3 py-2 text-slate-800">{row.staff_name}</td>
+                                  <td className="px-3 py-2 text-slate-600">{row.avg_ai_score ?? "—"}</td>
+                                  <td className="px-3 py-2 text-slate-600">{row.quiz_accuracy != null ? `${row.quiz_accuracy}%` : "—"}</td>
+                                  <td className="px-3 py-2 text-slate-600">{row.days_completed}</td>
+                                  <td className="px-3 py-2 text-slate-600">{row.weakest_skill} ({row.weakest_skill_value})</td>
+                                  <td className="px-3 py-2 text-slate-600">{row.completion_time_days ?? "—"}</td>
+                                  <td className="px-3 py-2 text-slate-600">{row.xp_total}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                    {!onboardingAnalyticsLoading && !onboardingAnalytics && <p className="text-slate-500 text-sm">{locale === "vi" ? "Không có dữ liệu." : "No data."}</p>}
+                  </>
+                ) : (
+                  <AnalyticsCharts data={analyticsData} tab={analyticsTab} locale={locale} loading={analyticsLoading} />
+                )}
               </div>
             </section>
           )}

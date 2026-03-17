@@ -32,14 +32,16 @@ Each **day** is a linear sequence of phases. User can resume from the last saved
 | Phase | Description |
 |-------|-------------|
 | **map** | Day grid (1–5). Day 1 always unlocked; day N unlocks **24 hours after** day N−1 was completed (uses `completed_at`). Locked days show a countdown (e.g. "Unlocks in 18h 20m"); countdown refreshes every 60s. Click a day to start or resume. |
-| **lesson** | Lesson cards (sections). Types: text, choice, goodvsbad, list. "Next" advances; after last section → scenario. |
-| **scenario** | Free-text scenario. User types response → Submit → score, "Why not 100?", and "Perfect answer" shown. "Next" → next scenario, **simulation** (if present), or quiz. |
-| **simulation** | Multi-step simulation (one per day). Scene + characters; user picks an option (e.g. who to help first). Wrong/right feedback with impact on member experience. "Next" → next step or quiz. |
-| **quiz** | Multiple choice. User picks one → detailed explanation (why right/wrong) + correct answer if wrong. "Next" → next question or reflection. |
+| **lesson** | Lesson cards (sections). Types: **text**, **choice**, **goodvsbad**, **list**, **choose_better**, **fix_sentence**, **reorder_steps**, **tap_mistake**. For any wrong answer the UI shows: why it's wrong, what is correct, how it impacts member experience, and an example of correct phrasing. "Next" advances; after last section → scenario. |
+| **scenario** | Free-text AI scenario. User types response → Submit → score (0–100), feedback, "Why not 100?", and "Perfect answer" in Leo Mây tone. Evaluation: friendliness, clarity, safety correctness, helpfulness, Leo Mây tone. "Next" → next scenario, **simulation** (if present), or quiz. |
+| **simulation** | **One multi-step simulation per day** (Days 1–5). Steps can be **decision** (multiple choice; wrong choice shows why wrong, impact, correct behavior) or **ai_response** (free text evaluated like a scenario). Branching result screen: "Peak Hour Completed" (good) or "Needs Improvement" (poor) with XP and skill rewards. "Next" → next step or quiz. |
+| **quiz** | **Varied types:** multiple choice, **ranking** (reorder options with ↑/↓, then "Check order" → feedback, then "Next"), **rewrite** (pick best rewrite of a phrase), **scenario judgment** (scenario + multiple choice). Per-option explanation (why right/wrong, impact, example). If wrong: correct answer + explanation. "Next" → next question or reflection. |
 | **reflection** | Text prompt + textarea. "Complete Day" → **key takeaway** screen (memory hook for the day), then "Back to map" → day marked complete, return to map. |
 | **key_takeaway** | End-of-day memory hook (e.g. Day 1: "Community over ego"). Shows Perfect Day Bonus +100 XP if quiz was all correct. "Back to map" persists completion and unlocks next day in 24h. |
 
-**XP:** +10 per lesson, +50 day complete, +100 perfect quiz, **+100 Perfect Day Bonus** (when all quiz correct and user completes the day). **Hearts:** Start at 5; −1 per wrong quiz answer. **Skill scores** (C/S/$/T) shown in header when available.
+**Gold-standard structure (Day 1 pattern, applied to all days):** (1) **Opening emotional hook** (interactive choice); (2) **6–10 micro lessons** with varied types: choice, tap mistake, fix sentence, choose better, emotion recognition; (3) **2–3 micro challenges** (quick decisions, mistake spotting, risk-based decisions, etc.); (4) **3 AI scenarios** with different goals (e.g. emotional response, efficiency, recovery); (5) **Full multi-step simulation** (multiple characters, branching, decision + AI mix); (6) **Varied quiz types**: multiple choice, **ranking** (reorder steps), **rewrite** (pick best phrasing), **scenario judgment**; (7) **Reflection**; (8) **Strong key takeaway**. Each day feels different in learning style; wrong answers always include: why wrong, impact on member, correct behavior. Target time per day: 20–30 minutes.
+
+**XP:** +10 per lesson, +50 day complete, +100 perfect quiz, **+100 Perfect Day Bonus** (when all quiz correct and user completes the day). **Hearts:** Start at 5; −1 per wrong quiz answer. **Skill scores** (Communication / Safety / Sales / Teamwork, 0–100) shown in header; updated from quiz, AI scenarios, and simulations.
 
 ---
 
@@ -53,70 +55,74 @@ Each **day** is a linear sequence of phases. User can resume from the last saved
 
 ---
 
-## 5. Day 1 — The Leo Mây Way (Culture)
+## 5. Day 1 — The Leo Mây Way (Culture) — Gold standard
 
 **Title (EN/VI):** The Leo Mây Way / Cách Leo Mây
 
-### 5.1 Lessons (sections)
+### 5.1 Opening hook + lessons + micro challenges
 
 | # | Title (EN) | Type | Content summary |
 |---|------------|------|-----------------|
-| 1 | First Impression | choice | "What do you do in the first 5 seconds?" Choices: Wave and say hi; **Make eye contact, smile, walk toward them**; Wait for them to come to you. |
-| 2 | What is Leo Mây | text | Leo Mây is not just a gym. It is a space for growth. |
-| 3 | Core Philosophy | text | Community over ego. |
-| 4 | Energy Training | list | Three things to practice: Eye contact, Smile, Walk toward the member. |
-| 5 | Good vs Bad | goodvsbad | Bad: "Go sign there". Good: "Hey! First time? I got you 👌". |
-| 6 | Member Types | list | Nervous — needs reassurance; Confident — appreciates efficiency; Lost — needs guidance. |
+| 0 | Opening — What do you notice? | choice | **Emotional hook.** "A member just walked in. What do you notice first?" Options: Their bag; How busy the gym is; **Their body language and energy**. Teaches reading the person first. |
+| 1 | First Impression | choice | "What do you do in the first 5 seconds?" Make eye contact, smile, walk toward them (correct). Per-option explanations. |
+| 2–4 | What is Leo Mây, Core Philosophy, Energy Training | text / list | Philosophy, energy (eye contact, smile, walk toward member). |
+| 5–6 | Good vs Bad, Member Types | goodvsbad / list | Bad vs good phrasing; member types (nervous, confident, lost). |
+| 7–8 | Choose Better, Fix the Sentence | choose_better / fix_sentence | Waiver response; fix dismissive sentence. Wrong/right + impact. |
+| 9 | Emotion recognition | choice | "Fidgeting, avoiding eye contact — what are they feeling?" Nervous/Confident/Annoyed. Teaches reading cues. |
+| 10 | Micro challenge — Quick decision | choice | "Someone at counter, someone at door. Who first?" First-come-first-seen. |
+| 11 | Micro challenge — Mistake spotting | tap_mistake | Tap the wrong phrase in a paragraph ("Just go over there and sign the form"). Why wrong, impact, correct. |
 
-### 5.2 Simulation (Day 1)
+### 5.2 Simulation (Day 1) — 4 steps
 
 **Title:** Who do you help first? / Bạn giúp ai trước?
 
-- **Scene:** Member A (nervous, first time) at counter; Member B (regular, in a hurry) just walked in; teammate busy.
-- **Prompt:** Who do you respond to first? Options: (1) Acknowledge Member A first — they were there first and are nervous; (2) Help Member B first — they're in a hurry.
-- **Correct:** Member A first. Wrong choice shows impact (A feels invisible; rule: acknowledge who was there first, especially if they need reassurance).
+- **Steps:** Mix of **decision** (who to help first, etc.) and **ai_response** (free-text reply evaluated). Each wrong decision shows why wrong, impact on member experience, and what to do instead.
+- **Result:** Branching result screen (Peak Hour Completed / Needs Improvement) with XP and skill rewards.
 
 ### 5.3 Key takeaway (Day 1)
 
 **"Community over ego"** / "Cộng đồng hơn cái tôi"
 
-### 5.4 Scenarios
+### 5.4 Scenarios (3 — emotional, efficiency, recovery)
 
-| # | Title | Prompt (EN) | Hint | Perfect answer (EN summary) |
-|----|-------|-------------|------|-----------------------------|
-| 1 | Nervous Beginner | A nervous first-timer says: "I've never climbed before. I'm scared." How do you respond? | Show warmth and confidence. Normalize fear. | Welcome them; first time is normal to feel nervous; lots of people feel that way; I'm here to help; we'll start easy; ready when you are. |
-| 2 | Confident Climber | A regular walks in, clearly in a hurry. How do you greet them? | Be efficient but warm. No small talk overload. | Hey! Ready to go? Great — you're all set. |
-| 3 | Ignored Member | A member has been standing at the counter for 2 minutes while staff chatted. They look upset. What do you do? | Acknowledge them immediately. Apologize briefly. | Hi, sorry about the wait! You've been there a minute — how can I help you? |
+| # | Goal | Title | Prompt (EN) |
+|----|------|-------|-------------|
+| 1 | **Emotional** | Nervous Beginner | First-timer: "I've never climbed before. I'm scared." Warmth, normalize fear, offer help. |
+| 2 | **Efficiency** | Confident Climber | Regular in a hurry. Be efficient but warm; no overload. |
+| 3 | **Recovery** | Ignored Member | Standing 2 min while staff chatted. Acknowledge, apologize briefly, help now. |
 
-### 5.5 Quiz
+### 5.5 Quiz (varied types)
 
-| # | Question (EN) | Options (EN) | Correct |
-|---|---------------|--------------|---------|
-| 1 | In the first 5 seconds when a member walks in, you should: | Wait for them to approach; **Make eye contact, smile, and walk toward them**; Nod from across the room | 2nd |
-| 2 | Leo Mây's core philosophy is: | Fitness over fun; **Community over ego**; Speed over service | 2nd |
-| 3 | When a member says "Go sign there", you should instead say: | "Over there"; **"Hey! First time? I got you"**; "Read the form" | 2nd |
-| 4 | Three energy elements to practice are: | Speed, tone, volume; **Eye contact, smile, walk toward member**; Paperwork, keys, badge | 2nd |
-| 5 | A nervous member needs: | To be ignored until they relax; **Reassurance and warmth**; A quick check-in only | 2nd |
+| # | Type | Question (EN) |
+|---|------|----------------|
+| 1 | **ranking** | Put in order: Make eye contact and walk toward them → Smile and greet → Ask what they need → Help with next step. Reorder with ↑/↓, then "Check order". |
+| 2 | multiple_choice | In the first 5 seconds when a member walks in, you should: … |
+| 3 | **scenario_judgment** | A member is confused and a teammate says "That's not my job." What does Leo Mây stand for? (Community over ego.) |
+| 4 | **rewrite** | Best rewrite of "Go sign there" in Leo Mây tone. |
+| 5–6 | multiple_choice | Energy elements; nervous member needs reassurance. |
 
 **Reflection (EN):** What energy should Leo Mây feel like?
 
 ---
 
-## 6. Day 2 — Experience & Safety
+## 6. Day 2 — Experience & Safety (safety + legal language)
 
-**Title (EN/VI):** Experience & Safety / Trải nghiệm & An toàn
+**Title (EN/VI):** Experience & Safety / Trải nghiệm & An toàn  
+**Focus:** Safety + legal language; correction exercises; risk-based decisions.
 
-### 6.1 Lessons
+### 6.1 Opening hook + lessons + micro challenges
 
 | # | Title (EN) | Type | Content summary |
 |---|------------|------|-----------------|
-| 1 | Fear is Normal | text | Fear is normal. Acknowledge it, not dismiss it. |
-| 2 | Common Beginner Thoughts | list | "I'm scared"; "I'm too weak". |
-| 3 | Safety Language | goodvsbad | Bad: "This is 100% safe". Good: "We guide you safely, but risks exist. We minimize them." |
-| 4 | First Climb Flow | list | Proper shoes, Warm up, Start with an easy route. |
-| 5 | Legal Rules | list | Never: Guarantee safety; Dismiss fear. |
+| 0 | Opening — Safety first | choice | **Hook.** "First-timer says: Is it safe? I'm scared I'll fall. What do you notice first?" Acknowledge fear + explain how we minimize risk (correct). |
+| 1–7 | Fear is Normal … Tap the mistake | text, list, goodvsbad, reorder_steps, tap_mistake | Fear normal; safety language (never 100% safe); first climb flow; legal rules; reorder steps; tap "100% safe". |
+| 8–9 | Micro challenge — Risk-based decision; Correction | choice / fix_sentence | Who tries hard route first visit? Suggest easy start. Fix "Don't worry, nothing bad will happen." |
 
-### 6.2 Scenarios
+### 6.2 Simulation (Day 2) — 3 steps
+
+Multi-step simulation (decision / ai_response steps). Branching result screen with XP and skill rewards.
+
+### 6.3 Scenarios
 
 | # | Title | Prompt (EN) | Hint | Perfect answer (EN summary) |
 |----|-------|-------------|------|-----------------------------|
@@ -124,7 +130,7 @@ Each **day** is a linear sequence of phases. User can resume from the last saved
 | 2 | Overconfident Climber | A climber skips warm-up and heads straight to a hard route. What do you say? | Kindly suggest warm-up. Safety first. | Quick suggestion — warm-up helps prevent injuries, gets muscles ready; couple minutes; want me to show you a few moves? |
 | 3 | Parent with Child | A parent asks: "Is it safe for my 6-year-old?" How do you respond? | Explain our approach. Don't guarantee. Emphasize supervision. | Lots of kids that age; we guide safely — harness, easy routes, close supervision; we never say 100% safe; we minimize risks; adult with them; would you like to see the kids area first? |
 
-### 6.3 Quiz
+### 6.4 Quiz
 
 | # | Question (EN) | Options (EN) | Correct |
 |---|---------------|--------------|---------|
@@ -138,19 +144,24 @@ Each **day** is a linear sequence of phases. User can resume from the last saved
 
 ---
 
-## 7. Day 3 — Role & Responsibility
+## 7. Day 3 — Role & Responsibility (ownership + prioritization)
 
-**Title (EN/VI):** Role & Responsibility / Vai trò & Trách nhiệm
+**Title (EN/VI):** Role & Responsibility / Vai trò & Trách nhiệm  
+**Focus:** Ownership + prioritization; decision trees.
 
-### 7.1 Lessons
+### 7.1 Opening hook + lessons + micro challenges
 
 | # | Title (EN) | Type | Content summary |
 |---|------------|------|-----------------|
-| 1 | Your Role Matters | text | Your role impacts everything — member experience, safety, culture. Own it. |
-| 2 | Staff vs Frontdesk | goodvsbad | Staff: routes, coaching, tasks. Frontdesk: check-in, members, sales. Both need the same culture. |
-| 3 | Ownership Mindset | text | If you see something — you own it. A mess? Clean it. A confused member? Help them. |
+| 0 | Opening — Who owns it? | choice | **Hook.** Spill + member at counter + teammate busy. "What do you notice first?" I should handle the spill (correct). |
+| 1–6 | Your Role Matters … Same culture | text, goodvsbad, list, choose_better, text | Role; Staff vs Frontdesk; ownership; handoff checklist; choose better (membership question); same culture. |
+| 7–8 | Micro challenge — Decision tree; Prioritization | choice / choice | Member asks about membership (staff): escort and introduce (correct). Spill + member: signal member, fix spill, then help. |
 
-### 7.2 Scenarios
+### 7.2 Simulation (Day 3) — 3 steps
+
+Multi-step simulation (decision steps). Branching result screen with XP and skill rewards.
+
+### 7.3 Scenarios
 
 | # | Title | Prompt (EN) | Hint | Perfect answer (EN summary) |
 |----|-------|-------------|------|-----------------------------|
@@ -158,7 +169,7 @@ Each **day** is a linear sequence of phases. User can resume from the last saved
 | 2 | Handoff | A member needs something only frontdesk can do. You're staff. What do you do? | Escort, introduce, don't abandon. | Walk them to frontdesk and introduce: "This is [Name] — they need help with [X]"; wouldn't just point "go over there"; hand off properly. |
 | 3 | Busy Moment | You're busy. A member waits. Another staff is free. What do you do? | Signal your teammate. Don't ignore the member. | Eye contact with member first — "One sec!" — then signal teammate to help; wouldn't let them stand there ignored; member comes first. |
 
-### 7.3 Quiz
+### 7.4 Quiz
 
 | # | Question (EN) | Options (EN) | Correct |
 |---|---------------|--------------|---------|
@@ -172,19 +183,24 @@ Each **day** is a linear sequence of phases. User can resume from the last saved
 
 ---
 
-## 8. Day 4 — Sales & System
+## 8. Day 4 — Sales & System (sales conversations)
 
-**Title (EN/VI):** Sales & System / Bán hàng & Hệ thống
+**Title (EN/VI):** Sales & System / Bán hàng & Hệ thống  
+**Focus:** Sales conversations; persuasion-based interactions.
 
-### 8.1 Lessons
+### 8.1 Opening hook + lessons + micro challenges
 
 | # | Title (EN) | Type | Content summary |
 |---|------------|------|-----------------|
-| 1 | Selling = Helping | text | Selling is helping. You're not pushing — you're matching members with what they need. |
-| 2 | Merch Conversation | text | Natural mentions: "Love that shirt? We have it." Not: "Buy this." |
-| 3 | System Basics | list | Check-in — scan QR, verify membership; POS — add items, checkout; Inventory — stock in/out. |
+| 0 | Opening — Sales conversation | choice | **Hook.** Day-pass member loves gym, comes every week. "What do you notice?" They might benefit from membership — we can help (correct). |
+| 1–6 | Selling = Helping … When to mention membership | text, list, fix_sentence, list | Selling = helping; merch conversation; system basics; fix sentence; check-in flow; when to mention membership. |
+| 7–8 | Micro challenge — Persuasion; When to mention | choose_better / choice | "I'm not sure I need a membership" → no-pressure, value reframe (correct). First-time day pass: brief no-pressure mention (correct). |
 
-### 8.2 Scenarios
+### 8.2 Simulation (Day 4) — 3 steps
+
+Multi-step simulation (decision steps). Branching result screen with XP and skill rewards.
+
+### 8.3 Scenarios
 
 | # | Title | Prompt (EN) | Hint | Perfect answer (EN summary) |
 |----|-------|-------------|------|-----------------------------|
@@ -192,7 +208,7 @@ Each **day** is a linear sequence of phases. User can resume from the last saved
 | 2 | Merch | Member admires a chalk bag. What do you say? | Natural mention. | Nice one, right? We have those — and a few other colors. Let me know if you want to check them out. |
 | 3 | Check-in Flow | Describe the check-in flow in one sentence. | QR → verify → confirm | Scan their QR, verify membership or day-pass, confirm they're in, and they're good to go. |
 
-### 8.3 Quiz
+### 8.4 Quiz
 
 | # | Question (EN) | Options (EN) | Correct |
 |---|---------------|--------------|---------|
@@ -206,21 +222,24 @@ Each **day** is a linear sequence of phases. User can resume from the last saved
 
 ---
 
-## 9. Day 5 — Team & Excellence
+## 9. Day 5 — Team & Excellence (chaos + multitasking)
 
-**Title (EN/VI):** Team & Excellence / Đội & Xuất sắc
+**Title (EN/VI):** Team & Excellence / Đội & Xuất sắc  
+**Focus:** Chaos + multitasking; fast-paced simulations.
 
-### 9.1 Lessons
+### 9.1 Opening hook + lessons + micro challenges
 
 | # | Title (EN) | Type | Content summary |
 |---|------------|------|-----------------|
-| 1 | Busy Gym | text | When it's busy: stay calm, prioritize, communicate with the team. |
-| 2 | Ownership | text | If you see it, you own it. No passing the buck. |
-| 3 | Team Communication | text | Signal teammates. Cover for each other. No one gets left behind. |
-| 4 | Invisible Work | text | Cleaning, restocking, helping without being asked — this is excellence. |
-| 5 | Good vs Great | goodvsbad | Good: do your job. Great: make everyone's job easier. Bad: minimum effort. Good: proactive, helpful. |
+| 0 | Opening — Chaos moment | choice | **Hook.** Three at counter, spill, teammate with group. "What do you notice first?" Safety first (spill), then acknowledge three, then backup (correct). |
+| 1–6 | Busy Gym … Choose the Better Response | text, goodvsbad, choose_better | Busy: calm, prioritize, communicate; ownership; team communication; invisible work; good vs great; choose better (teammate overwhelmed). |
+| 7–8 | Micro challenge — Fast decision; Multitasking | choice / choice | Two at counter (one on phone, one ready): serve the one ready. Helping member + teammate signals backup: acknowledge teammate, finish member, then help. |
 
-### 9.2 Scenarios
+### 9.2 Simulation (Day 5) — 3 steps
+
+Multi-step simulation (decision steps). Branching result screen with XP and skill rewards.
+
+### 9.3 Scenarios
 
 | # | Title | Prompt (EN) | Hint | Perfect answer (EN summary) |
 |----|-------|-------------|------|-----------------------------|
@@ -228,7 +247,7 @@ Each **day** is a linear sequence of phases. User can resume from the last saved
 | 2 | Invisible Work | You notice chalk bags are low. What do you do? | Restock or report. | Restock or let whoever handles inventory know; invisible work is what makes the gym run; if I see it, I own it. |
 | 3 | Teammate Struggling | A teammate is overwhelmed. You have capacity. What do you do? | Offer help. | Ask: "Need a hand? I can take [X]." Community over ego — we cover for each other; no one gets left behind. |
 
-### 9.3 Quiz
+### 9.4 Quiz
 
 | # | Question (EN) | Options (EN) | Correct |
 |---|---------------|--------------|---------|
@@ -246,18 +265,18 @@ Each **day** is a linear sequence of phases. User can resume from the last saved
 
 - **API:** `POST /api/admin/onboarding/ai-evaluate`. Body: `day`, `scenario_key`, `user_response`, `locale` (optional, "en" | "vi").
 - **Response:** `score` (0–100), `feedback`, `whyNot100` (when score < 100), `perfectAnswer`, `improved_answer` (same as perfectAnswer).
-- **Scoring:** Rule-based: base 60; +10 per good keyword hit; −15 per bad keyword; +5 for length > 30 chars; +5 for > 80 chars. Capped 0–100.
+- **Scoring:** Rule-based: base 60; +10 per good keyword hit; −15 per bad keyword; +5 for length > 30 chars; +5 for > 80 chars. Capped 0–100. Evaluation dimensions: friendliness, clarity, safety correctness, helpfulness, Leo Mây tone.
 - **whyNot100:** Built from: phrases to avoid (bad keywords used), what was missing (good keywords), length note, and rubric criteria for 100 (from scenario content). All content is in EN or VI per `locale`.
-- **UI:** After submit, user sees score, feedback, "Why not 100 points?" (if < 100), and "Perfect answer (100 points)" with the full ideal response.
+- **UI:** After submit, user sees score, feedback, "Why not 100 points?" (if < 100), and "Perfect answer (100 points)" in Leo Mây tone.
 
 ---
 
-## 11. Quiz feedback (explanations)
+## 11. Lesson and quiz feedback (wrong-answer rule)
 
-- Each quiz question has **explanationsEn** and **explanationsVi** arrays (one string per option).
-- **Correct option:** Explanation of why it's right, with examples and Leo Mây values.
-- **Wrong options:** Why it's wrong, impact on the member (e.g. feeling dismissed), what to do instead; for questions about another person, empathy framing (why they might feel/behave that way, how certain replies can offend).
-- **UI:** After user selects an answer, the card shows "You chose correctly" or "Explanation for your choice" with the chosen option's explanation. If wrong, it also shows "The right answer" (correct option text) and the correct option's explanation in a green box. User then clicks "Next" to continue.
+- **Rule:** For **any** incorrect answer (lesson choice, choose_better, fix_sentence, tap_mistake, reorder_steps, or quiz), the UI shows: **why** it's wrong, **what** is correct, **how** it impacts member experience, and an **example** of correct phrasing or behavior.
+- **Quiz:** Each question has **explanationsEn** and **explanationsVi** (one per option). Correct option: why it's right, examples, Leo Mây values. Wrong options: why wrong, impact on member, what to do instead; empathy framing when the question is about another person.
+- **Lesson types with feedback:** **choice** uses `correctChoiceIndex` and `choiceExplanations`; **choose_better** / **fix_sentence** / **tap_mistake** use `wrongExplanation` and `rightExplanation` (or `tapMistakeExplanation`); **reorder_steps** shows correct order and feedback on submit.
+- **UI:** After selection/submit, the card shows the chosen option's explanation; if wrong, also "The right answer" and correct explanation in a green box. User then clicks "Next" to continue.
 
 ---
 
@@ -265,8 +284,8 @@ Each **day** is a linear sequence of phases. User can resume from the last saved
 
 | API | Purpose |
 |-----|---------|
-| `GET /api/admin/onboarding/progress` | Get/create progress: xp_total, streak_days, hearts_remaining, day_completion (per day: completed, lesson_index, current_step). |
-| `PATCH /api/admin/onboarding/progress` | Update progress. Body: `action` ("lesson" \| "day_complete" \| "quiz" \| "lose_heart" \| "save_step"), and as needed: `day`, `lesson_index`, `current_step`, `quiz_perfect`. |
+| `GET /api/admin/onboarding/progress` | Get/create progress: `xp_total`, `streak_days`, `hearts_remaining`, `skill_scores` (C/S/$/T 0–100), `day_completion` (per day: `completed`, `lesson_index`, `current_step`, **`completed_at`** ISO timestamp for 24h unlock). |
+| `PATCH /api/admin/onboarding/progress` | Update progress. Body: `action` ("lesson" \| "day_complete" \| "quiz" \| "lose_heart" \| "save_step"), and as needed: `day`, `lesson_index`, `current_step`, `quiz_perfect`, **`perfect_day: true`** (with day_complete for +100 XP Perfect Day Bonus). |
 | `POST /api/admin/onboarding/ai-evaluate` | Score scenario response. Body: `day`, `scenario_key`, `user_response`, `locale`. Returns score, feedback, whyNot100, perfectAnswer. |
 
 ---
@@ -275,9 +294,9 @@ Each **day** is a linear sequence of phases. User can resume from the last saved
 
 | Item | Location |
 |------|----------|
-| **Content (all 5 days)** | `lib/onboardingContent.ts`: `DAY1`–`DAY5`, `getDayContent`, `getLessonContent`, `getQuizContent`, `stepToPhase`, `phaseToStep`. |
-| **Progress tables** | `supabase/migrations/041_onboarding.sql`: `onboarding_progress`, `onboarding_day_completion`, `onboarding_ai_sessions`. `042_onboarding_resume.sql`: adds `current_step` to `onboarding_day_completion`. |
-| **Constants** | `XP_LESSON` (10), `XP_DAY_COMPLETE` (50), `XP_PERFECT_QUIZ` (100), `HEARTS_MAX` (5). |
+| **Content (all 5 days)** | `lib/onboardingContent.ts`: `DAY1`–`DAY5` (sections, scenarios, simulationSteps, quiz, reflection, keyTakeaway), `getDayContent`, `getLessonContent`, `getQuizContent`, `stepToPhase`, `phaseToStep`. Lesson types: text, choice, goodvsbad, list, choose_better, fix_sentence, reorder_steps, tap_mistake. Simulation steps: `SimulationStepDecision` or `SimulationStepAI`. |
+| **Progress tables** | `supabase/migrations/041_onboarding.sql`: `onboarding_progress`, `onboarding_day_completion`, `onboarding_ai_sessions`. `042_onboarding_resume.sql`: adds `current_step` to `onboarding_day_completion`. Day completion stores **`completed_at`** (ISO) for 24h unlock of next day. |
+| **Constants** | `XP_LESSON` (10), `XP_DAY_COMPLETE` (50), `XP_PERFECT_QUIZ` (100), `XP_PERFECT_DAY_BONUS` (100), `HEARTS_MAX` (5). Skill scores: Communication, Safety, Sales, Teamwork (0–100). |
 
 ---
 
@@ -285,9 +304,10 @@ Each **day** is a linear sequence of phases. User can resume from the last saved
 
 | Component | Role |
 |-----------|------|
-| **OnboardingPage** | State: progress, currentDay, phase, lesson/scenario/quiz indices, scenario response/result, reflection text. Handles start day (with resume), lesson next, scenario submit/next, quiz select/next, reflection submit. |
-| **LessonCard** | Renders one section (text / choice / goodvsbad / list); Next button; "Back to map" link. |
+| **OnboardingPage** | State: progress, currentDay, phase, lesson/scenario/quiz indices, scenario response/result, reflection text, simulation step. Handles start day (with resume), lesson next, scenario submit/next, simulation step/result, quiz select/next, reflection submit. |
+| **LessonCard** | Renders one section: **text**, **choice** (with correctChoiceIndex + choiceExplanations), **goodvsbad**, **list**, **choose_better**, **fix_sentence**, **reorder_steps**, **tap_mistake**. For wrong answers shows why wrong, what's correct, impact, example. Next / "Back to map". |
 | **ScenarioCard** | Scenario title, prompt, hint; textarea; Submit → score, whyNot100, perfect answer; Next. |
 | **QuizCard** | Question, option buttons (green/red on select); after select: explanation for chosen option, and if wrong the correct answer + its explanation; Next. |
+| **Simulation** | Multi-step flow: scene + characters; per step either **decision** (options + wrong/right feedback) or **ai_response** (free text + evaluation). End: branching result screen (Peak Hour Completed / Needs Improvement) with XP and skill rewards. |
 
 All content is localized via `locale` (EN/VI) from the header toggle and passed into the content getters and API (`locale` in ai-evaluate body).

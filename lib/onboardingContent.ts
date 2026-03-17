@@ -66,15 +66,21 @@ export interface AIScenario {
   badKeywords?: string[];
 }
 
+export type QuizType = "multiple_choice" | "ranking" | "rewrite" | "scenario_judgment";
+
 export interface QuizQuestion {
   id: string;
   questionEn: string;
   questionVi: string;
   options: { en: string; vi: string }[];
   correctIndex: number;
-  /** Per-option explanation: why this option is right or wrong, with examples and (when about another person) empathy. Same length as options. */
+  /** Per-option explanation: why this option is right or wrong. Same length as options. */
   explanationsEn: string[];
   explanationsVi: string[];
+  /** Varied quiz types for training simulator feel. Default multiple_choice. */
+  quizType?: QuizType;
+  /** For ranking: correct order of option indices (e.g. [2,0,1,3] = 3rd option first). */
+  correctOrder?: number[];
 }
 
 export interface Reflection {
@@ -165,6 +171,10 @@ export interface DayContent {
   simulation?: DaySimulation;
   quiz: QuizQuestion[];
   reflection: Reflection;
+  /** Unlockable after day complete: harder AI scenarios. */
+  hardModeScenarios?: AIScenario[];
+  /** Unlockable after day complete: extra lessons. */
+  advancedLessons?: LessonSection[];
 }
 
 function t(content: { en: string; vi: string }, locale: Locale) {
@@ -202,13 +212,15 @@ export function getScenarioContent(s: AIScenario, locale: Locale) {
 }
 
 export function getQuizContent(
-  q: Pick<QuizQuestion, "questionEn" | "questionVi" | "options"> & { explanationsEn?: string[]; explanationsVi?: string[] },
+  q: Pick<QuizQuestion, "questionEn" | "questionVi" | "options" | "quizType" | "correctOrder"> & { explanationsEn?: string[]; explanationsVi?: string[] },
   locale: Locale
 ) {
   return {
     question: t({ en: q.questionEn, vi: q.questionVi }, locale),
     options: q.options.map((o) => t(o, locale)),
     explanations: locale === "vi" ? (q.explanationsVi ?? []) : (q.explanationsEn ?? []),
+    quizType: q.quizType ?? "multiple_choice",
+    correctOrder: q.correctOrder,
   };
 }
 
@@ -222,6 +234,15 @@ export const HEARTS_LOST_PER_MISTAKE = 1;
 
 /** 24 hours in ms for day unlock. */
 export const DAY_UNLOCK_HOURS_MS = 24 * 60 * 60 * 1000;
+
+/** Primary skill updated by day (for skill score deltas from quiz/scenarios/simulation). */
+export const PRIMARY_SKILL_BY_DAY: Record<number, "communication" | "safety" | "sales" | "teamwork"> = {
+  1: "communication",
+  2: "safety",
+  3: "teamwork",
+  4: "sales",
+  5: "teamwork",
+};
 
 export const BADGES = {
   leo_may_certified: { en: "Leo Mây Certified", vi: "Chứng nhận Leo Mây" },
@@ -237,6 +258,30 @@ export const DAY1: DayContent = {
   keyTakeawayEn: "Community over ego",
   keyTakeawayVi: "Cộng đồng hơn cái tôi",
   sections: [
+    {
+      id: "d1s0_hook",
+      type: "choice",
+      titleEn: "Opening — What do you notice?",
+      titleVi: "Mở đầu — Bạn chú ý gì?",
+      contentEn: "A member just walked in. Before you do anything — what do you notice first?",
+      contentVi: "Một thành viên vừa bước vào. Trước khi làm gì — bạn chú ý điều gì trước?",
+      correctChoiceIndex: 2,
+      choices: [
+        { en: "Their bag or gear", vi: "Túi hoặc đồ của họ" },
+        { en: "How busy the gym is", vi: "Phòng gym đông hay vắng" },
+        { en: "Their body language and energy", vi: "Ngôn ngữ cơ thể và năng lượng của họ" },
+      ],
+      choiceExplanationsEn: [
+        "Why wrong: Focusing on gear first can make the member feel like an object. Impact: They may not feel seen as a person. Correct: Notice the person — their energy tells you if they're nervous, confident, or lost. Then you can respond in the right way.",
+        "Why wrong: The gym's busyness is about you, not them. Impact: The member may feel invisible. Correct: Put the member first. Read their body language so you can greet them in a way that matches their state (nervous vs. confident).",
+        "Correct. Their body language and energy tell you how to respond. Nervous? Warm and reassuring. Confident? Efficient and friendly. Lost? Guide them. Reading the person first is the foundation of the Leo Mây way.",
+      ],
+      choiceExplanationsVi: [
+        "Sai vì: Chú ý đồ trước khiến thành viên cảm thấy như đồ vật. Tác động: Họ có thể không cảm thấy được thấy như một con người. Đúng: Chú ý con người — năng lượng cho biết họ lo lắng, tự tin hay lạc lối. Rồi bạn mới phản hồi đúng cách.",
+        "Sai vì: Sự đông đúc của phòng là về bạn, không phải họ. Tác động: Thành viên có thể cảm thấy vô hình. Đúng: Đặt thành viên lên trước. Đọc ngôn ngữ cơ thể để chào theo đúng trạng thái (lo vs tự tin).",
+        "Đúng. Ngôn ngữ cơ thể và năng lượng cho biết cách phản hồi. Lo? Ấm áp và trấn an. Tự tin? Hiệu quả và thân thiện. Lạc? Hướng dẫn. Đọc người trước là nền tảng cách Leo Mây.",
+      ],
+    },
     {
       id: "d1s1",
       type: "choice",
@@ -348,6 +393,68 @@ export const DAY1: DayContent = {
       wrongExplanationVi: "Sai vì: Vẫn xa cách; không đề nghị giúp. Tác động: Thành viên lo có thể cảm thấy bị phớt lờ. Đúng: Chỉ và đề nghị hướng dẫn. Ví dụ: \"Tôi chỉ cho bạn — tôi có thể hướng dẫn từng bước nếu bạn muốn.\"",
       rightExplanationEn: "Correct. You show the way and offer support. The member feels guided, not pointed at.",
       rightExplanationVi: "Đúng. Bạn chỉ đường và đề nghị hỗ trợ. Thành viên cảm thấy được hướng dẫn, không bị chỉ tay.",
+    },
+    {
+      id: "d1s_emotion",
+      type: "choice",
+      titleEn: "Emotion recognition",
+      titleVi: "Nhận biết cảm xúc",
+      contentEn: "A member is fidgeting, avoiding eye contact, and standing near the door. What are they most likely feeling?",
+      contentVi: "Một thành viên bồn chồn, tránh ánh mắt, đứng gần cửa. Họ có khả năng đang cảm thấy gì?",
+      correctChoiceIndex: 0,
+      choices: [
+        { en: "Nervous or unsure", vi: "Lo lắng hoặc không chắc chắn" },
+        { en: "Confident and in a hurry", vi: "Tự tin và đang vội" },
+        { en: "Annoyed or impatient", vi: "Bực bội hoặc thiếu kiên nhẫn" },
+      ],
+      choiceExplanationsEn: [
+        "Correct. Fidgeting and avoiding eye contact often signal nervousness or not knowing what to do. Impact: If you treat them as confident or rush them, they may feel more anxious. Correct behavior: warm, slow, reassuring — 'Hey, first time? I'm here to help.'",
+        "Why wrong: Confident members usually make eye contact and move with purpose. Impact: If you're too quick or brief with someone who's actually nervous, they feel dismissed. Read the cues: fidgeting = need for reassurance.",
+        "Why wrong: Annoyed people often show tension or crossed arms, not fidgeting. Impact: Treating a nervous member as annoyed can make them feel judged. Correct: assume they need support until they show otherwise.",
+      ],
+      choiceExplanationsVi: [
+        "Đúng. Bồn chồn và tránh ánh mắt thường báo hiệu lo lắng hoặc không biết làm gì. Tác động: Nếu bạn đối xử như người tự tin hoặc vội, họ có thể thêm lo. Cách đúng: ấm áp, chậm rãi, trấn an — 'Chào, lần đầu à? Tôi ở đây để giúp.'",
+        "Sai vì: Thành viên tự tin thường giao tiếp mắt và di chuyển có mục đích. Tác động: Nếu bạn quá nhanh với người đang lo, họ cảm thấy bị phớt lờ. Đọc tín hiệu: bồn chồn = cần động viên.",
+        "Sai vì: Người bực thường thể hiện căng thẳng hoặc khoanh tay, không bồn chồn. Tác động: Coi thành viên lo là bực có thể khiến họ cảm thấy bị phán xét. Đúng: giả định họ cần hỗ trợ cho đến khi họ cho thấy khác.",
+      ],
+    },
+    {
+      id: "d1s_micro1",
+      type: "choice",
+      titleEn: "Micro challenge — Quick decision",
+      titleVi: "Thử thách — Quyết định nhanh",
+      contentEn: "Someone is at the counter. Someone else just walked in the door. Who do you acknowledge first?",
+      contentVi: "Một người đang ở quầy. Một người khác vừa bước vào cửa. Bạn chào ai trước?",
+      correctChoiceIndex: 0,
+      choices: [
+        { en: "The person at the counter — they were there first", vi: "Người ở quầy — họ đến trước" },
+        { en: "The person at the door — so they don't leave", vi: "Người ở cửa — để họ không bỏ đi" },
+        { en: "Whoever looks more impatient", vi: "Ai trông thiếu kiên nhẫn hơn" },
+      ],
+      choiceExplanationsEn: [
+        "Correct. Acknowledge who was there first. Impact: If you skip the person at the counter, they feel invisible and disrespected. Quick rule: first come, first seen. You can say to the door: 'One sec!' so they feel acknowledged too.",
+        "Why wrong: The person at the door hasn't waited yet. The person at the counter has. Impact: Skipping the counter person breaks trust and makes the gym feel chaotic. Correct: serve in order; briefly acknowledge the new arrival.",
+        "Why wrong: 'Who looks more impatient' rewards pushy behavior and punishes patience. Impact: Members learn that being loud or impatient gets service — bad culture. Correct: order of arrival, then need (e.g. safety first).",
+      ],
+      choiceExplanationsVi: [
+        "Đúng. Chào người đến trước. Tác động: Nếu bỏ qua người ở quầy, họ cảm thấy vô hình và không được tôn trọng. Quy tắc nhanh: ai đến trước, được chào trước. Bạn có thể nói với người ở cửa: 'Chờ chút nhé!'",
+        "Sai vì: Người ở cửa chưa chờ. Người ở quầy đã chờ. Tác động: Bỏ qua người ở quầy làm mất niềm tin và cảm giác hỗn loạn. Đúng: phục vụ theo thứ tự; chào người mới đến ngắn gọn.",
+        "Sai vì: 'Ai trông thiếu kiên nhẫn hơn' thưởng hành vi chen lấn và phạt sự kiên nhẫn. Tác động: Thành viên học rằng ồn ào hoặc thiếu kiên nhẫn mới được phục vụ — văn hóa xấu. Đúng: thứ tự đến, rồi nhu cầu (vd an toàn trước).",
+      ],
+    },
+    {
+      id: "d1s_micro2",
+      type: "tap_mistake",
+      titleEn: "Micro challenge — Mistake spotting",
+      titleVi: "Thử thách — Tìm lỗi",
+      contentEn: "Which phrase should you never say? Tap it.",
+      contentVi: "Cụm nào bạn không bao giờ nên nói? Chạm vào đó.",
+      paragraphEn: "Welcome to the gym. Just go over there and sign the form. Then you can climb. If you have questions, ask someone.",
+      paragraphVi: "Chào mừng đến phòng gym. Cứ đi kia ký form. Rồi bạn có thể leo. Nếu có câu hỏi thì hỏi ai đó.",
+      wrongPhraseEn: "Just go over there and sign the form",
+      wrongPhraseVi: "Cứ đi kia ký form",
+      tapMistakeExplanationEn: "Why wrong: 'Just go over there' is dismissive and points instead of guides. Impact: Member feels like a number, not a person. Correct: 'I'll show you — the waiver's right here. Want me to walk you through it?'",
+      tapMistakeExplanationVi: "Sai vì: 'Cứ đi kia' là từ chối và chỉ tay thay vì hướng dẫn. Tác động: Thành viên cảm thấy như con số. Đúng: 'Tôi chỉ cho bạn — form ngay đây. Bạn muốn tôi hướng dẫn từng bước không?'",
     },
   ],
   scenarios: [
@@ -513,7 +620,34 @@ export const DAY1: DayContent = {
   },
   quiz: [
     {
+      id: "q1_rank",
+      quizType: "ranking" as const,
+      questionEn: "Put these in the right order when a member walks in:",
+      questionVi: "Sắp xếp đúng thứ tự khi thành viên bước vào:",
+      options: [
+        { en: "Make eye contact and walk toward them", vi: "Giao tiếp mắt và bước về phía họ" },
+        { en: "Ask what they need (waiver, check-in, etc.)", vi: "Hỏi họ cần gì (waiver, check-in, v.v.)" },
+        { en: "Smile and greet them", vi: "Mỉm cười và chào họ" },
+        { en: "Help them with the next step", vi: "Giúp họ bước tiếp theo" },
+      ],
+      correctIndex: 0,
+      correctOrder: [0, 2, 1, 3],
+      explanationsEn: [
+        "First: you notice and move toward them (presence).",
+        "Then: smile and greet (warmth).",
+        "Then: ask what they need (connection).",
+        "Then: help with the next step (action). Wrong order (e.g. asking need before greeting) can feel cold or transactional.",
+      ],
+      explanationsVi: [
+        "Trước: bạn chú ý và bước về phía họ (có mặt).",
+        "Rồi: mỉm cười và chào (ấm áp).",
+        "Rồi: hỏi họ cần gì (kết nối).",
+        "Rồi: giúp bước tiếp theo (hành động). Thứ tự sai (vd hỏi nhu cầu trước khi chào) có thể cảm giác lạnh hoặc giao dịch.",
+      ],
+    },
+    {
       id: "q1",
+      quizType: "multiple_choice" as const,
       questionEn: "In the first 5 seconds when a member walks in, you should:",
       questionVi: "Trong 5 giây đầu khi thành viên bước vào, bạn nên:",
       options: [
@@ -535,8 +669,9 @@ export const DAY1: DayContent = {
     },
     {
       id: "q2",
-      questionEn: "Leo Mây's core philosophy is:",
-      questionVi: "Triết lý cốt lõi của Leo Mây là:",
+      quizType: "scenario_judgment" as const,
+      questionEn: "A member is confused and a teammate says 'That's not my job.' What does Leo Mây stand for?",
+      questionVi: "Một thành viên bối rối và đồng đội nói 'Đó không phải việc của tôi.' Leo Mây đại diện cho điều gì?",
       options: [
         { en: "Fitness over fun", vi: "Thể dục hơn vui" },
         { en: "Community over ego", vi: "Cộng đồng hơn cái tôi" },
@@ -556,7 +691,8 @@ export const DAY1: DayContent = {
     },
     {
       id: "q3",
-      questionEn: "When a member says 'Go sign there', you should instead say:",
+      quizType: "rewrite" as const,
+      questionEn: "A staff member said: 'Go sign there.' Which is the best rewrite in Leo Mây tone?",
       questionVi: 'Khi bạn nói "Đi ký kia đi" với thành viên, nên thay bằng:',
       options: [
         { en: '"Over there"', vi: '"Ở kia"' },
@@ -623,6 +759,33 @@ export const DAY1: DayContent = {
     promptEn: "What energy should Leo Mây feel like?",
     promptVi: "Leo Mây nên mang cảm giác năng lượng như thế nào?",
   },
+  hardModeScenarios: [
+    {
+      id: "hard_angry_member",
+      titleEn: "Hard: Angry member",
+      titleVi: "Khó: Thành viên tức giận",
+      promptEn: "A member is angry: 'I've been waiting 10 minutes and nobody helped me. This is ridiculous.' How do you respond?",
+      promptVi: "Một thành viên tức giận: 'Tôi đợi 10 phút rồi không ai giúp. Thật vô lý.' Bạn trả lời thế nào?",
+      hintEn: "Acknowledge their frustration first. Apologize. Then fix it. No excuses.",
+      hintVi: "Thừa nhận sự bực bội trước. Xin lỗi. Rồi xử lý. Không bào chữa.",
+      perfectAnswerEn: "I'm really sorry — you shouldn't have had to wait that long. That's on us. Let me help you right now. What do you need?",
+      perfectAnswerVi: "Tôi rất xin lỗi — bạn không nên phải chờ lâu như vậy. Đó là lỗi của chúng tôi. Để tôi giúp bạn ngay. Bạn cần gì?",
+      rubricEn: ["Acknowledge frustration", "Apologize without excuses", "Offer to fix it now"],
+      rubricVi: ["Thừa nhận bực bội", "Xin lỗi không bào chữa", "Đề nghị xử lý ngay"],
+      goodKeywords: ["sorry", "apologize", "help", "now", "xin lỗi", "giúp", "ngay"],
+      badKeywords: ["but", "busy", "everyone", "chỉ", "bận"],
+    },
+  ],
+  advancedLessons: [
+    {
+      id: "d1_adv_1",
+      type: "text",
+      titleEn: "Advanced: Micro-behaviors",
+      titleVi: "Nâng cao: Hành vi nhỏ",
+      contentEn: "The best staff don't just smile — they match energy. A nervous member gets calm, steady tone. A rushed regular gets quick, clear efficiency. Watch and adapt.",
+      contentVi: "Nhân viên giỏi không chỉ mỉm cười — họ điều chỉnh năng lượng. Thành viên lo lắng cần giọng bình tĩnh. Người vội cần nhanh, rõ ràng. Quan sát và thích nghi.",
+    },
+  ],
 };
 
 // ========== DAY 2 — EXPERIENCE & SAFETY ==========
@@ -633,6 +796,30 @@ export const DAY2: DayContent = {
   keyTakeawayEn: "Guide safely, never guarantee",
   keyTakeawayVi: "Hướng dẫn an toàn, không bao giờ đảm bảo tuyệt đối",
   sections: [
+    {
+      id: "d2s0_hook",
+      type: "choice",
+      titleEn: "Opening — Safety first",
+      titleVi: "Mở đầu — An toàn trước",
+      contentEn: "A first-timer says: 'Is it safe? I'm scared I'll fall.' What do you notice first?",
+      contentVi: "Người lần đầu nói: 'Có an toàn không? Tôi sợ ngã.' Bạn chú ý điều gì trước?",
+      correctChoiceIndex: 1,
+      choices: [
+        { en: "Reassure them that nothing will happen", vi: "Trấn an rằng không sao cả" },
+        { en: "Acknowledge their fear and explain how we minimize risk", vi: "Thừa nhận nỗi sợ và giải thích cách chúng ta giảm thiểu rủi ro" },
+        { en: "Tell them everyone falls sometimes", vi: "Nói rằng ai cũng ngã đôi khi" },
+      ],
+      choiceExplanationsEn: [
+        "Why wrong: Promising nothing will happen is a guarantee we never give. Impact: Legal and trust issues if something happens. Correct: Acknowledge fear, explain our safety measures, never guarantee.",
+        "Correct. We acknowledge the emotion, then explain how we guide safely (harness, mats, progression). We never say '100% safe' — we minimize risk and support them.",
+        "Why wrong: Can sound dismissive of their fear. Impact: They may feel unheard. Correct: Acknowledge fear first, then explain how we manage risk and support beginners.",
+      ],
+      choiceExplanationsVi: [
+        "Sai vì: Hứa không sao là đảm bảo chúng ta không bao giờ đưa. Tác động: Vấn đề pháp lý và niềm tin nếu có chuyện. Đúng: Thừa nhận sợ, giải thích biện pháp an toàn, không đảm bảo.",
+        "Đúng. Chúng ta thừa nhận cảm xúc, rồi giải thích cách hướng dẫn an toàn (dây, thảm, tiến độ). Không nói '100% an toàn' — chúng ta giảm thiểu rủi ro và hỗ trợ.",
+        "Sai vì: Có thể nghe như phủ nhận nỗi sợ. Tác động: Họ có thể cảm thấy không được lắng nghe. Đúng: Thừa nhận sợ trước, rồi giải thích cách quản lý rủi ro.",
+      ],
+    },
     {
       id: "d2s1",
       type: "text",
@@ -724,6 +911,49 @@ export const DAY2: DayContent = {
       wrongExplanationVi: "Cụm đó đúng — chúng ta giảm thiểu rủi ro. Sai là đảm bảo \"100% an toàn\".",
       rightExplanationEn: "Correct. You identified the phrase we must never say. We guide safely; we don't guarantee 100%.",
       rightExplanationVi: "Đúng. Bạn đã chỉ ra cụm không bao giờ nên nói. Chúng ta hướng dẫn an toàn; không đảm bảo 100%.",
+    },
+    {
+      id: "d2s_micro1",
+      type: "choice",
+      titleEn: "Micro challenge — Risk-based decision",
+      titleVi: "Thử thách — Quyết định theo rủi ro",
+      contentEn: "A member wants to try a hard route on their first visit. They say they've done outdoor climbing. What do you do?",
+      contentVi: "Thành viên muốn thử đường khó ngay lần đầu. Họ nói đã leo ngoài trời. Bạn làm gì?",
+      correctChoiceIndex: 1,
+      choices: [
+        { en: "Let them try — they said they have experience", vi: "Cho họ thử — họ nói đã có kinh nghiệm" },
+        { en: "Suggest starting with an easy route to learn our walls, then progress", vi: "Đề xuất bắt đầu đường dễ để làm quen tường, rồi nâng dần" },
+        { en: "Refuse until they complete a safety briefing", vi: "Từ chối cho đến khi họ hoàn thành briefing an toàn" },
+      ],
+      choiceExplanationsEn: [
+        "Why wrong: We don't take 'I have experience' at face value for first visit. Impact: Injury risk; our walls and rules may differ. Correct: Recommend starting easy so we assess and they learn our setup, then progress safely.",
+        "Correct. We minimize risk by having them start easy, learn our walls, and progress. We don't dismiss their experience — we frame it as learning our space first.",
+        "Why wrong: Refusing outright can feel hostile. We can do safety briefing AND suggest easy start. Impact: Member may feel unwelcome. Correct: Brief + suggest easy route first, then they can progress.",
+      ],
+      choiceExplanationsVi: [
+        "Sai vì: Chúng ta không tin 'đã có kinh nghiệm' ngay lần đầu. Tác động: Rủi ro chấn thương; tường và quy tắc có thể khác. Đúng: Đề xuất bắt đầu dễ để đánh giá và họ làm quen.",
+        "Đúng. Chúng ta giảm rủi ro bằng cách bắt đầu dễ, làm quen tường, rồi nâng dần. Không phủ nhận kinh nghiệm — đặt khung là học không gian của chúng ta trước.",
+        "Sai vì: Từ chối thẳng có thể cảm giác thù địch. Có thể vừa briefing vừa đề xuất đường dễ. Đúng: Brief + đề xuất đường dễ trước, rồi họ có thể nâng dần.",
+      ],
+    },
+    {
+      id: "d2s_micro2",
+      type: "fix_sentence",
+      titleEn: "Micro challenge — Correction",
+      titleVi: "Thử thách — Sửa câu",
+      contentEn: "A staff member said this to a nervous beginner. Which fix is correct?",
+      contentVi: "Nhân viên nói thế này với người mới lo. Sửa nào đúng?",
+      wrongSentenceEn: "\"Don't worry, nothing bad will happen.\"",
+      wrongSentenceVi: "\"Đừng lo, không có gì xấu xảy ra đâu.\"",
+      options: [
+        { en: "\"You'll be fine.\"", vi: "\"Bạn sẽ ổn thôi.\"" },
+        { en: "\"It's normal to feel nervous. We're here to guide you and minimize risks — we'll start easy.\"", vi: "\"Cảm thấy lo là bình thường. Chúng tôi ở đây để hướng dẫn và giảm thiểu rủi ro — chúng ta bắt đầu dễ thôi.\"" },
+      ],
+      correctIndex: 1,
+      wrongExplanationEn: "Why wrong: 'You'll be fine' still implies a guarantee. Impact: Same legal and trust issue. Correct: Acknowledge fear, explain our role (guide, minimize risk), no guarantee.",
+      wrongExplanationVi: "Sai vì: 'Bạn sẽ ổn' vẫn ngụ ý đảm bảo. Đúng: Thừa nhận sợ, giải thích vai trò (hướng dẫn, giảm rủi ro), không đảm bảo.",
+      rightExplanationEn: "Correct. We acknowledge the feeling, explain how we support (guide, minimize risk), and don't promise nothing will happen.",
+      rightExplanationVi: "Đúng. Chúng ta thừa nhận cảm xúc, giải thích cách hỗ trợ, không hứa không có gì xảy ra.",
     },
   ],
   scenarios: [
@@ -981,6 +1211,33 @@ export const DAY2: DayContent = {
     promptEn: "How can you make a scared climber feel supported?",
     promptVi: "Làm sao bạn có thể khiến người leo sợ cảm thấy được hỗ trợ?",
   },
+  hardModeScenarios: [
+    {
+      id: "hard_parent_worried",
+      titleEn: "Hard: Anxious parent",
+      titleVi: "Khó: Phụ huynh lo lắng",
+      promptEn: "A parent says: 'My kid wants to try but I've read about accidents. How do you guarantee their safety?' How do you respond?",
+      promptVi: "Phụ huynh nói: 'Con tôi muốn thử nhưng tôi đọc về tai nạn. Làm sao các bạn đảm bảo an toàn?' Bạn trả lời thế nào?",
+      hintEn: "Never guarantee. Explain supervision and risk minimization. Empathize with their concern.",
+      hintVi: "Không bao giờ đảm bảo tuyệt đối. Giải thích giám sát và giảm thiểu rủi ro. Đồng cảm với lo lắng của họ.",
+      perfectAnswerEn: "I totally get that — as a parent you want to know they're in good hands. We don't guarantee 100% safety because climbing has inherent risks, but we minimize them: harness, trained staff, easy routes for beginners, and we're right there. Would you like to see the kids area and our setup first?",
+      perfectAnswerVi: "Tôi hiểu — làm cha mẹ bạn muốn biết con được an toàn. Chúng tôi không đảm bảo 100% an toàn vì leo có rủi ro, nhưng chúng tôi giảm thiểu: dây, nhân viên được đào tạo, đường dễ cho người mới, và chúng tôi ở ngay bên cạnh. Bạn có muốn xem khu trẻ em trước không?",
+      rubricEn: ["Empathize", "Never guarantee", "Explain mitigation", "Offer to show"],
+      rubricVi: ["Đồng cảm", "Không đảm bảo tuyệt đối", "Giải thích giảm thiểu", "Đề nghị cho xem"],
+      goodKeywords: ["understand", "minimize", "supervision", "harness", "hiểu", "giảm thiểu", "giám sát"],
+      badKeywords: ["100%", "guarantee", "never", "đảm bảo tuyệt đối"],
+    },
+  ],
+  advancedLessons: [
+    {
+      id: "d2_adv_1",
+      type: "text",
+      titleEn: "Advanced: Fear psychology",
+      titleVi: "Nâng cao: Tâm lý nỗi sợ",
+      contentEn: "Fear is information. When someone says they're scared, they're asking for reassurance and control. Give both: 'Lots of people feel that. We'll go at your pace. You can stop anytime.'",
+      contentVi: "Sợ là thông tin. Khi ai đó nói họ sợ, họ cần được trấn an và cảm giác kiểm soát. Cho cả hai: 'Nhiều người cũng vậy. Chúng ta đi theo nhịp của bạn. Bạn có thể dừng bất cứ lúc nào.'",
+    },
+  ],
 };
 
 // ========== DAY 3 — ROLE & RESPONSIBILITY ==========
@@ -991,6 +1248,30 @@ export const DAY3: DayContent = {
   keyTakeawayEn: "If you see it, you own it",
   keyTakeawayVi: "Thấy là xử lý",
   sections: [
+    {
+      id: "d3s0_hook",
+      type: "choice",
+      titleEn: "Opening — Who owns it?",
+      titleVi: "Mở đầu — Ai chịu trách nhiệm?",
+      contentEn: "You see a spill. A member is at the counter. Your teammate is busy. What do you notice first?",
+      contentVi: "Bạn thấy nước đổ. Một thành viên đang ở quầy. Đồng đội đang bận. Bạn chú ý điều gì trước?",
+      correctChoiceIndex: 0,
+      choices: [
+        { en: "The spill is a hazard — I should handle it", vi: "Nước đổ là nguy cơ — tôi nên xử lý" },
+        { en: "The member is waiting — let someone else clean", vi: "Thành viên đang chờ — để người khác dọn" },
+        { en: "It's not my area — I'll ignore it", vi: "Không phải khu của tôi — tôi sẽ lờ đi" },
+      ],
+      choiceExplanationsEn: [
+        "Correct. If you see it, you own it. The spill is a safety risk; the member can wait a few seconds while you signal them and fix the hazard. Ownership means taking responsibility when you notice something.",
+        "Why wrong: 'Let someone else' is passing the buck. Impact: The spill may cause a slip; the member may also feel ignored if no one acts. Correct: You handle the hazard, acknowledge the member briefly, then help them.",
+        "Why wrong: 'Not my area' breaks the Leo Mây culture. Impact: Hazard stays, member experience suffers. We don't ignore what we see — we own it. Correct: Handle the spill, then serve the member.",
+      ],
+      choiceExplanationsVi: [
+        "Đúng. Thấy là xử lý. Nước đổ là rủi ro an toàn; thành viên có thể chờ vài giây trong khi bạn ra hiệu và xử lý. Làm chủ nghĩa là chịu trách nhiệm khi bạn nhận ra.",
+        "Sai vì: 'Để người khác' là đùn đẩy. Tác động: Nước đổ có thể gây trượt; thành viên có thể cảm thấy bị lờ. Đúng: Bạn xử lý nguy cơ, chào thành viên ngắn gọn, rồi giúp họ.",
+        "Sai vì: 'Không phải khu tôi' phá văn hóa Leo Mây. Đúng: Xử lý nước đổ, rồi phục vụ thành viên.",
+      ],
+    },
     {
       id: "d3s1",
       type: "text",
@@ -1052,6 +1333,54 @@ export const DAY3: DayContent = {
       titleVi: "Cùng văn hóa",
       contentEn: "Staff and frontdesk have different main tasks but the same Leo Mây culture: warmth, ownership, member first.",
       contentVi: "Staff và frontdesk có nhiệm vụ chính khác nhau nhưng cùng văn hóa Leo Mây: ấm áp, làm chủ, thành viên trước.",
+    },
+    {
+      id: "d3s_micro1",
+      type: "choice",
+      titleEn: "Micro challenge — Decision tree",
+      titleVi: "Thử thách — Cây quyết định",
+      contentEn: "A member asks about membership. You're staff (routes). What's the right next step?",
+      contentVi: "Thành viên hỏi về gói. Bạn là staff (tường). Bước tiếp đúng là gì?",
+      correctChoiceIndex: 1,
+      choices: [
+        { en: "Say 'That's frontdesk' and point", vi: "Nói 'Đó là frontdesk' và chỉ tay" },
+        { en: "Escort them to frontdesk and introduce their need", vi: "Đưa họ đến quầy và giới thiệu nhu cầu" },
+        { en: "Try to answer yourself even if unsure", vi: "Cố trả lời dù không chắc" },
+      ],
+      choiceExplanationsEn: [
+        "Why wrong: Pointing and dismissing feels cold. Impact: Member may feel like a number. Correct: Escort and hand off — introduce them and their need so frontdesk can help. Ownership includes the handoff.",
+        "Correct. You own the moment: you don't leave them to find their way. You escort, introduce, and stay until the handoff is clear. That's the Leo Mây way.",
+        "Why wrong: Giving wrong info hurts trust. Impact: Member may get confused or make a wrong decision. Correct: Escort to the right person and let frontdesk give accurate info.",
+      ],
+      choiceExplanationsVi: [
+        "Sai vì: Chỉ tay và từ chối cảm giác lạnh. Đúng: Đưa đi và chuyển giao — giới thiệu họ và nhu cầu để frontdesk giúp.",
+        "Đúng. Bạn làm chủ tình huống: đưa đi, giới thiệu, ở lại đến khi chuyển giao rõ. Đó là cách Leo Mây.",
+        "Sai vì: Thông tin sai làm mất niềm tin. Đúng: Đưa đến đúng người để frontdesk cung cấp thông tin chính xác.",
+      ],
+    },
+    {
+      id: "d3s_micro2",
+      type: "choice",
+      titleEn: "Micro challenge — Prioritization",
+      titleVi: "Thử thách — Ưu tiên",
+      contentEn: "Spill on floor. Member at counter. Teammate with a group. What do you do first?",
+      contentVi: "Nước đổ trên sàn. Thành viên ở quầy. Đồng đội đang với nhóm. Bạn làm gì trước?",
+      correctChoiceIndex: 0,
+      choices: [
+        { en: "Signal member 'One sec', block or clean spill, then help member", vi: "Ra hiệu thành viên 'Chờ chút', chặn hoặc dọn, rồi giúp thành viên" },
+        { en: "Help the member first, then clean", vi: "Giúp thành viên trước, rồi dọn" },
+        { en: "Call for teammate to clean while you help member", vi: "Gọi đồng đội dọn trong khi bạn giúp thành viên" },
+      ],
+      choiceExplanationsEn: [
+        "Correct. Safety first: the spill is a slip hazard. Quick acknowledgment to the member, fix the hazard, then serve. They wait a few seconds but everyone stays safe.",
+        "Why wrong: Helping first while leaving the spill risks someone (member or another) slipping. Impact: Injury. Correct: Brief signal, fix hazard, then help. Safety before service when the hazard is immediate.",
+        "Why wrong: Teammate is with a group — pulling them away may not be right. If you see the spill, you own it. Impact: Delay or confusion. Correct: You handle it; signal member so they feel seen.",
+      ],
+      choiceExplanationsVi: [
+        "Đúng. An toàn trước: nước đổ là nguy cơ trượt. Chào thành viên nhanh, xử lý nguy cơ, rồi phục vụ.",
+        "Sai vì: Giúp trước mà để nước đổ có thể khiến ai đó trượt. Đúng: Ra hiệu ngắn, xử lý nguy cơ, rồi giúp.",
+        "Sai vì: Đồng đội đang với nhóm. Thấy là bạn xử lý. Đúng: Bạn xử lý; ra hiệu thành viên để họ thấy được chú ý.",
+      ],
     },
   ],
   scenarios: [
@@ -1271,6 +1600,33 @@ export const DAY3: DayContent = {
     },
   ],
   reflection: { id: "r3", promptEn: "What does ownership mean to you?", promptVi: "Làm chủ có nghĩa gì với bạn?" },
+  hardModeScenarios: [
+    {
+      id: "hard_conflict",
+      titleEn: "Hard: Teammate conflict",
+      titleVi: "Khó: Xung đột đồng đội",
+      promptEn: "A member says: 'That other staff was rude to me.' You didn't see it. What do you say?",
+      promptVi: "Thành viên nói: 'Nhân viên kia thô lỗ với tôi.' Bạn không thấy. Bạn nói gì?",
+      hintEn: "Don't defend or blame. Listen. Apologize for their experience. Offer to help now.",
+      hintVi: "Đừng bênh vực hay đổ lỗi. Lắng nghe. Xin lỗi vì trải nghiệm của họ. Đề nghị giúp ngay.",
+      perfectAnswerEn: "I'm sorry you had that experience — that's not what we want for you here. I wasn't there so I can't speak to what happened, but I'm here now. What can I do to help you?",
+      perfectAnswerVi: "Tôi xin lỗi vì bạn đã trải qua điều đó — đó không phải điều chúng tôi muốn. Tôi không có ở đó nên tôi không biết chuyện gì xảy ra, nhưng tôi ở đây bây giờ. Tôi có thể giúp gì cho bạn?",
+      rubricEn: ["Apologize for experience", "Don't defend teammate", "Offer help now"],
+      rubricVi: ["Xin lỗi vì trải nghiệm", "Không bênh đồng đội", "Đề nghị giúp ngay"],
+      goodKeywords: ["sorry", "experience", "help", "xin lỗi", "giúp"],
+      badKeywords: ["they", "maybe", "you must", "chắc", "bạn nhầm"],
+    },
+  ],
+  advancedLessons: [
+    {
+      id: "d3_adv_1",
+      type: "text",
+      titleEn: "Advanced: Handoff script",
+      titleVi: "Nâng cao: Kịch bản chuyển giao",
+      contentEn: "When handing off: 'This is [Name] — they need [X].' Then to the member: 'You're in good hands with [Name].' Stay until the other person has taken over.",
+      contentVi: "Khi chuyển giao: 'Đây là [Tên] — họ cần [X].' Rồi với thành viên: 'Bạn sẽ được [Tên] hỗ trợ.' Ở lại đến khi người kia đã nhận.",
+    },
+  ],
 };
 
 // ========== DAY 4 — SALES & SYSTEM ==========
@@ -1281,6 +1637,30 @@ export const DAY4: DayContent = {
   keyTakeawayEn: "Selling is helping",
   keyTakeawayVi: "Bán hàng là giúp đỡ",
   sections: [
+    {
+      id: "d4s0_hook",
+      type: "choice",
+      titleEn: "Opening — Sales conversation",
+      titleVi: "Mở đầu — Hội thoại bán hàng",
+      contentEn: "A day-pass member says they love the gym and come every week. What do you notice first?",
+      contentVi: "Thành viên vé ngày nói họ rất thích gym và đến mỗi tuần. Bạn chú ý điều gì trước?",
+      correctChoiceIndex: 1,
+      choices: [
+        { en: "They're a sales target", vi: "Họ là đối tượng bán hàng" },
+        { en: "They might benefit from a membership — and we can help", vi: "Họ có thể hưởng lợi từ gói thành viên — và chúng ta có thể giúp" },
+        { en: "Just check them in and say nothing", vi: "Chỉ check-in và không nói gì" },
+      ],
+      choiceExplanationsEn: [
+        "Why wrong: Seeing them as a 'target' leads to pushy behavior. Impact: Member feels pressured and may avoid the counter. Correct: We help by matching them with what fits — membership can save them money and deepen belonging.",
+        "Correct. Selling is helping. They're already engaged; a natural mention of membership (save money, belong) can help them — no pressure. We're not pushing; we're offering something that fits.",
+        "Why wrong: Not mentioning membership when they love the gym and come often misses a chance to help. Impact: They may overpay with day passes or feel we don't care. Correct: Natural, brief mention — no pressure.",
+      ],
+      choiceExplanationsVi: [
+        "Sai vì: Coi họ là 'đối tượng' dẫn đến ép. Đúng: Chúng ta giúp bằng cách kết nối với thứ phù hợp — gói có thể tiết kiệm và gắn bó.",
+        "Đúng. Bán là giúp. Họ đã gắn bó; nhắc gói tự nhiên (tiết kiệm, thuộc về) có thể giúp họ — không ép. Chúng ta không ép; chúng ta đề xuất thứ phù hợp.",
+        "Sai vì: Không nhắc gói khi họ thích và đến thường bỏ lỡ cơ hội giúp. Đúng: Nhắc ngắn gọn, tự nhiên — không ép.",
+      ],
+    },
     {
       id: "d4s1",
       type: "text",
@@ -1348,6 +1728,47 @@ export const DAY4: DayContent = {
         { en: "They come often (save money)", vi: "Họ đến thường (tiết kiệm)" },
         { en: "They love the gym (belong)", vi: "Họ thích gym (thuộc về)" },
         { en: "Never push — natural mention only", vi: "Không ép — chỉ nhắc tự nhiên" },
+      ],
+    },
+    {
+      id: "d4s_micro1",
+      type: "choose_better",
+      titleEn: "Micro challenge — Persuasion",
+      titleVi: "Thử thách — Thuyết phục",
+      contentEn: "Member says: 'I'm not sure I need a membership.' Which response is better?",
+      contentVi: "Thành viên nói: 'Tôi không chắc cần gói.' Phản hồi nào tốt hơn?",
+      options: [
+        { en: "\"You should get one — everyone does.\"", vi: "\"Bạn nên mua — ai cũng vậy.\"" },
+        { en: "\"No pressure at all. If you're here often, it can save you money — just something to consider when you're ready.\"", vi: "\"Không ép đâu. Nếu bạn đến thường, có thể tiết kiệm — chỉ gợi ý khi bạn sẵn sàng.\"" },
+      ],
+      correctIndex: 1,
+      wrongExplanationEn: "Why wrong: 'You should' and 'everyone does' is pushy. Impact: Member feels pressured and may resist. Correct: Acknowledge, offer value (save money), leave the door open. No pressure.",
+      wrongExplanationVi: "Sai vì: 'Bạn nên' và 'ai cũng vậy' là ép. Đúng: Thừa nhận, đưa giá trị (tiết kiệm), mở cửa. Không ép.",
+      rightExplanationEn: "Correct. We help by informing; we don't push. They feel respected and may consider it when ready.",
+      rightExplanationVi: "Đúng. Chúng ta giúp bằng cách thông tin; không ép. Họ cảm thấy được tôn trọng.",
+    },
+    {
+      id: "d4s_micro2",
+      type: "choice",
+      titleEn: "Micro challenge — When to mention",
+      titleVi: "Thử thách — Khi nào nhắc",
+      contentEn: "A member is buying a day pass. They've never been before. Do you mention membership?",
+      contentVi: "Thành viên đang mua vé ngày. Họ chưa từng đến. Bạn có nhắc gói không?",
+      correctChoiceIndex: 1,
+      choices: [
+        { en: "Yes — push membership now", vi: "Có — ép gói ngay" },
+        { en: "Brief, no-pressure mention — e.g. if they love it, membership saves money; no obligation", vi: "Nhắc ngắn, không ép — vd nếu họ thích, gói tiết kiệm; không bắt buộc" },
+        { en: "No — never mention until they ask", vi: "Không — không nhắc cho đến khi họ hỏi" },
+      ],
+      choiceExplanationsEn: [
+        "Why wrong: Pushing on first visit feels aggressive. Impact: They may not return. Correct: Let them experience first; a light mention (if you love it, we have memberships) is enough. No pressure.",
+        "Correct. A brief, no-pressure mention plants the seed. They can enjoy today and consider later. We're helping by informing, not selling hard.",
+        "Why wrong: Never mentioning can mean they never learn. A one-line mention (e.g. 'If you end up loving it, we have memberships') is helpful, not pushy. Correct: One natural mention, then focus on their visit.",
+      ],
+      choiceExplanationsVi: [
+        "Sai vì: Ép ngay lần đầu cảm giác gây hấn. Đúng: Để họ trải nghiệm trước; nhắc nhẹ là đủ.",
+        "Đúng. Nhắc ngắn, không ép gieo ý. Họ tận hưởng hôm nay và cân nhắc sau. Chúng ta giúp bằng thông tin.",
+        "Sai vì: Không bao giờ nhắc khiến họ không biết. Một câu nhắc tự nhiên là hữu ích. Đúng: Một lần nhắc, rồi tập trung vào lượt của họ.",
       ],
     },
   ],
@@ -1568,6 +1989,33 @@ export const DAY4: DayContent = {
     },
   ],
   reflection: { id: "r4", promptEn: "How can you make selling feel like helping?", promptVi: "Làm sao biến bán hàng thành giúp đỡ?" },
+  hardModeScenarios: [
+    {
+      id: "hard_objection",
+      titleEn: "Hard: Price objection",
+      titleVi: "Khó: Phản đối giá",
+      promptEn: "A member says: 'The membership is too expensive.' How do you respond without being pushy?",
+      promptVi: "Thành viên nói: 'Gói thành viên đắt quá.' Bạn trả lời thế nào mà không gây áp lực?",
+      hintEn: "Acknowledge. Reframe value (visits, community). Offer options. No pressure.",
+      hintVi: "Thừa nhận. Đặt lại giá trị (lượt đi, cộng đồng). Đề xuất lựa chọn. Không ép.",
+      perfectAnswerEn: "I hear you — we want it to feel worth it. If you're here often, the per-visit cost goes down a lot, and you're part of the community. We also have [day pass / shorter plans]. No pressure — just want you to have the option that fits.",
+      perfectAnswerVi: "Tôi hiểu — chúng tôi muốn bạn thấy xứng đáng. Nếu bạn đến thường xuyên, chi phí mỗi lần giảm nhiều và bạn là phần của cộng đồng. Chúng tôi cũng có [vé ngày / gói ngắn]. Không ép — chỉ muốn bạn có lựa chọn phù hợp.",
+      rubricEn: ["Acknowledge", "Reframe value", "Offer options", "No pressure"],
+      rubricVi: ["Thừa nhận", "Đặt lại giá trị", "Đề xuất lựa chọn", "Không ép"],
+      goodKeywords: ["hear", "value", "option", "pressure", "hiểu", "lựa chọn"],
+      badKeywords: ["cheap", "everyone", "must", "phải", "rẻ"],
+    },
+  ],
+  advancedLessons: [
+    {
+      id: "d4_adv_1",
+      type: "text",
+      titleEn: "Advanced: Natural merch mention",
+      titleVi: "Nâng cao: Nhắc merch tự nhiên",
+      contentEn: "When a member admires gear: 'That chalk bag? We have it in a few colors. Want to see?' Not 'Buy this.' Observation first, then invite.",
+      contentVi: "Khi thành viên thích đồ: 'Túi magnesium đó? Chúng tôi có vài màu. Bạn muốn xem không?' Không phải 'Mua cái này.' Quan sát trước, rồi mời.",
+    },
+  ],
 };
 
 // ========== DAY 5 — TEAM & EXCELLENCE ==========
@@ -1578,6 +2026,30 @@ export const DAY5: DayContent = {
   keyTakeawayEn: "Make the team stronger",
   keyTakeawayVi: "Làm đội mạnh hơn",
   sections: [
+    {
+      id: "d5s0_hook",
+      type: "choice",
+      titleEn: "Opening — Chaos moment",
+      titleVi: "Mở đầu — Lúc hỗn loạn",
+      contentEn: "Three members at the counter. One just spilled a drink. Your teammate is with a group. What do you notice first?",
+      contentVi: "Ba thành viên ở quầy. Một người vừa làm đổ nước. Đồng đội đang với nhóm. Bạn chú ý điều gì trước?",
+      correctChoiceIndex: 0,
+      choices: [
+        { en: "Safety first — the spill; then acknowledge the three; then get backup", vi: "An toàn trước — vết đổ; rồi chào ba người; rồi gọi hỗ trợ" },
+        { en: "Serve the three first — they're waiting", vi: "Phục vụ ba người trước — họ đang chờ" },
+        { en: "Find your teammate to help clean", vi: "Tìm đồng đội để giúp dọn" },
+      ],
+      choiceExplanationsEn: [
+        "Correct. In chaos: safety (spill = slip risk), then acknowledge everyone so no one feels invisible, then coordinate (backup). Fast-paced but ordered. Member experience stays intact.",
+        "Why wrong: Ignoring the spill risks someone slipping. Impact: Injury. Correct: Quick signal to the three ('One sec'), block or clean the spill, then serve. Safety then people.",
+        "Why wrong: Teammate is with a group — pulling them away may not be right. You own what you see: signal members, handle spill, then get backup if needed. Correct: You act first, then coordinate.",
+      ],
+      choiceExplanationsVi: [
+        "Đúng. Khi hỗn loạn: an toàn (nước đổ = trượt), rồi chào mọi người, rồi phối hợp. Nhanh nhưng có thứ tự.",
+        "Sai vì: Lờ nước đổ có thể khiến ai trượt. Đúng: Ra hiệu nhanh, chặn/dọn, rồi phục vụ.",
+        "Sai vì: Đồng đội đang bận. Bạn xử lý những gì thấy trước, rồi phối hợp. Đúng: Bạn hành động trước.",
+      ],
+    },
     {
       id: "d5s1",
       type: "text",
@@ -1636,6 +2108,54 @@ export const DAY5: DayContent = {
       wrongExplanationVi: "Sai vì: Không tinh thần đội; đồng đội có thể kiệt sức. Tác động: Thành viên bị phục vụ kém. Đúng: Đề nghị giúp cụ thể. Ví dụ: \"Cần tôi giúp không? Tôi nhận check-in tiếp.\"",
       rightExplanationEn: "Correct. Community over ego — we cover for each other.",
       rightExplanationVi: "Đúng. Cộng đồng hơn cái tôi — chúng ta hỗ trợ nhau.",
+    },
+    {
+      id: "d5s_micro1",
+      type: "choice",
+      titleEn: "Micro challenge — Fast decision",
+      titleVi: "Thử thách — Quyết định nhanh",
+      contentEn: "Two members at counter. One is on the phone, one is ready. Who do you serve first?",
+      contentVi: "Hai thành viên ở quầy. Một người đang gọi điện, một người sẵn sàng. Bạn phục vụ ai trước?",
+      correctChoiceIndex: 1,
+      choices: [
+        { en: "The one on the phone — they might be in a hurry", vi: "Người đang gọi điện — họ có thể vội" },
+        { en: "The one ready — they're present and waiting", vi: "Người sẵn sàng — họ có mặt và đang chờ" },
+        { en: "Whoever arrived first", vi: "Ai đến trước" },
+      ],
+      choiceExplanationsEn: [
+        "Why wrong: The one on the phone isn't ready to be served yet. Impact: You may have to repeat or they'll be distracted. Correct: Serve the one who's ready; acknowledge the other ('One sec') so they feel seen.",
+        "Correct. Serve the person who's present and ready. Acknowledge the one on the phone so they know they're next. Efficiency and clarity — both feel seen.",
+        "If they arrived at the same time, 'who's ready' is the tiebreaker. If one clearly arrived first and is ready, serve them. Correct: Ready + order of arrival when possible.",
+      ],
+      choiceExplanationsVi: [
+        "Sai vì: Người đang gọi chưa sẵn sàng. Đúng: Phục vụ người sẵn sàng; chào người kia.",
+        "Đúng. Phục vụ người có mặt và sẵn sàng. Chào người đang gọi để họ biết đến lượt. Hiệu quả và rõ ràng.",
+        "Nếu cùng đến, 'ai sẵn sàng' là tiêu chí. Đúng: Sẵn sàng + thứ tự đến khi có thể.",
+      ],
+    },
+    {
+      id: "d5s_micro2",
+      type: "choice",
+      titleEn: "Micro challenge — Multitasking",
+      titleVi: "Thử thách — Đa nhiệm",
+      contentEn: "You're helping a member. Your teammate signals they need backup. What do you do?",
+      contentVi: "Bạn đang giúp một thành viên. Đồng đội ra hiệu cần hỗ trợ. Bạn làm gì?",
+      correctChoiceIndex: 0,
+      choices: [
+        { en: "Acknowledge teammate ('One sec'), finish current member quickly but well, then help", vi: "Chào đồng đội ('Chờ chút'), hoàn tất thành viên hiện tại nhanh nhưng đúng, rồi hỗ trợ" },
+        { en: "Leave the member and go help teammate", vi: "Bỏ thành viên và đi giúp đồng đội" },
+        { en: "Ignore the signal — finish your member first", vi: "Lờ hiệu — hoàn tất thành viên trước" },
+      ],
+      choiceExplanationsEn: [
+        "Correct. You acknowledge both: teammate knows help is coming; member gets completed service. Then you back up. No one abandoned, chaos managed.",
+        "Why wrong: Leaving the member mid-service feels bad. Impact: They feel dropped. Correct: Quick wrap with current member, signal teammate, then go. Both get served.",
+        "Why wrong: Ignoring the signal leaves teammate and their members struggling. Impact: Team and members suffer. Correct: Acknowledge signal, finish current interaction, then help. Clear communication.",
+      ],
+      choiceExplanationsVi: [
+        "Đúng. Bạn chào cả hai: đồng đội biết sắp có hỗ trợ; thành viên được phục vụ xong. Rồi bạn hỗ trợ. Không ai bị bỏ rơi.",
+        "Sai vì: Bỏ thành viên giữa chừng cảm giác tệ. Đúng: Kết thúc nhanh với thành viên hiện tại, ra hiệu đồng đội, rồi đi.",
+        "Sai vì: Lờ hiệu khiến đồng đội và thành viên của họ khó. Đúng: Chào hiệu, hoàn tất lượt hiện tại, rồi giúp.",
+      ],
     },
   ],
   scenarios: [
@@ -1855,6 +2375,33 @@ export const DAY5: DayContent = {
     },
   ],
   reflection: { id: "r5", promptEn: "What does excellence look like for you?", promptVi: "Xuất sắc trông như thế nào với bạn?" },
+  hardModeScenarios: [
+    {
+      id: "hard_chaos",
+      titleEn: "Hard: Chaos moment",
+      titleVi: "Khó: Khoảnh khắc hỗn loạn",
+      promptEn: "Three members need help at once. One is mid-climb and confused. One is at the counter. One is looking lost. In one sentence, what do you do first?",
+      promptVi: "Ba thành viên cần giúp cùng lúc. Một đang leo và bối rối. Một ở quầy. Một trông lạc. Trong một câu, bạn làm gì trước?",
+      hintEn: "Prioritize safety (climber), then acknowledge the others. One sentence: acknowledge all, then act.",
+      hintVi: "Ưu tiên an toàn (người leo), rồi chào những người còn lại. Một câu: chào tất cả, rồi hành động.",
+      perfectAnswerEn: "I'd make eye contact with the climber first to check they're okay, call 'One sec!' to the counter and the lost member, then help the climber or signal a teammate — safety and acknowledgment first, then we sort the rest.",
+      perfectAnswerVi: "Tôi sẽ giao tiếp mắt với người leo trước để xem họ ổn không, gọi 'Chờ chút!' với quầy và người lạc, rồi giúp người leo hoặc ra hiệu đồng đội — an toàn và chào trước, rồi xử lý phần còn lại.",
+      rubricEn: ["Safety first", "Acknowledge everyone", "Then prioritize"],
+      rubricVi: ["An toàn trước", "Chào mọi người", "Rồi ưu tiên"],
+      goodKeywords: ["first", "eye", "one sec", "safety", "trước", "chờ", "an toàn"],
+      badKeywords: [],
+    },
+  ],
+  advancedLessons: [
+    {
+      id: "d5_adv_1",
+      type: "text",
+      titleEn: "Advanced: Team coordination",
+      titleVi: "Nâng cao: Phối hợp đội",
+      contentEn: "When it's busy: signal, don't shout. Catch a teammate's eye, point subtly, or use a quick hand sign. 'You take counter, I've got the floor.' Clear and calm.",
+      contentVi: "Khi đông: ra hiệu, đừng hét. Bắt mắt đồng đội, chỉ nhẹ hoặc dùng ký hiệu tay. 'Bạn nhận quầy, tôi lo sàn.' Rõ ràng và bình tĩnh.",
+    },
+  ],
 };
 
 export const ALL_DAYS: DayContent[] = [DAY1, DAY2, DAY3, DAY4, DAY5];

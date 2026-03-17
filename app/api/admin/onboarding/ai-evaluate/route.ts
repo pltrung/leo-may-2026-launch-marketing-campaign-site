@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     goodKeywords = step.goodKeywords;
     badKeywords = step.badKeywords;
   } else {
-    const scenario = content.scenarios.find((s) => s.id === scenario_key);
+    const scenario = content.scenarios.find((s) => s.id === scenario_key) ?? content.hardModeScenarios?.find((s) => s.id === scenario_key);
     if (!scenario) return NextResponse.json({ error: "Scenario not found" }, { status: 400 });
     perfectAnswer = locale === "vi" ? scenario.perfectAnswerVi : scenario.perfectAnswerEn;
     rubric = (locale === "vi" ? scenario.rubricVi : scenario.rubricEn) ?? [];

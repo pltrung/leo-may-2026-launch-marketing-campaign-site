@@ -11,12 +11,14 @@ import {
   phaseToStep,
   isSimulationStepDecision,
   type LessonSection,
+  type QuizQuestion,
   HEARTS_MAX,
   DAY_UNLOCK_HOURS_MS,
+  PRIMARY_SKILL_BY_DAY,
 } from "@/lib/onboardingContent";
 import type { Locale } from "@/lib/i18n";
 
-type Phase = "map" | "lesson" | "scenario" | "simulation" | "simulation_result" | "quiz" | "reflection" | "key_takeaway";
+type Phase = "map" | "lesson" | "scenario" | "simulation" | "simulation_result" | "quiz" | "reflection" | "key_takeaway" | "day_complete_menu" | "hard_mode" | "advanced_lessons";
 
 const ONBOARDING_LOCALE_KEY = "onboarding-locale";
 
@@ -67,6 +69,10 @@ export default function OnboardingPage() {
   const [showKeyTakeaway, setShowKeyTakeaway] = useState(false);
   const [lessonReorderSubmitted, setLessonReorderSubmitted] = useState(false);
   const [, setCountdownTick] = useState(0);
+  const [hardScenarioIndex, setHardScenarioIndex] = useState(0);
+  const [advancedLessonIndex, setAdvancedLessonIndex] = useState(0);
+  const [rankingOrder, setRankingOrder] = useState<number[] | null>(null);
+  const [rankingRevealed, setRankingRevealed] = useState(false);
 
   const setLocaleAndStore = useCallback((l: Locale) => {
     setLocale(l);
@@ -122,6 +128,29 @@ export default function OnboardingPage() {
   const scenario = content?.scenarios[scenarioIndex];
   const quizQuestion = content?.quiz[quizIndex];
 
+  useEffect(() => {
+    if (phase !== "quiz" || !quizQuestion) {
+      setRankingOrder(null);
+      return;
+    }
+    const qt = (quizQuestion as QuizQuestion).quizType ?? "multiple_choice";
+    if (qt === "ranking" && quizQuestion.options?.length) {
+      setRankingOrder(quizQuestion.options.map((_, i) => i));
+    } else {
+      setRankingOrder(null);
+    }
+  }, [phase, quizIndex, quizQuestion?.id, (quizQuestion as QuizQuestion)?.quizType, quizQuestion?.options?.length]);
+
+  useEffect(() => {
+    if ((quizQuestion as QuizQuestion)?.quizType === "ranking") setRankingRevealed(false);
+  }, [quizIndex, (quizQuestion as QuizQuestion)?.quizType]);
+
+  const handleRankingSubmit = useCallback((correct: boolean) => {
+    if (correct) setQuizCorrect((c) => c + 1);
+    else updateProgress("lose_heart");
+    setRankingRevealed(true);
+  }, [updateProgress]);
+
   const isDayUnlocked = (day: number) => {
     if (!progress) return day === 1;
     if (day === 1) return true;
@@ -158,11 +187,11 @@ export default function OnboardingPage() {
     const completed = progress?.day_completion[day]?.completed ?? false;
     const savedStep = progress?.day_completion[day]?.current_step ?? 0;
     if (completed) {
-      setPhase("lesson");
-      setLessonIndex(0);
-      setScenarioIndex(0);
-      setSimulationStepIndex(0);
-      setQuizIndex(0);
+      setPhase("day_complete_menu");
+      setHardScenarioIndex(0);
+      setAdvancedLessonIndex(0);
+      setScenarioResult(null);
+      setScenarioResponse("");
       return;
     }
     const { phase, lessonIndex, scenarioIndex, simulationStepIndex: simIdx, quizIndex } = stepToPhase(savedStep, dayContent);
@@ -216,6 +245,51 @@ export default function OnboardingPage() {
         perfectAnswer: d.perfectAnswer ?? "",
         improved_answer: d.improved_answer ?? "",
       });
+      const score = typeof d.score === "number" ? d.score : 0;
+      const primarySkill = currentDay != null ? PRIMARY_SKILL_BY_DAY[currentDay] : null;
+      if (primarySkill) {
+        const delta = Math.min(5, Math.max(0, Math.floor(score / 20)));
+        if (delta > 0) {
+          updateProgress("update_skills", { skill_deltas: { [primarySkill]: delta } });
+        }
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleHardScenarioSubmit = async () => {
+    if (!content?.hardModeScenarios?.length || !scenarioResponse.trim()) return;
+    const hardScenario = content.hardModeScenarios[hardScenarioIndex];
+    if (!hardScenario) return;
+    setSaving(true);
+    try {
+      const res = await adminFetch("/api/admin/onboarding/ai-evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          day: currentDay,
+          scenario_key: hardScenario.id,
+          user_response: scenarioResponse.trim(),
+          locale,
+        }),
+      });
+      const d = await res.json();
+      setScenarioResult({
+        score: d.score,
+        feedback: d.feedback,
+        whyNot100: d.whyNot100 ?? null,
+        perfectAnswer: d.perfectAnswer ?? "",
+        improved_answer: d.improved_answer ?? "",
+      });
+      const score = typeof d.score === "number" ? d.score : 0;
+      const primarySkill = currentDay != null ? PRIMARY_SKILL_BY_DAY[currentDay] : null;
+      if (primarySkill) {
+        const delta = Math.min(5, Math.max(0, Math.floor(score / 20)));
+        if (delta > 0) {
+          updateProgress("update_skills", { skill_deltas: { [primarySkill]: delta } });
+        }
+      }
     } finally {
       setSaving(false);
     }
@@ -317,6 +391,11 @@ export default function OnboardingPage() {
       day: currentDay,
       simulation_complete: { performed_well: simulationResultMode === "good", xp_earned: xpEarned },
     });
+    const primarySkill = currentDay != null ? PRIMARY_SKILL_BY_DAY[currentDay] : null;
+    if (primarySkill) {
+      const delta = simulationResultMode === "good" ? 5 : 1;
+      updateProgress("update_skills", { skill_deltas: { [primarySkill]: delta } });
+    }
     const L = content.sections.length;
     const S = content.scenarios.length;
     const simSteps = content.simulation.steps.length;
@@ -343,8 +422,10 @@ export default function OnboardingPage() {
   };
 
   const handleQuizNext = () => {
-    if (!content) return;
+    if (!content || !quizQuestion) return;
     setSelectedChoice(null);
+    setRankingOrder(null);
+    setRankingRevealed(false);
     const simLen = content.simulation?.steps.length ?? 0;
     if (quizIndex < content.quiz.length - 1) {
       const nextStep = content.sections.length + content.scenarios.length + simLen + quizIndex + 1;
@@ -355,6 +436,14 @@ export default function OnboardingPage() {
       updateProgress("save_step", { day: currentDay, current_step: nextStep });
       const perfect = quizCorrect === content.quiz.length;
       updateProgress("quiz", { day: currentDay, quiz_perfect: perfect });
+      const primarySkill = currentDay != null ? PRIMARY_SKILL_BY_DAY[currentDay] : null;
+      if (primarySkill) {
+        const total = content.quiz.length;
+        const delta = total === 0 ? 0 : quizCorrect >= total ? 5 : quizCorrect >= total - 1 ? 3 : quizCorrect >= total - 2 ? 1 : 0;
+        if (delta > 0) {
+          updateProgress("update_skills", { skill_deltas: { [primarySkill]: delta } });
+        }
+      }
       setPhase("reflection");
     }
   };
@@ -365,7 +454,12 @@ export default function OnboardingPage() {
 
   const handleKeyTakeawayFinish = () => {
     const perfect = content ? quizCorrect === content.quiz.length : false;
-    updateProgress("day_complete", { day: currentDay, perfect_day: perfect });
+    updateProgress("day_complete", {
+      day: currentDay,
+      perfect_day: perfect,
+      quiz_correct_count: content ? quizCorrect : undefined,
+      quiz_total: content ? content.quiz.length : undefined,
+    });
     setCurrentDay(null);
     setPhase("map");
     setReflectionText("");
@@ -409,11 +503,20 @@ export default function OnboardingPage() {
                   <span className="text-emerald-400 text-sm">🔥 {progress.streak_days}</span>
                 )}
                 {progress.skill_scores && (
-                  <div className="hidden sm:flex gap-2 text-[10px]">
-                    <span className="text-slate-400" title="Communication">C:{progress.skill_scores.communication}</span>
-                    <span className="text-slate-400" title="Safety">S:{progress.skill_scores.safety}</span>
-                    <span className="text-slate-400" title="Sales">$:{progress.skill_scores.sales}</span>
-                    <span className="text-slate-400" title="Teamwork">T:{progress.skill_scores.teamwork}</span>
+                  <div className="hidden sm:flex flex-wrap gap-x-4 gap-y-1.5 text-[10px] max-w-[280px]">
+                    {(["communication", "safety", "sales", "teamwork"] as const).map((key) => {
+                      const label = key === "communication" ? (locale === "vi" ? "Giao tiếp" : "Communication") : key === "safety" ? (locale === "vi" ? "An toàn" : "Safety") : key === "sales" ? (locale === "vi" ? "Bán hàng" : "Sales") : (locale === "vi" ? "Đội nhóm" : "Teamwork");
+                      const val = progress.skill_scores[key] ?? 50;
+                      return (
+                        <div key={key} className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-slate-400 shrink-0">{label}</span>
+                          <div className="h-1.5 w-12 rounded-full bg-slate-700 overflow-hidden shrink-0">
+                            <div className="h-full bg-amber-500/80 rounded-full transition-all" style={{ width: `${val}%` }} />
+                          </div>
+                          <span className="text-slate-300 font-medium w-6 shrink-0">{val}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </>
@@ -500,6 +603,94 @@ export default function OnboardingPage() {
             </div>
           </section>
         )}
+
+        {phase === "day_complete_menu" && content && currentDay && (
+          <section className="rounded-2xl bg-slate-800/80 border border-slate-600 p-6 max-w-md mx-auto space-y-4">
+            <h2 className="text-xl font-bold text-white">
+              {locale === "vi" ? `Ngày ${currentDay} đã hoàn thành` : `Day ${currentDay} complete`}
+            </h2>
+            <p className="text-slate-300 text-sm">
+              {locale === "vi" ? "Mở khóa: thử thách khó hơn và bài nâng cao." : "Unlocked: try harder scenarios and advanced lessons."}
+            </p>
+            <div className="flex flex-col gap-3">
+              {(content.hardModeScenarios?.length ?? 0) > 0 && (
+                <button
+                  type="button"
+                  onClick={() => { setPhase("hard_mode"); setHardScenarioIndex(0); setScenarioResult(null); setScenarioResponse(""); }}
+                  className="w-full py-3 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-200 font-medium hover:bg-amber-500/30"
+                >
+                  {locale === "vi" ? `Chế độ khó (${content.hardModeScenarios!.length} kịch bản)` : `Hard mode (${content.hardModeScenarios!.length} scenarios)`}
+                </button>
+              )}
+              {(content.advancedLessons?.length ?? 0) > 0 && (
+                <button
+                  type="button"
+                  onClick={() => { setPhase("advanced_lessons"); setAdvancedLessonIndex(0); setSelectedChoice(null); }}
+                  className="w-full py-3 rounded-xl bg-slate-600/80 border border-slate-500 text-slate-200 font-medium hover:bg-slate-600"
+                >
+                  {locale === "vi" ? `Bài nâng cao (${content.advancedLessons!.length} bài)` : `Advanced lessons (${content.advancedLessons!.length})`}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => { setCurrentDay(null); setPhase("map"); }}
+                className="w-full py-2 rounded-xl text-slate-400 hover:text-white text-sm"
+              >
+                {locale === "vi" ? "← Quay lại bản đồ" : "← Back to map"}
+              </button>
+            </div>
+          </section>
+        )}
+
+        {phase === "hard_mode" && content?.hardModeScenarios && content.hardModeScenarios.length > 0 && (() => {
+          const hardScenario = content.hardModeScenarios[hardScenarioIndex];
+          const isLast = hardScenarioIndex >= content.hardModeScenarios.length - 1;
+          return (
+            <ScenarioCard
+              scenario={hardScenario}
+              locale={locale}
+              index={hardScenarioIndex}
+              total={content.hardModeScenarios.length}
+              response={scenarioResponse}
+              onResponseChange={setScenarioResponse}
+              result={scenarioResult}
+              onSubmit={handleHardScenarioSubmit}
+              onNext={() => {
+                setScenarioResult(null);
+                setScenarioResponse("");
+                if (isLast) {
+                  setPhase("day_complete_menu");
+                } else {
+                  setHardScenarioIndex((i) => i + 1);
+                }
+              }}
+              saving={saving}
+            />
+          );
+        })()}
+
+        {phase === "advanced_lessons" && content?.advancedLessons && content.advancedLessons.length > 0 && (() => {
+          const advSection = content.advancedLessons[advancedLessonIndex];
+          const isLast = advancedLessonIndex >= content.advancedLessons.length - 1;
+          return (
+            <LessonCard
+              section={advSection}
+              locale={locale}
+              lessonIndex={advancedLessonIndex}
+              total={content.advancedLessons.length}
+              selectedChoice={selectedChoice}
+              onSelectChoice={setSelectedChoice}
+              onNext={() => {
+                setSelectedChoice(null);
+                if (isLast) setPhase("day_complete_menu");
+                else setAdvancedLessonIndex((i) => i + 1);
+              }}
+              onReorderSubmit={() => setLessonReorderSubmitted(true)}
+              canProceed={advSection.type === "text" || advSection.type === "list" || advSection.type === "goodvsbad" || (advSection.type === "choice" && selectedChoice !== null) || (advSection.type === "reorder_steps" && lessonReorderSubmitted) || ((advSection.type === "choose_better" || advSection.type === "fix_sentence" || advSection.type === "tap_mistake") && selectedChoice !== null)}
+              saving={saving}
+            />
+          );
+        })()}
 
         {phase === "lesson" && section && content && (
           <LessonCard
@@ -757,8 +948,12 @@ export default function OnboardingPage() {
             selectedChoice={selectedChoice}
             onSelect={handleQuizSelect}
             onNext={handleQuizNext}
-            canProceed={selectedChoice !== null}
+            canProceed={(quizQuestion as QuizQuestion).quizType === "ranking" ? rankingRevealed : selectedChoice !== null}
             saving={saving}
+            rankingOrder={rankingOrder}
+            onRankingChange={setRankingOrder}
+            rankingRevealed={rankingRevealed}
+            onRankingSubmit={handleRankingSubmit}
           />
         )}
 
@@ -1162,8 +1357,12 @@ function QuizCard({
   onNext,
   canProceed,
   saving,
+  rankingOrder,
+  onRankingChange,
+  rankingRevealed,
+  onRankingSubmit,
 }: {
-  question: { questionEn: string; questionVi: string; options: { en: string; vi: string }[]; correctIndex: number; id?: string; explanationsEn?: string[]; explanationsVi?: string[] };
+  question: QuizQuestion & { questionEn: string; questionVi: string; options: { en: string; vi: string }[]; correctIndex: number; id?: string; explanationsEn?: string[]; explanationsVi?: string[] };
   locale: Locale;
   index: number;
   total: number;
@@ -1172,13 +1371,90 @@ function QuizCard({
   onNext: () => void;
   canProceed: boolean;
   saving: boolean;
+  rankingOrder?: number[] | null;
+  onRankingChange?: (order: number[]) => void;
+  rankingRevealed?: boolean;
+  onRankingSubmit?: (correct: boolean) => void;
 }) {
-  const q = getQuizContent(question, locale);
-  const correct = selectedChoice === question.correctIndex;
+  const q = getQuizContent(question, locale) as ReturnType<typeof getQuizContent> & { quizType?: string; correctOrder?: number[] };
+  const quizType = q.quizType ?? "multiple_choice";
+  const rankOrder = (quizType === "ranking" && question.options?.length) ? (rankingOrder ?? question.options.map((_, i) => i)) : null;
+  const isRanking = quizType === "ranking" && q.correctOrder && rankOrder;
+  const correct = isRanking
+    ? q.correctOrder!.length === rankOrder.length && q.correctOrder!.every((v, i) => v === rankOrder[i])
+    : selectedChoice === question.correctIndex;
   const explanations: string[] = (q as { explanations?: string[] }).explanations ?? [];
   const chosenExplanation = selectedChoice != null ? explanations[selectedChoice] : undefined;
   const correctExplanation = explanations[question.correctIndex];
   const correctOptionText = q.options[question.correctIndex];
+
+  const moveRank = (from: number, dir: 1 | -1) => {
+    if (!onRankingChange || !rankOrder) return;
+    const to = from + dir;
+    if (to < 0 || to >= rankOrder.length) return;
+    const next = [...rankOrder];
+    const a = next[from];
+    next[from] = next[to];
+    next[to] = a;
+    onRankingChange(next);
+  };
+
+  if (quizType === "ranking" && q.correctOrder && rankOrder) {
+    return (
+      <div className="space-y-6">
+        <div className="text-xs text-slate-400">{index + 1} / {total} Quiz — {locale === "vi" ? "Sắp xếp thứ tự" : "Rank order"}</div>
+        <div className="rounded-2xl bg-slate-800/80 border border-slate-600 p-6">
+          <h2 className="text-lg font-bold mb-4">{q.question}</h2>
+          <div className="space-y-2">
+            {rankOrder.map((optIdx, position) => (
+              <div key={`${position}-${optIdx}`} className="flex items-center gap-2 rounded-xl border-2 border-slate-600 bg-slate-800/80 px-4 py-3">
+                <span className="text-slate-400 text-sm w-6">{position + 1}.</span>
+                <span className="flex-1 text-slate-200">{q.options[optIdx]}</span>
+                {!rankingRevealed && (
+                  <>
+                    <button type="button" onClick={() => moveRank(position, -1)} disabled={position === 0} className="text-slate-400 hover:text-white disabled:opacity-30">↑</button>
+                    <button type="button" onClick={() => moveRank(position, 1)} disabled={position === rankOrder.length - 1} className="text-slate-400 hover:text-white disabled:opacity-30">↓</button>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+          {rankingRevealed && (
+            <div className="mt-6 space-y-4 border-t border-slate-600 pt-4">
+              <p className="text-xs font-semibold uppercase text-slate-400">
+                {correct ? (locale === "vi" ? "Đúng thứ tự" : "Correct order") : (locale === "vi" ? "Thứ tự đúng" : "Right order")}
+              </p>
+              <div className={`rounded-xl p-4 text-sm ${correct ? "bg-emerald-500/10 border border-emerald-500/30 text-slate-200" : "bg-amber-500/10 border border-amber-500/30 text-slate-200"}`}>
+                {correct ? (
+                  <p>{locale === "vi" ? "Bạn sắp xếp đúng. Thứ tự này tạo ấn tượng tốt và hỗ trợ thành viên đúng cách." : "You got the order right. This sequence creates the right impression and supports the member."}</p>
+                ) : (
+                  <>
+                    <p className="mb-2">{locale === "vi" ? "Thứ tự đúng là:" : "The correct order is:"}</p>
+                    <ol className="list-decimal list-inside space-y-1">
+                      {q.correctOrder!.map((idx) => (
+                        <li key={idx}>{q.options[idx]}</li>
+                      ))}
+                    </ol>
+                    {explanations[0] && <p className="mt-2 text-slate-300 whitespace-pre-wrap">{explanations[0]}</p>}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        {!rankingRevealed ? (
+          <button type="button" onClick={() => onRankingSubmit?.(correct)} disabled={saving} className="w-full py-3 rounded-xl bg-amber-500 text-slate-900 font-bold hover:bg-amber-400 disabled:opacity-50">
+            {locale === "vi" ? "Kiểm tra thứ tự" : "Check order"}
+          </button>
+        ) : (
+          <button type="button" onClick={onNext} disabled={saving} className="w-full py-3 rounded-xl bg-amber-500 text-slate-900 font-bold hover:bg-amber-400 disabled:opacity-50">
+            {index < total - 1 ? (locale === "vi" ? "Tiếp" : "Next") : (locale === "vi" ? "Xem kết quả" : "See results")}
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="text-xs text-slate-400">{index + 1} / {total} Quiz</div>
