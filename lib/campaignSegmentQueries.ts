@@ -21,7 +21,7 @@ function displayName(rec: SegmentRecipient): string {
 export async function getSegmentRecipients(
   supabase: SupabaseClient,
   segmentId: CampaignSegmentId
-): Promise<{ email: string; name: string }[]> {
+): Promise<{ email: string; name: string; member_id: string }[]> {
   const now = new Date();
   const nowIso = now.toISOString();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
