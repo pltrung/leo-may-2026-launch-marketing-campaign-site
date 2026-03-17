@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useAdminAuth } from "@/components/admin/AdminAuthContext";
 import AdminLoginForm from "@/components/admin/AdminLoginForm";
@@ -134,6 +134,7 @@ export default function AdminPage() {
   const [paymentReceived, setPaymentReceived] = useState(false);
   const lastPaymentCountRef = React.useRef<number | null>(null);
   const [adminArea, setAdminArea] = useState<"front_desk" | "operations" | "management" | "staff" | "analytics">("front_desk");
+  const hasInitializedAdminArea = useRef(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [adminProfileDisplayName, setAdminProfileDisplayName] = useState("");
   const [adminProfileEditing, setAdminProfileEditing] = useState(false);
@@ -333,9 +334,13 @@ export default function AdminPage() {
       .catch(() => setStaffSalesSummary(null));
   }, [staffId, adminFetch]);
 
-  // When role loads, ensure current area is allowed; otherwise switch to first allowed. Staff land on Staff tab first; others on first allowed.
+  // When role loads, set initial area to first allowed (staff → Staff tab, admin/frontdesk → Front Desk). Then ensure current area stays allowed.
   useEffect(() => {
-    if (role === null) return;
+    if (role === null) {
+      hasInitializedAdminArea.current = false;
+      return;
+    }
+    if (!meFetched) return;
     const allowed: ("front_desk" | "operations" | "management" | "staff" | "analytics")[] = [];
     if (role === "staff") {
       allowed.push("staff");
@@ -346,7 +351,13 @@ export default function AdminPage() {
     }
     if (canAccessManagement) allowed.push("management");
     if (canAccessAnalytics) allowed.push("analytics");
-    if (allowed.length > 0 && !allowed.includes(adminArea)) setAdminArea(allowed[0]);
+    if (allowed.length === 0) return;
+    if (!hasInitializedAdminArea.current) {
+      setAdminArea(allowed[0]);
+      hasInitializedAdminArea.current = true;
+    } else if (!allowed.includes(adminArea)) {
+      setAdminArea(allowed[0]);
+    }
     if (adminArea === "front_desk" && meFetched && !canDoCheckIn && frontDeskTab === "checkin") setFrontDeskTab("member");
     if (!canDoMembershipModify && memberProfileSubTab === "membership") setMemberProfileSubTab("summary");
     if (adminArea === "management" && !canAccessAdminTools && managementTab !== "inventory") setManagementTab("inventory");
