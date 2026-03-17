@@ -101,27 +101,14 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
-    let settled = false;
-    const fallback = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      setSession(null);
-      setLoading(false);
-    }, 10000);
     supabase.auth.getSession().then(({ data: { session: s } }) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(fallback);
       setSession(s);
       setLoading(false);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
     });
-    return () => {
-      clearTimeout(fallback);
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const adminFetch = useCallback(
