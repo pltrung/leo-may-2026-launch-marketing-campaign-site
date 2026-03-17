@@ -36,7 +36,6 @@ interface AdminAuthContextValue {
   canAccessAdminTools: boolean;
   /** Current gym phase (Pre-open / Gym Open / Closing) from /api/admin/me. Shown in header for Staff and Frontdesk. */
   phase: { phase_label: string; countdown_message: string } | null;
-  staffDisplayName: string | null;
   /** Re-fetch /api/admin/me to refresh role, staffId, staffDisplayName, phase. */
   refreshMe: () => void;
 }

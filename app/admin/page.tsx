@@ -304,7 +304,6 @@ export default function AdminPage() {
     if (!canDoMembershipModify && memberProfileSubTab === "membership") setMemberProfileSubTab("summary");
     if (adminArea === "management" && !canAccessRevenue && !canAccessAdminTools && managementTab !== "inventory") setManagementTab("inventory");
   }, [role, canAccessFrontDeskFull, canAccessFrontDeskLimited, canAccessOperations, canAccessManagement, adminArea, canDoCheckIn, frontDeskTab, canDoMembershipModify, memberProfileSubTab, canAccessRevenue, canAccessAdminTools, managementTab]);
-  const dashboardSubtitle = role === "admin" ? t.subtitleAdmin : role === "frontdesk" ? t.subtitleFrontDesk : t.subtitleStaff;
 
   // Fetch products for front desk sales and management inventory
   useEffect(() => {
@@ -1148,6 +1147,7 @@ export default function AdminPage() {
   );
 
   const t = getMessages(locale).admin;
+  const dashboardSubtitle = role === "admin" ? t.subtitleAdmin : role === "frontdesk" ? t.subtitleFrontDesk : t.subtitleStaff;
 
   if (loading) {
     return (
@@ -3252,7 +3252,7 @@ export default function AdminPage() {
                     <label className="block text-xs font-medium text-slate-400">{locale === "vi" ? "Tên hiển thị" : "Display name"}</label>
                     <input type="text" value={adminProfileDisplayName} onChange={(e) => setAdminProfileDisplayName(e.target.value)} placeholder={locale === "vi" ? "Tên hiển thị khi làm coach" : "Name shown as coach"} className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-500 text-sm" />
                     <div className="flex gap-2">
-                      <button type="button" disabled={adminProfileSaving} onClick={async () => { setAdminProfileSaving(true); try { const res = await adminFetch("/api/admin/staff/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ display_name: adminProfileDisplayName.trim() || null }) }); if (res.ok) { refreshMe(); setProfileModalOpen(false); } } finally { setAdminProfileSaving(false); }} className="px-3 py-1.5 rounded-lg bg-amber-600 text-slate-900 text-sm font-medium hover:bg-amber-500 disabled:opacity-50">{adminProfileSaving ? "…" : (locale === "vi" ? "Lưu" : "Save")}</button>
+                      <button type="button" disabled={adminProfileSaving} onClick={async () => { setAdminProfileSaving(true); try { const res = await adminFetch("/api/admin/staff/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ display_name: adminProfileDisplayName.trim() || null }) }); if (res.ok) { refreshMe(); setProfileModalOpen(false); } } finally { setAdminProfileSaving(false); } }} className="px-3 py-1.5 rounded-lg bg-amber-600 text-slate-900 text-sm font-medium hover:bg-amber-500 disabled:opacity-50">{adminProfileSaving ? "…" : (locale === "vi" ? "Lưu" : "Save")}</button>
                       <button type="button" onClick={() => { setAdminProfileEditing(false); setAdminProfileDisplayName(staffDisplayName ?? session?.user?.email?.split("@")[0] ?? ""); }} className="px-3 py-1.5 rounded-lg border border-slate-500 text-slate-300 text-sm">{m.cancel}</button>
                     </div>
                   </div>
