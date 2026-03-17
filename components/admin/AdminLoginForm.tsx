@@ -24,7 +24,9 @@ export default function AdminLoginForm({ locale, onLocaleChange }: AdminLoginFor
     setLoading(true);
     try {
       const result = await signIn(email, password);
-      if (result.error) setError(result.error);
+      if (result?.error) setError(result.error);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed. Try again.");
     } finally {
       setLoading(false);
     }

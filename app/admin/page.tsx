@@ -93,6 +93,7 @@ export default function AdminPage() {
     staffDisplayName,
     staffProfile,
     refreshMe,
+    meFetched,
   } = useAdminAuth();
   const [locale, setLocale] = useState<Locale>("vi");
   const [searchQuery, setSearchQuery] = useState("");
@@ -303,13 +304,17 @@ export default function AdminPage() {
       .catch(() => setStaffSalesSummary(null));
   }, [staffId, adminFetch]);
 
-  // When role loads, ensure current area is allowed; otherwise switch to first allowed. Staff on Front Desk default to Member tab.
+  // When role loads, ensure current area is allowed; otherwise switch to first allowed. Staff land on Staff tab first; others on first allowed.
   useEffect(() => {
     if (role === null) return;
     const allowed: ("front_desk" | "operations" | "management" | "staff")[] = [];
-    if (canAccessFrontDeskFull || canAccessFrontDeskLimited) allowed.push("front_desk");
-    if (role === "staff") allowed.push("staff");
-    else if (canAccessOperations) allowed.push("operations");
+    if (role === "staff") {
+      allowed.push("staff");
+      if (canAccessFrontDeskLimited) allowed.push("front_desk");
+    } else {
+      if (canAccessFrontDeskFull || canAccessFrontDeskLimited) allowed.push("front_desk");
+      if (canAccessOperations) allowed.push("operations");
+    }
     if (canAccessManagement) allowed.push("management");
     if (allowed.length > 0 && !allowed.includes(adminArea)) setAdminArea(allowed[0]);
     if (adminArea === "front_desk" && !canDoCheckIn && frontDeskTab === "checkin") setFrontDeskTab("member");
@@ -422,14 +427,26 @@ export default function AdminPage() {
       .catch(() => setRevenueData(null));
   }, [isReportingActive, revenuePeriod, adminFetch]);
 
-  // Fetch staff operations when Operations area is active
+  // Fetch staff operations when Operations area is active, or when admin (so top operations overview bar has data)
   useEffect(() => {
-    if (!isOperationsActive && !isStaffAreaActive) return;
+    if (!canAccessOperations && !isStaffAreaActive) return;
     adminFetch("/api/admin/staff")
       .then((r) => r.json())
       .then((d) => setStaffOpsData(d))
       .catch(() => setStaffOpsData(null));
-  }, [isOperationsActive, isStaffAreaActive, adminFetch]);
+  }, [canAccessOperations, isStaffAreaActive, adminFetch]);
+
+  // Refresh operations overview for admin every 60s so top bar stays current
+  useEffect(() => {
+    if (!canAccessOperations) return;
+    const id = setInterval(() => {
+      adminFetch("/api/admin/staff")
+        .then((r) => r.json())
+        .then((d) => setStaffOpsData(d))
+        .catch(() => {});
+    }, 60000);
+    return () => clearInterval(id);
+  }, [canAccessOperations, adminFetch]);
 
   useEffect(() => {
     if (!isOperationsActive || staffModalTab !== "attendance") return;
@@ -481,22 +498,21 @@ export default function AdminPage() {
     return () => { supabase.removeChannel(channel); };
   }, [isStaffAreaActive, staffId, adminFetch]);
 
-  // Front Desk tab: fetch my-attendance for shift check-in block (frontdesk + staff with staffId)
+  // Fetch my-attendance when staffId set (so staff see attendance/commission above nav; frontdesk see shift block on Front Desk tab)
   useEffect(() => {
-    if (adminArea !== "front_desk" || !staffId) {
+    if (!staffId) {
       setShiftCheckInAttendance(null);
-      setShiftCheckInQrToken(null);
       return;
     }
     adminFetch("/api/admin/staff/my-attendance")
       .then((r) => r.json())
       .then((d) => setShiftCheckInAttendance(d.attendance ?? null))
       .catch(() => setShiftCheckInAttendance(null));
-  }, [adminArea, staffId, adminFetch]);
+  }, [staffId, adminFetch]);
 
-  // Front Desk tab: QR token for shift check-in when not checked in today
+  // QR token for shift check-in when not checked in today (Front Desk tab or Staff tab)
   useEffect(() => {
-    if (adminArea !== "front_desk" || !staffId) {
+    if (!staffId) {
       setShiftCheckInQrToken(null);
       return;
     }
@@ -518,17 +534,17 @@ export default function AdminPage() {
     fetchToken();
     const id = window.setInterval(fetchToken, 20000);
     return () => { cancelled = true; clearInterval(id); };
-  }, [adminArea, staffId, shiftCheckInAttendance, adminFetch]);
+  }, [staffId, shiftCheckInAttendance, adminFetch]);
 
-  // Realtime: when on Front Desk and staffId, refetch my-attendance when staff_attendance changes (e.g. front desk scanned our QR)
+  // Realtime: when staffId, refetch my-attendance when staff_attendance changes (e.g. front desk scanned our QR)
   useEffect(() => {
-    if (adminArea !== "front_desk" || !staffId) return;
+    if (!staffId) return;
     const supabase = getSupabaseBrowserClient();
     const channel = supabase.channel(`admin-frontdesk-attendance-${staffId}`).on("postgres_changes", { event: "*", schema: "public", table: "staff_attendance", filter: `staff_id=eq.${staffId}` }, () => {
       adminFetch("/api/admin/staff/my-attendance").then((r) => r.json()).then((d) => setShiftCheckInAttendance(d.attendance ?? null));
     }).subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [adminArea, staffId, adminFetch]);
+  }, [staffId, adminFetch]);
 
   // When profile modal opens, sync staff profile form state from staffProfile; then fetch full profile (id_number, etc.) when migration 040 applied.
   useEffect(() => {
@@ -1213,10 +1229,28 @@ export default function AdminPage() {
       </div>
     );
   }
-  if (loading || (session && role === null)) {
+  if (loading || (session && role === null && !meFetched)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
         <p className="text-slate-400">{m.loading}</p>
+      </div>
+    );
+  }
+  if (session && role === null && meFetched) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 p-4">
+        <p className="text-slate-300 text-center mb-4">
+          {locale === "vi"
+            ? "Tài khoản của bạn chưa có quyền truy cập bảng điều khiển. Nếu bạn là Front Desk hoặc Staff, hãy nhờ admin thêm bạn (chạy script seed cho frontdesk001)."
+            : "Your account does not have access to the admin dashboard. If you are Front Desk or Staff, ask an admin to add you (run the seed script for frontdesk001)."}
+        </p>
+        <button
+          type="button"
+          onClick={() => signOut()}
+          className="px-4 py-2 rounded-lg bg-slate-600 text-slate-200 hover:bg-slate-500"
+        >
+          {t.logout}
+        </button>
       </div>
     );
   }
@@ -1227,7 +1261,8 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen flex flex-col bg-slate-900 text-slate-50">
       <header className="border-b border-slate-800 bg-slate-900/95 backdrop-blur">
-        <div className="max-w-[1100px] mx-auto px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+        {/* Row 1: Logo, title, subtitle, and locale only */}
+        <div className="max-w-[1100px] mx-auto px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="flex items-center gap-3">
             <img src="/logo-white.svg" alt="Leo Mây logo" className="h-7 w-auto" />
             <div>
@@ -1240,62 +1275,151 @@ export default function AdminPage() {
               <p className="text-xs md:text-sm text-slate-300">{dashboardSubtitle}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 md:gap-4 text-xs md:text-sm text-slate-200">
-            {/* Gym phase first so everyone sees it at a glance */}
-            {phase && (
-              <div className="border border-amber-500/50 rounded-xl px-3 py-2 bg-amber-500/10 shadow-sm" title={phase.countdown_message}>
-                <span className="text-slate-400 text-[10px] font-medium uppercase tracking-wider block leading-tight">{locale === "vi" ? "Ca hiện tại" : "Current phase"}</span>
-                <span className="text-amber-300 font-bold text-sm">{phase.phase_label}</span>
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={() => { setProfileModalOpen(true); setAdminProfileDisplayName(staffDisplayName ?? session?.user?.email?.split("@")[0] ?? ""); setAdminProfileEditing(false); }}
-              className="px-3 py-1.5 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-700"
-            >
-              {t.profileTab}
-            </button>
+          <div className="flex items-center gap-2 shrink-0">
             <div className="flex gap-1 rounded-full border border-slate-600 bg-slate-800/80 p-0.5">
               <button
                 type="button"
                 onClick={() => setLocaleAndStore("en")}
-                className={`px-3 py-1 rounded-full text-xs font-medium ${locale === "en" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium ${locale === "en" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}
               >
                 EN
               </button>
               <button
                 type="button"
                 onClick={() => setLocaleAndStore("vi")}
-                className={`px-3 py-1 rounded-full text-xs font-medium ${locale === "vi" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium ${locale === "vi" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}
               >
                 VN
               </button>
             </div>
-            <div className="border border-slate-700 rounded-xl px-3 py-1.5 bg-slate-800/80 shadow-sm">
-              <span className="font-medium">{t.gymOccupancy}</span>
-              <span className="ml-2 text-slate-50">
-                {t.climbersInside.replace("{count}", String(gymOccupancy))}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => signOut()}
-              className="px-3 py-1.5 rounded-lg border border-slate-500 text-slate-200 hover:bg-slate-700 hover:text-white"
-            >
-              {t.logout}
-            </button>
           </div>
+        </div>
+        {/* Row 2: Phase, profile, gym occupancy, logout */}
+        <div className="max-w-[1100px] mx-auto px-4 pb-3 flex flex-wrap items-center gap-2 md:gap-3 text-xs md:text-sm text-slate-200">
+          {phase && (
+            <div className="border border-amber-500/50 rounded-xl px-3 py-2 bg-amber-500/10 shadow-sm" title={phase.countdown_message}>
+              <span className="text-slate-400 text-[10px] font-medium uppercase tracking-wider block leading-tight">{locale === "vi" ? "Ca hiện tại" : "Current phase"}</span>
+              <span className="text-amber-300 font-bold text-sm">{phase.phase_label}</span>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => { setProfileModalOpen(true); setAdminProfileDisplayName(staffDisplayName ?? session?.user?.email?.split("@")[0] ?? ""); setAdminProfileEditing(false); }}
+            className="px-3 py-1.5 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-700"
+          >
+            {t.profileTab}
+          </button>
+          <div className="border border-slate-700 rounded-xl px-3 py-1.5 bg-slate-800/80 shadow-sm">
+            <span className="font-medium">{t.gymOccupancy}</span>
+            <span className="ml-2 text-slate-50">
+              {t.climbersInside.replace("{count}", String(gymOccupancy))}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => signOut()}
+            className="px-3 py-1.5 rounded-lg border border-slate-500 text-slate-200 hover:bg-slate-700 hover:text-white"
+          >
+            {t.logout}
+          </button>
         </div>
       </header>
 
       <main className="flex-1">
         <div className="max-w-[1100px] mx-auto px-4 py-6 md:py-8 space-y-8 md:space-y-10">
+          {/* For staff: daily attendance + sales commission above the nav (only when checked in today) */}
+          {role === "staff" && staffId != null && (() => {
+            const today = getGymToday();
+            const hasShiftToday = shiftCheckInAttendance != null && shiftCheckInAttendance.date === today;
+            const isShiftIn = hasShiftToday && shiftCheckInAttendance!.status === "IN";
+            if (!isShiftIn) return null;
+            const staffMsg = getMessages(locale).staff;
+            return (
+              <div className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-700 bg-slate-800/80 p-3 mb-4">
+                <p className="text-slate-200 text-sm"><span className="text-emerald-400 font-medium">{staffMsg.youAreCheckedIn}</span></p>
+                {staffSalesSummary != null && (
+                  <>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{locale === "vi" ? "Doanh số hôm nay" : "My Sales Today"}</p>
+                      <p className="text-base font-bold text-white">{(staffSalesSummary.sales_today ?? 0).toLocaleString("vi-VN")} VND</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{locale === "vi" ? "Hoa hồng hôm nay" : "My Commission"}</p>
+                      <p className="text-base font-bold text-white">{(staffSalesSummary.commission_today ?? 0).toLocaleString("vi-VN")} VND</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Operations overview bar — admin only: always visible above Front Desk / Operations / Management tabs */}
+          {canAccessOperations && (() => {
+            const sum = staffOpsData?.summary;
+            if (!sum) return <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 mb-4"><p className="text-sm text-slate-500">{m.loading}</p></div>;
+            const req = sum.staff_required ?? 3;
+            const present = sum.staff_in_today ?? 0;
+            const unassigned = sum.unassigned_sessions ?? 0;
+            const staffStatus = present >= req ? "green" : present >= req - 1 ? "yellow" : "red";
+            const alerts: string[] = [];
+            const tz = "America/Los_Angeles";
+            const nowStr = new Date().toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", timeZone: tz }).slice(0, 5);
+            const [nh, nm] = nowStr.split(":").map(Number);
+            const nowMins = nh * 60 + nm;
+            (staffOpsData?.preOpen ?? []).forEach((t: { status: string; due_time?: string | null; title: string }) => {
+              if (t.status !== "completed" && t.due_time) {
+                const [dh, dm] = String(t.due_time).slice(0, 5).split(":").map(Number);
+                const minOver = nowMins - (dh * 60 + dm);
+                if (minOver > 0) alerts.push(`${t.title} ${locale === "vi" ? "quá hạn" : "overdue"} (${minOver} ${locale === "vi" ? "phút" : "min"})`);
+              }
+            });
+            (staffOpsData?.closing ?? []).forEach((t: { status: string; due_time?: string | null; title: string }) => {
+              if (t.status !== "completed" && t.due_time) {
+                const [dh, dm] = String(t.due_time).slice(0, 5).split(":").map(Number);
+                const minOver = nowMins - (dh * 60 + dm);
+                if (minOver > 0) alerts.push(`${t.title} ${locale === "vi" ? "quá hạn" : "overdue"} (${minOver} ${locale === "vi" ? "phút" : "min"})`);
+              }
+            });
+            (staffOpsData?.zones ?? []).filter((z: { overdue?: boolean }) => z.overdue).forEach((z: { name: string }) =>
+              alerts.push(`${z.name} ${locale === "vi" ? "reset quá hạn" : "reset overdue"}`),
+            );
+            if (unassigned > 0) alerts.push(`${unassigned} ${locale === "vi" ? "buổi coaching chưa giao" : "coaching sessions unassigned"}`);
+            return (
+              <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-3 mb-4">
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">{locale === "vi" ? "Tổng quan vận hành" : "Operations overview"}</p>
+                <div className="flex flex-wrap gap-3 md:gap-6">
+                  <div className={`rounded-lg border px-3 py-2 min-w-0 ${staffStatus === "green" ? "bg-emerald-50 border-emerald-200" : staffStatus === "yellow" ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200"}`}>
+                    <p className="text-[10px] font-semibold text-slate-600 uppercase">{m.staffPresent}</p>
+                    <p className="text-sm font-bold text-slate-800">{present} / {req}</p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Phòng gym" : "Gym status"}</p>
+                    <p className="text-sm font-bold text-slate-800">{t.climbersInside.replace("{count}", String(gymOccupancy))}</p>
+                  </div>
+                  <div className={`rounded-lg border px-3 py-2 flex-1 min-w-0 ${alerts.length === 0 ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
+                    <p className="text-[10px] font-semibold text-slate-600 uppercase">{m.operationsAlerts}</p>
+                    {alerts.length === 0 ? <p className="text-sm text-slate-700">{m.noOperationalAlerts}</p> : <p className="text-sm font-bold text-slate-800">{alerts.length} {locale === "vi" ? "cảnh báo" : "alerts"}</p>}
+                    {alerts.length > 0 && <ul className="list-disc list-inside text-xs text-slate-700 mt-0.5">{alerts.slice(0, 3).map((a) => <li key={a}>{a}</li>)}</ul>}
+                  </div>
+                  <div className={`rounded-lg border px-3 py-2 min-w-0 ${unassigned > 0 ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"}`}>
+                    <p className="text-[10px] font-semibold text-slate-600 uppercase">{m.unassignedCoaching}</p>
+                    <p className="text-sm font-bold text-slate-800">{unassigned}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* AREA NAVIGATION: Staff see only Front Desk + Staff (old /staff workflow). They never see Operations (overview, alerts, bird's-eye). Admin sees Front Desk + Operations + Management. */}
           {(() => {
             const allowedAreas: ("front_desk" | "operations" | "management" | "staff")[] = [];
-            if (canAccessFrontDeskFull || canAccessFrontDeskLimited) allowedAreas.push("front_desk");
-            if (role === "staff") allowedAreas.push("staff"); // Staff tab = old /staff (phase-based tasks). Not the Operations control board.
-            else if (canAccessOperations) allowedAreas.push("operations");
+            if (role === "staff") {
+              allowedAreas.push("staff");
+              if (canAccessFrontDeskLimited) allowedAreas.push("front_desk");
+            } else {
+              if (canAccessFrontDeskFull || canAccessFrontDeskLimited) allowedAreas.push("front_desk");
+              if (canAccessOperations) allowedAreas.push("operations");
+            }
             if (canAccessManagement) allowedAreas.push("management");
             return (
           <nav className="sticky top-0 z-20 rounded-xl p-1 mb-4 bg-white/95 border border-slate-200 shadow-md backdrop-blur-md overflow-x-auto" aria-label="Admin areas">
@@ -1345,8 +1469,8 @@ export default function AdminPage() {
             );
           })()}
 
-          {/* Staff commission summary (My Sales Today / My Commission) — only when staffId is set */}
-          {staffId != null && staffSalesSummary != null && (
+          {/* Staff commission summary (My Sales Today / My Commission) — for frontdesk with staffId; staff see it above the nav when checked in */}
+          {staffId != null && role !== "staff" && staffSalesSummary != null && (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 flex flex-wrap gap-4">
               <div>
                 <p className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">{locale === "vi" ? "Doanh số hôm nay" : "My Sales Today"}</p>
@@ -3161,7 +3285,6 @@ export default function AdminPage() {
             const activePending = activeTasks.filter((t) => t.status === "pending" || t.status === "upcoming");
             const activeCompleted = activeTasks.filter((t) => t.status === "completed");
             const overdueTasksList = [...preOpen, ...during, ...closing].filter((t) => t.status === "overdue");
-            const phaseLabel = currentBlock === "pre_open" ? staffMsg.phasePreOpen : currentBlock === "closing" ? staffMsg.phaseClosing : staffMsg.phaseGymOpen;
             const sessionsToday = (staffOpsData?.sessionsToday ?? staffOpsData?.sessions ?? []) as { id: string; start_time: string; end_time?: string; coach_id: string | null; location?: string }[];
             const mySessions = staffId ? sessionsToday.filter((s) => s.coach_id === staffId) : [];
             const unassignedSessions = sessionsToday.filter((s) => !s.coach_id);
@@ -3171,8 +3294,6 @@ export default function AdminPage() {
 
             return (
               <section className="space-y-6 rounded-2xl bg-white border border-slate-200 shadow-lg p-4 md:p-6">
-                <h2 className="text-lg font-semibold text-slate-900">{staffMsg.tabRoutes} / {staffMsg.tabCoaching}</h2>
-
                 {!hasAttendanceForToday && (
                   <div className="rounded-xl bg-slate-800 border border-slate-700 p-4">
                     <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">{staffMsg.dailyAttendance}</h3>
@@ -3198,25 +3319,12 @@ export default function AdminPage() {
                 {isIn && staffOpsData && (
                   <>
                     {staffCheckInSuccess && <div className="rounded-xl px-4 py-3 bg-emerald-900/40 border border-emerald-500/50 text-emerald-200 text-sm font-medium">{staffMsg.checkedInSuccess}</div>}
-                    <div className="rounded-xl bg-slate-800 border border-slate-700 p-4">
-                      <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">{staffMsg.profile}</h3>
-                      <p className="text-slate-200"><span className="text-slate-400 text-sm">{staffMsg.nameShownAsCoach} </span><strong>{staffDisplayName || staffMsg.notSet}</strong></p>
-                      <p className="text-slate-500 text-xs mt-2">{staffMsg.profileHint}</p>
-                    </div>
-                    <div className="rounded-xl bg-slate-800 border border-slate-700 p-4">
-                      <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">{staffMsg.dailyAttendance}</h3>
-                      <p className="text-slate-200"><span className="text-emerald-400 font-medium">{staffMsg.youAreCheckedIn}</span></p>
-                    </div>
                     {staffOpsData.route_reset_day && (
                       <div className="rounded-xl bg-amber-900/40 border border-amber-600 p-3">
                         <p className="text-sm font-semibold text-amber-200">⚠ {staffMsg.routeResetDay}</p>
                         <p className="text-xs text-amber-100/90 mt-0.5">{staffMsg.routeResetDayFocus}</p>
                       </div>
                     )}
-                    <div className="rounded-xl bg-slate-800 border border-slate-700 p-4">
-                      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{staffMsg.currentShiftPhase}</h3>
-                      <p className="text-lg font-semibold text-white">{phaseLabel}</p>
-                    </div>
                     <div className="rounded-xl bg-slate-800 border border-slate-700 p-4 space-y-3">
                       <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{staffMsg.activeTasks}</h3>
                       {activeTasks.length > 0 && (
@@ -3255,26 +3363,27 @@ export default function AdminPage() {
                       <button type="button" onClick={() => setStaffSubTab("coaching")} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${staffSubTab === "coaching" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>{staffMsg.tabCoaching}</button>
                     </div>
                     {staffSubTab === "routes" && (
-                      <div className="rounded-xl bg-slate-800 border border-slate-700 p-4 space-y-4">
-                        <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">{staffMsg.routeResetSchedule}</h3>
-                        {(staffOpsData.zones ?? []).map((z: { id: string; name: string; next_reset_at: string | null; assigned_setters?: { staff_id: string; name: string }[]; reset_status?: string }) => {
-                          const setters = (z.assigned_setters ?? []);
-                          const isAssigned = staffId && setters.some((s) => s.staff_id === staffId);
-                          return (
-                            <div key={z.id} className="rounded-xl border border-slate-700 bg-slate-900/30 p-4 space-y-3">
-                              <div className="text-slate-100 font-semibold">{z.name}</div>
-                              <div className="text-xs text-slate-400">{staffMsg.next}: <span className="text-slate-200">{formatDate(z.next_reset_at)}</span></div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                {setters.length === 0 && <span className="text-sm text-slate-500">{staffMsg.noAssignments}</span>}
-                                {setters.map((s) => <span key={s.staff_id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-700/70 border border-slate-600 text-slate-200 text-xs">{s.name}{staffId && s.staff_id === staffId && <span className="text-emerald-400">{staffMsg.assignedToYou}</span>}</span>)}
-                                <button type="button" onClick={async () => { const nextIds = Array.from(new Set([...setters.map((s) => s.staff_id), staffId].filter(Boolean))); const res = await adminFetch(`/api/admin/routes/zones/${z.id}/assignments`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ staff_ids: nextIds }) }); const d = await res.json(); if (res.ok && d?.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x)); }} className="px-2 py-1 rounded-full bg-slate-800 border border-slate-600 text-slate-200 text-xs hover:bg-slate-700">+ {staffMsg.assignToMe}</button>
+                      <div className="rounded-xl bg-slate-800 border border-slate-700 p-4">
+                        <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">{staffMsg.routeResetSchedule}</h3>
+                        <div className="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory scrollbar-thin">
+                          {(staffOpsData.zones ?? []).map((z: { id: string; name: string; next_reset_at: string | null; assigned_setters?: { staff_id: string; name: string }[]; reset_status?: string }) => {
+                            const setters = (z.assigned_setters ?? []);
+                            return (
+                              <div key={z.id} className="flex-none w-[280px] max-w-[85vw] snap-center rounded-xl border border-slate-700 bg-slate-900/30 p-4 space-y-3">
+                                <div className="text-slate-100 font-semibold">{z.name}</div>
+                                <div className="text-xs text-slate-400">{staffMsg.next}: <span className="text-slate-200">{formatDate(z.next_reset_at)}</span></div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {setters.length === 0 && <span className="text-sm text-slate-500">{staffMsg.noAssignments}</span>}
+                                  {setters.map((s) => <span key={s.staff_id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-700/70 border border-slate-600 text-slate-200 text-xs">{s.name}{staffId && s.staff_id === staffId && <span className="text-emerald-400">{staffMsg.assignedToYou}</span>}</span>)}
+                                  <button type="button" onClick={async () => { const nextIds = Array.from(new Set([...setters.map((s) => s.staff_id), staffId].filter(Boolean))); const res = await adminFetch(`/api/admin/routes/zones/${z.id}/assignments`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ staff_ids: nextIds }) }); const d = await res.json(); if (res.ok && d?.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x)); }} className="px-2 py-1 rounded-full bg-slate-800 border border-slate-600 text-slate-200 text-xs hover:bg-slate-700">+ {staffMsg.assignToMe}</button>
+                                </div>
+                                {(z.reset_status === "in_progress" || z.reset_status === "pending") && (
+                                  <button type="button" onClick={async () => { if (!window.confirm(m.confirmMarkResetComplete)) return; const res = await adminFetch(`/api/admin/routes/zones/${z.id}/reset`, { method: "POST" }); if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x)); }} className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-100 text-sm hover:bg-slate-600">{staffMsg.markResetComplete}</button>
+                                )}
                               </div>
-                              {(z.reset_status === "in_progress" || z.reset_status === "pending") && (
-                                <button type="button" onClick={async () => { if (!window.confirm(m.confirmMarkResetComplete)) return; const res = await adminFetch(`/api/admin/routes/zones/${z.id}/reset`, { method: "POST" }); if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x)); }} className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-100 text-sm hover:bg-slate-600">{staffMsg.markResetComplete}</button>
-                              )}
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                     {staffSubTab === "coaching" && (
