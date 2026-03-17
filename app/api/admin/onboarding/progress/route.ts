@@ -64,14 +64,14 @@ export async function PATCH(req: NextRequest) {
   const result = await getUnifiedAdminOrStaffFromRequest(req);
   if (!result) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: { action: string; day?: number; lesson_index?: number; quiz_perfect?: boolean };
+  let body: { action: string; day?: number; lesson_index?: number; quiz_perfect?: boolean; current_step?: number };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { action, day, lesson_index, quiz_perfect } = body;
+  const { action, day, lesson_index, quiz_perfect, current_step } = body;
   const supabase = createServerClient();
 
   const { data: progress } = await supabase
