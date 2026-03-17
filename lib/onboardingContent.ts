@@ -1,5 +1,6 @@
 /**
- * Onboarding content: 5-day training for staff/frontdesk at Leo Mây
+ * Onboarding content: 7-day training for staff/frontdesk at Leo Mây
+ * Days 1–5: culture, safety, ownership, sales, teamwork. Day 6: Newbie experience mastery. Day 7: Final certification.
  * "Climb the Clouds, Build a Culture"
  */
 
@@ -108,6 +109,8 @@ export interface SimulationStepDecision extends SimulationStepBase {
   wrongFeedbackVi: Record<string, string>;
   correctFeedbackEn: string;
   correctFeedbackVi: string;
+  /** Day 7 certification: option ids that cause critical_fail if chosen (e.g. skip safety, skip onboarding). */
+  criticalWrongIds?: string[];
 }
 
 /** AI response step: free text evaluated like a scenario. */
@@ -175,6 +178,11 @@ export interface DayContent {
   hardModeScenarios?: AIScenario[];
   /** Unlockable after day complete: extra lessons. */
   advancedLessons?: LessonSection[];
+  /** Day 7 only: 10 fast MCQs, no explanations until end. */
+  rapidDecisions?: QuizQuestion[];
+  /** Day 7 only: intro copy (serious tone). */
+  certificationIntroEn?: string;
+  certificationIntroVi?: string;
 }
 
 function t(content: { en: string; vi: string }, locale: Locale) {
@@ -229,6 +237,8 @@ export const XP_LESSON = 10;
 export const XP_DAY_COMPLETE = 50;
 export const XP_PERFECT_QUIZ = 100;
 export const XP_PERFECT_DAY_BONUS = 100;
+/** XP awarded when Day 7 certification is passed. */
+export const XP_CERTIFICATION_PASS = 100;
 export const HEARTS_MAX = 5;
 export const HEARTS_LOST_PER_MISTAKE = 1;
 
@@ -242,6 +252,8 @@ export const PRIMARY_SKILL_BY_DAY: Record<number, "communication" | "safety" | "
   3: "teamwork",
   4: "sales",
   5: "teamwork",
+  6: "communication",
+  7: "communication",
 };
 
 export const BADGES = {
@@ -2413,7 +2425,650 @@ export const DAY5: DayContent = {
   ],
 };
 
-export const ALL_DAYS: DayContent[] = [DAY1, DAY2, DAY3, DAY4, DAY5];
+// ========== DAY 6 — NEWBIE EXPERIENCE MASTERY ==========
+/** Mandatory flow: spot & approach → greeting → identify first-timer → set expectations → check-in → pass → shoes → locker → walkthrough → explain bouldering → grading → first climb → encouragement → transition → follow-up. */
+const NEWBIE_FLOW_STEPS_EN = [
+  "Spot & approach (within 3–5 seconds)",
+  "Greeting",
+  "Identify first-timer",
+  "Set expectations",
+  "Check-in guidance",
+  "Pass recommendation (simplify choice)",
+  "Shoe recommendation (rental first for beginners)",
+  "Locker / belongings guidance",
+  "Physical walkthrough of gym",
+  "Explain bouldering (simple)",
+  "Explain grading system (simple, no jargon)",
+  "First climb guidance (stay with them)",
+  "Encouragement (positive reinforcement)",
+  "Transition (let them explore)",
+  "Follow-up check-in (after ~5–10 min)",
+];
+const NEWBIE_FLOW_STEPS_VI = [
+  "Chú ý & tiếp cận (trong 3–5 giây)",
+  "Chào hỏi",
+  "Nhận diện người lần đầu",
+  "Đặt kỳ vọng",
+  "Hướng dẫn check-in",
+  "Gợi ý gói (đơn giản hóa lựa chọn)",
+  "Gợi ý giày (thuê trước cho người mới)",
+  "Hướng dẫn tủ/đồ đạc",
+  "Đi tour gym",
+  "Giải thích bouldering (đơn giản)",
+  "Giải thích hệ thống grade (đơn giản, không thuật ngữ)",
+  "Hướng dẫn leo lần đầu (ở bên họ)",
+  "Động viên (củng cố tích cực)",
+  "Chuyển giao (để họ khám phá)",
+  "Check-in theo dõi (sau ~5–10 phút)",
+];
+
+export const DAY6: DayContent = {
+  day: 6,
+  titleEn: "Newbie Experience Mastery",
+  titleVi: "Làm chủ trải nghiệm người mới",
+  keyTakeawayEn: "You are not checking people in — you are creating their first climbing memory.",
+  keyTakeawayVi: "Bạn không chỉ check-in — bạn đang tạo ký ức leo núi đầu tiên của họ.",
+  sections: [
+    {
+      id: "d6s0_hook",
+      type: "choice",
+      titleEn: "Opening — First-timer walks in",
+      titleVi: "Mở đầu — Người lần đầu bước vào",
+      contentEn: "A first-timer walks in. They look around nervously. What do you do in the first 3–5 seconds?",
+      contentVi: "Người lần đầu bước vào. Họ nhìn quanh lo lắng. Bạn làm gì trong 3–5 giây đầu?",
+      correctChoiceIndex: 0,
+      choices: [
+        { en: "Spot them, make eye contact, and walk toward them within 3–5 seconds", vi: "Chú ý họ, giao tiếp mắt và bước về phía họ trong 3–5 giây" },
+        { en: "Wait for them to come to the counter", vi: "Chờ họ đến quầy" },
+        { en: "Point and say 'Sign in over there'", vi: "Chỉ tay và nói 'Đăng ký ở đằng kia'" },
+      ],
+      choiceExplanationsEn: [
+        "Correct. Spot & approach within 3–5 seconds. Newbies feel lost; being seen and met builds trust. What to say: 'Hi! First time? I got you — I'll walk you through everything.'",
+        "Wrong. Waiting makes them feel invisible. Impact: anxiety, drop-off. Do: approach quickly, greet, identify first-timer. Never leave a newbie standing alone.",
+        "Wrong. Never point directions ('over there'). Impact: confusion, discomfort. Do: walk them, don't direct. Say: 'I'll walk you through everything.'",
+      ],
+      choiceExplanationsVi: [
+        "Đúng. Chú ý và tiếp cận trong 3–5 giây. Người mới cảm thấy lạc; được thấy và được đón tạo tin tưởng. Nói: 'Chào! Lần đầu à? Tôi hướng dẫn bạn từng bước.'",
+        "Sai. Chờ khiến họ cảm thấy vô hình. Đúng: tiếp cận nhanh, chào, nhận diện lần đầu.",
+        "Sai. Đừng chỉ hướng ('ở đằng kia'). Đúng: dẫn họ đi, không chỉ. Nói: 'Tôi sẽ hướng dẫn bạn từng bước.'",
+      ],
+    },
+    {
+      id: "d6s1_list",
+      type: "list",
+      titleEn: "The 15-step newbie flow",
+      titleVi: "Quy trình 15 bước cho người mới",
+      contentEn: "This order is mandatory. Skipping steps causes confusion and a worse first experience.",
+      contentVi: "Thứ tự này bắt buộc. Bỏ bước gây bối rối và trải nghiệm đầu tệ hơn.",
+      items: NEWBIE_FLOW_STEPS_EN.map((s, i) => ({ en: s, vi: NEWBIE_FLOW_STEPS_VI[i] ?? s })),
+    },
+    {
+      id: "d6s2_reorder",
+      type: "reorder_steps",
+      titleEn: "Put the newbie flow in order",
+      titleVi: "Sắp xếp đúng quy trình người mới",
+      contentEn: "Drag to reorder. Correct order: spot → greet → identify first-timer → set expectations → check-in → pass → shoes → locker → walkthrough → bouldering → grading → first climb → encouragement → transition → follow-up.",
+      contentVi: "Kéo để sắp xếp. Đúng: chú ý → chào → nhận diện lần đầu → kỳ vọng → check-in → gói → giày → tủ → tour → bouldering → grade → leo lần đầu → động viên → chuyển giao → check-in theo dõi.",
+      stepsOrderEn: NEWBIE_FLOW_STEPS_EN,
+      stepsOrderVi: NEWBIE_FLOW_STEPS_VI,
+    },
+    {
+      id: "d6s3_choose_better",
+      type: "choose_better",
+      titleEn: "Pass recommendation",
+      titleVi: "Gợi ý gói",
+      contentEn: "First-timer asks: What should I buy? What do you say?",
+      contentVi: "Người lần đầu hỏi: Tôi nên mua gì? Bạn nói gì?",
+      options: [
+        { en: "We have day pass, 5-visit, monthly — here's the price list", vi: "Chúng tôi có vé ngày, 5 lần, tháng — đây là bảng giá" },
+        { en: "For your first time, I recommend the day pass — try it, then we can find what fits you", vi: "Lần đầu tôi gợi ý vé ngày — thử đã, rồi mình tìm gói phù hợp" },
+      ],
+      correctIndex: 1,
+      wrongExplanationEn: "Wrong. Overwhelming with pricing early causes confusion. What NOT to do: push purchases, list everything. Do: simplify — 'For your first time, I recommend [X].' Then guide.",
+      wrongExplanationVi: "Sai. Dồn giá sớm gây rối. Đúng: đơn giản — 'Lần đầu tôi gợi ý [X].' Rồi hướng dẫn.",
+      rightExplanationEn: "Correct. Simplify choice. Say: 'For your first time, I recommend the day pass.' Why: reduces overwhelm, builds trust.",
+      rightExplanationVi: "Đúng. Đơn giản hóa lựa chọn. Nói: 'Lần đầu tôi gợi ý vé ngày.' Vì: giảm quá tải, tạo tin tưởng.",
+    },
+    {
+      id: "d6s4_fix",
+      type: "fix_sentence",
+      titleEn: "Fix the sentence",
+      titleVi: "Sửa câu",
+      contentEn: "Staff says: 'Just go over there and get your shoes.' What's wrong? What to say instead?",
+      contentVi: "Nhân viên nói: 'Cứ đi ra đó lấy giày đi.' Sai ở đâu? Nên nói gì?",
+      wrongSentenceEn: "Just go over there and get your shoes.",
+      wrongSentenceVi: "Cứ đi ra đó lấy giày đi.",
+      wrongExplanationEn: "Never point 'over there.' Newbie doesn't know where. Impact: confusion, anxiety. Say: 'I'll show you where the rental shoes are — come with me.' Or: 'For your first time, I recommend rental shoes first.'",
+      wrongExplanationVi: "Đừng chỉ 'ra đó.' Người mới không biết đâu. Nói: 'Tôi chỉ chỗ giày thuê — đi với tôi.' Hoặc: 'Lần đầu tôi gợi ý thuê giày trước.'",
+      rightExplanationEn: "Correct. Walk them. Say: 'For your first time, I recommend rental shoes first. I'll walk you to the rental area.'",
+      rightExplanationVi: "Đúng. Dẫn họ. Nói: 'Lần đầu tôi gợi ý thuê giày. Tôi dẫn bạn đến chỗ thuê.'",
+    },
+    {
+      id: "d6s5_tap",
+      type: "tap_mistake",
+      titleEn: "Spot the mistake",
+      titleVi: "Tìm lỗi",
+      contentEn: "Tap the wrong phrase in this paragraph.",
+      contentVi: "Chạm vào cụm từ sai trong đoạn này.",
+      paragraphEn: "When a first-timer arrives, greet them quickly and say: 'I got you — I'll walk you through everything.' Then recommend the day pass and rental shoes. Do not say: 'The prices are over there' or ignore nervous behavior.",
+      paragraphVi: "Khi người lần đầu đến, chào nhanh và nói: 'Tôi hướng dẫn bạn từng bước.' Rồi gợi ý vé ngày và giày thuê. Không nói: 'Bảng giá ở đằng kia' hoặc lờ hành vi lo lắng.",
+      wrongPhraseEn: "The prices are over there",
+      wrongPhraseVi: "Bảng giá ở đằng kia",
+      tapMistakeExplanationEn: "Wrong. Never point directions. What to do: walk them, explain simply. 'Let me show you our options' — then guide. Impact of pointing: newbie feels lost, may leave.",
+      tapMistakeExplanationVi: "Sai. Đừng chỉ hướng. Đúng: dẫn họ, giải thích đơn giản. 'Để tôi giới thiệu các gói' — rồi hướng dẫn.",
+    },
+    {
+      id: "d6s6_choice",
+      type: "choice",
+      titleEn: "First climb — they hesitate",
+      titleVi: "Leo lần đầu — họ do dự",
+      contentEn: "You've explained bouldering and grading. They stand at the wall, not sure which hold to try. What do you do?",
+      contentVi: "Bạn đã giải thích bouldering và grade. Họ đứng ở tường, không biết bám hold nào. Bạn làm gì?",
+      correctChoiceIndex: 0,
+      choices: [
+        { en: "Stay with them: 'Try this one — put your foot here. I'll stay right here.'", vi: "Ở bên họ: 'Thử cái này — đặt chân đây. Tôi đứng ngay đây.'" },
+        { en: "Point to a route: 'That one's easy. Go.'", vi: "Chỉ vào route: 'Cái đó dễ. Leo đi.'" },
+        { en: "Leave them to explore", vi: "Để họ tự khám phá" },
+      ],
+      choiceExplanationsEn: [
+        "Correct. First climb guidance: stay with them. Encouragement, simple cues. What to say: 'I got you. Try this one.' Then transition only after they've had a success.",
+        "Wrong. Pointing without staying = they feel abandoned. Impact: fear, no second visit. Do: stay, encourage, then transition when they're confident.",
+        "Wrong. Too early to leave. Impact: confusion, no attempt or bad fall. Do: stay for first climb, positive reinforcement, then 'I'll be around — explore, and I'll check in in a few minutes.'",
+      ],
+      choiceExplanationsVi: [
+        "Đúng. Hướng dẫn leo lần đầu: ở bên họ. Động viên, gợi ý đơn giản. Nói: 'Tôi ở đây. Thử cái này.' Chuyển giao chỉ sau khi họ thành công.",
+        "Sai. Chỉ rồi đi = họ cảm thấy bị bỏ rơi. Đúng: ở lại, động viên, rồi chuyển giao khi họ tự tin.",
+        "Sai. Chưa đến lúc đi. Đúng: ở lại cho lần leo đầu, củng cố tích cực, rồi 'Tôi ở quanh đây — bạn khám phá, vài phút nữa tôi check lại.'",
+      ],
+    },
+    {
+      id: "d6s7_micro",
+      type: "choice",
+      titleEn: "Micro challenge — 2-second reaction",
+      titleVi: "Thử thách — Phản ứng 2 giây",
+      contentEn: "Newbie is fidgeting at the counter. You're with another member. What do you do?",
+      contentVi: "Người mới đứng ở quầy lo lắng. Bạn đang phục vụ thành viên khác. Bạn làm gì?",
+      correctChoiceIndex: 0,
+      choices: [
+        { en: "Make eye contact, smile, say 'One sec — I'll be right with you'", vi: "Giao tiếp mắt, cười, nói 'Chờ chút — tôi tới ngay'" },
+        { en: "Ignore until you finish the current member", vi: "Lờ đi đến khi xong thành viên hiện tại" },
+        { en: "Wave them to the side", vi: "Vẫy họ ra xa" },
+      ],
+      choiceExplanationsEn: [
+        "Correct. Quick acknowledgment reduces anxiety. Never ignore nervous behavior. Then serve in order but keep them seen.",
+        "Wrong. Ignoring nervous behavior increases anxiety. Impact: they may leave. Always acknowledge within seconds.",
+        "Wrong. Waving away feels dismissive. Say: 'One sec' and smile. They need to feel welcomed.",
+      ],
+      choiceExplanationsVi: [
+        "Đúng. Chào nhanh giảm lo. Đừng lờ hành vi lo lắng.",
+        "Sai. Lờ hành vi lo lắng làm tăng lo. Luôn chào trong vài giây.",
+        "Sai. Vẫy đi cảm giác lạnh nhạt. Nói 'Chờ chút' và cười.",
+      ],
+    },
+    {
+      id: "d6s8_goodvsbad",
+      type: "goodvsbad",
+      titleEn: "What to say vs what not to say",
+      titleVi: "Nên nói vs không nên nói",
+      contentEn: "Newbie experience: correct behavior builds confidence; wrong behavior causes drop-off.",
+      contentVi: "Trải nghiệm người mới: hành vi đúng xây tự tin; sai gây bỏ cuộc.",
+      bad: { en: "Over there / Here's the price list / Go try that", vi: "Ở đằng kia / Đây bảng giá / Leo cái đó đi" },
+      good: { en: "I got you — I'll walk you through everything / For your first time I recommend rental shoes / I'll stay right here", vi: "Tôi hướng dẫn bạn từng bước / Lần đầu tôi gợi ý thuê giày / Tôi đứng ngay đây" },
+    },
+  ],
+  scenarios: [
+    {
+      id: "d6_nervous",
+      titleEn: "Nervous beginner",
+      titleVi: "Người mới lo lắng",
+      promptEn: "A first-timer says: 'I've never done this. I'm scared I'll fall.' How do you respond?",
+      promptVi: "Người lần đầu nói: 'Tôi chưa leo bao giờ. Tôi sợ ngã.' Bạn trả lời thế nào?",
+      hintEn: "Acknowledge fear, normalize, reassure, offer to stay with them.",
+      hintVi: "Chấp nhận nỗi sợ, bình thường hóa, trấn an, đề nghị ở bên họ.",
+      perfectAnswerEn: "I'd say: 'That's totally normal — everyone feels that at first. I got you — I'll walk you through everything. We'll start with something low and easy, and I'll stay right here. You're safe.' Friendliness, clarity, emotional reassurance, Leo Mây tone.",
+      perfectAnswerVi: "Tôi nói: 'Bình thường thôi — ai cũng vậy lần đầu. Tôi hướng dẫn bạn từng bước. Mình bắt đầu với bài thấp và dễ, tôi đứng ngay đây. Bạn an toàn.' Thân thiện, rõ ràng, trấn an, giọng Leo Mây.",
+      rubricEn: ["Acknowledge fear", "Normalize", "Reassure", "Offer to stay", "Leo Mây tone"],
+      rubricVi: ["Chấp nhận sợ", "Bình thường hóa", "Trấn an", "Đề nghị ở bên", "Giọng Leo Mây"],
+    },
+    {
+      id: "d6_confused",
+      titleEn: "Confused member",
+      titleVi: "Thành viên bối rối",
+      promptEn: "A first-timer finished check-in but is standing in the gym looking lost. What do you do?",
+      promptVi: "Người lần đầu đã check-in xong nhưng đứng trong gym trông lạc. Bạn làm gì?",
+      hintEn: "Walk them through: shoes, locker, quick tour, explain bouldering simply.",
+      hintVi: "Dẫn họ: giày, tủ, tour nhanh, giải thích bouldering đơn giản.",
+      perfectAnswerEn: "I'd approach and say: 'First time? I'll walk you through — we'll get your shoes, I'll show you the gym and explain how bouldering works in one minute. Come with me.' Then do the full flow: locker, walkthrough, bouldering explanation, grading, first climb. Clarity and presence.",
+      perfectAnswerVi: "Tôi tiếp cận và nói: 'Lần đầu à? Tôi dẫn bạn — lấy giày, tôi chỉ tour gym và giải thích bouldering trong một phút. Đi với tôi.' Rồi làm đủ: tủ, tour, giải thích bouldering, grade, leo lần đầu. Rõ ràng và có mặt.",
+      rubricEn: ["Approach", "Walk them", "Full flow", "Clarity"],
+      rubricVi: ["Tiếp cận", "Dẫn họ", "Đủ quy trình", "Rõ ràng"],
+    },
+    {
+      id: "d6_overwhelmed",
+      titleEn: "Overwhelmed first-timer",
+      titleVi: "Người lần đầu quá tải",
+      promptEn: "They say: 'There's so much going on. I don't know where to start.' How do you respond?",
+      promptVi: "Họ nói: 'Nhiều thứ quá. Tôi không biết bắt đầu từ đâu.' Bạn trả lời thế nào?",
+      hintEn: "Simplify. One thing at a time. Set expectations.",
+      hintVi: "Đơn giản hóa. Từng bước một. Đặt kỳ vọng.",
+      perfectAnswerEn: "I'd say: 'I got you — we'll do one thing at a time. First: get you in and comfortable. Then I'll show you the gym and we'll do your first climb together. No rush.' Set expectations, reduce overwhelm, emotional reassurance.",
+      perfectAnswerVi: "Tôi nói: 'Tôi hướng dẫn bạn — từng bước một. Trước: vào và ổn định. Rồi tôi chỉ gym và mình leo lần đầu cùng nhau. Không vội.' Đặt kỳ vọng, giảm quá tải, trấn an.",
+      rubricEn: ["Simplify", "One at a time", "Set expectations", "Reassure"],
+      rubricVi: ["Đơn giản", "Từng bước", "Đặt kỳ vọng", "Trấn an"],
+    },
+    {
+      id: "d6_hesitation",
+      titleEn: "First climb hesitation",
+      titleVi: "Do dự leo lần đầu",
+      promptEn: "They're at the wall. They say: 'Which one do I try? What if I fall?' What do you say?",
+      promptVi: "Họ ở tường. Họ nói: 'Tôi thử bài nào? Nếu tôi ngã thì sao?' Bạn nói gì?",
+      hintEn: "Stay with them. Point to one easy route. Reassure about falls (mat, low).",
+      hintVi: "Ở bên họ. Chỉ một bài dễ. Trấn an về ngã (thảm, thấp).",
+      perfectAnswerEn: "I'd say: 'Try this one — it's low and friendly. I'll stay right here. If you fall, you land on the mat — we're built for that. Put your foot here, then reach for that hold.' Stay with them, simple cue, encouragement, safety reassurance.",
+      perfectAnswerVi: "Tôi nói: 'Thử bài này — thấp và dễ. Tôi đứng ngay đây. Nếu bạn ngã, bạn rơi xuống thảm — chúng ta thiết kế cho điều đó. Đặt chân đây, rồi với tay tới hold kia.' Ở bên, gợi ý đơn giản, động viên, trấn an an toàn.",
+      rubricEn: ["Stay with them", "One route", "Safety reassurance", "Encouragement"],
+      rubricVi: ["Ở bên", "Một bài", "Trấn an an toàn", "Động viên"],
+    },
+  ],
+  simulation: {
+    id: "day6_newbie_journey",
+    titleEn: "Full newbie journey",
+    titleVi: "Hành trình người mới đầy đủ",
+    steps: [
+      {
+        type: "decision",
+        id: "d6s1",
+        sceneEn: "A first-timer just walked in. They're looking around. What do you do first?",
+        sceneVi: "Người lần đầu vừa bước vào. Họ nhìn quanh. Bạn làm gì trước?",
+        characters: [
+          { id: "approach", labelEn: "Spot and approach within 3–5 seconds", labelVi: "Chú ý và tiếp cận trong 3–5 giây" },
+          { id: "wait", labelEn: "Wait for them at the counter", labelVi: "Chờ họ ở quầy" },
+        ],
+        promptEn: "Choose the best approach.",
+        promptVi: "Chọn cách tốt nhất.",
+        correctChoiceId: "approach",
+        options: [
+          { id: "approach", textEn: "Make eye contact and walk toward them: 'Hi! First time? I got you — I'll walk you through everything.'", textVi: "Giao tiếp mắt và bước tới: 'Chào! Lần đầu à? Tôi hướng dẫn bạn từng bước.'" },
+          { id: "wait", textEn: "Stay at the counter and wait for them to come over", textVi: "Đứng ở quầy chờ họ tới" },
+        ],
+        wrongFeedbackEn: { wait: "Wrong. Skipping spot & approach causes newbies to feel invisible. In real life: they may leave or feel anxious. Correct: approach within 3–5 seconds, greet, identify first-timer." },
+        wrongFeedbackVi: { wait: "Sai. Bỏ qua tiếp cận khiến người mới cảm thấy vô hình. Đúng: tiếp cận trong 3–5 giây, chào, nhận diện lần đầu." },
+        correctFeedbackEn: "Correct. Spot & approach first. Then greeting and identify first-timer. This order is mandatory.",
+        correctFeedbackVi: "Đúng. Chú ý và tiếp cận trước. Rồi chào và nhận diện lần đầu. Thứ tự này bắt buộc.",
+      },
+      {
+        type: "decision",
+        id: "d6s2",
+        sceneEn: "They said it's their first time. What do you recommend for pass and shoes?",
+        sceneVi: "Họ nói đây là lần đầu. Bạn gợi ý gói và giày thế nào?",
+        characters: [
+          { id: "simple", labelEn: "Simplify: day pass + rental shoes", labelVi: "Đơn giản: vé ngày + giày thuê" },
+          { id: "list", labelEn: "Give full price list and let them choose", labelVi: "Đưa full bảng giá để họ chọn" },
+        ],
+        promptEn: "Best approach?",
+        promptVi: "Cách tốt nhất?",
+        correctChoiceId: "simple",
+        options: [
+          { id: "simple", textEn: "For your first time, I recommend the day pass and rental shoes first. Try it, then we can find what fits you.", textVi: "Lần đầu tôi gợi ý vé ngày và thuê giày trước. Thử đã, rồi mình tìm gói phù hợp." },
+          { id: "list", textEn: "Here's our price list — day pass, 5-visit, monthly, shoes...", textVi: "Đây bảng giá — vé ngày, 5 lần, tháng, giày..." },
+        ],
+        wrongFeedbackEn: { list: "Wrong. Overwhelming with pricing early causes confusion. What NOT to do: push purchases, list everything. Correct: simplify — day pass and rental first." },
+        wrongFeedbackVi: { list: "Sai. Dồn giá sớm gây rối. Đúng: đơn giản — vé ngày và thuê giày trước." },
+        correctFeedbackEn: "Correct. Pass recommendation: simplify. Shoe recommendation: rental first for beginners. Then locker and walkthrough.",
+        correctFeedbackVi: "Đúng. Gợi ý gói: đơn giản. Gợi ý giày: thuê trước. Rồi tủ và tour.",
+      },
+      {
+        type: "ai_response",
+        id: "d6s3",
+        sceneEn: "You're walking them through the gym. They ask: 'How does this work? What do I do?'",
+        sceneVi: "Bạn đang dẫn họ tour gym. Họ hỏi: 'Cái này hoạt động thế nào? Tôi làm gì?'",
+        characters: [{ id: "newbie", labelEn: "First-timer", labelVi: "Người lần đầu" }],
+        promptEn: "Explain bouldering simply (no jargon). What do you say?",
+        promptVi: "Giải thích bouldering đơn giản (không thuật ngữ). Bạn nói gì?",
+        hintEn: "Simple: no ropes, climb up, fall on mat. Colours/grades = difficulty. Stay with them.",
+        hintVi: "Đơn giản: không dây, leo lên, ngã xuống thảm. Màu/grade = độ khó. Ở bên họ.",
+        perfectAnswerEn: "Bouldering here means you climb without ropes — you go up, and when you're done you land on the mat. Each colour is a different route — we'll start with an easy one. I'll stay right here and you can try. No jargon.",
+        perfectAnswerVi: "Bouldering ở đây là leo không dây — bạn leo lên, xong thì xuống thảm. Mỗi màu là một bài — mình bắt đầu với bài dễ. Tôi đứng đây, bạn thử. Không thuật ngữ.",
+        rubricEn: ["Simple", "No jargon", "Stay with them", "One route to start"],
+        rubricVi: ["Đơn giản", "Không thuật ngữ", "Ở bên họ", "Một bài để bắt đầu"],
+      },
+      {
+        type: "decision",
+        id: "d6s4",
+        sceneEn: "They're at the wall, hesitating. What do you do?",
+        sceneVi: "Họ ở tường, do dự. Bạn làm gì?",
+        characters: [
+          { id: "stay", labelEn: "Stay and guide first climb", labelVi: "Ở lại và hướng dẫn leo lần đầu" },
+          { id: "point", labelEn: "Point to a route and leave", labelVi: "Chỉ bài và đi" },
+        ],
+        promptEn: "Choose.",
+        promptVi: "Chọn.",
+        correctChoiceId: "stay",
+        options: [
+          { id: "stay", textEn: "Stay with them: 'Try this one — I'll stay right here.' Guide first climb, then encourage. After they succeed: 'I'll be around — explore, and I'll check in in a few minutes.'", textVi: "Ở bên: 'Thử bài này — tôi đứng đây.' Hướng dẫn leo lần đầu, động viên. Sau khi họ thành công: 'Tôi ở quanh đây — bạn khám phá, vài phút tôi check lại.'" },
+          { id: "point", textEn: "Point to an easy route and go help someone else", textVi: "Chỉ bài dễ và đi giúp người khác" },
+        ],
+        wrongFeedbackEn: { point: "Wrong. First climb guidance: stay with them. Leaving early = they feel abandoned. Impact: fear, no second visit. Correct: stay, encourage, then transition." },
+        wrongFeedbackVi: { point: "Sai. Hướng dẫn leo lần đầu: ở bên họ. Đi sớm = họ cảm thấy bị bỏ rơi. Đúng: ở lại, động viên, rồi chuyển giao." },
+        correctFeedbackEn: "Correct. First climb guidance: stay with them. Encouragement, then transition. Follow-up check-in after ~5–10 min.",
+        correctFeedbackVi: "Đúng. Hướng dẫn leo lần đầu: ở bên. Động viên, rồi chuyển giao. Check-in theo dõi sau ~5–10 phút.",
+      },
+    ],
+    resultGood: {
+      titleEn: "Perfect First Experience",
+      titleVi: "Trải nghiệm đầu hoàn hảo",
+      strengthsEn: ["Spot & approach", "Clear flow", "Emotional reassurance", "First climb support"],
+      strengthsVi: ["Chú ý & tiếp cận", "Quy trình rõ", "Trấn an", "Hỗ trợ leo lần đầu"],
+      xpReward: 100,
+      skillDeltas: { communication: 8, safety: 2, sales: 2, teamwork: 2 },
+    },
+    resultPoor: {
+      titleEn: "Experience Breakdown",
+      titleVi: "Trải nghiệm vỡ",
+      keyIssuesEn: ["Skipped steps", "Wrong tone", "Pointing instead of walking", "Left newbie alone too early"],
+      keyIssuesVi: ["Bỏ bước", "Sai giọng", "Chỉ thay vì dẫn", "Bỏ người mới một mình quá sớm"],
+      focusEn: ["→ Follow the 15-step order", "→ I got you — walk them through", "→ Stay for first climb", "→ No 'over there'"],
+      focusVi: ["→ Theo đúng 15 bước", "→ Tôi hướng dẫn bạn — dẫn họ đi", "→ Ở lại leo lần đầu", "→ Không 'ở đằng kia'"],
+    },
+  },
+  quiz: [
+    {
+      id: "d6q1",
+      questionEn: "Within 3–5 seconds of a newbie entering, you should:",
+      questionVi: "Trong 3–5 giây khi người mới vào, bạn nên:",
+      options: [
+        { en: "Wait for them to come to the counter", vi: "Chờ họ đến quầy" },
+        { en: "Spot them, make eye contact, and walk toward them", vi: "Chú ý họ, giao tiếp mắt và bước về phía họ" },
+      ],
+      correctIndex: 1,
+      explanationsEn: [
+        "Wrong. Waiting makes newbies feel invisible. Impact: anxiety, drop-off. Correct: spot & approach within 3–5 seconds, then greet and identify first-timer.",
+        "Correct. Spot & approach within 3–5 seconds. Say: 'Hi! First time? I got you — I'll walk you through everything.'",
+      ],
+      explanationsVi: [
+        "Sai. Chờ khiến người mới cảm thấy vô hình. Đúng: chú ý và tiếp cận trong 3–5 giây.",
+        "Đúng. Chú ý và tiếp cận trong 3–5 giây. Nói: 'Chào! Lần đầu à? Tôi hướng dẫn bạn từng bước.'",
+      ],
+    },
+    {
+      id: "d6q2",
+      questionEn: "For pass recommendation with a first-timer, you should:",
+      questionVi: "Gợi ý gói với người lần đầu, bạn nên:",
+      options: [
+        { en: "Give them the full price list", vi: "Đưa full bảng giá" },
+        { en: "Simplify: 'For your first time, I recommend the day pass'", vi: "Đơn giản: 'Lần đầu tôi gợi ý vé ngày'" },
+      ],
+      correctIndex: 1,
+      explanationsEn: [
+        "Wrong. Overwhelming with pricing causes confusion. Correct: simplify choice — day pass for first time, then we can find what fits.",
+        "Correct. Simplify. Say: 'For your first time, I recommend the day pass.' Impact: reduces overwhelm, builds trust.",
+      ],
+      explanationsVi: [
+        "Sai. Dồn giá gây rối. Đúng: đơn giản — vé ngày lần đầu.",
+        "Đúng. Đơn giản. Nói: 'Lần đầu tôi gợi ý vé ngày.'",
+      ],
+    },
+    {
+      id: "d6q3",
+      questionEn: "Shoe recommendation for a beginner:",
+      questionVi: "Gợi ý giày cho người mới:",
+      options: [
+        { en: "Push them to buy climbing shoes", vi: "Thúc mua giày leo" },
+        { en: "Rental shoes first for beginners", vi: "Thuê giày trước cho người mới" },
+      ],
+      correctIndex: 1,
+      explanationsEn: [
+        "Wrong. Pushing purchases early feels salesy and can overwhelm. Correct: 'For your first time, I recommend rental shoes first.'",
+        "Correct. Rental first for beginners. Simplify choice, reduce overwhelm.",
+      ],
+      explanationsVi: [
+        "Sai. Thúc mua sớm gây quá tải. Đúng: 'Lần đầu tôi gợi ý thuê giày trước.'",
+        "Đúng. Thuê trước cho người mới.",
+      ],
+    },
+    {
+      id: "d6q4",
+      questionEn: "You should NEVER say to a newbie:",
+      questionVi: "Bạn KHÔNG NÊN nói với người mới:",
+      options: [
+        { en: "I got you — I'll walk you through everything", vi: "Tôi hướng dẫn bạn từng bước" },
+        { en: "Just go over there and sign", vi: "Cứ đi ra đó đăng ký" },
+      ],
+      correctIndex: 1,
+      explanationsEn: [
+        "That's correct to say. We want: walk them, don't direct. 'I got you — I'll walk you through everything' is ideal.",
+        "Correct (this is what NOT to say). Never point 'over there.' Impact: confusion, discomfort. Walk them instead.",
+      ],
+      explanationsVi: [
+        "Đó là câu nên nói. Chúng ta muốn: dẫn họ, không chỉ. 'Tôi hướng dẫn bạn từng bước' là chuẩn.",
+        "Đúng (đây là câu KHÔNG nên nói). Đừng chỉ 'ra đó.' Dẫn họ thay vì chỉ.",
+      ],
+    },
+    {
+      id: "d6q5",
+      questionEn: "During their first climb, you should:",
+      questionVi: "Trong lần leo đầu của họ, bạn nên:",
+      options: [
+        { en: "Leave them to explore", vi: "Để họ tự khám phá" },
+        { en: "Stay with them, encourage, then transition after success", vi: "Ở bên họ, động viên, rồi chuyển giao sau khi thành công" },
+      ],
+      correctIndex: 1,
+      explanationsEn: [
+        "Wrong. Leaving too early = they feel abandoned. Impact: fear, no second visit. Correct: stay for first climb, encourage, then 'I'll be around — I'll check in in a few minutes.'",
+        "Correct. First climb guidance: stay with them. Encouragement. Then transition and follow-up check-in after ~5–10 min.",
+      ],
+      explanationsVi: [
+        "Sai. Đi sớm = họ cảm thấy bị bỏ rơi. Đúng: ở lại leo lần đầu, động viên, rồi chuyển giao và check-in theo dõi.",
+        "Đúng. Hướng dẫn leo lần đầu: ở bên. Động viên. Rồi chuyển giao và check-in sau ~5–10 phút.",
+      ],
+    },
+    {
+      id: "d6q6",
+      questionEn: "What is the emotional impact of ignoring a nervous newbie?",
+      questionVi: "Tác động cảm xúc khi lờ một người mới lo lắng?",
+      options: [
+        { en: "They feel seen and confident", vi: "Họ cảm thấy được thấy và tự tin" },
+        { en: "Anxiety increases; they may leave", vi: "Lo lắng tăng; họ có thể bỏ đi" },
+      ],
+      correctIndex: 1,
+      explanationsEn: [
+        "Wrong. Ignoring does not make them feel seen. Correct: always acknowledge nervous behavior within seconds. 'One sec — I'll be right with you.'",
+        "Correct. Ignoring nervous behavior increases anxiety and can cause drop-off. Always acknowledge quickly.",
+      ],
+      explanationsVi: [
+        "Sai. Lờ không khiến họ cảm thấy được thấy. Đúng: luôn chào hành vi lo lắng trong vài giây.",
+        "Đúng. Lờ hành vi lo lắng tăng lo và có thể khiến họ bỏ đi.",
+      ],
+    },
+  ],
+  reflection: { id: "r6", promptEn: "What will you do to create a perfect first climbing memory for a newbie?", promptVi: "Bạn sẽ làm gì để tạo ký ức leo núi đầu tiên hoàn hảo cho người mới?" },
+  hardModeScenarios: [
+    {
+      id: "d6_hard_multi",
+      titleEn: "Hard: Newbie + regular at once",
+      titleVi: "Khó: Người mới và người quen cùng lúc",
+      promptEn: "A newbie and a regular are at the counter. The regular is in a hurry. What do you do? Prioritize and phrase your first sentence.",
+      promptVi: "Người mới và người quen cùng ở quầy. Người quen đang vội. Bạn làm gì? Ưu tiên và nói câu đầu tiên.",
+      hintEn: "Acknowledge both. Quick handoff or order: newbie needs more time — get regular done fast or get backup.",
+      hintVi: "Chào cả hai. Chuyển giao nhanh hoặc thứ tự: người mới cần thời gian — xong người quen nhanh hoặc gọi hỗ trợ.",
+      perfectAnswerEn: "I'd say: 'I see you both — one sec.' Then to the regular: 'Quick check-in?' and to the newbie: 'I'll be right with you for a full walkthrough.' So both feel seen; I prioritize the quick one without abandoning the newbie.",
+      perfectAnswerVi: "Tôi nói: 'Tôi thấy cả hai — chờ chút.' Rồi với người quen: 'Check-in nhanh nhé?' và với người mới: 'Tôi sẽ hướng dẫn bạn đầy đủ ngay.' Cả hai được thấy; tôi ưu tiên người nhanh mà không bỏ người mới.",
+      rubricEn: ["Acknowledge both", "Prioritize", "Newbie gets full walkthrough"],
+      rubricVi: ["Chào cả hai", "Ưu tiên", "Người mới được hướng dẫn đầy đủ"],
+    },
+  ],
+  advancedLessons: [
+    {
+      id: "d6_adv_flow",
+      type: "list",
+      titleEn: "Advanced: Exact phrasing for each step",
+      titleVi: "Nâng cao: Câu nói đúng từng bước",
+      contentEn: "What to say at key moments: Greeting: 'Hi! First time? I got you — I'll walk you through everything.' Pass: 'For your first time, I recommend the day pass.' Shoes: 'I recommend rental shoes first.' First climb: 'I'll stay right here. Try this one.'",
+      contentVi: "Nói gì ở từng bước: Chào: 'Chào! Lần đầu à? Tôi hướng dẫn bạn từng bước.' Gói: 'Lần đầu tôi gợi ý vé ngày.' Giày: 'Tôi gợi ý thuê giày trước.' Leo lần đầu: 'Tôi đứng đây. Thử bài này.'",
+      items: [
+        { en: "Greeting: I got you — I'll walk you through everything", vi: "Chào: Tôi hướng dẫn bạn từng bước" },
+        { en: "Pass: For your first time, I recommend the day pass", vi: "Gói: Lần đầu tôi gợi ý vé ngày" },
+        { en: "Shoes: Rental shoes first for beginners", vi: "Giày: Thuê giày trước cho người mới" },
+        { en: "First climb: I'll stay right here", vi: "Leo lần đầu: Tôi đứng ngay đây" },
+      ],
+    },
+  ],
+};
+
+// ========== DAY 7 — FINAL CERTIFICATION ==========
+export const DAY7: DayContent = {
+  day: 7,
+  titleEn: "Final Certification",
+  titleVi: "Chứng nhận cuối",
+  keyTakeawayEn: "You are ready.",
+  keyTakeawayVi: "Bạn đã sẵn sàng.",
+  certificationIntroEn: "This assessment validates that you can perform consistently before starting real-world internship. Serious tone. Each section is graded. You need a total score of at least 80 and no critical fail (unsafe language, dismissive tone, skipping onboarding steps, incorrect guidance to newbies) to pass.",
+  certificationIntroVi: "Bài đánh giá này xác nhận bạn có thể thực hiện ổn định trước khi bắt đầu thực tập thực tế. Nghiêm túc. Mỗi phần được chấm. Bạn cần tổng điểm tối thiểu 80 và không có lỗi nghiêm trọng (ngôn ngữ không an toàn, giọng lạnh nhạt, bỏ bước onboarding, hướng dẫn sai cho người mới) để đạt.",
+  sections: [
+    {
+      id: "d7_intro",
+      type: "text",
+      titleEn: "Final Certification",
+      titleVi: "Chứng nhận cuối",
+      contentEn: "This is your final assessment. We will test: rapid decisions (instinct), AI scenarios (graded strictly), a peak-hour simulation (newbie + regular + operational issue), and a knowledge quiz covering Days 1–6. Pass: total score ≥ 80 and no critical fail. You are not just checking people in — you are creating first climbing memories. Show us you're ready.",
+      contentVi: "Đây là bài đánh giá cuối. Chúng ta sẽ kiểm tra: quyết định nhanh (bản năng), kịch bản AI (chấm chặt), mô phỏng giờ cao điểm (người mới + người quen + sự cố vận hành), và bài quiz kiến thức từ Ngày 1–6. Đạt: tổng điểm ≥ 80 và không lỗi nghiêm trọng. Bạn không chỉ check-in — bạn đang tạo ký ức leo núi đầu tiên. Cho chúng tôi thấy bạn sẵn sàng.",
+    },
+  ],
+  rapidDecisions: [
+    { id: "rd1", questionEn: "First-timer walks in. You:", questionVi: "Người lần đầu bước vào. Bạn:", options: [{ en: "Wait at counter", vi: "Chờ ở quầy" }, { en: "Approach within 3–5 sec", vi: "Tiếp cận trong 3–5 giây" }], correctIndex: 1, explanationsEn: ["", ""], explanationsVi: ["", ""] },
+    { id: "rd2", questionEn: "Member says 'Is it safe?' You:", questionVi: "Thành viên hỏi 'Có an toàn không?' Bạn:", options: [{ en: "Say '100% safe'", vi: "Nói '100% an toàn'" }, { en: "Acknowledge fear, explain how we minimize risk", vi: "Chấp nhận sợ, giải thích cách giảm rủi ro" }], correctIndex: 1, explanationsEn: ["", ""], explanationsVi: ["", ""] },
+    { id: "rd3", questionEn: "Teammate overwhelmed. You:", questionVi: "Đồng đội quá tải. Bạn:", options: [{ en: "Ignore", vi: "Lờ đi" }, { en: "Offer specific help", vi: "Đề nghị giúp cụ thể" }], correctIndex: 1, explanationsEn: ["", ""], explanationsVi: ["", ""] },
+    { id: "rd4", questionEn: "Newbie asks which pass. You:", questionVi: "Người mới hỏi gói nào. Bạn:", options: [{ en: "Hand full price list", vi: "Đưa full bảng giá" }, { en: "Recommend day pass for first time", vi: "Gợi ý vé ngày lần đầu" }], correctIndex: 1, explanationsEn: ["", ""], explanationsVi: ["", ""] },
+    { id: "rd5", questionEn: "Chalk bags low. You:", questionVi: "Túi phấn sắp hết. Bạn:", options: [{ en: "Ignore", vi: "Lờ đi" }, { en: "Restock or report", vi: "Bổ sung hoặc báo" }], correctIndex: 1, explanationsEn: ["", ""], explanationsVi: ["", ""] },
+    { id: "rd6", questionEn: "Three at counter. You:", questionVi: "Ba người ở quầy. Bạn:", options: [{ en: "Serve first in line only", vi: "Chỉ phục vụ người đầu" }, { en: "Acknowledge all, then prioritize", vi: "Chào tất cả, rồi ưu tiên" }], correctIndex: 1, explanationsEn: ["", ""], explanationsVi: ["", ""] },
+    { id: "rd7", questionEn: "First climb — they hesitate. You:", questionVi: "Leo lần đầu — họ do dự. Bạn:", options: [{ en: "Point and leave", vi: "Chỉ và đi" }, { en: "Stay with them", vi: "Ở bên họ" }], correctIndex: 1, explanationsEn: ["", ""], explanationsVi: ["", ""] },
+    { id: "rd8", questionEn: "Member confused about waiver. You:", questionVi: "Thành viên bối rối về waiver. Bạn:", options: [{ en: "Say 'Just sign it'", vi: "Nói 'Cứ ký đi'" }, { en: "Explain simply, offer to walk through", vi: "Giải thích đơn giản, đề nghị hướng dẫn" }], correctIndex: 1, explanationsEn: ["", ""], explanationsVi: ["", ""] },
+    { id: "rd9", questionEn: "Spill on floor. You:", questionVi: "Nước đổ trên sàn. Bạn:", options: [{ en: "Leave for someone else", vi: "Để người khác" }, { en: "Block/clean, then continue", vi: "Chặn/dọn, rồi tiếp tục" }], correctIndex: 1, explanationsEn: ["", ""], explanationsVi: ["", ""] },
+    { id: "rd10", questionEn: "Leo Mây stands for:", questionVi: "Leo Mây đại diện cho:", options: [{ en: "Speed over quality", vi: "Tốc độ hơn chất lượng" }, { en: "Community over ego", vi: "Cộng đồng hơn cái tôi" }], correctIndex: 1, explanationsEn: ["", ""], explanationsVi: ["", ""] },
+  ],
+  scenarios: [
+    {
+      id: "d7_s1",
+      titleEn: "Certification: Nervous newbie",
+      titleVi: "Chứng nhận: Người mới lo",
+      promptEn: "A first-timer says they're scared. Respond in Leo Mây tone: acknowledge, reassure, offer to stay.",
+      promptVi: "Người lần đầu nói họ sợ. Trả lời giọng Leo Mây: chấp nhận, trấn an, đề nghị ở bên.",
+      hintEn: "Acknowledge fear, normalize, reassure, stay with them.",
+      hintVi: "Chấp nhận sợ, bình thường hóa, trấn an, ở bên họ.",
+      perfectAnswerEn: "That's totally normal — everyone feels that at first. I got you — I'll walk you through everything. We'll start with something low and easy, and I'll stay right here. You're safe.",
+      perfectAnswerVi: "Bình thường thôi — ai cũng vậy lần đầu. Tôi hướng dẫn bạn từng bước. Mình bắt đầu với bài thấp và dễ, tôi đứng ngay đây. Bạn an toàn.",
+      rubricEn: ["Acknowledge", "Reassure", "Stay", "Leo Mây tone"],
+      rubricVi: ["Chấp nhận", "Trấn an", "Ở bên", "Giọng Leo Mây"],
+    },
+    {
+      id: "d7_s2",
+      titleEn: "Certification: Confused member",
+      titleVi: "Chứng nhận: Thành viên bối rối",
+      promptEn: "First-timer finished check-in but looks lost in the gym. What do you do?",
+      promptVi: "Người lần đầu đã check-in nhưng trông lạc trong gym. Bạn làm gì?",
+      hintEn: "Approach, walk them: shoes, tour, bouldering, first climb.",
+      hintVi: "Tiếp cận, dẫn họ: giày, tour, bouldering, leo lần đầu.",
+      perfectAnswerEn: "I'd approach and say: First time? I'll walk you through — we'll get your shoes, I'll show you the gym and explain bouldering in one minute. Come with me. Then do full flow: locker, walkthrough, first climb with me.",
+      perfectAnswerVi: "Tôi tiếp cận và nói: Lần đầu à? Tôi dẫn bạn — lấy giày, tôi chỉ gym và giải thích bouldering trong một phút. Đi với tôi. Rồi làm đủ: tủ, tour, leo lần đầu cùng tôi.",
+      rubricEn: ["Approach", "Walk them", "Full flow"],
+      rubricVi: ["Tiếp cận", "Dẫn họ", "Đủ quy trình"],
+    },
+    {
+      id: "d7_s3",
+      titleEn: "Certification: Recovery",
+      titleVi: "Chứng nhận: Phục hồi",
+      promptEn: "Member has been waiting 2 minutes while staff chatted. They look annoyed. What do you say?",
+      promptVi: "Thành viên đã chờ 2 phút trong khi staff nói chuyện. Họ trông bực. Bạn nói gì?",
+      hintEn: "Acknowledge, brief apology, help now.",
+      hintVi: "Chào, xin lỗi ngắn, giúp ngay.",
+      perfectAnswerEn: "I'm so sorry you had to wait — I see you. Let me help you right now. What do you need?",
+      perfectAnswerVi: "Xin lỗi bạn phải chờ — tôi thấy bạn. Để tôi giúp bạn ngay. Bạn cần gì?",
+      rubricEn: ["Acknowledge", "Apologize briefly", "Help now"],
+      rubricVi: ["Chào", "Xin lỗi ngắn", "Giúp ngay"],
+    },
+  ],
+  simulation: {
+    id: "day7_peak",
+    titleEn: "Peak hour — newbie, regular, issue",
+    titleVi: "Giờ cao điểm — người mới, quen, sự cố",
+    steps: [
+      {
+        type: "decision",
+        id: "d7sim1",
+        sceneEn: "Peak hour. Newbie at door, regular at counter, you notice a spill. What do you do first?",
+        sceneVi: "Giờ cao điểm. Người mới ở cửa, người quen ở quầy, bạn thấy nước đổ. Bạn làm gì trước?",
+        characters: [
+          { id: "safety_first", labelEn: "Safety (spill), then acknowledge both", labelVi: "An toàn (nước đổ), rồi chào cả hai" },
+          { id: "counter_first", labelEn: "Serve counter first", labelVi: "Phục vụ quầy trước" },
+        ],
+        promptEn: "Choose.",
+        promptVi: "Chọn.",
+        correctChoiceId: "safety_first",
+        options: [
+          { id: "safety_first", textEn: "Quickly block or signal spill, say 'One sec' to both, then prioritize: spill → acknowledge newbie (needs more) and regular (quick)", textVi: "Chặn hoặc báo nước đổ nhanh, nói 'Chờ chút' với cả hai, rồi ưu tiên: nước đổ → chào người mới (cần nhiều) và người quen (nhanh)" },
+          { id: "counter_first", textEn: "Serve the regular at counter first", textVi: "Phục vụ người quen ở quầy trước" },
+        ],
+        wrongFeedbackEn: { counter_first: "Critical: Safety first. Spill = slip risk. Then acknowledge both. Skipping safety or ignoring newbie can be critical fail." },
+        wrongFeedbackVi: { counter_first: "Nghiêm trọng: An toàn trước. Nước đổ = trượt. Rồi chào cả hai." },
+        correctFeedbackEn: "Correct. Safety first, then acknowledge everyone, prioritize.",
+        correctFeedbackVi: "Đúng. An toàn trước, rồi chào mọi người, ưu tiên.",
+        criticalWrongIds: ["counter_first"],
+      },
+      {
+        type: "decision",
+        id: "d7sim2",
+        sceneEn: "Spill handled. Newbie is nervous. Regular wants quick check-in. You have backup. Do you:",
+        sceneVi: "Đã xử lý nước đổ. Người mới lo. Người quen muốn check-in nhanh. Bạn có hỗ trợ. Bạn:",
+        characters: [
+          { id: "handoff_newbie", labelEn: "Hand off newbie to backup, you take regular", labelVi: "Chuyển người mới cho hỗ trợ, bạn nhận người quen" },
+          { id: "solo", labelEn: "Handle everyone yourself", labelVi: "Tự xử lý hết" },
+        ],
+        promptEn: "Choose.",
+        promptVi: "Chọn.",
+        correctChoiceId: "handoff_newbie",
+        options: [
+          { id: "handoff_newbie", textEn: "Quick handoff: 'This one's first time — can you walk them through?' I take the regular. Newbie gets full onboarding.", textVi: "Chuyển giao nhanh: 'Bạn này lần đầu — bạn hướng dẫn giúp?' Tôi nhận người quen. Người mới được onboarding đầy đủ." },
+          { id: "solo", textEn: "I'll handle everyone myself", textVi: "Tôi tự xử lý hết" },
+        ],
+        wrongFeedbackEn: { solo: "Use the team. Handoff so newbie gets proper onboarding; you clear the queue. Skipping onboarding for newbie = critical fail." },
+        wrongFeedbackVi: { solo: "Dùng đội. Chuyển giao để người mới được onboarding đúng; bạn xử lý hàng. Bỏ onboarding người mới = lỗi nghiêm trọng." },
+        correctFeedbackEn: "Correct. Prioritization + communication. Newbie gets full flow.",
+        correctFeedbackVi: "Đúng. Ưu tiên + giao tiếp. Người mới được đủ quy trình.",
+        criticalWrongIds: ["solo"],
+      },
+    ],
+    resultGood: {
+      titleEn: "Peak hour completed",
+      titleVi: "Hoàn thành giờ cao điểm",
+      strengthsEn: ["Safety", "Prioritization", "Onboarding flow", "Team coordination"],
+      strengthsVi: ["An toàn", "Ưu tiên", "Quy trình onboarding", "Phối hợp đội"],
+      xpReward: 80,
+      skillDeltas: { communication: 5, safety: 5, sales: 2, teamwork: 5 },
+    },
+    resultPoor: {
+      titleEn: "Needs improvement",
+      titleVi: "Cần cải thiện",
+      keyIssuesEn: ["Safety missed", "Skipped onboarding steps", "Dismissive tone", "Wrong prioritization"],
+      keyIssuesVi: ["Bỏ qua an toàn", "Bỏ bước onboarding", "Giọng lạnh nhạt", "Sai ưu tiên"],
+      focusEn: ["→ Safety first", "→ Full newbie flow", "→ Acknowledge everyone", "→ No dismissive tone"],
+      focusVi: ["→ An toàn trước", "→ Đủ quy trình người mới", "→ Chào mọi người", "→ Không giọng lạnh nhạt"],
+    },
+  },
+  quiz: [
+    { id: "d7q1", questionEn: "Day 1: Leo Mây culture is", questionVi: "Ngày 1: Văn hóa Leo Mây là", options: [{ en: "Ego first", vi: "Cái tôi trước" }, { en: "Community over ego", vi: "Cộng đồng hơn cái tôi" }], correctIndex: 1, explanationsEn: ["", ""], explanationsVi: ["", ""] },
+    { id: "d7q2", questionEn: "Day 2: You should never say", questionVi: "Ngày 2: Bạn không nên nói", options: [{ en: "We minimize risk", vi: "Chúng ta giảm rủi ro" }, { en: "100% safe", vi: "100% an toàn" }], correctIndex: 1, explanationsEn: ["", ""], explanationsVi: ["", ""] },
+    { id: "d7q3", questionEn: "Day 3: Ownership means", questionVi: "Ngày 3: Làm chủ nghĩa là", options: [{ en: "Pass the buck", vi: "Đùn đẩy" }, { en: "If you see it, you own it", vi: "Thấy là xử lý" }], correctIndex: 1, explanationsEn: ["", ""], explanationsVi: ["", ""] },
+    { id: "d7q4", questionEn: "Day 4: When upselling, you", questionVi: "Ngày 4: Khi upselling, bạn", options: [{ en: "Push hard", vi: "Ép mạnh" }, { en: "Recommend what fits, no pressure", vi: "Gợi ý phù hợp, không ép" }], correctIndex: 1, explanationsEn: ["", ""], explanationsVi: ["", ""] },
+    { id: "d7q5", questionEn: "Day 5: When busy, you", questionVi: "Ngày 5: Khi đông, bạn", options: [{ en: "Panic", vi: "Hoảng" }, { en: "Stay calm, prioritize, communicate", vi: "Bình tĩnh, ưu tiên, giao tiếp" }], correctIndex: 1, explanationsEn: ["", ""], explanationsVi: ["", ""] },
+    { id: "d7q6", questionEn: "Day 6: Newbie flow — first you", questionVi: "Ngày 6: Quy trình người mới — trước tiên bạn", options: [{ en: "Wait at counter", vi: "Chờ ở quầy" }, { en: "Spot and approach within 3–5 sec", vi: "Chú ý và tiếp cận trong 3–5 giây" }], correctIndex: 1, explanationsEn: ["", ""], explanationsVi: ["", ""] },
+    { id: "d7q7", questionEn: "Day 6: For first-timer shoes, recommend", questionVi: "Ngày 6: Giày cho người lần đầu, gợi ý", options: [{ en: "Buy climbing shoes", vi: "Mua giày leo" }, { en: "Rental first", vi: "Thuê trước" }], correctIndex: 1, explanationsEn: ["", ""], explanationsVi: ["", ""] },
+    { id: "d7q8", questionEn: "Critical fail includes", questionVi: "Lỗi nghiêm trọng gồm", options: [{ en: "Walking newbie through", vi: "Dẫn người mới đi" }, { en: "Skipping onboarding steps", vi: "Bỏ bước onboarding" }], correctIndex: 1, explanationsEn: ["", ""], explanationsVi: ["", ""] },
+    { id: "d7q9", questionEn: "First climb with newbie: you", questionVi: "Leo lần đầu với người mới: bạn", options: [{ en: "Point and leave", vi: "Chỉ và đi" }, { en: "Stay with them", vi: "Ở bên họ" }], correctIndex: 1, explanationsEn: ["", ""], explanationsVi: ["", ""] },
+  ],
+  reflection: { id: "r7", promptEn: "Certification complete.", promptVi: "Hoàn thành chứng nhận." },
+};
+
+export const ALL_DAYS: DayContent[] = [DAY1, DAY2, DAY3, DAY4, DAY5, DAY6, DAY7];
 
 export function getDayContent(day: number): DayContent | undefined {
   return ALL_DAYS.find((d) => d.day === day);
@@ -2422,37 +3077,46 @@ export function getDayContent(day: number): DayContent | undefined {
 /** Map current_step to phase and indices for resume. Step 0 = first lesson, etc. */
 const SIM_STEPS = (content: DayContent) => content.simulation?.steps.length ?? 0;
 
+export type OnboardingPhase = "lesson" | "rapid_decisions" | "scenario" | "simulation" | "quiz" | "reflection" | "certification_result";
+
 export function stepToPhase(
   step: number,
   content: DayContent
-): { phase: "lesson" | "scenario" | "simulation" | "quiz" | "reflection"; lessonIndex: number; scenarioIndex: number; simulationStepIndex: number; quizIndex: number } {
+): { phase: OnboardingPhase; lessonIndex: number; scenarioIndex: number; simulationStepIndex: number; quizIndex: number; rapidIndex: number } {
   const L = content.sections.length;
+  const R = content.rapidDecisions?.length ?? 0;
   const S = content.scenarios.length;
   const Sim = SIM_STEPS(content);
   const Q = content.quiz.length;
-  if (step < L) return { phase: "lesson", lessonIndex: step, scenarioIndex: 0, simulationStepIndex: 0, quizIndex: 0 };
-  if (step < L + S) return { phase: "scenario", lessonIndex: L - 1, scenarioIndex: step - L, simulationStepIndex: 0, quizIndex: 0 };
-  if (step < L + S + Sim) return { phase: "simulation", lessonIndex: L - 1, scenarioIndex: S - 1, simulationStepIndex: step - L - S, quizIndex: 0 };
-  if (step < L + S + Sim + Q) return { phase: "quiz", lessonIndex: L - 1, scenarioIndex: S - 1, simulationStepIndex: Sim - 1, quizIndex: step - L - S - Sim };
-  return { phase: "reflection", lessonIndex: L - 1, scenarioIndex: S - 1, simulationStepIndex: Math.max(0, Sim - 1), quizIndex: Q - 1 };
+  if (step < L) return { phase: "lesson", lessonIndex: step, scenarioIndex: 0, simulationStepIndex: 0, quizIndex: 0, rapidIndex: 0 };
+  if (R > 0 && step < L + R) return { phase: "rapid_decisions", lessonIndex: L - 1, scenarioIndex: 0, simulationStepIndex: 0, quizIndex: 0, rapidIndex: step - L };
+  if (step < L + R + S) return { phase: "scenario", lessonIndex: L - 1, scenarioIndex: step - L - R, simulationStepIndex: 0, quizIndex: 0, rapidIndex: R - 1 };
+  if (step < L + R + S + Sim) return { phase: "simulation", lessonIndex: L - 1, scenarioIndex: S - 1, simulationStepIndex: step - L - R - S, quizIndex: 0, rapidIndex: R - 1 };
+  if (step < L + R + S + Sim + Q) return { phase: "quiz", lessonIndex: L - 1, scenarioIndex: S - 1, simulationStepIndex: Sim - 1, quizIndex: step - L - R - S - Sim, rapidIndex: R - 1 };
+  if (R > 0) return { phase: "certification_result", lessonIndex: L - 1, scenarioIndex: S - 1, simulationStepIndex: Math.max(0, Sim - 1), quizIndex: Q - 1, rapidIndex: R - 1 };
+  return { phase: "reflection", lessonIndex: L - 1, scenarioIndex: S - 1, simulationStepIndex: Math.max(0, Sim - 1), quizIndex: Q - 1, rapidIndex: R - 1 };
 }
 
 /** Compute current_step from phase and indices. */
 export function phaseToStep(
-  phase: "lesson" | "scenario" | "simulation" | "quiz" | "reflection",
+  phase: OnboardingPhase,
   lessonIndex: number,
   scenarioIndex: number,
   simulationStepIndex: number,
   quizIndex: number,
-  content: DayContent
+  content: DayContent,
+  rapidIndex?: number
 ): number {
   const L = content.sections.length;
+  const R = content.rapidDecisions?.length ?? 0;
   const S = content.scenarios.length;
   const Sim = SIM_STEPS(content);
   const Q = content.quiz.length;
   if (phase === "lesson") return lessonIndex;
-  if (phase === "scenario") return L + scenarioIndex;
-  if (phase === "simulation") return L + S + simulationStepIndex;
-  if (phase === "quiz") return L + S + Sim + quizIndex;
-  return L + S + Sim + Q;
+  if (phase === "rapid_decisions" && R > 0) return L + (rapidIndex ?? 0);
+  if (phase === "scenario") return L + R + scenarioIndex;
+  if (phase === "simulation") return L + R + S + simulationStepIndex;
+  if (phase === "quiz") return L + R + S + Sim + quizIndex;
+  if (phase === "certification_result") return L + R + S + Sim + Q;
+  return L + R + S + Sim + Q;
 }

@@ -255,7 +255,31 @@ export default function AdminPage() {
     staff?: { staff_id: string; display_name: string; email: string; role: string; sales: number; commission: number; tasks_completed: number; attendance_days: number }[];
   } | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [onboardingAnalytics, setOnboardingAnalytics] = useState<{ byStaff: { staff_name: string; avg_ai_score: number | null; quiz_accuracy: number | null; days_completed: number; weakest_skill: string; weakest_skill_value: number; completion_time_days: number | null; xp_total: number }[]; summary: { total_staff: number; avg_ai_score_overall: number | null; quiz_accuracy_overall: number | null } } | null>(null);
+  const [onboardingAnalytics, setOnboardingAnalytics] = useState<{
+    byStaff: {
+      staff_name: string;
+      avg_ai_score: number | null;
+      quiz_accuracy: number | null;
+      days_completed: number;
+      days_total?: number;
+      weakest_skill: string;
+      weakest_skill_value: number;
+      completion_time_days: number | null;
+      xp_total: number;
+      certification_final_score?: number | null;
+      certification_passed?: boolean | null;
+      certification_critical_fail?: boolean | null;
+    }[];
+    summary: {
+      total_staff: number;
+      avg_ai_score_overall: number | null;
+      quiz_accuracy_overall: number | null;
+      days_total?: number;
+      certified_count?: number;
+      certification_attempted_count?: number;
+      avg_certification_score?: number | null;
+    };
+  } | null>(null);
   const [onboardingAnalyticsLoading, setOnboardingAnalyticsLoading] = useState(false);
   const [guidedTourActive, setGuidedTourActive] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
@@ -3658,8 +3682,11 @@ export default function AdminPage() {
                       <div className="space-y-4">
                         <div className="flex flex-wrap gap-4 text-sm">
                           <span className="font-medium text-slate-700">{locale === "vi" ? "Tổng số" : "Total staff"}: {onboardingAnalytics.summary.total_staff}</span>
+                          <span className="text-slate-600">{locale === "vi" ? "Chương trình" : "Program"}: 1–{onboardingAnalytics.summary.days_total ?? 7} {locale === "vi" ? "ngày" : "days"}</span>
                           {onboardingAnalytics.summary.avg_ai_score_overall != null && <span className="text-slate-600">{locale === "vi" ? "Điểm AI trung bình" : "Avg AI score"}: {onboardingAnalytics.summary.avg_ai_score_overall}</span>}
                           {onboardingAnalytics.summary.quiz_accuracy_overall != null && <span className="text-slate-600">{locale === "vi" ? "Độ chính xác quiz" : "Quiz accuracy"}: {onboardingAnalytics.summary.quiz_accuracy_overall}%</span>}
+                          {onboardingAnalytics.summary.certified_count != null && <span className="text-slate-600">{locale === "vi" ? "Đã chứng nhận" : "Certified"}: {onboardingAnalytics.summary.certified_count}</span>}
+                          {onboardingAnalytics.summary.avg_certification_score != null && <span className="text-slate-600">{locale === "vi" ? "Điểm chứng nhận TB" : "Avg cert. score"}: {onboardingAnalytics.summary.avg_certification_score}</span>}
                         </div>
                         <div className="overflow-x-auto rounded-lg border border-slate-200">
                           <table className="min-w-full text-sm">
@@ -3669,18 +3696,25 @@ export default function AdminPage() {
                                 <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Điểm AI TB" : "Avg AI score"}</th>
                                 <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Quiz %" : "Quiz accuracy"}</th>
                                 <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Ngày xong" : "Days done"}</th>
+                                <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Chứng nhận (D7)" : "Cert. (Day 7)"}</th>
+                                <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Điểm CN" : "Cert. score"}</th>
                                 <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Kỹ năng yếu" : "Weakest skill"}</th>
                                 <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Thời gian hoàn thành (ngày)" : "Completion time (days)"}</th>
                                 <th className="px-3 py-2 font-semibold text-slate-700">XP</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200">
-                              {onboardingAnalytics.byStaff.map((row: { staff_name: string; avg_ai_score: number | null; quiz_accuracy: number | null; days_completed: number; weakest_skill: string; weakest_skill_value: number; completion_time_days: number | null; xp_total: number }) => (
-                                <tr key={row.staff_name + row.xp_total} className="hover:bg-slate-50">
+                              {onboardingAnalytics.byStaff.map((row) => (
+                                <tr key={row.staff_name + row.xp_total + (row.days_completed ?? 0)} className="hover:bg-slate-50">
                                   <td className="px-3 py-2 text-slate-800">{row.staff_name}</td>
                                   <td className="px-3 py-2 text-slate-600">{row.avg_ai_score ?? "—"}</td>
                                   <td className="px-3 py-2 text-slate-600">{row.quiz_accuracy != null ? `${row.quiz_accuracy}%` : "—"}</td>
-                                  <td className="px-3 py-2 text-slate-600">{row.days_completed}</td>
+                                  <td className="px-3 py-2 text-slate-600">{row.days_completed}/{row.days_total ?? 7}</td>
+                                  <td className="px-3 py-2 text-slate-600">
+                                    {row.certification_passed === true ? (locale === "vi" ? "Đạt" : "Pass") : row.certification_passed === false ? (locale === "vi" ? "Chưa đạt" : "Fail") : "—"}
+                                    {row.certification_critical_fail === true && <span className="ml-1 text-red-600" title={locale === "vi" ? "Lỗi nghiêm trọng" : "Critical fail"}>⚠</span>}
+                                  </td>
+                                  <td className="px-3 py-2 text-slate-600">{row.certification_final_score != null ? row.certification_final_score : "—"}</td>
                                   <td className="px-3 py-2 text-slate-600">{row.weakest_skill} ({row.weakest_skill_value})</td>
                                   <td className="px-3 py-2 text-slate-600">{row.completion_time_days ?? "—"}</td>
                                   <td className="px-3 py-2 text-slate-600">{row.xp_total}</td>

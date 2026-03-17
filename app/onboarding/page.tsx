@@ -12,6 +12,7 @@ import {
   isSimulationStepDecision,
   type LessonSection,
   type QuizQuestion,
+  type OnboardingPhase,
   HEARTS_MAX,
   DAY_UNLOCK_HOURS_MS,
   PRIMARY_SKILL_BY_DAY,
@@ -19,7 +20,7 @@ import {
 import type { Locale } from "@/lib/i18n";
 import { getMessages } from "@/lib/messages";
 
-type Phase = "map" | "lesson" | "scenario" | "simulation" | "simulation_result" | "quiz" | "reflection" | "key_takeaway" | "day_complete_menu" | "hard_mode" | "advanced_lessons";
+type Phase = "map" | OnboardingPhase | "simulation_result" | "key_takeaway" | "day_complete_menu" | "hard_mode" | "advanced_lessons";
 
 const ONBOARDING_LOCALE_KEY = "onboarding-locale";
 
@@ -39,6 +40,10 @@ export default function OnboardingPage() {
     hearts_remaining: number;
     skill_scores?: { communication: number; safety: number; sales: number; teamwork: number };
     day_completion: Record<number, { completed: boolean; lesson_index: number; current_step?: number; completed_at?: string | null }>;
+    final_score?: number | null;
+    passed?: boolean | null;
+    critical_fail?: boolean | null;
+    certification_date?: string | null;
   } | null>(null);
   const [currentDay, setCurrentDay] = useState<number | null>(null);
   const [phase, setPhase] = useState<Phase>("map");
@@ -59,7 +64,7 @@ export default function OnboardingPage() {
   const [saving, setSaving] = useState(false);
   const [simulationStepIndex, setSimulationStepIndex] = useState(0);
   const [simulationChoice, setSimulationChoice] = useState<string | null>(null);
-  const [simulationStepResults, setSimulationStepResults] = useState<{ correct?: boolean; score?: number }[]>([]);
+  const [simulationStepResults, setSimulationStepResults] = useState<{ correct?: boolean; score?: number; optionId?: string }[]>([]);
   const [simulationResultMode, setSimulationResultMode] = useState<"good" | "poor" | null>(null);
   const [simulationAiResponse, setSimulationAiResponse] = useState("");
   const [simulationAiResult, setSimulationAiResult] = useState<{
@@ -75,6 +80,23 @@ export default function OnboardingPage() {
   const [advancedLessonIndex, setAdvancedLessonIndex] = useState(0);
   const [rankingOrder, setRankingOrder] = useState<number[] | null>(null);
   const [rankingRevealed, setRankingRevealed] = useState(false);
+  const [rapidIndex, setRapidIndex] = useState(0);
+  const [rapidCorrectCount, setRapidCorrectCount] = useState(0);
+  const [certificationScenarioScores, setCertificationScenarioScores] = useState<number[]>([]);
+  const [certificationSimPassed, setCertificationSimPassed] = useState(false);
+  const [certificationCriticalFail, setCertificationCriticalFail] = useState(false);
+  const [certificationSimDecisionCorrect, setCertificationSimDecisionCorrect] = useState<boolean[]>([]);
+  const [certificationResult, setCertificationResult] = useState<{
+    total_score: number;
+    passed: boolean;
+    critical_fail: boolean;
+    rapid_score: number;
+    ai_score: number;
+    simulation_score: number;
+    quiz_score: number;
+    weakest_skill?: "communication" | "safety" | "sales" | "teamwork";
+    suggested_day?: number;
+  } | null>(null);
 
   const setLocaleAndStore = useCallback((l: Locale) => {
     setLocale(l);
@@ -95,6 +117,10 @@ export default function OnboardingPage() {
           hearts_remaining: d.hearts_remaining ?? HEARTS_MAX,
           skill_scores: d.skill_scores ?? undefined,
           day_completion: d.day_completion ?? {},
+          final_score: d.final_score ?? undefined,
+          passed: d.passed ?? undefined,
+          critical_fail: d.critical_fail ?? undefined,
+          certification_date: d.certification_date ?? undefined,
         });
       })
       .catch(() => {});
@@ -129,6 +155,7 @@ export default function OnboardingPage() {
   const section = content?.sections[lessonIndex];
   const scenario = content?.scenarios[scenarioIndex];
   const quizQuestion = content?.quiz[quizIndex];
+  const rapidQuestion = content?.rapidDecisions?.[rapidIndex];
 
   useEffect(() => {
     if (phase !== "quiz" || !quizQuestion) {
@@ -196,15 +223,24 @@ export default function OnboardingPage() {
       setScenarioResponse("");
       return;
     }
-    const { phase, lessonIndex, scenarioIndex, simulationStepIndex: simIdx, quizIndex } = stepToPhase(savedStep, dayContent);
-    setPhase(phase);
+    const { phase, lessonIndex, scenarioIndex, simulationStepIndex: simIdx, quizIndex, rapidIndex: savedRapidIndex } = stepToPhase(savedStep, dayContent);
+    setPhase(phase as Phase);
     setLessonIndex(lessonIndex);
     setScenarioIndex(scenarioIndex);
     setSimulationStepIndex(simIdx);
     setQuizIndex(quizIndex);
+    setRapidIndex(savedRapidIndex);
     setScenarioResponse("");
     setScenarioResult(null);
     setQuizCorrect(0);
+    if (day === 7) {
+      setRapidCorrectCount(0);
+      setCertificationScenarioScores([]);
+      setCertificationSimPassed(false);
+      setCertificationCriticalFail(false);
+      setCertificationSimDecisionCorrect([]);
+      setCertificationResult(null);
+    }
   };
 
   const handleLessonNext = () => {
@@ -216,12 +252,25 @@ export default function OnboardingPage() {
       setLessonIndex(lessonIndex + 1);
       setSelectedChoice(null);
     } else {
-      const nextStep = content.sections.length;
-      updateProgress("lesson", { day: currentDay, lesson_index: content.sections.length, current_step: nextStep });
-      setPhase("scenario");
-      setScenarioIndex(0);
-      setScenarioResponse("");
-      setScenarioResult(null);
+      const L = content.sections.length;
+      const R = content.rapidDecisions?.length ?? 0;
+      if (R > 0) {
+        const nextStep = phaseToStep("rapid_decisions", L - 1, 0, 0, 0, content, 0);
+        updateProgress("save_step", { day: currentDay, current_step: nextStep });
+        setPhase("rapid_decisions");
+        setRapidIndex(0);
+        setRapidCorrectCount(0);
+        setScenarioIndex(0);
+        setScenarioResponse("");
+        setScenarioResult(null);
+      } else {
+        const nextStep = phaseToStep("scenario", L - 1, 0, 0, 0, content);
+        updateProgress("lesson", { day: currentDay, lesson_index: L, current_step: nextStep });
+        setPhase("scenario");
+        setScenarioIndex(0);
+        setScenarioResponse("");
+        setScenarioResult(null);
+      }
     }
   };
 
@@ -334,16 +383,42 @@ export default function OnboardingPage() {
     }
   };
 
+  const handleRapidSelect = (optionIndex: number) => {
+    if (!content?.rapidDecisions || rapidQuestion == null) return;
+    const R = content.rapidDecisions.length;
+    if (optionIndex === rapidQuestion.correctIndex) setRapidCorrectCount((c) => c + 1);
+    const L = content.sections.length;
+    if (rapidIndex < R - 1) {
+      const nextStep = phaseToStep("rapid_decisions", L - 1, 0, 0, 0, content, rapidIndex + 1);
+      updateProgress("save_step", { day: currentDay, current_step: nextStep });
+      setRapidIndex(rapidIndex + 1);
+    } else {
+      const nextStep = phaseToStep("scenario", L - 1, 0, 0, 0, content, R - 1);
+      updateProgress("save_step", { day: currentDay, current_step: nextStep });
+      setPhase("scenario");
+      setScenarioIndex(0);
+      setScenarioResponse("");
+      setScenarioResult(null);
+    }
+  };
+
   const handleScenarioNext = () => {
     if (!content) return;
+    if (currentDay === 7 && scenarioResult?.score != null) {
+      setCertificationScenarioScores((prev) => [...prev, scenarioResult.score]);
+    }
     setScenarioResult(null);
     setScenarioResponse("");
-    if (scenarioIndex < content.scenarios.length - 1) {
-      const nextStep = content.sections.length + scenarioIndex + 1;
+    const L = content.sections.length;
+    const R = content.rapidDecisions?.length ?? 0;
+    const S = content.scenarios.length;
+    const Sim = content.simulation?.steps.length ?? 0;
+    if (scenarioIndex < S - 1) {
+      const nextStep = phaseToStep("scenario", L - 1, scenarioIndex + 1, 0, 0, content, R > 0 ? rapidIndex : undefined);
       updateProgress("save_step", { day: currentDay, current_step: nextStep });
       setScenarioIndex(scenarioIndex + 1);
-    } else if (content.simulation?.steps.length) {
-      const nextStep = content.sections.length + content.scenarios.length;
+    } else if (Sim > 0) {
+      const nextStep = phaseToStep("simulation", L - 1, S - 1, 0, 0, content, R > 0 ? rapidIndex : undefined);
       updateProgress("save_step", { day: currentDay, current_step: nextStep });
       setPhase("simulation");
       setSimulationStepIndex(0);
@@ -352,7 +427,7 @@ export default function OnboardingPage() {
       setSimulationAiResponse("");
       setSimulationAiResult(null);
     } else {
-      const nextStep = content.sections.length + content.scenarios.length + (content.simulation?.steps.length ?? 0) + 0;
+      const nextStep = phaseToStep("quiz", L - 1, S - 1, Sim - 1, 0, content, R > 0 ? rapidIndex : undefined);
       updateProgress("save_step", { day: currentDay, current_step: nextStep });
       setPhase("quiz");
       setQuizIndex(0);
@@ -397,18 +472,29 @@ export default function OnboardingPage() {
     if (!content?.simulation || !simStep) return;
     const simSteps = content.simulation.steps.length;
     const L = content.sections.length;
+    const R = content.rapidDecisions?.length ?? 0;
     const S = content.scenarios.length;
     const isDecision = isSimulationStepDecision(simStep);
     const results = [...simulationStepResults];
     if (isDecision) {
-      results.push({ correct: simulationChoice === simStep.correctChoiceId });
+      results.push({ correct: simulationChoice === simStep.correctChoiceId, optionId: simulationChoice ?? undefined });
     } else {
       results.push({ score: simulationAiResult?.score ?? 0 });
     }
     setSimulationStepResults(results);
 
+    if (currentDay === 7 && content.simulation) {
+      const steps = content.simulation.steps;
+      const decisionCorrect = steps.map((s, i) => (s.type === "decision" ? results[i]?.correct === true : null)).filter((x): x is boolean => x !== null);
+      setCertificationSimDecisionCorrect(decisionCorrect);
+      const anyCritical = steps.some(
+        (s, i) => s.type === "decision" && results[i]?.correct === false && (s as { criticalWrongIds?: string[] }).criticalWrongIds?.includes((results[i] as { optionId?: string }).optionId ?? "")
+      );
+      if (anyCritical) setCertificationCriticalFail(true);
+    }
+
     if (simulationStepIndex < simSteps - 1) {
-      const nextStep = L + S + simulationStepIndex + 1;
+      const nextStep = phaseToStep("simulation", L - 1, S - 1, simulationStepIndex + 1, 0, content, R > 0 ? rapidIndex : undefined);
       updateProgress("save_step", { day: currentDay, current_step: nextStep });
       setSimulationStepIndex(simulationStepIndex + 1);
       setSimulationChoice(null);
@@ -418,6 +504,7 @@ export default function OnboardingPage() {
       const performedWell = results.every(
         (r) => (r.correct !== false) && (r.score === undefined || r.score >= 70)
       );
+      if (currentDay === 7) setCertificationSimPassed(performedWell);
       setSimulationResultMode(performedWell ? "good" : "poor");
       setPhase("simulation_result");
     }
@@ -436,9 +523,11 @@ export default function OnboardingPage() {
       updateProgress("update_skills", { skill_deltas: { [primarySkill]: delta } });
     }
     const L = content.sections.length;
+    const R = content.rapidDecisions?.length ?? 0;
     const S = content.scenarios.length;
     const simSteps = content.simulation.steps.length;
-    updateProgress("save_step", { day: currentDay, current_step: L + S + simSteps });
+    const nextStep = phaseToStep("quiz", L - 1, S - 1, simSteps - 1, 0, content, R > 0 ? rapidIndex : undefined);
+    updateProgress("save_step", { day: currentDay, current_step: nextStep });
     setPhase("quiz");
     setQuizIndex(0);
     setQuizCorrect(0);
@@ -465,13 +554,16 @@ export default function OnboardingPage() {
     setSelectedChoice(null);
     setRankingOrder(null);
     setRankingRevealed(false);
+    const L = content.sections.length;
+    const R = content.rapidDecisions?.length ?? 0;
+    const S = content.scenarios.length;
     const simLen = content.simulation?.steps.length ?? 0;
     if (quizIndex < content.quiz.length - 1) {
-      const nextStep = content.sections.length + content.scenarios.length + simLen + quizIndex + 1;
+      const nextStep = phaseToStep("quiz", L - 1, S - 1, simLen - 1, quizIndex + 1, content, R > 0 ? rapidIndex : undefined);
       updateProgress("save_step", { day: currentDay, current_step: nextStep });
       setQuizIndex(quizIndex + 1);
     } else {
-      const nextStep = content.sections.length + content.scenarios.length + simLen + content.quiz.length;
+      const nextStep = phaseToStep(currentDay === 7 ? "certification_result" : "reflection", L - 1, S - 1, simLen - 1, content.quiz.length - 1, content, R > 0 ? rapidIndex : undefined);
       updateProgress("save_step", { day: currentDay, current_step: nextStep });
       const perfect = quizCorrect === content.quiz.length;
       updateProgress("quiz", { day: currentDay, quiz_perfect: perfect });
@@ -483,7 +575,64 @@ export default function OnboardingPage() {
           updateProgress("update_skills", { skill_deltas: { [primarySkill]: delta } });
         }
       }
-      setPhase("reflection");
+      if (currentDay === 7) {
+        const RAPID_WEIGHT = 15;
+        const AI_WEIGHT = 25;
+        const SIM_WEIGHT = 40;
+        const QUIZ_WEIGHT = 20;
+        const rapidTotal = 10;
+        const rapid_score = (rapidCorrectCount / rapidTotal) * RAPID_WEIGHT;
+        const scScores = certificationScenarioScores.length >= 3 ? certificationScenarioScores : certificationScenarioScores;
+        const avgAi = scScores.length ? scScores.reduce((a, b) => a + b, 0) / scScores.length : 0;
+        let ai_score = (avgAi / 100) * AI_WEIGHT;
+        if (avgAi >= 90) ai_score = Math.min(AI_WEIGHT, ai_score + 2);
+        const decisionSteps = certificationSimDecisionCorrect.length;
+        const decisionCorrectCount = certificationSimDecisionCorrect.filter(Boolean).length;
+        const decision_accuracy = decisionSteps ? decisionCorrectCount / decisionSteps : 0;
+        const flow_completion = !certificationCriticalFail;
+        const tone_score = certificationCriticalFail ? 0 : 1;
+        const simAiAvg = 0;
+        let simulation_score = decision_accuracy * 20 + simAiAvg * 0.1 + (flow_completion ? 5 : 0) + tone_score * 5;
+        if (certificationCriticalFail) simulation_score = Math.max(0, simulation_score - 10);
+        const quizTotal = content.quiz.length || 1;
+        const quiz_score = (quizCorrect / quizTotal) * QUIZ_WEIGHT;
+        const total_score = Math.round(rapid_score + ai_score + simulation_score + quiz_score);
+        const finalCapped = Math.min(100, Math.max(0, total_score));
+        const passed = finalCapped >= 80 && !certificationCriticalFail;
+        const sections = [
+          { key: "rapid" as const, score: rapid_score, max: RAPID_WEIGHT },
+          { key: "ai" as const, score: ai_score, max: AI_WEIGHT },
+          { key: "sim" as const, score: simulation_score, max: SIM_WEIGHT },
+          { key: "quiz" as const, score: quiz_score, max: QUIZ_WEIGHT },
+        ];
+        const worst = sections.reduce((a, b) => (a.score / a.max <= b.score / b.max ? a : b));
+        const weakest_skill: "communication" | "safety" | "sales" | "teamwork" =
+          worst.key === "rapid" || worst.key === "ai" ? "communication" : worst.key === "sim" ? "safety" : "sales";
+        const suggested_day = worst.key === "rapid" ? 1 : worst.key === "ai" ? 6 : worst.key === "sim" ? 6 : 4;
+        setCertificationResult({
+          total_score: finalCapped,
+          passed,
+          critical_fail: certificationCriticalFail,
+          rapid_score,
+          ai_score,
+          simulation_score,
+          quiz_score,
+          weakest_skill,
+          suggested_day,
+        });
+        adminFetch("/api/admin/onboarding/progress", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "certification_complete",
+            final_score: finalCapped,
+            passed,
+            critical_fail: certificationCriticalFail,
+            certification_date: new Date().toISOString(),
+          }),
+        }).then(() => fetchProgress()).catch(() => {});
+      }
+      setPhase(currentDay === 7 ? "certification_result" : "reflection");
     }
   };
 
@@ -598,7 +747,7 @@ export default function OnboardingPage() {
               {/* Journey-style day cards: horizontal flow, depth, glow */}
               <section className="max-w-2xl mx-auto">
                 <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
-                  {[1, 2, 3, 4, 5].map((day) => {
+                  {[1, 2, 3, 4, 5, 6, 7].map((day) => {
                     const unlocked = isDayUnlocked(day);
                     const completed = progress?.day_completion[day]?.completed ?? false;
                     const countdownMs = getCountdownMs(day);
@@ -643,7 +792,7 @@ export default function OnboardingPage() {
 
                 {/* Primary CTA */}
                 {progress && (() => {
-                  const dayToStart = [1, 2, 3, 4, 5].find((d) => isDayUnlocked(d) && !progress.day_completion[d]?.completed) ?? 1;
+                  const dayToStart = [1, 2, 3, 4, 5, 6, 7].find((d) => isDayUnlocked(d) && !progress.day_completion[d]?.completed) ?? 1;
                   const canStart = isDayUnlocked(dayToStart);
                   const hasProgress = (progress.day_completion[dayToStart]?.current_step ?? 0) > 0;
                   const label = hasProgress
@@ -811,6 +960,32 @@ export default function OnboardingPage() {
             saving={saving}
             onBackToMap={() => { setCurrentDay(null); setPhase("map"); }}
           />
+        )}
+
+        {phase === "rapid_decisions" && content?.rapidDecisions && rapidQuestion && (
+          <section className="rounded-2xl bg-slate-800/80 border border-slate-600 p-6 max-w-md mx-auto space-y-4">
+            <h2 className="text-lg font-bold text-amber-400">
+              {locale === "vi" ? "Quyết định nhanh" : "Rapid decisions"} — {rapidIndex + 1} / {content.rapidDecisions.length}
+            </h2>
+            <p className="text-slate-200 font-medium">
+              {locale === "vi" ? rapidQuestion.questionVi : rapidQuestion.questionEn}
+            </p>
+            <div className="space-y-2">
+              {rapidQuestion.options.map((opt, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleRapidSelect(idx)}
+                  className="w-full text-left px-4 py-3 rounded-xl border-2 border-slate-600 bg-slate-800/80 hover:border-amber-500/50 hover:bg-slate-700/80 transition-all text-slate-200"
+                >
+                  {locale === "vi" ? opt.vi : opt.en}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-slate-500">
+              {locale === "vi" ? "Giải thích sẽ hiện sau khi hoàn thành tất cả." : "Explanations shown after all questions."}
+            </p>
+          </section>
         )}
 
         {phase === "scenario" && scenario && content && (
@@ -1058,6 +1233,125 @@ export default function OnboardingPage() {
             rankingRevealed={rankingRevealed}
             onRankingSubmit={handleRankingSubmit}
           />
+        )}
+
+        {phase === "certification_result" && content && currentDay === 7 && (
+          <section className="rounded-2xl bg-slate-800/80 border border-slate-600 p-6 max-w-md mx-auto space-y-6">
+            {(certificationResult ?? (progress?.passed != null && progress?.final_score != null
+              ? { passed: progress.passed, total_score: progress.final_score ?? 0, critical_fail: progress.critical_fail ?? false }
+              : null)) ? (
+              (() => {
+                const result = certificationResult ?? {
+                  passed: progress!.passed!,
+                  total_score: progress!.final_score!,
+                  critical_fail: progress!.critical_fail ?? false,
+                  rapid_score: 0,
+                  ai_score: 0,
+                  simulation_score: 0,
+                  quiz_score: 0,
+                };
+                return result.passed ? (
+                  <>
+                    <h2 className="text-2xl font-bold text-emerald-400">
+                      {locale === "vi" ? "Bạn đã sẵn sàng" : "You are ready"}
+                    </h2>
+                    <p className="text-slate-300">
+                      {locale === "vi" ? "Chứng nhận cuối: Đạt. Bạn đã chứng minh hành vi, giao tiếp và quy trình onboarding đúng. Có thể tiến tới thực tập thực tế." : "Final certification: Pass. You demonstrated correct behavior, communication, and onboarding flow. You may proceed to real-world internship."}
+                    </p>
+                    <p className="text-amber-400 font-semibold">Score: {result.total_score}/100</p>
+                    <p className="text-slate-400 text-sm">
+                      {locale === "vi" ? "Phần thưởng XP đã được cộng. Trở về bản đồ để xem tiến độ." : "XP reward applied. Return to map to see progress."}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => { setCurrentDay(null); setPhase("map"); setCertificationResult(null); }}
+                      className="w-full py-3 rounded-xl bg-amber-500 text-slate-900 font-bold hover:bg-amber-400"
+                    >
+                      {locale === "vi" ? "← Quay lại bản đồ" : "← Back to map"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-xl font-bold text-red-400">
+                      {locale === "vi" ? "Chưa đạt" : "Not yet"}
+                    </h2>
+                    <p className="text-slate-300">
+                      {locale === "vi" ? "Tổng điểm dưới 80 hoặc có lỗi nghiêm trọng. Xem các mục yếu và ôn lại ngày được gợi ý." : "Total score below 80 or critical fail. Review weak areas and recommended day to revisit."}
+                    </p>
+                    <p className="text-slate-400">Score: {result.total_score}/100 (need ≥80)</p>
+                    {result.critical_fail && (
+                      <p className="text-red-300 text-sm">
+                        {locale === "vi" ? "Lỗi nghiêm trọng: an toàn, bỏ qua bước onboarding, hoặc hành vi không đúng với người mới." : "Critical fail: safety, skipped onboarding steps, or incorrect behavior with newbie."}
+                      </p>
+                    )}
+                    {certificationResult != null && (
+                      <>
+                        <div className="text-sm text-slate-400 space-y-1">
+                          <p>Rapid: {certificationResult.rapid_score.toFixed(1)}/15 — AI: {certificationResult.ai_score.toFixed(1)}/25 — Sim: {certificationResult.simulation_score.toFixed(1)}/40 — Quiz: {certificationResult.quiz_score.toFixed(1)}/20</p>
+                          {certificationResult.weakest_skill && (
+                            <p>
+                              {locale === "vi" ? "Kỹ năng cần cải thiện: " : "Weakest skill: "}
+                              <span className="font-medium text-amber-400">
+                                {certificationResult.weakest_skill === "communication" ? (locale === "vi" ? "Giao tiếp (C)" : "Communication (C)") : certificationResult.weakest_skill === "safety" ? (locale === "vi" ? "An toàn (S)" : "Safety (S)") : certificationResult.weakest_skill === "sales" ? (locale === "vi" ? "Bán hàng ($)" : "Sales ($)") : (locale === "vi" ? "Đội (T)" : "Teamwork (T)")}
+                              </span>
+                            </p>
+                          )}
+                          {certificationResult.suggested_day != null && (
+                            <p>{locale === "vi" ? "Gợi ý ôn lại: Ngày " : "Suggested day to revisit: Day "}{certificationResult.suggested_day}</p>
+                          )}
+                        </div>
+                      </>
+                    )}
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => { setCurrentDay(null); setPhase("map"); setCertificationResult(null); }}
+                        className="flex-1 py-2 rounded-xl border border-slate-500 text-slate-300 hover:bg-slate-700"
+                      >
+                        {locale === "vi" ? "Quay lại bản đồ" : "Back to map"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          adminFetch("/api/admin/onboarding/progress", {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ action: "reset_day", day: 7 }),
+                          }).then(() => {
+                            fetchProgress();
+                            setCertificationResult(null);
+                            setCertificationCriticalFail(false);
+                            setCertificationSimDecisionCorrect([]);
+                            setPhase("lesson");
+                            setCurrentDay(7);
+                            setLessonIndex(0);
+                            setRapidIndex(0);
+                            setRapidCorrectCount(0);
+                            setCertificationScenarioScores([]);
+                            setCertificationSimPassed(false);
+                            setScenarioIndex(0);
+                            setScenarioResponse("");
+                            setScenarioResult(null);
+                            setSimulationStepIndex(0);
+                            setSimulationChoice(null);
+                            setSimulationStepResults([]);
+                            setSimulationResultMode(null);
+                            setQuizIndex(0);
+                            setQuizCorrect(0);
+                          }).catch(() => {});
+                        }}
+                        className="flex-1 py-2 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-200 hover:bg-amber-500/30"
+                      >
+                        {locale === "vi" ? "Thử lại" : "Retry"}
+                      </button>
+                    </div>
+                  </>
+                );
+              })()
+            ) : (
+              <p className="text-slate-400">{locale === "vi" ? "Đang tính kết quả..." : "Computing result..."}</p>
+            )}
+          </section>
         )}
 
         {phase === "reflection" && content && (

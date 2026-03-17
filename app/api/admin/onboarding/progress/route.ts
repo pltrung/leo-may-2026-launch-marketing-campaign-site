@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getUnifiedAdminOrStaffFromRequest } from "@/lib/unifiedAdminAuth";
 import { getGymToday } from "@/lib/gymTimezone";
-import { XP_LESSON, XP_DAY_COMPLETE, XP_PERFECT_QUIZ, XP_PERFECT_DAY_BONUS } from "@/lib/onboardingContent";
+import { XP_LESSON, XP_DAY_COMPLETE, XP_PERFECT_QUIZ, XP_PERFECT_DAY_BONUS, XP_CERTIFICATION_PASS } from "@/lib/onboardingContent";
 
 /**
  * GET /api/admin/onboarding/progress
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   let { data: progress, error: fetchErr } = await supabase
     .from("onboarding_progress")
-    .select("id, xp_total, streak_days, hearts_remaining, last_activity_date, badges, skill_scores")
+    .select("id, xp_total, streak_days, hearts_remaining, last_activity_date, badges, skill_scores, final_score, passed, critical_fail, certification_date")
     .eq("auth_id", authId)
     .maybeSingle();
 
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     const { data: newRow, error: insertErr } = await supabase
       .from("onboarding_progress")
       .insert({ auth_id: authId, staff_id: staffId })
-      .select("id, xp_total, streak_days, hearts_remaining, last_activity_date, badges, skill_scores")
+      .select("id, xp_total, streak_days, hearts_remaining, last_activity_date, badges, skill_scores, final_score, passed, critical_fail, certification_date")
       .single();
 
     if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
@@ -64,6 +64,10 @@ export async function GET(req: NextRequest) {
     badges: progress.badges ?? [],
     skill_scores: progress.skill_scores ?? defaultSkills,
     day_completion: dayCompletion,
+    final_score: progress.final_score ?? null,
+    passed: progress.passed ?? null,
+    critical_fail: progress.critical_fail ?? null,
+    certification_date: progress.certification_date ?? null,
   });
 }
 
@@ -86,6 +90,10 @@ export async function PATCH(req: NextRequest) {
     quiz_total?: number;
     simulation_complete?: { performed_well: boolean; xp_earned: number };
     skill_deltas?: { communication?: number; safety?: number; sales?: number; teamwork?: number };
+    final_score?: number;
+    passed?: boolean;
+    critical_fail?: boolean;
+    certification_date?: string;
   };
   try {
     body = await req.json();
@@ -93,7 +101,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { action, day, lesson_index, quiz_perfect, current_step, perfect_day, quiz_correct_count, quiz_total, simulation_complete, skill_deltas } = body;
+  const { action, day, lesson_index, quiz_perfect, current_step, perfect_day, quiz_correct_count, quiz_total, simulation_complete, skill_deltas, final_score, passed, critical_fail: criticalFail, certification_date } = body;
   const supabase = createServerClient();
 
   const { data: progress } = await supabase
@@ -194,6 +202,36 @@ export async function PATCH(req: NextRequest) {
       .update({ hearts_remaining: hearts, updated_at: new Date().toISOString() })
       .eq("id", progress.id);
     return NextResponse.json({ ok: true, hearts_remaining: hearts });
+  } else if (action === "reset_day" && day === 7) {
+    await supabase
+      .from("onboarding_day_completion")
+      .upsert(
+        { progress_id: progress.id, day: 7, completed: false, current_step: 0, lesson_index: 0 },
+        { onConflict: "progress_id,day" }
+      );
+    return NextResponse.json({ ok: true });
+  } else if (action === "certification_complete" && day === 7 && typeof final_score === "number" && typeof passed === "boolean") {
+    const certPayload: Record<string, unknown> = {
+      final_score: Math.min(100, Math.max(0, final_score)),
+      passed,
+      critical_fail: typeof criticalFail === "boolean" ? criticalFail : false,
+      certification_date: certification_date ?? new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    if (passed) {
+      certPayload.xp_total = (progress.xp_total as number) + XP_CERTIFICATION_PASS;
+    }
+    await supabase
+      .from("onboarding_progress")
+      .update(certPayload)
+      .eq("id", progress.id);
+    await supabase
+      .from("onboarding_day_completion")
+      .upsert(
+        { progress_id: progress.id, day: 7, completed: true, completed_at: new Date().toISOString(), lesson_index: 999, current_step: 999 },
+        { onConflict: "progress_id,day" }
+      );
+    return NextResponse.json({ ok: true, passed, final_score, xp_awarded: passed ? XP_CERTIFICATION_PASS : 0 });
   } else if (action === "update_skills" && skill_deltas && typeof skill_deltas === "object") {
     const current = (progress.skill_scores as { communication?: number; safety?: number; sales?: number; teamwork?: number } | null) ?? {
       communication: 50,

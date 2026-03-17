@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
   const { data: progressRows } = await supabase
     .from("onboarding_progress")
-    .select("id, auth_id, staff_id, skill_scores, xp_total");
+    .select("id, auth_id, staff_id, skill_scores, xp_total, final_score, passed, critical_fail");
 
   if (!progressRows?.length) {
     return NextResponse.json({ byStaff: [], summary: {} });
@@ -65,7 +65,9 @@ export async function GET(req: NextRequest) {
     aiByProgress[r.progress_id].push(r.score);
   });
 
-  const byStaff = progressRows.map((p: { id: string; auth_id: string; staff_id: string | null; skill_scores: { communication?: number; safety?: number; sales?: number; teamwork?: number } | null; xp_total: number }) => {
+  const TOTAL_DAYS = 7;
+
+  const byStaff = progressRows.map((p: { id: string; auth_id: string; staff_id: string | null; skill_scores: { communication?: number; safety?: number; sales?: number; teamwork?: number } | null; xp_total: number; final_score?: number | null; passed?: boolean | null; critical_fail?: boolean | null }) => {
     const scores = p.skill_scores as { communication?: number; safety?: number; sales?: number; teamwork?: number } | null;
     const skills = [
       { key: "communication", val: scores?.communication ?? 50 },
@@ -96,10 +98,14 @@ export async function GET(req: NextRequest) {
       avg_ai_score: avgAiScore,
       quiz_accuracy: quizAccuracy,
       days_completed: dayStats?.completed ?? 0,
+      days_total: TOTAL_DAYS,
       weakest_skill: weakest.key,
       weakest_skill_value: weakest.val,
       completion_time_days: completionTimeDays,
       xp_total: p.xp_total ?? 0,
+      certification_final_score: p.final_score ?? null,
+      certification_passed: p.passed ?? null,
+      certification_critical_fail: p.critical_fail ?? null,
     };
   });
 
@@ -107,10 +113,19 @@ export async function GET(req: NextRequest) {
   const totalQuizCorrect = Object.values(daysByProgress).reduce((s, d) => s + d.quizCorrect, 0);
   const totalQuizTotal = Object.values(daysByProgress).reduce((s, d) => s + d.quizTotal, 0);
 
+  const certifiedCount = byStaff.filter((r) => r.certification_passed === true).length;
+  const attemptedCertCount = byStaff.filter((r) => r.certification_final_score != null).length;
+  const certScores = byStaff.map((r) => r.certification_final_score).filter((s): s is number => typeof s === "number");
+  const avgCertScore = certScores.length ? Math.round(certScores.reduce((a, b) => a + b, 0) / certScores.length) : null;
+
   const summary = {
     total_staff: byStaff.length,
     avg_ai_score_overall: allAiScores.length ? Math.round(allAiScores.reduce((a, b) => a + b, 0) / allAiScores.length) : null,
     quiz_accuracy_overall: totalQuizTotal > 0 ? Math.round((totalQuizCorrect / totalQuizTotal) * 100) : null,
+    days_total: TOTAL_DAYS,
+    certified_count: certifiedCount,
+    certification_attempted_count: attemptedCertCount,
+    avg_certification_score: avgCertScore,
   };
 
   return NextResponse.json({ byStaff, summary });
