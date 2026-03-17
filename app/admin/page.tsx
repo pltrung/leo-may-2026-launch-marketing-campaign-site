@@ -304,13 +304,14 @@ export default function AdminPage() {
     summary: { staff_in_today: number; staff_out_today: number; staff_total?: number; sessions_today: number; newbie_attendance_today?: number; zones_overdue: number; tasks_pending: number; tasks_completed?: number; tasks_overdue?: number; tasks_total?: number; pre_open_completed?: number; pre_open_total?: number; closing_overdue?: number; unassigned_sessions?: number; staff_required?: number };
   } | null>(null);
 
-  const handleTourNavigate = useCallback((step: { navigate?: { area?: "front_desk" | "operations" | "management" | "staff" | "analytics"; frontDeskTab?: "checkin" | "member"; managementTab?: "inventory" | "admin_tools"; staffSubTab?: "routes" | "coaching"; analyticsTab?: "overview" | "revenue" | "members" | "retention" | "behavior" | "funnel" | "operations" | "staff" | "onboarding" } }) => {
+  const handleTourNavigate = useCallback((step: { navigate?: { area?: "front_desk" | "operations" | "management" | "staff" | "analytics"; frontDeskTab?: "checkin" | "member"; managementTab?: "inventory" | "admin_tools"; staffSubTab?: "routes" | "coaching"; operationsTab?: "overview" | "tasks" | "attendance" | "coaching" | "routes"; analyticsTab?: "overview" | "revenue" | "members" | "retention" | "behavior" | "funnel" | "operations" | "staff" | "onboarding" } }) => {
     if (!step?.navigate) return;
     const n = step.navigate;
     if (n.area) setAdminArea(n.area);
     if (n.frontDeskTab) setFrontDeskTab(n.frontDeskTab);
     if (n.managementTab) setManagementTab(n.managementTab);
     if (n.staffSubTab) setStaffSubTab(n.staffSubTab);
+    if (n.operationsTab) setStaffModalTab(n.operationsTab);
     if (n.analyticsTab) setAnalyticsTab(n.analyticsTab);
   }, []);
 
@@ -1367,7 +1368,7 @@ export default function AdminPage() {
     const isMarkedNotWorking = hasShiftToday && shiftCheckInAttendance!.status !== "IN";
     return (
       <div className="min-h-screen flex flex-col bg-slate-900 text-slate-50">
-        <header className="border-b border-slate-800 bg-slate-900/95 backdrop-blur shrink-0">
+        <header className="relative z-30 border-b border-slate-800 bg-slate-900/95 backdrop-blur shrink-0">
           <div className="max-w-[1100px] mx-auto px-3 py-2 md:px-4 md:py-3">
             <div className="flex items-center justify-between gap-2">
               <img src="/logo-white.svg" alt="Leo Mây" className="h-6 w-auto shrink-0 md:h-7" />
@@ -1377,8 +1378,8 @@ export default function AdminPage() {
                 </button>
                 {headerMenuOpen && (
                   <>
-                    <div className="fixed inset-0 z-40" aria-hidden onClick={() => setHeaderMenuOpen(false)} />
-                    <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-xl border border-slate-700 bg-slate-800 shadow-xl py-1">
+                    <div className="fixed inset-0 z-[100]" aria-hidden onClick={() => setHeaderMenuOpen(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-[110] min-w-[180px] rounded-xl border border-slate-700 bg-slate-800 shadow-xl py-1">
                       <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{locale === "vi" ? "Ngôn ngữ" : "Preferences"}</div>
                       <div className="flex gap-0.5 p-2">
                         <button type="button" onClick={() => { setLocaleAndStore("en"); setHeaderMenuOpen(false); }} className={`flex-1 py-1 rounded-lg text-xs font-medium ${locale === "en" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}>EN</button>
@@ -1457,22 +1458,21 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen flex flex-col bg-slate-900 text-slate-50">
       <GuidedTour steps={tourSteps} isActive={guidedTourActive} onClose={() => setGuidedTourActive(false)} locale={locale} onNavigate={handleTourNavigate} />
-      <header className="border-b border-slate-800 bg-slate-900/95 backdrop-blur shrink-0">
+      <header className="relative z-30 border-b border-slate-800 bg-slate-900/95 backdrop-blur shrink-0">
         <div className="max-w-[1100px] mx-auto px-3 py-2 md:px-4 md:py-3">
-          {/* Row 1: Logo (left) | Status pill (center/right) | Tour + Hamburger (right). No wrap. */}
-          <div className="flex items-center justify-between gap-2 min-h-[2rem]">
-            <div className="flex items-center min-w-0 shrink-0">
+          {/* Row 1: Logo | Pill | Tour + Hamburger. Single row on all screens; pill is smaller on mobile so it fits. */}
+          <div className="flex items-center justify-between gap-1.5 min-h-[2rem] flex-nowrap">
+            <div className="flex items-center shrink-0">
               <img src="/logo-white.svg" alt="Leo Mây" className="h-6 w-auto md:h-7" />
             </div>
-            {/* Pill on same row from sm up; on smallest screens move to row 2 */}
-            <div className="hidden sm:flex items-center justify-center flex-1 min-w-0">
-              <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium whitespace-nowrap ${gymPill.bg} ${gymPill.text}`} title={phase?.countdown_message}>
-                <span className="text-[10px] leading-none">{gymPill.dot}</span>
+            <div className="flex items-center justify-center flex-1 min-w-0">
+              <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 sm:gap-1.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-xs font-medium whitespace-nowrap ${gymPill.bg} ${gymPill.text}`} title={phase?.countdown_message}>
+                <span className="text-[8px] sm:text-[10px] leading-none shrink-0">{gymPill.dot}</span>
                 <span>{gymPillText}</span>
               </span>
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button type="button" onClick={() => setGuidedTourActive(true)} className="px-2 py-1 rounded-lg border border-amber-500/50 text-amber-200 hover:bg-amber-500/20 text-xs font-medium" title={locale === "vi" ? "Tour hướng dẫn" : "Guided tour"}>
+            <div className="flex items-center gap-1 shrink-0">
+              <button type="button" onClick={() => setGuidedTourActive(true)} className="px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg border border-amber-500/50 text-amber-200 hover:bg-amber-500/20 text-[10px] sm:text-xs font-medium" title={locale === "vi" ? "Tour hướng dẫn" : "Guided tour"}>
                 {locale === "vi" ? "Tour" : "Tour"}
               </button>
               <div className="relative">
@@ -1481,8 +1481,8 @@ export default function AdminPage() {
                 </button>
                 {headerMenuOpen && (
                   <>
-                    <div className="fixed inset-0 z-40" aria-hidden onClick={() => setHeaderMenuOpen(false)} />
-                    <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-xl border border-slate-700 bg-slate-800 shadow-xl py-1">
+                    <div className="fixed inset-0 z-[100]" aria-hidden onClick={() => setHeaderMenuOpen(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-[110] min-w-[180px] rounded-xl border border-slate-700 bg-slate-800 shadow-xl py-1">
                       <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{locale === "vi" ? "Tài khoản" : "Account"}</div>
                       <button type="button" onClick={() => { setProfileModalOpen(true); setAdminProfileDisplayName(staffDisplayName ?? (role === "frontdesk" ? "Front Desk" : session?.user?.email?.split("@")[0] ?? "")); setAdminProfileEditing(false); setHeaderMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700">
                         {t.profileTab}
@@ -1507,13 +1507,6 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
-          {/* Row 2: Status pill only on very small screens so header doesn't wrap */}
-          <div className="sm:hidden mt-1.5 flex justify-center">
-            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium whitespace-nowrap ${gymPill.bg} ${gymPill.text}`} title={phase?.countdown_message}>
-              <span className="text-[10px] leading-none">{gymPill.dot}</span>
-              <span>{gymPillText}</span>
-            </span>
-          </div>
         </div>
       </header>
 
@@ -1527,7 +1520,7 @@ export default function AdminPage() {
             if (!isShiftIn) return null;
             const staffMsg = getMessages(locale).staff;
             return (
-              <div className="flex flex-wrap items-center gap-2 md:gap-4 rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1.5 md:p-3">
+              <div className="flex flex-wrap items-center gap-2 md:gap-4 rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1.5 md:p-3" data-tour="staff-commission-bar">
                 <p className="text-slate-200 text-xs md:text-sm"><span className="text-emerald-400 font-medium">{staffMsg.youAreCheckedIn}</span></p>
                 {staffSalesSummary != null && (
                   <>
@@ -2159,7 +2152,7 @@ export default function AdminPage() {
               )}
 
               {memberProfileSubTab === "sales" && (
-              <div className="rounded-2xl bg-white/95 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">
+              <div className="rounded-2xl bg-white/95 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5" data-tour="pos-scan-barcode">
                 <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">{m.frontDeskSales}</h3>
                 <div className="space-y-3">
                   <div className="flex flex-wrap gap-2">
@@ -2735,7 +2728,7 @@ export default function AdminPage() {
 
           {/* OPERATIONS area — admin only. Overview (staff-in count, alerts, gym ready), Tasks, Attendance, Coaching, Routes. Staff never see this; they have the "Staff" tab (old /staff workflow) instead. */}
           {adminArea === "operations" && (
-            <section className="rounded-2xl bg-white border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.12)] p-4 md:p-6">
+            <section className="rounded-2xl bg-white border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.12)] p-4 md:p-6" data-tour="operations-section">
               <h2 className="text-lg font-semibold text-slate-900">{m.staffOperations}</h2>
               <p className="text-sm text-slate-600 mt-1">
                 {locale === "vi"
@@ -2750,6 +2743,7 @@ export default function AdminPage() {
                     <button
                       key={tab}
                       type="button"
+                      data-tour={tab === "overview" ? "operations-tab-overview" : tab === "tasks" ? "operations-tab-tasks" : tab === "attendance" ? "operations-tab-attendance" : tab === "coaching" ? "operations-tab-coaching" : tab === "routes" ? "operations-tab-routes" : undefined}
                       onClick={() => setStaffModalTab(tab)}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
                         staffModalTab === tab
@@ -3020,7 +3014,7 @@ export default function AdminPage() {
                             </p>
                             <p className="text-sm font-bold text-slate-800">{unassigned}</p>
                           </div>
-                          <div className="rounded-lg border p-2 bg-slate-50 border-slate-200">
+                          <div className="rounded-lg border p-2 bg-slate-50 border-slate-200" data-tour="operations-gym-status">
                             <p className="text-[11px] font-semibold text-slate-600 uppercase">
                               {m.phaseReadiness}
                             </p>
@@ -3042,7 +3036,7 @@ export default function AdminPage() {
                           </div>
                         </div>
                         {/* CURRENT PHASE TASKS */}
-                        <div className="rounded-lg border border-slate-200 p-3">
+                        <div className="rounded-lg border border-slate-200 p-3" data-tour="operations-phase">
                           <p className="text-[11px] font-semibold text-slate-600 uppercase mb-1">
                             {m.currentPhaseTaskProgress}
                           </p>
@@ -3318,7 +3312,7 @@ export default function AdminPage() {
 
                   {/* TAB 5 — ROUTES */}
                   {staffModalTab === "routes" && staffOpsData && (
-                    <div className="rounded-lg border border-slate-200 overflow-x-auto overflow-y-visible">
+                    <div className="rounded-lg border border-slate-200 overflow-x-auto overflow-y-visible" data-tour="operations-assign-setters">
                       <table className="w-full text-sm min-w-[640px]">
                         <thead>
                           <tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase">
