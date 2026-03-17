@@ -144,7 +144,6 @@ export async function GET(request: NextRequest) {
       .eq("date", today)
       .order("completed_at", { ascending: true }),
     supabase.from("staff_daily_reset").select("last_reset_date").maybeSingle(),
-    supabase.from("staff_profiles").select("id", { count: "exact", head: true }),
     supabase
       .from("route_reset_assignments")
       .select("zone_id, staff_id, assigned_at, staff_profiles(display_name, email)")
@@ -153,6 +152,7 @@ export async function GET(request: NextRequest) {
       .from("staff_profiles")
       .select("id, display_name, email, role")
       .order("display_name", { ascending: true }),
+    supabase.from("staff_profiles").select("id", { count: "exact", head: true }),
   ]);
 
   const attendance = attendanceRes.data ?? [];

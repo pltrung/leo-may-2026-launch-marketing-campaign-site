@@ -8,11 +8,13 @@ import { insertAdminAuditLog, getStaffIdFromAuthId } from "@/lib/auditLog";
 /**
  * POST /api/admin/staff/checkin
  * Body: { staff_id?: string, qr?: string }
- * Records staff attendance for today as IN (QR check-in at front desk). Admin only.
+ * Records staff attendance for today as IN (QR check-in at front desk).
+ * Admin or frontdesk can scan (so frontdesk at the desk can check in arriving staff/frontdesk).
  */
 export async function POST(request: NextRequest) {
   const unified = await getUnifiedAdminOrStaffFromRequest(request);
-  if (!unified || unified.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!unified || (unified.role !== "admin" && unified.role !== "frontdesk"))
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let body: { staff_id?: string; qr?: string };
   try {

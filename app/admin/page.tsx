@@ -153,6 +153,9 @@ export default function AdminPage() {
   const [staffModalTab, setStaffModalTab] = useState<"overview" | "tasks" | "attendance" | "coaching" | "routes">("overview");
   const [staffResetLoading, setStaffResetLoading] = useState(false);
   const [showNewMemberForm, setShowNewMemberForm] = useState(false);
+  const [auditLogEntries, setAuditLogEntries] = useState<{ id: string; action_type: string; entity_id: string | null; created_at: string; actor: { display_name: string | null; email: string | null } | null }[] | null>(null);
+  const [auditLogLoading, setAuditLogLoading] = useState(false);
+  const [auditLogVisible, setAuditLogVisible] = useState(false);
   const [monthlyAttendanceData, setMonthlyAttendanceData] = useState<{
     label: string;
     staff: { staff_id: string; display_name: string | null; email: string | null; in_days: number }[];
@@ -222,11 +225,24 @@ export default function AdminPage() {
   const [analyticsTo, setAnalyticsTo] = useState("");
   const [analyticsMemberType, setAnalyticsMemberType] = useState<"all" | "member" | "newbie" | "casual">("all");
   const [analyticsActivity, setAnalyticsActivity] = useState<"all" | "active" | "inactive">("all");
+  const [analyticsActivityLevel, setAnalyticsActivityLevel] = useState<"all" | "highly_active" | "moderate" | "low_activity" | "inactive">("all");
   const [analyticsData, setAnalyticsData] = useState<{
-    filters?: { period: string; since: string; until: string; member_type: string; activity: string };
+    filters?: { period: string; since: string; until: string; member_type: string; activity: string; activity_level?: string };
     overview?: { total_revenue: number; total_members: number; active_members: number; total_visits: number };
     revenue?: { total: number; by_category: Record<string, number>; over_time: { date: string; total: number }[]; arpu: number; revenue_per_visit: number };
-    members?: { total: number; active: number; inactive: number; new_over_time: { date: string; count: number }[]; churn_rate: number; avg_visits_per_member: number };
+    members?: {
+      total: number;
+      active: number;
+      inactive: number;
+      new_over_time: { date: string; count: number }[];
+      churn_rate: number;
+      avg_visits_per_member: number;
+      membership_distribution?: { by_plan: Record<string, { count: number; pct: number; active_count: number }>; trend: { plan: string; prev_pct: number; current_pct: number }[] };
+      member_health?: { active: number; at_risk: number; inactive: number; expiring_soon: number; by_plan: Record<string, { active: number; at_risk: number; inactive: number; expiring_soon: number }> };
+      newbie_conversion_funnel?: { purchased_count: number; return_7_days_pct: number; return_30_days_pct: number; converted_to_membership_pct: number };
+      activity_segmentation?: { highly_active: number; moderate: number; low_activity: number; inactive: number };
+      action_insights?: { type: string; label_en: string; label_vi: string; count: number; recommendation_en: string; recommendation_vi: string }[];
+    };
     retention?: { day1: number; day7: number; day30: number; newbie_purchased_pct: number; newbie_return_7_pct: number; newbie_return_30_pct: number };
     behavior?: { dau: { date: string; count: number }[]; wau: number; mau: number; peak_hours: { hour: number; count: number }[] };
     funnel?: { first_visit_to_purchase: number; newbie_to_return: number; return_to_membership: number };
@@ -465,11 +481,12 @@ export default function AdminPage() {
     }
     params.set("member_type", analyticsMemberType);
     params.set("activity", analyticsActivity);
+    params.set("activity_level", analyticsActivityLevel);
     adminFetch(`/api/admin/analytics?${params.toString()}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { setAnalyticsData(d); setAnalyticsLoading(false); })
       .catch(() => { setAnalyticsData(null); setAnalyticsLoading(false); });
-  }, [adminArea, canAccessAnalytics, analyticsPeriod, analyticsFrom, analyticsTo, analyticsMemberType, analyticsActivity, adminFetch]);
+  }, [adminArea, canAccessAnalytics, analyticsPeriod, analyticsFrom, analyticsTo, analyticsMemberType, analyticsActivity, analyticsActivityLevel, adminFetch]);
 
   useEffect(() => {
     if (!isOperationsActive || staffModalTab !== "attendance") return;
@@ -572,7 +589,7 @@ export default function AdminPage() {
   // When profile modal opens, sync staff profile form state from staffProfile; then fetch full profile (id_number, etc.) when migration 040 applied.
   useEffect(() => {
     if (!profileModalOpen || !staffProfile) return;
-    setAdminProfileDisplayName(staffProfile.display_name ?? session?.user?.email?.split("@")[0] ?? "");
+    setAdminProfileDisplayName(staffProfile.display_name ?? (role === "frontdesk" ? "Front Desk" : session?.user?.email?.split("@")[0] ?? ""));
     setAdminProfileIdNumber(staffProfile.id_number ?? "");
     setAdminProfileDateOfBirth(staffProfile.date_of_birth ? staffProfile.date_of_birth.slice(0, 10) : "");
     setAdminProfileGender(staffProfile.gender === "male" || staffProfile.gender === "female" ? staffProfile.gender : "");
@@ -1289,9 +1306,9 @@ export default function AdminPage() {
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <img src="/logo-white.svg" alt="Leo Mây logo" className="h-6 w-auto shrink-0 md:h-7" />
-              <div className="min-w-0">
+              <div className="min-w-0 hidden sm:block">
                 <h1 className="text-base md:text-2xl font-bold text-white tracking-tight truncate" style={{ fontFamily: "var(--font-bold), MiSans-Bold, sans-serif" }}>{t.title}</h1>
-                <p className="text-[10px] md:text-sm text-slate-300 hidden sm:block">{dashboardSubtitle}</p>
+                <p className="text-[10px] md:text-sm text-slate-300">{dashboardSubtitle}</p>
               </div>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
@@ -1305,8 +1322,8 @@ export default function AdminPage() {
                 <button type="button" onClick={() => setLocaleAndStore("en")} className={`px-2 py-0.5 rounded-full text-[10px] font-medium md:px-3 md:py-1 md:text-xs ${locale === "en" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}>EN</button>
                 <button type="button" onClick={() => setLocaleAndStore("vi")} className={`px-2 py-0.5 rounded-full text-[10px] font-medium md:px-3 md:py-1 md:text-xs ${locale === "vi" ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"}`}>VN</button>
               </div>
-              <button type="button" onClick={() => { setProfileModalOpen(true); setAdminProfileDisplayName(staffDisplayName ?? session?.user?.email?.split("@")[0] ?? ""); setAdminProfileEditing(false); }} className="px-2 py-0.5 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-700 text-[10px] md:text-xs md:px-3 md:py-1">
-                {t.profileTab}
+              <button type="button" onClick={() => { setProfileModalOpen(true); setAdminProfileDisplayName(staffDisplayName ?? (role === "frontdesk" ? "Front Desk" : session?.user?.email?.split("@")[0] ?? "")); setAdminProfileEditing(false); }} className="px-2 py-0.5 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-700 text-[10px] md:text-xs md:px-3 md:py-1" title={staffDisplayName ? `${staffDisplayName} · ${t.profileTab}` : t.profileTab}>
+                {(role === "staff" || role === "frontdesk") && (staffDisplayName || (role === "frontdesk" ? "Front Desk" : null) || session?.user?.email) ? (staffDisplayName || (role === "frontdesk" ? "Front Desk" : "") || session?.user?.email?.split("@")[0] ?? "") : t.profileTab}
               </button>
               <button type="button" onClick={() => signOut()} className="px-2 py-0.5 rounded-lg border border-slate-500 text-slate-200 hover:bg-slate-700 hover:text-white text-[10px] md:text-xs md:px-3 md:py-1">
                 {t.logout}
@@ -2394,132 +2411,104 @@ export default function AdminPage() {
           </section>
           )}
 
-          {/* MANAGEMENT → Admin Tools tab */}
+          {/* MANAGEMENT → Admin Tools tab — CEO-only: reset attendance, audit log, countdown display */}
           {adminArea === "management" && managementTab === "admin_tools" && (
-          <section className="grid md:grid-cols-[minmax(0,1.4fr)_minmax(0,2fr)] gap-8 items-start">
+          <section className="space-y-6">
             <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-5">
-              <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-3">
+              <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-1">
                 {m.adminTools}
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <p className="text-xs text-slate-400 mb-4">{m.adminToolsSubtitle}</p>
+              <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowNewMemberForm(true);
-                    setTimeout(() => document.getElementById("new-member-form")?.scrollIntoView({ behavior: "smooth" }), 50);
-                  }}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
-                >
-                  {m.addNewMember}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (foundMember) {
-                      setPaymentPlanId("day_pass");
-                      handlePaymentPlanChange("day_pass");
-                      setPaymentModalOpen(true);
-                    } else {
-                      setActionError(m.searchMemberFirstDayPass);
+                  disabled={staffResetLoading}
+                  onClick={async () => {
+                    if (!window.confirm(m.toolResetAttendanceConfirm)) return;
+                    setStaffResetLoading(true);
+                    try {
+                      const res = await adminFetch("/api/admin/staff/reset-attendance", { method: "POST" });
+                      const d = await res.json();
+                      if (res.ok && d.ok) {
+                        if (staffOpsData) adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x));
+                        setActionError(null);
+                      } else setActionError(d?.error ?? "Failed");
+                    } finally {
+                      setStaffResetLoading(false);
                     }
                   }}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
+                  className="px-4 py-2 rounded-xl border border-amber-500/50 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20 text-sm font-medium disabled:opacity-50"
                 >
-                  {m.generateDayPass}
+                  {staffResetLoading ? "…" : m.toolResetAttendance}
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setAdminArea("front_desk"); setFrontDeskTab("checkin"); }}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
+                  onClick={() => {
+                    if (!auditLogVisible) {
+                      setAuditLogVisible(true);
+                      if (auditLogEntries === null) {
+                        setAuditLogLoading(true);
+                        adminFetch("/api/admin/audit-log?limit=80")
+                          .then((r) => r.json())
+                          .then((data) => { setAuditLogEntries(data.entries ?? []); })
+                          .catch(() => setAuditLogEntries([]))
+                          .finally(() => setAuditLogLoading(false));
+                      }
+                    } else setAuditLogVisible(false);
+                  }}
+                  className="px-4 py-2 rounded-xl border border-slate-500 bg-slate-700/80 text-slate-200 hover:bg-slate-600 text-sm font-medium"
                 >
-                  {m.recentCheckins}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setAdminArea("front_desk"); setFrontDeskTab("checkin"); }}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
-                >
-                  {m.viewGymOccupancy}
+                  {auditLogVisible ? m.auditLogHide : m.toolViewAuditLog}
                 </button>
                 <button
                   type="button"
                   onClick={() => window.open(`/${locale}/countdown`, "_blank")}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
+                  className="px-4 py-2 rounded-xl border border-slate-500 bg-slate-700/80 text-slate-200 hover:bg-slate-600 text-sm font-medium"
                 >
-                  {m.viewLeaderboard}
+                  {m.toolOpenCountdown}
                 </button>
-                {canAccessAnalytics && (
-                <button
-                  type="button"
-                  onClick={() => setAdminArea("analytics")}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
-                >
-                  {locale === "vi" ? "Phân tích & Báo cáo" : "Analytics & Reporting"}
-                </button>
-                )}
               </div>
             </div>
 
-            {showNewMemberForm && (
-            <div id="new-member-form" className="rounded-2xl bg-white/95 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5">
-              <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">
-                {m.newMember}
-              </h3>
-              <form className="space-y-3" onSubmit={handleCreateMember}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="text-xs text-slate-700">
-                    {m.name}
-                    <input
-                      type="text"
-                      className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs md:text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-                      value={newMemberName}
-                      onChange={(e) => setNewMemberName(e.target.value)}
-                      required
-                    />
-                  </label>
-                  <label className="text-xs text-slate-700">
-                    {m.email}
-                    <input
-                      type="email"
-                      className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs md:text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-                      value={newMemberEmail}
-                      onChange={(e) => setNewMemberEmail(e.target.value)}
-                    />
-                  </label>
-                  <label className="text-xs text-slate-700">
-                    Phone
-                    <input
-                      type="tel"
-                      className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs md:text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-                      value={newMemberPhone}
-                      onChange={(e) => setNewMemberPhone(e.target.value)}
-                    />
-                  </label>
-                  <label className="text-xs text-slate-700">
-                    Membership Type
-                    <select
-                      className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs md:text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-                      value={newMemberType}
-                      onChange={(e) =>
-                        setNewMemberType(e.target.value as MembershipType)
-                      }
-                    >
-                      <option value="Founder Member">Founder Member</option>
-                      <option value="Standard">Standard</option>
-                      <option value="Day Pass">Day Pass</option>
-                    </select>
-                  </label>
-                </div>
-                <div className="pt-1">
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-full text-xs md:text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800"
-                  >
-                    {m.createMember}
-                  </button>
-                </div>
-              </form>
-            </div>
+            {auditLogVisible && (
+              <div className="rounded-2xl bg-slate-800/90 border border-slate-700 p-4 md:p-5">
+                <h4 className="text-xs font-semibold text-slate-300 uppercase mb-3">{m.auditLogTitle}</h4>
+                {auditLogLoading ? (
+                  <p className="text-sm text-slate-400">{m.loading}</p>
+                ) : !auditLogEntries?.length ? (
+                  <p className="text-sm text-slate-400">{m.auditLogEmpty}</p>
+                ) : (
+                  <div className="overflow-x-auto -mx-2">
+                    <table className="w-full text-xs border-collapse">
+                      <thead>
+                        <tr className="text-slate-400 border-b border-slate-600">
+                          <th className="text-left py-2 px-2 font-medium">{m.auditLogTime}</th>
+                          <th className="text-left py-2 px-2 font-medium">{m.auditLogWho}</th>
+                          <th className="text-left py-2 px-2 font-medium">{m.auditLogAction}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {auditLogEntries.map((e) => (
+                          <tr key={e.id} className="border-b border-slate-700/80">
+                            <td className="py-1.5 px-2 text-slate-300 whitespace-nowrap">
+                              {new Date(e.created_at).toLocaleString(locale === "vi" ? "vi-VN" : "en-US", { dateStyle: "short", timeStyle: "short" })}
+                            </td>
+                            <td className="py-1.5 px-2 text-slate-300">
+                              {e.actor ? (e.actor.display_name || e.actor.email || "—") : "Admin"}
+                            </td>
+                            <td className="py-1.5 px-2 text-slate-200">
+                              {locale === "vi"
+                                ? (e.action_type === "member_checkin" ? "Check-in thành viên" : e.action_type === "staff_checkin" ? "Check-in nhân sự" : e.action_type === "membership_extend" ? "Gia hạn" : e.action_type === "membership_freeze" ? "Tạm ngưng" : e.action_type === "membership_cancel" ? "Hủy gói" : e.action_type === "membership_upgrade" ? "Nâng cấp" : e.action_type === "inventory_stock_in" ? "Nhập kho" : e.action_type === "inventory_stock_out" ? "Xuất kho" : e.action_type === "route_reset_complete" ? "Reset tường" : e.action_type === "staff_task_complete" ? "Hoàn thành task" : e.action_type)
+                                : (e.action_type === "member_checkin" ? "Member check-in" : e.action_type === "staff_checkin" ? "Staff check-in" : e.action_type === "membership_extend" ? "Extend membership" : e.action_type === "membership_freeze" ? "Freeze" : e.action_type === "membership_cancel" ? "Cancel membership" : e.action_type === "membership_upgrade" ? "Upgrade" : e.action_type === "inventory_stock_in" ? "Stock in" : e.action_type === "inventory_stock_out" ? "Stock out" : e.action_type === "route_reset_complete" ? "Route reset" : e.action_type === "staff_task_complete" ? "Task complete" : e.action_type)}
+                              {e.entity_id ? ` (${e.entity_id})` : ""}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             )}
           </section>
           )}
@@ -3394,6 +3383,17 @@ export default function AdminPage() {
                   <option value="active">{locale === "vi" ? "Đang hoạt động" : "Active"}</option>
                   <option value="inactive">{locale === "vi" ? "Không hoạt động" : "Inactive"}</option>
                 </select>
+                <select
+                  value={analyticsActivityLevel}
+                  onChange={(e) => setAnalyticsActivityLevel(e.target.value as "all" | "highly_active" | "moderate" | "low_activity" | "inactive")}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800"
+                >
+                  <option value="all">{locale === "vi" ? "Mọi mức hoạt động" : "All activity levels"}</option>
+                  <option value="highly_active">{locale === "vi" ? "Rất tích cực (3+ lượt/tuần)" : "Highly active (3+/week)"}</option>
+                  <option value="moderate">{locale === "vi" ? "Trung bình (1–2 lượt/tuần)" : "Moderate (1–2/week)"}</option>
+                  <option value="low_activity">{locale === "vi" ? "Ít hoạt động" : "Low activity"}</option>
+                  <option value="inactive">{locale === "vi" ? "Không hoạt động" : "Inactive"}</option>
+                </select>
               </div>
 
               {/* Analytics sub-tabs */}
@@ -3427,7 +3427,7 @@ export default function AdminPage() {
         </div>
       </main>
 
-      {/* Profile modal — who is logged in, edit display name for staff */}
+      {/* Profile modal — who is logged in; display name editable for staff and frontdesk */}
       {profileModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setProfileModalOpen(false)}>
           <div className="bg-slate-800 rounded-2xl border border-slate-600 shadow-xl max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
@@ -3449,11 +3449,11 @@ export default function AdminPage() {
                     <input type="text" value={adminProfileDisplayName} onChange={(e) => setAdminProfileDisplayName(e.target.value)} placeholder={locale === "vi" ? "Tên hiển thị khi làm coach" : "Name shown as coach"} className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-500 text-sm" />
                     <div className="flex gap-2">
                       <button type="button" disabled={adminProfileSaving} onClick={async () => { setAdminProfileSaving(true); try { const res = await adminFetch("/api/admin/staff/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ display_name: adminProfileDisplayName.trim() || null }) }); if (res.ok) { refreshMe(); setProfileModalOpen(false); } } finally { setAdminProfileSaving(false); } }} className="px-3 py-1.5 rounded-lg bg-amber-600 text-slate-900 text-sm font-medium hover:bg-amber-500 disabled:opacity-50">{adminProfileSaving ? "…" : (locale === "vi" ? "Lưu" : "Save")}</button>
-                      <button type="button" onClick={() => { setAdminProfileEditing(false); setAdminProfileDisplayName(staffDisplayName ?? session?.user?.email?.split("@")[0] ?? ""); }} className="px-3 py-1.5 rounded-lg border border-slate-500 text-slate-300 text-sm">{m.cancel}</button>
+                      <button type="button" onClick={() => { setAdminProfileEditing(false); setAdminProfileDisplayName(staffDisplayName ?? (role === "frontdesk" ? "Front Desk" : session?.user?.email?.split("@")[0] ?? "")); }} className="px-3 py-1.5 rounded-lg border border-slate-500 text-slate-300 text-sm">{m.cancel}</button>
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-300"><span className="text-slate-500">{locale === "vi" ? "Tên hiển thị" : "Display name"}:</span> {staffDisplayName || (locale === "vi" ? "Chưa đặt" : "Not set")} <button type="button" onClick={() => setAdminProfileEditing(true)} className="ml-2 text-xs text-amber-400 hover:underline">{locale === "vi" ? "Sửa" : "Edit"}</button></p>
+                  <p className="text-sm text-slate-300"><span className="text-slate-500">{locale === "vi" ? "Tên hiển thị" : "Display name"}:</span> {staffDisplayName || (role === "frontdesk" ? (locale === "vi" ? "Quầy lễ tân" : "Front Desk") : "") || (locale === "vi" ? "Chưa đặt" : "Not set")} <button type="button" onClick={() => setAdminProfileEditing(true)} className="ml-2 text-xs text-amber-400 hover:underline">{locale === "vi" ? "Sửa" : "Edit"}</button></p>
                 )}
                 {/* Verified identity (DOB, VN eID, gender) — same as /dashboard profile */}
                 {staffProfile && (

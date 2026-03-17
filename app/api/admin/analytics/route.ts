@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
   const toParam = url.searchParams.get("to");
   const memberType = url.searchParams.get("member_type") ?? "all";
   const activity = url.searchParams.get("activity") ?? "all";
+  const activityLevel = url.searchParams.get("activity_level") ?? "all";
 
   const { since, until, label } = parseDateRange(period, fromParam, toParam);
   const supabase = createServerClient();
@@ -73,10 +74,22 @@ export async function GET(req: NextRequest) {
       const ids = (allMembers ?? []).map((r: { id: string }) => r.id);
       if (ids.length === 0) {
         return NextResponse.json({
-          filters: { period: label, since, until, member_type: memberType, activity },
+          filters: { period: label, since, until, member_type: memberType, activity, activity_level: activityLevel },
           overview: { total_revenue: 0, total_members: 0, active_members: 0, total_visits: 0 },
           revenue: { total: 0, by_category: {}, over_time: [], arpu: 0, revenue_per_visit: 0 },
-          members: { total: 0, active: 0, inactive: 0, new_over_time: [], churn_rate: 0, avg_visits_per_member: 0 },
+          members: {
+            total: 0,
+            active: 0,
+            inactive: 0,
+            new_over_time: [],
+            churn_rate: 0,
+            avg_visits_per_member: 0,
+            membership_distribution: { by_plan: { "30_day": { count: 0, pct: 0, active_count: 0 }, "365_day": { count: 0, pct: 0, active_count: 0 }, visit_pass: { count: 0, pct: 0, active_count: 0 }, day_pass: { count: 0, pct: 0, active_count: 0 } }, trend: [] },
+            member_health: { active: 0, at_risk: 0, inactive: 0, expiring_soon: 0, by_plan: {} },
+            newbie_conversion_funnel: { purchased_count: 0, return_7_days_pct: 0, return_30_days_pct: 0, converted_to_membership_pct: 0 },
+            activity_segmentation: { highly_active: 0, moderate: 0, low_activity: 0, inactive: 0 },
+            action_insights: [],
+          },
           retention: { day1: 0, day7: 0, day30: 0, newbie_purchased_pct: 0, newbie_return_7_pct: 0, newbie_return_30_pct: 0 },
           behavior: { dau: [], wau: 0, mau: 0, visits_per_user: [], peak_hours: [] },
           funnel: { first_visit_to_purchase: 0, newbie_to_return: 0, return_to_membership: 0 },
@@ -144,7 +157,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const memberFilter = memberIdsFilter && memberIdsFilter.length > 0 ? memberIdsFilter : null;
+    let memberFilter = memberIdsFilter && memberIdsFilter.length > 0 ? memberIdsFilter : null;
 
     // ---- REVENUE ----
     const { data: paymentRows } = await supabase
@@ -206,21 +219,45 @@ export async function GET(req: NextRequest) {
     // ---- MEMBERS & CHECK-INS ----
     const { data: memberRows } = await supabase
       .from("member_profiles")
-      .select("id, created_at, membership_status");
+      .select("id, created_at, membership_status, membership_expires_at");
     const allMembers = memberRows ?? [];
     const membersInRange = allMembers.filter((m: { id: string; created_at: string }) => {
       const created = (m as { created_at: string }).created_at;
       return created >= since && created <= until;
     });
-    const filteredMembers =
-      memberFilter === null ? allMembers : allMembers.filter((m: { id: string }) => memberFilter.includes(m.id));
+    let filteredMembers =
+      memberFilter === null ? allMembers : allMembers.filter((m: { id: string }) => memberFilter!.includes(m.id));
     const { data: checkinRows } = await supabase
       .from("gym_checkins")
       .select("member_id, timestamp")
       .gte("timestamp", since)
       .lte("timestamp", until);
     let checkins = checkinRows ?? [];
-    if (memberFilter) checkins = checkins.filter((c: { member_id: string }) => memberFilter.includes(c.member_id));
+    if (memberFilter) checkins = checkins.filter((c: { member_id: string }) => memberFilter!.includes(c.member_id));
+    const periodDays = Math.max(1, (new Date(until).getTime() - new Date(since).getTime()) / (24 * 60 * 60 * 1000));
+    const periodWeeks = periodDays / 7;
+    const visitsPerMemberInPeriodForFilter = new Map<string, number>();
+    for (const c of checkins as { member_id: string }[]) {
+      const mid = c.member_id;
+      visitsPerMemberInPeriodForFilter.set(mid, (visitsPerMemberInPeriodForFilter.get(mid) ?? 0) + 1);
+    }
+    type SegmentKey = "highly_active" | "moderate" | "low_activity" | "inactive";
+    const segmentPerMember = new Map<string, SegmentKey>();
+    if (periodWeeks > 0) {
+      for (const m of filteredMembers as { id: string }[]) {
+        const visits = visitsPerMemberInPeriodForFilter.get(m.id) ?? 0;
+        const vpw = visits / periodWeeks;
+        if (vpw >= 3) segmentPerMember.set(m.id, "highly_active");
+        else if (vpw >= 1) segmentPerMember.set(m.id, "moderate");
+        else if (vpw > 0) segmentPerMember.set(m.id, "low_activity");
+        else segmentPerMember.set(m.id, "inactive");
+      }
+    }
+    if (activityLevel !== "all" && (activityLevel === "highly_active" || activityLevel === "moderate" || activityLevel === "low_activity" || activityLevel === "inactive")) {
+      filteredMembers = filteredMembers.filter((m: { id: string }) => segmentPerMember.get(m.id) === activityLevel);
+      memberFilter = filteredMembers.map((m: { id: string }) => m.id);
+      if (memberFilter.length > 0) checkins = checkins.filter((c: { member_id: string }) => memberFilter!.includes(c.member_id));
+    }
     const uniqueVisitors = new Set(checkins.map((c: { member_id: string }) => c.member_id));
     const activeCount = uniqueVisitors.size;
     const totalMembers = filteredMembers.length;
@@ -250,6 +287,135 @@ export async function GET(req: NextRequest) {
       (m: { id: string }) => prevActive.has(m.id) && !uniqueVisitors.has(m.id)
     ).length;
     const churnRate = prevActive.size > 0 ? (churned / prevActive.size) * 100 : 0;
+
+    // ---- MEMBERS: distribution, health, newbie funnel, activity, actions (actionable analytics) ----
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: allPaymentsWithPlan } = await supabase
+      .from("payments")
+      .select("member_id, plan_id, created_at")
+      .eq("status", "success")
+      .in("plan_id", ["month_pass", "year_pass", "explorer_month", "explorer_year", "until_end_of_year", "day_pass", "newbie_class", "visit_5", "visit_10", "visit_20"]);
+    const paymentsWithPlan = (allPaymentsWithPlan ?? []) as { member_id: string; plan_id: string; created_at: string }[];
+    const latestPlanByMember = new Map<string, { plan_id: string; created_at: string }>();
+    for (const p of paymentsWithPlan) {
+      const existing = latestPlanByMember.get(p.member_id);
+      if (!existing || p.created_at > existing.created_at) latestPlanByMember.set(p.member_id, { plan_id: p.plan_id, created_at: p.created_at });
+    }
+    const planToDisplayCategory = (planId: string): "30_day" | "365_day" | "visit_pass" | "day_pass" | "newbie" | "other" => {
+      if (planId === "month_pass" || planId === "explorer_month") return "30_day";
+      if (planId === "year_pass" || planId === "explorer_year" || planId === "until_end_of_year") return "365_day";
+      if (planId?.startsWith("visit_")) return "visit_pass";
+      if (planId === "day_pass") return "day_pass";
+      if (planId === "newbie_class") return "newbie";
+      return "other";
+    };
+
+    const { data: recentCheckins } = await supabase
+      .from("gym_checkins")
+      .select("member_id, timestamp")
+      .gte("timestamp", ninetyDaysAgo);
+    const lastVisitByMember = new Map<string, string>();
+    for (const c of (recentCheckins ?? []) as { member_id: string; timestamp: string }[]) {
+      const existing = lastVisitByMember.get(c.member_id);
+      if (!existing || c.timestamp > existing) lastVisitByMember.set(c.member_id, c.timestamp);
+    }
+
+    const distributionByPlan: Record<string, { count: number; pct: number; active_count: number }> = {
+      "30_day": { count: 0, pct: 0, active_count: 0 },
+      "365_day": { count: 0, pct: 0, active_count: 0 },
+      visit_pass: { count: 0, pct: 0, active_count: 0 },
+      day_pass: { count: 0, pct: 0, active_count: 0 },
+    };
+    const healthByPlan: Record<string, { active: number; at_risk: number; inactive: number; expiring_soon: number }> = {};
+    const planLabels = ["30_day", "365_day", "visit_pass", "day_pass"] as const;
+    for (const k of planLabels) healthByPlan[k] = { active: 0, at_risk: 0, inactive: 0, expiring_soon: 0 };
+
+    let expiringSoonTotal = 0;
+    let activeHealth = 0, atRiskHealth = 0, inactiveHealth = 0;
+
+    for (const m of filteredMembers as { id: string; membership_expires_at?: string | null }[]) {
+      const mid = m.id;
+      const latest = latestPlanByMember.get(mid);
+      const category = latest ? planToDisplayCategory(latest.plan_id) : "other";
+      if (planLabels.includes(category as typeof planLabels[number])) {
+        const key = category as typeof planLabels[number];
+        distributionByPlan[key].count++;
+        if (uniqueVisitors.has(mid)) distributionByPlan[key].active_count++;
+      }
+      const lastTs = lastVisitByMember.get(mid);
+      const lastVisitDaysAgo = lastTs ? (Date.now() - new Date(lastTs).getTime()) / (24 * 60 * 60 * 1000) : 999;
+      const expiresAt = m.membership_expires_at ? new Date(m.membership_expires_at).getTime() : null;
+      const expiresInDays = expiresAt ? (expiresAt - Date.now()) / (24 * 60 * 60 * 1000) : null;
+      const isExpiringSoon = expiresInDays != null && expiresInDays >= 0 && expiresInDays <= 7;
+      if (isExpiringSoon) expiringSoonTotal++;
+      if (lastVisitDaysAgo <= 7) { activeHealth++; if (latest && planLabels.includes(planToDisplayCategory(latest.plan_id) as typeof planLabels[number])) healthByPlan[planToDisplayCategory(latest.plan_id) as typeof planLabels[number]].active++; }
+      else if (lastVisitDaysAgo <= 14) { atRiskHealth++; if (latest && planLabels.includes(planToDisplayCategory(latest.plan_id) as typeof planLabels[number])) healthByPlan[planToDisplayCategory(latest.plan_id) as typeof planLabels[number]].at_risk++; }
+      else if (lastVisitDaysAgo > 30) { inactiveHealth++; if (latest && planLabels.includes(planToDisplayCategory(latest.plan_id) as typeof planLabels[number])) healthByPlan[planToDisplayCategory(latest.plan_id) as typeof planLabels[number]].inactive++; }
+      if (isExpiringSoon && latest && planLabels.includes(planToDisplayCategory(latest.plan_id) as typeof planLabels[number])) healthByPlan[planToDisplayCategory(latest.plan_id) as typeof planLabels[number]].expiring_soon++;
+    }
+    const totalWithPlan = planLabels.reduce((s, k) => s + distributionByPlan[k].count, 0);
+    for (const k of planLabels) {
+      distributionByPlan[k].pct = totalWithPlan > 0 ? Math.round((distributionByPlan[k].count / totalWithPlan) * 1000) / 10 : 0;
+    }
+
+    const prevSince = new Date(new Date(since).getTime() - (new Date(until).getTime() - new Date(since).getTime())).toISOString();
+    const prevUntil = since;
+    const { data: prevPayments } = await supabase.from("payments").select("member_id, plan_id, created_at").eq("status", "success").gte("created_at", prevSince).lte("created_at", prevUntil);
+    const prevLatest = new Map<string, string>();
+    for (const p of (prevPayments ?? []) as { member_id: string; plan_id: string; created_at: string }[]) {
+      if (!["month_pass", "year_pass", "explorer_month", "explorer_year", "until_end_of_year", "day_pass", "visit_5", "visit_10", "visit_20"].includes(p.plan_id)) continue;
+      const ex = prevLatest.get(p.member_id);
+      if (!ex || p.created_at > ex) prevLatest.set(p.member_id, p.plan_id);
+    }
+    const prevCounts: Record<string, number> = { "30_day": 0, "365_day": 0, visit_pass: 0, day_pass: 0 };
+    prevLatest.forEach((planId) => {
+      const cat = planToDisplayCategory(planId);
+      if (planLabels.includes(cat as typeof planLabels[number])) prevCounts[cat as typeof planLabels[number]]++;
+    });
+    const prevTotal = Object.values(prevCounts).reduce((a, b) => a + b, 0);
+    const distributionTrend = planLabels.map((plan) => ({
+      plan,
+      prev_pct: prevTotal > 0 ? Math.round((prevCounts[plan] / prevTotal) * 1000) / 10 : 0,
+      current_pct: distributionByPlan[plan].pct,
+    }));
+
+    const newbiePurchasedSet = new Set(paymentsWithPlan.filter((p) => p.plan_id === "newbie_class").map((p) => p.member_id));
+    const newbieConvertedToMembership = Array.from(newbiePurchasedSet).filter((mid) => {
+      const plans = paymentsWithPlan.filter((p) => p.member_id === mid).map((p) => p.plan_id);
+      return plans.some((p) => ["month_pass", "year_pass", "explorer_month", "explorer_year"].includes(p));
+    }).length;
+    const newbieConversionToMembershipPct = newbiePurchasedSet.size > 0 ? Math.round((newbieConvertedToMembership / newbiePurchasedSet.size) * 1000) / 10 : 0;
+
+    const visitsPerMemberInPeriod = new Map<string, number>();
+    for (const c of checkins as { member_id: string }[]) {
+      const mid = c.member_id;
+      visitsPerMemberInPeriod.set(mid, (visitsPerMemberInPeriod.get(mid) ?? 0) + 1);
+    }
+    let highlyActive = 0, moderate = 0, lowActivity = 0, inactiveSeg = 0;
+    if (periodWeeks > 0) {
+      visitsPerMemberInPeriod.forEach((visits) => {
+        const vpw = visits / periodWeeks;
+        if (vpw >= 3) highlyActive++;
+        else if (vpw >= 1) moderate++;
+        else if (vpw > 0) lowActivity++;
+      });
+      inactiveSeg = totalMembers - visitsPerMemberInPeriod.size;
+    }
+    const activitySegmentation = {
+      highly_active: highlyActive,
+      moderate,
+      low_activity: lowActivity,
+      inactive: inactiveSeg,
+    };
+
+    const actionInsights: { type: string; label_en: string; label_vi: string; count: number; recommendation_en: string; recommendation_vi: string }[] = [];
+    if (atRiskHealth > 0) actionInsights.push({ type: "at_risk", label_en: "At-risk members (no visit 7–14 days)", label_vi: "Thành viên có rủi ro (không tới 7–14 ngày)", count: atRiskHealth, recommendation_en: "Run a retention campaign: email or SMS to invite them back.", recommendation_vi: "Chạy chiến dịch giữ chân: email hoặc SMS mời họ quay lại." });
+    if (inactiveHealth > 0) actionInsights.push({ type: "inactive", label_en: "Inactive members (30+ days)", label_vi: "Thành viên không hoạt động (30+ ngày)", count: inactiveHealth, recommendation_en: "Reactivation campaign: special offer or reminder.", recommendation_vi: "Chiến dịch kích hoạt lại: ưu đãi hoặc nhắc nhở." });
+    if (expiringSoonTotal > 0) actionInsights.push({ type: "expiring_soon", label_en: "Expiring soon (within 7 days)", label_vi: "Sắp hết hạn (trong 7 ngày)", count: expiringSoonTotal, recommendation_en: "Send renewal reminder and offer.", recommendation_vi: "Gửi nhắc gia hạn và ưu đãi." });
+    const visitPassCount = distributionByPlan.visit_pass.count;
+    if (visitPassCount > 0) actionInsights.push({ type: "visit_pass", label_en: "Visit pass users", label_vi: "Người dùng gói lượt", count: visitPassCount, recommendation_en: "Recommend upgrade to 30-day or 365-day membership.", recommendation_vi: "Đề xuất nâng cấp lên gói 30 ngày hoặc 365 ngày." });
+    if (highlyActive > 0) actionInsights.push({ type: "highly_active", label_en: "Highly active (3+ visits/week)", label_vi: "Rất tích cực (3+ lượt/tuần)", count: highlyActive, recommendation_en: "Recommend annual plan for better value.", recommendation_vi: "Đề xuất gói năm để tiết kiệm hơn." });
 
     // ---- RETENTION (simplified) ----
     const { data: firstCheckins } = await supabase
@@ -437,7 +603,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(
       {
-        filters: { period: label, since, until, member_type: memberType, activity },
+        filters: { period: label, since, until, member_type: memberType, activity, activity_level: activityLevel },
         overview: {
           total_revenue: totalRevenue,
           total_members: totalMembers,
@@ -458,6 +624,25 @@ export async function GET(req: NextRequest) {
           new_over_time: newOverTime,
           churn_rate: Math.round(churnRate * 10) / 10,
           avg_visits_per_member: Math.round(avgVisitsPerMember * 10) / 10,
+          membership_distribution: {
+            by_plan: distributionByPlan,
+            trend: distributionTrend,
+          },
+          member_health: {
+            active: activeHealth,
+            at_risk: atRiskHealth,
+            inactive: inactiveHealth,
+            expiring_soon: expiringSoonTotal,
+            by_plan: healthByPlan,
+          },
+          newbie_conversion_funnel: {
+            purchased_count: newbiePurchased.size,
+            return_7_days_pct: Math.round(newbieReturn7Pct * 10) / 10,
+            return_30_days_pct: Math.round(newbieReturn30Pct * 10) / 10,
+            converted_to_membership_pct: newbieConversionToMembershipPct,
+          },
+          activity_segmentation: activitySegmentation,
+          action_insights: actionInsights,
         },
         retention: {
           day1: Math.round(day1Retention * 10) / 10,

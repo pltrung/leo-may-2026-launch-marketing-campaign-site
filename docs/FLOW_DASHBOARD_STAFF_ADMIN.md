@@ -318,7 +318,7 @@ Access to `/admin` is unified: **admin**, **frontdesk**, and **staff** roles (fr
 |--------------|----------------|
 | **Front Desk** | Check-in (scan QR, quick check-in, occupancy, recent check-ins), Member (lookup, profile: Summary, Membership, Sales, History). |
 | **Operations** | Staff overview (attendance, sessions, zones, tasks), zone resets and setter assignments, task completion, staff check-in, reset attendance. |
-| **Management** | **Inventory** (scan, create product, stock in/out, view inventory, product detail), **Reporting** (revenue by day/week/month), **Admin Tools** (e.g. monthly attendance). |
+| **Management** | **Inventory** (scan, create product, stock in/out, view inventory, product detail), **Reporting** (revenue by day/week/month), **Admin Tools** (CEO-only: reset today’s staff attendance, view audit log, open countdown display). |
 
 **Can do:** Check-in (auto + manual), undo check-in, member lookup, full member profile and membership controls (collect payment, extend, freeze, cancel, upgrade), POS (cart, checkout, confirm VietQR/cash), revenue view, inventory (full), staff ops (record staff check-in, reset attendance, zone resets, task completion). **Profile** tab in header opens modal (email, role). **Header:** “Leo May Admin” + “Admin Dashboard”. Admin does not see a separate “staff” area; staff ops are under Operations and Management.
 
