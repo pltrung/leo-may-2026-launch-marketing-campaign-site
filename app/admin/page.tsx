@@ -53,6 +53,7 @@ interface AdminMember {
   validUntil: string;
   checkinsThisMonth: number;
   totalVisits: number;
+  checked_in_today?: boolean;
   recentCheckins: { label: string }[];
   profile_photo_url?: string | null;
   id_number?: string | null;
@@ -930,15 +931,15 @@ export default function AdminPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ qr: result.raw, member_id: result.id, location: "turnstile" }),
           });
-        if (res.ok) {
-            setActionMessage(m.checkinRecorded);
-        } else {
           const data = await res.json().catch(() => ({}));
+          if (res.ok) {
+            setActionMessage(data?.already_checked_in_today ? m.welcomeBackAgainToday : m.checkinRecorded);
+          } else {
             setActionError(data?.error || m.checkinFailed);
+          }
+        } catch {
+          setActionError(m.unableToRecordCheckin);
         }
-      } catch {
-        setActionError(m.unableToRecordCheckin);
-      }
         return;
       }
       if (result.id) {
@@ -966,11 +967,11 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ member_id: foundMember.id, location: "front_desk" }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(data?.error ?? "Failed to record check-in");
       }
-      setActionMessage(m.checkinRecorded);
+      setActionMessage(data?.already_checked_in_today ? m.welcomeBackAgainToday : m.checkinRecorded);
       loadMemberById(foundMember.id);
     } catch (e) {
       setActionError((e as Error).message ?? m.unableToRecordCheckinVerify);
@@ -990,11 +991,11 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ member_id: foundMember.id, location: "front_desk_manual" }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(data?.error ?? "Failed to record manual check-in");
       }
-      setActionMessage(m.manualCheckinRecorded);
+      setActionMessage(data?.already_checked_in_today ? m.welcomeBackAgainToday : m.manualCheckinRecorded);
       loadMemberById(foundMember.id);
     } catch {
       setActionError(m.unableToRecordManualCheckin);
@@ -1961,6 +1962,11 @@ export default function AdminPage() {
                       <span className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 ${foundMember.status === "Active" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/50" : foundMember.status === "Frozen" ? "bg-amber-500/20 text-amber-300 border border-amber-400/50" : "bg-rose-500/20 text-rose-300 border border-rose-400/50"}`}>
                         {foundMember.status === "Active" ? m.statusActive : foundMember.status === "Inactive" ? m.statusInactive : foundMember.status === "Frozen" ? m.statusFrozen : m.statusCancelled}
                       </span>
+                      {foundMember.checked_in_today && (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium shrink-0 bg-teal-500/25 text-teal-200 border border-teal-400/50" title={locale === "vi" ? "Đã check-in hôm nay" : "Checked in today"}>
+                          {m.welcomeBackAgainToday}
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-slate-400 mt-0.5 truncate">{foundMember.email || foundMember.phone}</p>
                     <p className="text-xs text-slate-500 mt-1"><span className="text-slate-400">{t.memberId}:</span> <span className="font-medium text-slate-200">{foundMember.displayId}</span></p>

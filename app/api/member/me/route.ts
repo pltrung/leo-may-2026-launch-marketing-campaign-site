@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@/lib/supabaseServer";
 import { EVOLUTION_LEVELS } from "@/lib/evolutionLevels";
+import { getGymStartOfDay, getGymEndOfDay } from "@/lib/gymTimezone";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -105,11 +106,22 @@ export async function GET(request: NextRequest) {
       .limit(1)
       .maybeSingle();
 
+    const startOfToday = getGymStartOfDay();
+    const endOfToday = getGymEndOfDay();
+    const { count: todayCount } = await supabase
+      .from("gym_checkins")
+      .select("id", { count: "exact", head: true })
+      .eq("member_id", memberRow.id)
+      .gte("timestamp", startOfToday)
+      .lte("timestamp", endOfToday);
+    const checked_in_today = (todayCount ?? 0) >= 1;
+
     return NextResponse.json({
       member: {
         ...memberRow,
         total_visits: count ?? 0,
         last_checkin: lastCheckin.data?.timestamp ?? null,
+        checked_in_today,
       },
     }, { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch {

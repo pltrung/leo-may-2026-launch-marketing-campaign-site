@@ -49,26 +49,82 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Member not found" }, { status: 404 });
   }
 
-  const { data: campaignLog, error: logError } = await supabase
-    .from("campaign_logs")
-    .select("id, segment")
+  // Prefer per-recipient code (guest-pass campaigns: one code per recipient, single-use).
+  const { data: recipientCode, error: rcError } = await supabase
+    .from("campaign_recipient_codes")
+    .select("id, campaign_log_id, member_id")
     .eq("promo_code", rawCode)
     .maybeSingle();
-  if (logError) {
+  if (rcError) {
     return NextResponse.json({ error: "Lookup failed" }, { status: 500 });
   }
-  if (!campaignLog) {
-    return NextResponse.json({ error: "Invalid or expired code" }, { status: 404 });
+
+  let campaignLogId: string;
+  let segment: string;
+  let recipientCodeId: string | null = null;
+  let isRecipient = false;
+  let recipientIds = new Set<string>();
+
+  if (recipientCode) {
+    campaignLogId = recipientCode.campaign_log_id;
+    recipientCodeId = recipientCode.id;
+    const recipientId = recipientCode.member_id;
+    recipientIds = new Set([recipientId]);
+    isRecipient = member.id === recipientId;
+    const { data: log } = await supabase.from("campaign_logs").select("segment").eq("id", campaignLogId).single();
+    if (!log) {
+      return NextResponse.json({ error: "Invalid or expired code" }, { status: 404 });
+    }
+    segment = log.segment;
+    // Per-recipient code: already redeemed? (each code is single-use)
+    const { data: existingRedemption } = await supabase
+      .from("campaign_code_redemptions")
+      .select("id")
+      .eq("campaign_recipient_code_id", recipientCodeId)
+      .maybeSingle();
+    if (existingRedemption) {
+      return NextResponse.json({
+        success: true,
+        alreadyRedeemed: true,
+        message: "This code has already been used.",
+      });
+    }
+  } else {
+    const { data: campaignLog, error: logError } = await supabase
+      .from("campaign_logs")
+      .select("id, segment")
+      .eq("promo_code", rawCode)
+      .maybeSingle();
+    if (logError) {
+      return NextResponse.json({ error: "Lookup failed" }, { status: 500 });
+    }
+    if (!campaignLog) {
+      return NextResponse.json({ error: "Invalid or expired code" }, { status: 404 });
+    }
+    campaignLogId = campaignLog.id;
+    segment = campaignLog.segment;
+    const { data: recipientRows } = await supabase
+      .from("campaign_log_recipients")
+      .select("member_id")
+      .eq("campaign_log_id", campaignLogId);
+    recipientIds = new Set((recipientRows ?? []).map((r: { member_id: string }) => r.member_id));
+    isRecipient = recipientIds.has(member.id);
+    const { data: existing } = await supabase
+      .from("campaign_code_redemptions")
+      .select("id")
+      .eq("campaign_log_id", campaignLogId)
+      .eq("member_id", member.id)
+      .maybeSingle();
+    if (existing) {
+      return NextResponse.json({
+        success: true,
+        alreadyRedeemed: true,
+        message: "You have already redeemed this code.",
+      });
+    }
   }
 
-  const reward = getRewardForSegment(campaignLog.segment);
-  const { data: recipientRows } = await supabase
-    .from("campaign_log_recipients")
-    .select("member_id")
-    .eq("campaign_log_id", campaignLog.id);
-  const recipientIds = new Set((recipientRows ?? []).map((r: { member_id: string }) => r.member_id));
-  const isRecipient = recipientIds.has(member.id);
-
+  const reward = getRewardForSegment(segment as import("@/lib/campaignSegments").CampaignSegmentId);
   if (reward.type === "guest_pass") {
     if (recipientIds.size > 0 && isRecipient) {
       return NextResponse.json(
@@ -85,26 +141,12 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const { data: existing } = await supabase
-    .from("campaign_code_redemptions")
-    .select("id")
-    .eq("campaign_log_id", campaignLog.id)
-    .eq("member_id", member.id)
-    .maybeSingle();
-  if (existing) {
-    return NextResponse.json({
-      success: true,
-      alreadyRedeemed: true,
-      message: "You have already redeemed this code.",
-    });
-  }
-
-  const { error: insertError } = await supabase
-    .from("campaign_code_redemptions")
-    .insert({
-      campaign_log_id: campaignLog.id,
-      member_id: member.id,
-    });
+  const insertPayload: { campaign_log_id: string; member_id: string; campaign_recipient_code_id?: string } = {
+    campaign_log_id: campaignLogId,
+    member_id: member.id,
+  };
+  if (recipientCodeId) insertPayload.campaign_recipient_code_id = recipientCodeId;
+  const { error: insertError } = await supabase.from("campaign_code_redemptions").insert(insertPayload);
   if (insertError) {
     return NextResponse.json({ error: "Redemption failed" }, { status: 500 });
   }
@@ -138,7 +180,7 @@ export async function POST(request: NextRequest) {
     alreadyRedeemed: false,
     message: messageEn,
     messageVi,
-    segment: campaignLog.segment,
+    segment,
     reward: reward.type === "visits" ? `${reward.amount} free visit(s)` : `${reward.amount} guest pass(es)`,
     rewardLabelEn: reward.labelEn,
     rewardLabelVi: reward.labelVi,

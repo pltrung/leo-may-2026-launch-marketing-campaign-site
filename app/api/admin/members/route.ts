@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getUnifiedAdminOrStaffFromRequest } from "@/lib/unifiedAdminAuth";
-import { getGymStartOfMonth, formatInGymTZ } from "@/lib/gymTimezone";
+import { getGymStartOfMonth, getGymStartOfDay, getGymEndOfDay, formatInGymTZ } from "@/lib/gymTimezone";
 
 function formatRecent(timestamp: string): string {
   return formatInGymTZ(timestamp);
@@ -115,6 +115,8 @@ export async function GET(req: NextRequest) {
 
     // Check-ins this month (gym TZ = America/Los_Angeles)
     const startOfMonth = getGymStartOfMonth();
+    const startOfToday = getGymStartOfDay();
+    const endOfToday = getGymEndOfDay();
 
     const { count: checkinsThisMonth } = await supabase
       .from("gym_checkins")
@@ -135,6 +137,14 @@ export async function GET(req: NextRequest) {
     const recentCheckins = (recent ?? []).map((r) => ({
       label: formatRecent(r.timestamp as string),
     }));
+
+    const { count: todayCount } = await supabase
+      .from("gym_checkins")
+      .select("id", { count: "exact", head: true })
+      .eq("member_id", memberId)
+      .gte("timestamp", startOfToday)
+      .lte("timestamp", endOfToday);
+    const checked_in_today = (todayCount ?? 0) >= 1;
 
     const statusRaw = (memberRow.membership_status as string | null) || "inactive";
     const expiresAt = memberRow.membership_expires_at
@@ -171,6 +181,7 @@ export async function GET(req: NextRequest) {
       validUntil,
       checkinsThisMonth: checkinsThisMonth ?? 0,
       totalVisits: totalVisits ?? 0,
+      checked_in_today,
       recentCheckins,
       profile_photo_url: memberRow.profile_photo_url ?? null,
       id_number: memberRow.id_number ?? null,

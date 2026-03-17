@@ -1063,6 +1063,16 @@ export default function DashboardPage() {
                 </p>
               </div>
             )}
+            {(member as { checked_in_today?: boolean }).checked_in_today && !checkInSuccess && (
+              <div className="w-full mb-4 rounded-[20px] px-6 py-3 flex flex-col gap-0.5 border border-emerald-500/40" style={{ background: "rgba(16,185,129,0.12)", backdropFilter: "blur(12px)", textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}>
+                <p className="text-[16px] font-medium text-emerald-200">
+                  {isVi ? "Chào bạn quay lại hôm nay!" : "Welcome back again today!"}
+                </p>
+                <p className="text-[14px] text-emerald-100/80">
+                  {isVi ? "Hệ thống đã ghi nhận bạn đã tới phòng gym hôm nay." : "We've got you checked in for today."}
+                </p>
+              </div>
+            )}
             <div className="relative rounded-[20px] p-6 flex flex-col items-center transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               {/* Radial glow behind QR card */}
               <div className="absolute inset-0 rounded-[20px] pointer-events-none opacity-60" style={{ background: "radial-gradient(ellipse 80% 60% at 50% 40%, rgba(125,211,252,0.08) 0%, transparent 70%)" }} aria-hidden />
