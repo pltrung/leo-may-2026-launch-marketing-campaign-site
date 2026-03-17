@@ -87,7 +87,6 @@ export default function AdminPage() {
     canDoMembershipModify,
     canDoPaymentConfirm,
     canDoCheckIn,
-    canAccessRevenue,
     canAccessInventory,
     canAccessAdminTools,
     canAccessAnalytics,
@@ -150,7 +149,7 @@ export default function AdminPage() {
   const [profileAttendanceStats, setProfileAttendanceStats] = useState<{ checkins_this_month: number; on_time_count: number; on_time_100: boolean } | null>(null);
   const [frontDeskTab, setFrontDeskTab] = useState<"checkin" | "member">("checkin");
   const [memberProfileSubTab, setMemberProfileSubTab] = useState<"summary" | "membership" | "sales" | "history">("summary");
-  const [managementTab, setManagementTab] = useState<"inventory" | "reporting" | "admin_tools">("inventory");
+  const [managementTab, setManagementTab] = useState<"inventory" | "admin_tools">("inventory");
   const [staffModalTab, setStaffModalTab] = useState<"overview" | "tasks" | "attendance" | "coaching" | "routes">("overview");
   const [staffResetLoading, setStaffResetLoading] = useState(false);
   const [showNewMemberForm, setShowNewMemberForm] = useState(false);
@@ -162,13 +161,6 @@ export default function AdminPage() {
     checkins: { id: string; member_name: string; member_code: string | null; timestamp: string }[];
     byDay: Record<string, { id: string; member_name: string; member_code: string | null; timestamp: string }[]>;
   } | null>(null);
-  const [revenueData, setRevenueData] = useState<{
-    period: string;
-    total: number;
-    byPlan: Record<string, number>;
-    payments: { id?: string; plan_name: string; amount: number; method: string; created_at: string }[];
-  } | null>(null);
-  const [revenuePeriod, setRevenuePeriod] = useState<"day" | "week" | "month">("day");
   const [waiverModalOpen, setWaiverModalOpen] = useState(false);
   const [scannerModalOpen, setScannerModalOpen] = useState(false);
   const [posCart, setPosCart] = useState<{ sku: string; name: string; quantity: number; price: number; variant_id?: string; image?: string | null }[]>([]);
@@ -254,7 +246,6 @@ export default function AdminPage() {
   const isOperationsActive = adminArea === "operations";
   const isStaffAreaActive = adminArea === "staff";
   const isCheckinActive = adminArea === "front_desk" && frontDeskTab === "checkin";
-  const isReportingActive = adminArea === "management" && managementTab === "reporting";
   type StaffTaskRow = { id: string; title: string; status: string; block?: string; start_time?: string | null; due_time?: string | null; completed_at: string | null; completer?: { display_name?: string | null; email?: string | null } | { display_name?: string | null; email?: string | null }[] | null };
   const [staffOpsData, setStaffOpsData] = useState<{
     attendance: { in: { staff_id: string; status: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[]; out: { staff_id: string; status: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[] };
@@ -341,8 +332,8 @@ export default function AdminPage() {
     if (allowed.length > 0 && !allowed.includes(adminArea)) setAdminArea(allowed[0]);
     if (adminArea === "front_desk" && !canDoCheckIn && frontDeskTab === "checkin") setFrontDeskTab("member");
     if (!canDoMembershipModify && memberProfileSubTab === "membership") setMemberProfileSubTab("summary");
-    if (adminArea === "management" && !canAccessRevenue && !canAccessAdminTools && managementTab !== "inventory") setManagementTab("inventory");
-  }, [role, canAccessFrontDeskFull, canAccessFrontDeskLimited, canAccessOperations, canAccessManagement, canAccessAnalytics, adminArea, canDoCheckIn, frontDeskTab, canDoMembershipModify, memberProfileSubTab, canAccessRevenue, canAccessAdminTools, managementTab]);
+    if (adminArea === "management" && !canAccessAdminTools && managementTab !== "inventory") setManagementTab("inventory");
+  }, [role, canAccessFrontDeskFull, canAccessFrontDeskLimited, canAccessOperations, canAccessManagement, canAccessAnalytics, adminArea, canDoCheckIn, frontDeskTab, canDoMembershipModify, memberProfileSubTab, canAccessAdminTools, managementTab]);
 
   // Fetch products for front desk sales and management inventory
   useEffect(() => {
@@ -439,15 +430,6 @@ export default function AdminPage() {
       .then((d) => setCheckinsData({ checkins: d.checkins ?? [], byDay: d.byDay ?? {} }))
       .catch(() => setCheckinsData({ checkins: [], byDay: {} }));
   }, [isCheckinActive, adminFetch]);
-
-  // Fetch revenue when Management → Reporting tab is active
-  useEffect(() => {
-    if (!isReportingActive) return;
-    adminFetch(`/api/admin/revenue?period=${revenuePeriod}`)
-      .then((r) => r.json())
-      .then((d) => setRevenueData(d))
-      .catch(() => setRevenueData(null));
-  }, [isReportingActive, revenuePeriod, adminFetch]);
 
   // Fetch staff operations when Operations area is active, or when admin (so top operations overview bar has data)
   useEffect(() => {
@@ -1341,8 +1323,8 @@ export default function AdminPage() {
 
       <main className="flex-1 min-h-0">
         <div className="max-w-[1100px] mx-auto px-3 py-3 md:px-4 md:py-6 space-y-2 md:space-y-4">
-          {/* For staff: compact bar above nav (only when checked in today) */}
-          {role === "staff" && staffId != null && (() => {
+          {/* For staff and frontdesk: compact "You're checked in" bar above nav (only when checked in today) */}
+          {(role === "staff" || role === "frontdesk") && staffId != null && (() => {
             const today = getGymToday();
             const hasShiftToday = shiftCheckInAttendance != null && shiftCheckInAttendance.date === today;
             const isShiftIn = hasShiftToday && shiftCheckInAttendance!.status === "IN";
@@ -2054,7 +2036,6 @@ export default function AdminPage() {
               <div className="flex gap-1 min-w-max">
                 {([
                   ...(canAccessInventory ? ["inventory" as const] : []),
-                  ...(canAccessRevenue ? ["reporting" as const] : []),
                   ...(canAccessAdminTools ? ["admin_tools" as const] : []),
                 ]).map((tab) => (
                   <button
@@ -2066,7 +2047,6 @@ export default function AdminPage() {
                     }`}
                   >
                     {tab === "inventory" ? m.inventoryModule : null}
-                    {tab === "reporting" ? (locale === "vi" ? "Báo cáo" : "Reporting") : null}
                     {tab === "admin_tools" ? (locale === "vi" ? "Công cụ" : "Admin Tools") : null}
                   </button>
                 ))}
@@ -2410,56 +2390,6 @@ export default function AdminPage() {
           </section>
           )}
 
-          {/* MANAGEMENT → Reporting tab (revenue inline) */}
-          {adminArea === "management" && managementTab === "reporting" && (
-            <section className="rounded-2xl bg-white border border-slate-200 shadow-[0_12px_35px_rgba(15,23,42,0.12)] p-4 md:p-6">
-              <h2 className="text-lg font-semibold text-slate-900">{m.revenue}</h2>
-              <div className="mt-4 flex gap-2">
-                {(["day", "week", "month"] as const).map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setRevenuePeriod(p)}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium ${
-                      revenuePeriod === p ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                    }`}
-                  >
-                    {p === "day" ? m.today : p === "week" ? m.thisWeek : m.thisMonth}
-                  </button>
-                ))}
-              </div>
-              {!revenueData && <p className="text-sm text-slate-500 mt-4">{m.loading}</p>}
-              {revenueData && (
-                <div className="mt-4 space-y-4">
-                  <p className="text-2xl font-bold text-slate-900">{revenueData.total.toLocaleString("vi-VN")} VND</p>
-                  {Object.keys(revenueData.byPlan).length > 0 && (
-                    <div className="space-y-1.5 text-sm">
-                      <p className="font-medium text-slate-600">{m.byPlan}</p>
-                      {Object.entries(revenueData.byPlan).map(([plan, amt]) => (
-                        <div key={plan} className="flex justify-between text-slate-800">
-                          <span>{plan}</span>
-                          <span className="font-medium">{amt.toLocaleString("vi-VN")} VND</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="border-t pt-3 mt-3">
-                    <p className="text-xs font-semibold text-slate-700 uppercase mb-2">{m.payments}</p>
-                    {revenueData.payments.length === 0 && <p className="text-sm text-slate-500">{m.noPaymentsInPeriod}</p>}
-                    <ul className="space-y-1 max-h-40 overflow-y-auto text-slate-800">
-                      {revenueData.payments.map((p) => (
-                        <li key={p.id ?? p.created_at} className="flex justify-between text-xs py-1">
-                          <span className="text-slate-800">{p.plan_name} — {p.method}</span>
-                          <span className="text-slate-800 font-medium">{p.amount.toLocaleString("vi-VN")} VND</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
-            </section>
-          )}
-
           {/* MANAGEMENT → Admin Tools tab */}
           {adminArea === "management" && managementTab === "admin_tools" && (
           <section className="grid md:grid-cols-[minmax(0,1.4fr)_minmax(0,2fr)] gap-8 items-start">
@@ -2514,13 +2444,15 @@ export default function AdminPage() {
                 >
                   {m.viewLeaderboard}
                 </button>
+                {canAccessAnalytics && (
                 <button
                   type="button"
-                  onClick={() => { setManagementTab("reporting"); }}
+                  onClick={() => setAdminArea("analytics")}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 text-left"
                 >
-                  {m.revenue}
+                  {locale === "vi" ? "Phân tích & Báo cáo" : "Analytics & Reporting"}
                 </button>
+                )}
               </div>
             </div>
 
