@@ -41,7 +41,13 @@ export default function OnboardingPage() {
   const [quizCorrect, setQuizCorrect] = useState(0);
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
   const [scenarioResponse, setScenarioResponse] = useState("");
-  const [scenarioResult, setScenarioResult] = useState<{ score: number; feedback: string; improved_answer: string } | null>(null);
+  const [scenarioResult, setScenarioResult] = useState<{
+    score: number;
+    feedback: string;
+    whyNot100: string | null;
+    perfectAnswer: string;
+    improved_answer: string;
+  } | null>(null);
   const [reflectionText, setReflectionText] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -151,10 +157,17 @@ export default function OnboardingPage() {
           day: currentDay,
           scenario_key: scenario.id,
           user_response: scenarioResponse.trim(),
+          locale,
         }),
       });
       const d = await res.json();
-      setScenarioResult({ score: d.score, feedback: d.feedback, improved_answer: d.improved_answer ?? "" });
+      setScenarioResult({
+        score: d.score,
+        feedback: d.feedback,
+        whyNot100: d.whyNot100 ?? null,
+        perfectAnswer: d.perfectAnswer ?? "",
+        improved_answer: d.improved_answer ?? "",
+      });
     } finally {
       setSaving(false);
     }
@@ -508,7 +521,7 @@ function ScenarioCard({
   total: number;
   response: string;
   onResponseChange: (s: string) => void;
-  result: { score: number; feedback: string; improved_answer: string } | null;
+  result: { score: number; feedback: string; whyNot100: string | null; perfectAnswer: string; improved_answer: string } | null;
   onSubmit: () => void;
   onNext: () => void;
   saving: boolean;
@@ -545,6 +558,20 @@ function ScenarioCard({
               <p className="font-bold text-lg">{result.score}/100</p>
               <p className="text-slate-300 text-sm mt-1">{result.feedback}</p>
             </div>
+            {result.whyNot100 && (
+              <div className="rounded-lg p-4 bg-slate-900/80 border border-slate-600">
+                <p className="text-xs font-semibold text-amber-400 uppercase mb-2">
+                  {locale === "vi" ? "Tại sao chưa 100 điểm?" : "Why not 100 points?"}
+                </p>
+                <pre className="text-slate-300 text-sm whitespace-pre-wrap font-sans">{result.whyNot100}</pre>
+              </div>
+            )}
+            <div className="rounded-lg p-4 bg-emerald-500/5 border border-emerald-500/30">
+              <p className="text-xs font-semibold text-emerald-400 uppercase mb-2">
+                {locale === "vi" ? "Đáp án mẫu (100 điểm)" : "Perfect answer (100 points)"}
+              </p>
+              <p className="text-slate-300 text-sm italic">&quot;{result.perfectAnswer}&quot;</p>
+            </div>
             <button
               type="button"
               onClick={onNext}
@@ -570,7 +597,7 @@ function QuizCard({
   canProceed,
   saving,
 }: {
-  question: { questionEn: string; questionVi: string; options: { en: string; vi: string }[]; correctIndex: number; id?: string };
+  question: { questionEn: string; questionVi: string; options: { en: string; vi: string }[]; correctIndex: number; id?: string; explanationsEn?: string[]; explanationsVi?: string[] };
   locale: Locale;
   index: number;
   total: number;
@@ -582,6 +609,10 @@ function QuizCard({
 }) {
   const q = getQuizContent(question, locale);
   const correct = selectedChoice === question.correctIndex;
+  const explanations: string[] = (q as { explanations?: string[] }).explanations ?? [];
+  const chosenExplanation = selectedChoice != null ? explanations[selectedChoice] : undefined;
+  const correctExplanation = explanations[question.correctIndex];
+  const correctOptionText = q.options[question.correctIndex];
   return (
     <div className="space-y-6">
       <div className="text-xs text-slate-400">{index + 1} / {total} Quiz</div>
@@ -606,6 +637,29 @@ function QuizCard({
             </button>
           ))}
         </div>
+        {selectedChoice !== null && chosenExplanation && (
+          <div className="mt-6 space-y-4 border-t border-slate-600 pt-4">
+            <p className="text-xs font-semibold uppercase text-slate-400">
+              {correct ? (locale === "vi" ? "Bạn chọn đúng" : "You chose correctly") : (locale === "vi" ? "Giải thích lựa chọn của bạn" : "Explanation for your choice")}
+            </p>
+            <div className={`rounded-xl p-4 text-sm ${correct ? "bg-emerald-500/10 border border-emerald-500/30 text-slate-200" : "bg-amber-500/10 border border-amber-500/30 text-slate-200"}`}>
+              <p className="whitespace-pre-wrap">{chosenExplanation}</p>
+            </div>
+            {!correct && correctOptionText && (
+              <>
+                <p className="text-xs font-semibold uppercase text-emerald-400">
+                  {locale === "vi" ? "Đáp án đúng" : "The right answer"}
+                </p>
+                <p className="text-slate-300 font-medium">&quot;{correctOptionText}&quot;</p>
+                {correctExplanation && (
+                  <div className="rounded-xl p-4 bg-emerald-500/10 border border-emerald-500/30">
+                    <p className="text-sm text-slate-200 whitespace-pre-wrap">{correctExplanation}</p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
       {selectedChoice !== null && (
         <button
