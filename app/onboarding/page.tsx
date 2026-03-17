@@ -688,6 +688,7 @@ export default function OnboardingPage() {
               onReorderSubmit={() => setLessonReorderSubmitted(true)}
               canProceed={advSection.type === "text" || advSection.type === "list" || advSection.type === "goodvsbad" || (advSection.type === "choice" && selectedChoice !== null) || (advSection.type === "reorder_steps" && lessonReorderSubmitted) || ((advSection.type === "choose_better" || advSection.type === "fix_sentence" || advSection.type === "tap_mistake") && selectedChoice !== null)}
               saving={saving}
+              onBackToMap={() => { setCurrentDay(null); setPhase("map"); }}
             />
           );
         })()}
@@ -707,6 +708,7 @@ export default function OnboardingPage() {
               (section.type === "reorder_steps" ? lessonReorderSubmitted : selectedChoice !== null)
             }
             saving={saving}
+            onBackToMap={() => { setCurrentDay(null); setPhase("map"); }}
           />
         )}
 
@@ -1047,6 +1049,7 @@ function LessonCard({
   onReorderSubmit,
   canProceed,
   saving,
+  onBackToMap,
 }: {
   section: LessonSection;
   locale: Locale;
@@ -1058,6 +1061,7 @@ function LessonCard({
   onReorderSubmit?: () => void;
   canProceed: boolean;
   saving: boolean;
+  onBackToMap?: () => void;
 }) {
   const c = getLessonContent(section, locale);
   const [reorderOrder, setReorderOrder] = React.useState<(number | null)[]>([]);
@@ -1253,13 +1257,15 @@ function LessonCard({
           ? (locale === "vi" ? "Kiểm tra thứ tự" : "Check order")
           : (locale === "vi" ? "Tiếp" : "Next")}
       </button>
-      <button
-        type="button"
-        onClick={() => window.history.back()}
-        className="block mx-auto text-sm text-slate-400 hover:text-white"
-      >
-        {locale === "vi" ? "← Về bản đồ" : "← Back to map"}
-      </button>
+      {onBackToMap && (
+        <button
+          type="button"
+          onClick={onBackToMap}
+          className="block mx-auto text-sm text-slate-400 hover:text-white"
+        >
+          {locale === "vi" ? "← Về bản đồ" : "← Back to map"}
+        </button>
+      )}
     </div>
   );
 }
