@@ -2538,6 +2538,11 @@ export const DAY6: DayContent = {
       contentVi: "Nhân viên nói: 'Cứ đi ra đó lấy giày đi.' Sai ở đâu? Nên nói gì?",
       wrongSentenceEn: "Just go over there and get your shoes.",
       wrongSentenceVi: "Cứ đi ra đó lấy giày đi.",
+      options: [
+        { en: "Just go over there and get your shoes.", vi: "Cứ đi ra đó lấy giày đi." },
+        { en: "For your first time, I recommend rental shoes first. I'll walk you to the rental area.", vi: "Lần đầu tôi gợi ý thuê giày. Tôi dẫn bạn đến chỗ thuê." },
+      ],
+      correctIndex: 1,
       wrongExplanationEn: "Never point 'over there.' Newbie doesn't know where. Impact: confusion, anxiety. Say: 'I'll show you where the rental shoes are — come with me.' Or: 'For your first time, I recommend rental shoes first.'",
       wrongExplanationVi: "Đừng chỉ 'ra đó.' Người mới không biết đâu. Nói: 'Tôi chỉ chỗ giày thuê — đi với tôi.' Hoặc: 'Lần đầu tôi gợi ý thuê giày trước.'",
       rightExplanationEn: "Correct. Walk them. Say: 'For your first time, I recommend rental shoes first. I'll walk you to the rental area.'",
