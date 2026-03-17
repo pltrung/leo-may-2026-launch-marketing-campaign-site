@@ -1243,10 +1243,10 @@ export default function DashboardPage() {
                     />
                   </div>
                 )}
-                {(member as { guest_passes_remaining?: number }).guest_passes_remaining > 0 && (
+                {((member as { guest_passes_remaining?: number }).guest_passes_remaining ?? 0) > 0 && (
                   <div className="flex items-center justify-between">
                     <span className="text-white/60">{isVi ? "Vé khách" : "Guest passes"}</span>
-                    <span className="font-medium text-emerald-300/90">{(member as { guest_passes_remaining?: number }).guest_passes_remaining} {isVi ? "vé" : "pass(es)"}</span>
+                    <span className="font-medium text-emerald-300/90">{(member as { guest_passes_remaining?: number }).guest_passes_remaining ?? 0} {isVi ? "vé" : "pass(es)"}</span>
                   </div>
                 )}
               </div>
