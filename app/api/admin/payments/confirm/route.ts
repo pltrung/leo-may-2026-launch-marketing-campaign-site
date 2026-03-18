@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabaseServer";
 import { getUnifiedAdminOrStaffFromRequest, canCollectMembershipPayment } from "@/lib/unifiedAdminAuth";
 import { computeNewExpiry } from "@/lib/membershipExtension";
 import { bookNewbieClass } from "@/lib/newbieClassBooking";
+import { amountsMatchVnd, effectivePriceForPlan } from "@/lib/newbieGraduateSale";
 
 /**
  * POST - Confirm payment and extend membership
@@ -43,7 +44,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Plan not found" }, { status: 404 });
     }
     const planName = plan.name as string;
-    const amountVnd = plan.price_vnd as number;
+    const listPriceVnd = plan.price_vnd as number;
+    const { chargeVnd } = await effectivePriceForPlan(supabase, memberId, planId, listPriceVnd);
+    const amountVnd = chargeVnd;
+    const bodyAmount =
+      typeof body.amount_vnd === "number" && Number.isFinite(body.amount_vnd)
+        ? Math.round(body.amount_vnd)
+        : null;
+    if (bodyAmount != null && !amountsMatchVnd(bodyAmount, amountVnd)) {
+      return NextResponse.json({ error: "amount_vnd does not match expected price for this plan" }, { status: 400 });
+    }
     const durationVisits = (plan.duration_visits as number | null) ?? 0;
     const durationDays = (plan.duration_days as number) ?? 0;
     const isVisitPass = durationVisits > 0;

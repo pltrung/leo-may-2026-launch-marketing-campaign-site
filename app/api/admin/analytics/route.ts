@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
             new_over_time: [],
             churn_rate: 0,
             avg_visits_per_member: 0,
-            membership_distribution: { by_plan: { "30_day": { count: 0, pct: 0, active_count: 0 }, "365_day": { count: 0, pct: 0, active_count: 0 }, visit_pass: { count: 0, pct: 0, active_count: 0 }, day_pass: { count: 0, pct: 0, active_count: 0 } }, trend: [] },
+            membership_distribution: { by_plan: { "30_day": { count: 0, pct: 0, active_count: 0 }, "180_day": { count: 0, pct: 0, active_count: 0 }, "365_day": { count: 0, pct: 0, active_count: 0 }, visit_pass: { count: 0, pct: 0, active_count: 0 }, day_pass: { count: 0, pct: 0, active_count: 0 } }, trend: [] },
             member_health: { active: 0, at_risk: 0, inactive: 0, expiring_soon: 0, by_plan: {} },
             newbie_conversion_funnel: { purchased_count: 0, return_7_days_pct: 0, return_30_days_pct: 0, converted_to_membership_pct: 0 },
             activity_segmentation: { highly_active: 0, moderate: 0, low_activity: 0, inactive: 0 },
@@ -116,6 +116,7 @@ export async function GET(req: NextRequest) {
           if (plans?.has("newbie_class")) newbieIds.add(id);
           if (
             plans?.has("month_pass") ||
+            plans?.has("half_year_pass") ||
             plans?.has("year_pass") ||
             plans?.has("explorer_month") ||
             plans?.has("explorer_year")
@@ -299,15 +300,16 @@ export async function GET(req: NextRequest) {
       .from("payments")
       .select("member_id, plan_id, created_at")
       .eq("status", "success")
-      .in("plan_id", ["month_pass", "year_pass", "explorer_month", "explorer_year", "until_end_of_year", "day_pass", "newbie_class", "visit_5", "visit_10", "visit_20"]);
+      .in("plan_id", ["month_pass", "half_year_pass", "year_pass", "explorer_month", "explorer_year", "until_end_of_year", "day_pass", "newbie_class", "visit_5", "visit_10", "visit_20"]);
     const paymentsWithPlan = (allPaymentsWithPlan ?? []) as { member_id: string; plan_id: string; created_at: string }[];
     const latestPlanByMember = new Map<string, { plan_id: string; created_at: string }>();
     for (const p of paymentsWithPlan) {
       const existing = latestPlanByMember.get(p.member_id);
       if (!existing || p.created_at > existing.created_at) latestPlanByMember.set(p.member_id, { plan_id: p.plan_id, created_at: p.created_at });
     }
-    const planToDisplayCategory = (planId: string): "30_day" | "365_day" | "visit_pass" | "day_pass" | "newbie" | "other" => {
+    const planToDisplayCategory = (planId: string): "30_day" | "180_day" | "365_day" | "visit_pass" | "day_pass" | "newbie" | "other" => {
       if (planId === "month_pass" || planId === "explorer_month") return "30_day";
+      if (planId === "half_year_pass") return "180_day";
       if (planId === "year_pass" || planId === "explorer_year" || planId === "until_end_of_year") return "365_day";
       if (planId?.startsWith("visit_")) return "visit_pass";
       if (planId === "day_pass") return "day_pass";
@@ -327,12 +329,13 @@ export async function GET(req: NextRequest) {
 
     const distributionByPlan: Record<string, { count: number; pct: number; active_count: number }> = {
       "30_day": { count: 0, pct: 0, active_count: 0 },
+      "180_day": { count: 0, pct: 0, active_count: 0 },
       "365_day": { count: 0, pct: 0, active_count: 0 },
       visit_pass: { count: 0, pct: 0, active_count: 0 },
       day_pass: { count: 0, pct: 0, active_count: 0 },
     };
     const healthByPlan: Record<string, { active: number; at_risk: number; inactive: number; expiring_soon: number }> = {};
-    const planLabels = ["30_day", "365_day", "visit_pass", "day_pass"] as const;
+    const planLabels = ["30_day", "180_day", "365_day", "visit_pass", "day_pass"] as const;
     for (const k of planLabels) healthByPlan[k] = { active: 0, at_risk: 0, inactive: 0, expiring_soon: 0 };
 
     let expiringSoonTotal = 0;
@@ -368,11 +371,11 @@ export async function GET(req: NextRequest) {
     const { data: prevPayments } = await supabase.from("payments").select("member_id, plan_id, created_at").eq("status", "success").gte("created_at", prevSince).lte("created_at", prevUntil);
     const prevLatest = new Map<string, string>();
     for (const p of (prevPayments ?? []) as { member_id: string; plan_id: string; created_at: string }[]) {
-      if (!["month_pass", "year_pass", "explorer_month", "explorer_year", "until_end_of_year", "day_pass", "visit_5", "visit_10", "visit_20"].includes(p.plan_id)) continue;
+      if (!["month_pass", "half_year_pass", "year_pass", "explorer_month", "explorer_year", "until_end_of_year", "day_pass", "visit_5", "visit_10", "visit_20"].includes(p.plan_id)) continue;
       const ex = prevLatest.get(p.member_id);
       if (!ex || p.created_at > ex) prevLatest.set(p.member_id, p.plan_id);
     }
-    const prevCounts: Record<string, number> = { "30_day": 0, "365_day": 0, visit_pass: 0, day_pass: 0 };
+    const prevCounts: Record<string, number> = { "30_day": 0, "180_day": 0, "365_day": 0, visit_pass: 0, day_pass: 0 };
     prevLatest.forEach((planId) => {
       const cat = planToDisplayCategory(planId);
       if (planLabels.includes(cat as typeof planLabels[number])) prevCounts[cat as typeof planLabels[number]]++;
@@ -387,7 +390,9 @@ export async function GET(req: NextRequest) {
     const newbiePurchasedSet = new Set(paymentsWithPlan.filter((p) => p.plan_id === "newbie_class").map((p) => p.member_id));
     const newbieConvertedToMembership = Array.from(newbiePurchasedSet).filter((mid) => {
       const plans = paymentsWithPlan.filter((p) => p.member_id === mid).map((p) => p.plan_id);
-      return plans.some((p) => ["month_pass", "year_pass", "explorer_month", "explorer_year"].includes(p));
+      return plans.some((p) =>
+        ["month_pass", "half_year_pass", "year_pass", "explorer_month", "explorer_year"].includes(p)
+      );
     }).length;
     const newbieConversionToMembershipPct = newbiePurchasedSet.size > 0 ? Math.round((newbieConvertedToMembership / newbiePurchasedSet.size) * 1000) / 10 : 0;
 

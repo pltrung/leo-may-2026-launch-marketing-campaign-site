@@ -30,6 +30,12 @@ export interface MemberProfile {
   gender?: string | null;
   current_streak?: number;
   best_streak?: number;
+  /** 50% off 30/180/365 day passes for 7 days after newbie class ends */
+  newbie_graduate_sale?: {
+    ends_at: string;
+    discount_percent: number;
+    eligible_plan_ids: string[];
+  } | null;
 }
 
 type AuthValue = {

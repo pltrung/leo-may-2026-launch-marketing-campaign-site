@@ -577,6 +577,7 @@ export default function AnalyticsCharts({
     const activitySeg = m.activity_segmentation;
     const planDisplayNames: Record<string, { en: string; vi: string }> = {
       "30_day": { en: "30 Day Membership", vi: "Gói 30 ngày" },
+      "180_day": { en: "180 Day Membership", vi: "Gói 180 ngày" },
       "365_day": { en: "365 Day Membership", vi: "Gói 365 ngày" },
       visit_pass: { en: "Visit Pass", vi: "Gói lượt" },
       day_pass: { en: "Day Pass", vi: "Vé ngày" },
@@ -648,7 +649,7 @@ export default function AnalyticsCharts({
                       </tr>
                     </thead>
                     <tbody>
-                      {(["30_day", "365_day", "visit_pass", "day_pass"] as const).map((key) => {
+                      {(["30_day", "180_day", "365_day", "visit_pass", "day_pass"] as const).map((key) => {
                         const row = dist.by_plan?.[key];
                         if (!row) return null;
                         const names = planDisplayNames[key];
@@ -696,7 +697,7 @@ export default function AnalyticsCharts({
                       </tr>
                     </thead>
                     <tbody>
-                      {(["30_day", "365_day", "visit_pass", "day_pass"] as const).map((key) => {
+                      {(["30_day", "180_day", "365_day", "visit_pass", "day_pass"] as const).map((key) => {
                         const row = health.by_plan[key];
                         if (!row) return null;
                         const names = planDisplayNames[key];

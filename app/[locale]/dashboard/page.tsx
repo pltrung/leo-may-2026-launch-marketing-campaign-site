@@ -19,6 +19,7 @@ import AchievementUnlockModal, { type AchievementUnlockData } from "@/components
 import { GuidedTour, TOUR_STEPS_DASHBOARD, TOUR_STEPS_ONBOARDING } from "@/components/admin/GuidedTour";
 import { getMessages } from "@/lib/messages";
 import { getGymDateFromISO, getGymToday } from "@/lib/gymTimezone";
+import { roundSalePriceVnd } from "@/lib/newbieGraduateSale";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -928,6 +929,34 @@ export default function DashboardPage() {
     ? "Inactive"
     : "Active";
 
+  const graduateSale = member.newbie_graduate_sale;
+  const saleEndsMs = graduateSale?.ends_at ? new Date(graduateSale.ends_at).getTime() : 0;
+  const graduateSaleLive = !!(graduateSale && saleEndsMs > Date.now());
+  const [saleTick, setSaleTick] = useState(0);
+  useEffect(() => {
+    if (!graduateSaleLive) return;
+    const id = window.setInterval(() => setSaleTick((x) => x + 1), 1000);
+    return () => clearInterval(id);
+  }, [graduateSaleLive]);
+  const saleCountdownStr = (() => {
+    void saleTick;
+    if (!graduateSale?.ends_at) return "";
+    const ms = Math.max(0, new Date(graduateSale.ends_at).getTime() - Date.now());
+    const d = Math.floor(ms / 86400000);
+    const h = Math.floor((ms % 86400000) / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    return `${d}d ${h}h ${m}m ${s}s`;
+  })();
+
+  const getPlanPricing = (p: Plan) => {
+    const list = p.price_vnd;
+    if (!graduateSaleLive || !graduateSale?.eligible_plan_ids?.includes(p.id)) {
+      return { list, pay: list, onSale: false };
+    }
+    return { list, pay: roundSalePriceVnd(list), onSale: true };
+  };
+
   return (
     <div className="min-h-screen flex flex-col relative">
       {/* 1) Sky gradient — bottom layer (time-of-day) */}
@@ -1051,6 +1080,28 @@ export default function DashboardPage() {
             </p>
             <p className="text-[15px] text-emerald-100/90">
               {isVi ? "Thẻ thành viên đã được gia hạn" : "Membership Extended"}
+            </p>
+          </div>
+        )}
+        {graduateSaleLive && (
+          <div
+            className="w-full max-w-[720px] mb-6 rounded-[20px] px-5 py-4 border border-amber-400/40"
+            style={{
+              background: "linear-gradient(135deg, rgba(180,83,9,0.25) 0%, rgba(15,23,42,0.9) 100%)",
+              backdropFilter: "blur(16px)",
+            }}
+          >
+            <p className="text-[16px] font-semibold text-amber-200">
+              {isVi ? "🎓 Ưu đãi sau lớp Newbie: giảm 50%" : "🎓 Newbie graduate: 50% off"}
+            </p>
+            <p className="text-[13px] text-amber-100/85 mt-1">
+              {isVi
+                ? "30 / 180 / 365 ngày — chỉ trong thời gian giới hạn."
+                : "30 / 180 / 365 day passes — limited time."}
+            </p>
+            <p className="text-[14px] font-mono text-amber-300 mt-2 tabular-nums" aria-live="polite">
+              {isVi ? "Còn lại: " : "Time left: "}
+              {saleCountdownStr}
             </p>
           </div>
         )}
@@ -1454,6 +1505,7 @@ export default function DashboardPage() {
                     const isNewbieClass = p.id === "newbie_class";
                     const hasBoughtNewbieClass = payments.some((pmt) => pmt.plan_name === "Newbie Class");
                     const showNewbieAura = isNewbieClass && !hasBoughtNewbieClass;
+                    const pr = getPlanPricing(p);
                     return (
                       <button
                         key={p.id}
@@ -1481,9 +1533,21 @@ export default function DashboardPage() {
                         )}
                         <div className="relative">
                           <p className="text-[15px] font-semibold text-white/95 line-clamp-2">{p.name}</p>
-                          <p className="text-emerald-300/90 text-sm mt-2">
-                            {p.price_vnd.toLocaleString("vi-VN")} VND
-                          </p>
+                          {pr.onSale ? (
+                            <div className="mt-2 space-y-0.5">
+                              <p className="text-white/45 text-[11px] line-through">
+                                {pr.list.toLocaleString("vi-VN")} VND
+                              </p>
+                              <p className="text-emerald-300/90 text-sm font-semibold">
+                                {pr.pay.toLocaleString("vi-VN")} VND
+                              </p>
+                              <span className="text-[10px] font-medium text-amber-300">-50%</span>
+                            </div>
+                          ) : (
+                            <p className="text-emerald-300/90 text-sm mt-2">
+                              {pr.pay.toLocaleString("vi-VN")} VND
+                            </p>
+                          )}
                         </div>
                       </button>
                     );
@@ -2048,6 +2112,14 @@ export default function DashboardPage() {
         isVi={isVi}
         hasActivePass={canCheckIn}
         currentExpiry={member?.membership_expires_at ?? null}
+        effectivePriceVnd={
+          packageDetailPlan ? getPlanPricing(packageDetailPlan).pay : undefined
+        }
+        saleEndsAt={
+          packageDetailPlan && getPlanPricing(packageDetailPlan).onSale
+            ? graduateSale?.ends_at ?? null
+            : null
+        }
       />
       <EventDetailModal
         open={eventModalOpen}

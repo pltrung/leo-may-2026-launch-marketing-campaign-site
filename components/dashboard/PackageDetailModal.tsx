@@ -22,6 +22,9 @@ interface PackageDetailModalProps {
   hasActivePass?: boolean;
   /** Current membership expiry (ISO string); used to compute and display new expiry date */
   currentExpiry?: string | null;
+  /** When set (e.g. newbie graduate sale), show as payable price vs list plan.price_vnd */
+  effectivePriceVnd?: number | null;
+  saleEndsAt?: string | null;
 }
 
 export default function PackageDetailModal({
@@ -32,6 +35,8 @@ export default function PackageDetailModal({
   isVi,
   hasActivePass = false,
   currentExpiry,
+  effectivePriceVnd,
+  saleEndsAt,
 }: PackageDetailModalProps) {
   if (!open || !plan) return null;
 
@@ -72,9 +77,28 @@ export default function PackageDetailModal({
               ×
             </button>
           </div>
-          <p className="text-2xl font-bold text-emerald-400 mb-2">
-            {plan.price_vnd.toLocaleString("vi-VN")} VND
-          </p>
+          <div className="mb-2">
+            {effectivePriceVnd != null && effectivePriceVnd < plan.price_vnd ? (
+              <>
+                <p className="text-lg text-white/50 line-through">
+                  {plan.price_vnd.toLocaleString("vi-VN")} VND
+                </p>
+                <p className="text-2xl font-bold text-emerald-400">
+                  {effectivePriceVnd.toLocaleString("vi-VN")} VND
+                </p>
+                <p className="text-xs text-amber-300/90 mt-1">
+                  {isVi ? "Ưu đãi 50% sau lớp Newbie" : "50% off — Newbie graduate offer"}
+                  {saleEndsAt
+                    ? ` · ${isVi ? "Hết hạn" : "Ends"} ${new Date(saleEndsAt).toLocaleString(isVi ? "vi-VN" : "en-US", { dateStyle: "short", timeStyle: "short" })}`
+                    : ""}
+                </p>
+              </>
+            ) : (
+              <p className="text-2xl font-bold text-emerald-400">
+                {plan.price_vnd.toLocaleString("vi-VN")} VND
+              </p>
+            )}
+          </div>
           <p className="text-sm text-white/60 mb-4">
             {(plan.duration_visits ?? 0) > 0
               ? `${plan.duration_visits} ${isVi ? "lượt" : "visits"}`
@@ -82,6 +106,8 @@ export default function PackageDetailModal({
                 ? isVi ? "1 ngày" : "1 day"
                 : plan.duration_days === 30
                   ? isVi ? "30 ngày" : "30 days"
+                  : plan.duration_days === 180
+                    ? isVi ? "180 ngày" : "180 days"
                   : plan.duration_days === 365
                     ? isVi ? "365 ngày" : "365 days"
                     : `${plan.duration_days} ${isVi ? "ngày" : "days"}`}

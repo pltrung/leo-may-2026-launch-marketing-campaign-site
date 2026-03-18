@@ -73,6 +73,11 @@ interface AdminMember {
     guest_codes: { code: string; milestone_visits: number; redeemed_at: string | null }[];
     merch: { milestone_visits: number; item: string; fulfilled_at: string | null }[];
   };
+  newbie_graduate_sale?: {
+    ends_at: string;
+    discount_percent: number;
+    eligible_plan_ids: string[];
+  } | null;
 }
 
 interface NameSearchResult {
@@ -135,6 +140,8 @@ export default function AdminPage() {
   const [paymentQrUrl, setPaymentQrUrl] = useState<string | null>(null);
   const [paymentPlanName, setPaymentPlanName] = useState("");
   const [paymentPrice, setPaymentPrice] = useState(0);
+  const [paymentListPriceVnd, setPaymentListPriceVnd] = useState<number | null>(null);
+  const [adminSaleTick, setAdminSaleTick] = useState(0);
   const [paymentCurrentExpiry, setPaymentCurrentExpiry] = useState<string | null>(null);
   const [paymentNewExpiry, setPaymentNewExpiry] = useState<string | null>(null);
   const [paymentVisitsAdded, setPaymentVisitsAdded] = useState<number | null>(null);
@@ -393,6 +400,13 @@ export default function AdminPage() {
       .then((d) => setMemberPurchases(d.purchases ?? []))
       .catch(() => setMemberPurchases([]));
   }, [foundMember?.id, adminFetch]);
+
+  useEffect(() => {
+    const ends = foundMember?.newbie_graduate_sale?.ends_at;
+    if (!ends || new Date(ends).getTime() <= Date.now()) return;
+    const id = window.setInterval(() => setAdminSaleTick((x) => x + 1), 1000);
+    return () => clearInterval(id);
+  }, [foundMember?.id, foundMember?.newbie_graduate_sale?.ends_at]);
 
   // Staff commission summary (My Sales Today / My Commission)
   useEffect(() => {
@@ -1207,6 +1221,7 @@ export default function AdminPage() {
     setPaymentQrUrl(null);
     setPaymentPlanName("");
     setPaymentPrice(0);
+    setPaymentListPriceVnd(null);
     setPaymentCurrentExpiry(null);
     setPaymentNewExpiry(null);
     setPaymentVisitsAdded(null);
@@ -1216,6 +1231,7 @@ export default function AdminPage() {
         setPaymentQrUrl(d.url ?? null);
         setPaymentPlanName(d.plan_name ?? "");
         setPaymentPrice(d.price_vnd ?? 0);
+        setPaymentListPriceVnd(typeof d.list_price_vnd === "number" ? d.list_price_vnd : null);
         setPaymentCurrentExpiry(d.current_expiry ?? null);
         setPaymentNewExpiry(d.new_expiry ?? null);
         setPaymentVisitsAdded(d.visits_added ?? null);
@@ -1337,6 +1353,7 @@ export default function AdminPage() {
           setPaymentQrUrl(d.url ?? null);
           setPaymentPlanName(d.plan_name ?? "");
           setPaymentPrice(d.price_vnd ?? 0);
+          setPaymentListPriceVnd(typeof d.list_price_vnd === "number" ? d.list_price_vnd : null);
           setPaymentCurrentExpiry(d.current_expiry ?? null);
           setPaymentNewExpiry(d.new_expiry ?? null);
           setPaymentVisitsAdded(d.visits_added ?? null);
@@ -1354,7 +1371,12 @@ export default function AdminPage() {
       const res = await adminFetch("/api/admin/payments/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ member_id: foundMember.id, plan_id: paymentPlanId, method: paymentMethod }),
+        body: JSON.stringify({
+          member_id: foundMember.id,
+          plan_id: paymentPlanId,
+          method: paymentMethod,
+          amount_vnd: paymentPrice,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed");
@@ -2069,6 +2091,31 @@ export default function AdminPage() {
                   {actionError}
                 </div>
               )}
+              {foundMember.newbie_graduate_sale?.ends_at &&
+                new Date(foundMember.newbie_graduate_sale.ends_at).getTime() > Date.now() && (
+                  <div className="rounded-xl border border-amber-400/50 bg-amber-950/40 px-4 py-3 text-amber-100">
+                    <p className="text-sm font-semibold text-amber-200">
+                      {locale === "vi"
+                        ? "Ưu đãi tốt nghiệp Newbie: -50% (30 / 180 / 365 ngày)"
+                        : "Newbie graduate sale: 50% off (30 / 180 / 365 day passes)"}
+                    </p>
+                    <p className="text-xs text-amber-200/80 mt-1 font-mono tabular-nums">
+                      {locale === "vi" ? "Hết hạn sau: " : "Ends in: "}
+                      {(() => {
+                        void adminSaleTick;
+                        const ms = Math.max(
+                          0,
+                          new Date(foundMember.newbie_graduate_sale!.ends_at).getTime() - Date.now()
+                        );
+                        const d = Math.floor(ms / 86400000);
+                        const h = Math.floor((ms % 86400000) / 3600000);
+                        const m = Math.floor((ms % 3600000) / 60000);
+                        const s = Math.floor((ms % 60000) / 1000);
+                        return `${d}d ${h}h ${m}m ${s}s`;
+                      })()}
+                    </p>
+                  </div>
+                )}
               {/* Member header: always visible */}
               <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-6">
                 <div className="flex items-center gap-4">
@@ -4355,7 +4402,21 @@ export default function AdminPage() {
                   <span className="text-slate-500">Plan</span>
                   <span className="font-medium">{paymentPlanName}</span>
                   <span className="text-slate-500">Price</span>
-                  <span className="font-medium">{paymentPrice.toLocaleString("vi-VN")} VND</span>
+                  <span className="font-medium">
+                    {paymentListPriceVnd != null && paymentListPriceVnd > paymentPrice ? (
+                      <>
+                        <span className="text-slate-400 line-through mr-2">
+                          {paymentListPriceVnd.toLocaleString("vi-VN")}
+                        </span>
+                        <span className="text-emerald-700">{paymentPrice.toLocaleString("vi-VN")} VND</span>
+                        <span className="block text-xs text-amber-700 font-normal mt-0.5">
+                          {locale === "vi" ? "Giá ưu đãi sau Newbie" : "Newbie graduate price"}
+                        </span>
+                      </>
+                    ) : (
+                      <>{paymentPrice.toLocaleString("vi-VN")} VND</>
+                    )}
+                  </span>
                   <span className="text-slate-500">Member ID</span>
                   <span className="font-medium">{foundMember.displayId ?? foundMember.id}</span>
                   {(paymentCurrentExpiry || paymentNewExpiry || paymentVisitsAdded) && (

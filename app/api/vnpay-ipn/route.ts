@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { computeNewExpiry } from "@/lib/membershipExtension";
 import { verifyVnPaySecureHash } from "@/lib/vnpay";
+import { amountsMatchVnd, effectivePriceForPlan } from "@/lib/newbieGraduateSale";
 
 const VNPAY_HASH_SECRET = process.env.VNPAY_HASH_SECRET ?? "";
 
@@ -41,7 +42,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ RspCode: "04", Message: "Invalid order info" });
   }
 
-  const validPlans = ["day_pass", "month_pass", "year_pass", "newbie_class", "visit_5", "visit_10", "visit_20"];
+  const validPlans = [
+    "day_pass",
+    "month_pass",
+    "half_year_pass",
+    "year_pass",
+    "newbie_class",
+    "visit_5",
+    "visit_10",
+    "visit_20",
+  ];
   if (!validPlans.includes(planId)) {
     return NextResponse.json({ RspCode: "04", Message: "Invalid plan" });
   }
@@ -78,7 +88,14 @@ export async function GET(req: NextRequest) {
   if (planErr || !plan) {
     return NextResponse.json({ RspCode: "04", Message: "Plan not found" });
   }
-  const amountVnd = plan.price_vnd as number;
+  const listPriceVnd = plan.price_vnd as number;
+  const { chargeVnd } = await effectivePriceForPlan(supabase, memberRow.id, planId, listPriceVnd, now);
+  const amountVnd = chargeVnd;
+  const vnpAmountRaw = parseInt(params.vnp_Amount ?? "0", 10);
+  const paidVnd = vnpAmountRaw / 100;
+  if (!amountsMatchVnd(paidVnd, amountVnd)) {
+    return NextResponse.json({ RspCode: "04", Message: "Amount mismatch" });
+  }
   const durationVisits = (plan.duration_visits as number | null) ?? 0;
   const durationDays = (plan.duration_days ?? 0);
   const isVisitPass = durationVisits > 0;

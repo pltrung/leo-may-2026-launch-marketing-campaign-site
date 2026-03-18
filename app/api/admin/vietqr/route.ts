@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabaseServer";
 import { getUnifiedAdminOrStaffFromRequest, canCollectMembershipPayment } from "@/lib/unifiedAdminAuth";
 import { getVietQRUrl } from "@/lib/vietqr";
 import { computeNewExpiry } from "@/lib/membershipExtension";
+import { effectivePriceForPlan } from "@/lib/newbieGraduateSale";
 
 /**
  * GET ?plan_id=xxx&member_id=xxx
@@ -36,7 +37,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Plan not found" }, { status: 404 });
   }
   const planName = plan.name as string;
-  const priceVnd = plan.price_vnd as number;
+  const listPriceVnd = plan.price_vnd as number;
+  const { chargeVnd, saleActive, saleEndsAt } = await effectivePriceForPlan(
+    supabase,
+    memberId,
+    planId,
+    listPriceVnd
+  );
+  const priceVnd = chargeVnd;
   const durationVisits = (plan.duration_visits as number | null) ?? 0;
   const isVisitPass = durationVisits > 0;
   const currentVisits = (member.visits_remaining as number) ?? 0;
@@ -66,6 +74,10 @@ export async function GET(req: NextRequest) {
     url: qrUrl,
     plan_name: planName,
     price_vnd: priceVnd,
+    list_price_vnd: saleActive ? listPriceVnd : undefined,
+    newbie_graduate_sale: saleActive
+      ? { discount_percent: 50, ends_at: saleEndsAt }
+      : undefined,
     memo,
     current_expiry: member.membership_expires_at ?? null,
     new_expiry: newExpiry?.toISOString() ?? null,

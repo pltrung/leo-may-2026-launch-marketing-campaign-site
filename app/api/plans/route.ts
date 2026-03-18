@@ -1,11 +1,20 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 
-const PLAN_ORDER = ["newbie_class", "day_pass", "month_pass", "year_pass", "visit_5", "visit_10", "visit_20"];
+const PLAN_ORDER = [
+  "newbie_class",
+  "day_pass",
+  "month_pass",
+  "half_year_pass",
+  "year_pass",
+  "visit_5",
+  "visit_10",
+  "visit_20",
+];
 
 function passType(planId: string): "newbie" | "day" | "visit" {
   if (planId === "newbie_class") return "newbie";
-  if (["day_pass", "month_pass", "year_pass"].includes(planId)) return "day";
+  if (["day_pass", "month_pass", "half_year_pass", "year_pass"].includes(planId)) return "day";
   if (["visit_5", "visit_10", "visit_20"].includes(planId)) return "visit";
   return "day";
 }

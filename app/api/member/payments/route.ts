@@ -9,6 +9,7 @@ const PLAN_NAMES: Record<string, string> = {
   day_pass: "1 Day Pass",
   month_pass: "30 Day Pass",
   year_pass: "365 Day Pass",
+  half_year_pass: "180 Day Pass",
   newbie_class: "Newbie Class",
   visit_5: "5 Visit Pass",
   visit_10: "10 Visit Pass",

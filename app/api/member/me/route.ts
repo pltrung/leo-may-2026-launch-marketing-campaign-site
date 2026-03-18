@@ -3,6 +3,11 @@ import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@/lib/supabaseServer";
 import { EVOLUTION_LEVELS } from "@/lib/evolutionLevels";
 import { getGymStartOfDay, getGymEndOfDay } from "@/lib/gymTimezone";
+import {
+  getNewbieGraduateSaleWindow,
+  NEWBIE_GRADUATE_DISCOUNT_PERCENT,
+  NEWBIE_GRADUATE_SALE_PLAN_IDS,
+} from "@/lib/newbieGraduateSale";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -117,12 +122,22 @@ export async function GET(request: NextRequest) {
       .lte("timestamp", endOfToday);
     const checked_in_today = (todayCount ?? 0) >= 1;
 
+    const saleWin = await getNewbieGraduateSaleWindow(supabase, memberRow.id as string);
+    const newbie_graduate_sale = saleWin.active
+      ? {
+          ends_at: saleWin.endsAt,
+          discount_percent: NEWBIE_GRADUATE_DISCOUNT_PERCENT,
+          eligible_plan_ids: [...NEWBIE_GRADUATE_SALE_PLAN_IDS],
+        }
+      : null;
+
     return NextResponse.json({
       member: {
         ...memberRow,
         total_visits: count ?? 0,
         last_checkin: lastCheckin.data?.timestamp ?? null,
         checked_in_today,
+        newbie_graduate_sale,
       },
     }, { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch {

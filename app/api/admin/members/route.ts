@@ -3,6 +3,11 @@ import { createServerClient } from "@/lib/supabaseServer";
 import { getUnifiedAdminOrStaffFromRequest } from "@/lib/unifiedAdminAuth";
 import { getGymStartOfMonth, getGymStartOfDay, getGymEndOfDay, formatInGymTZ } from "@/lib/gymTimezone";
 import { syncClimbingMilestoneRewards } from "@/lib/climbingMilestones";
+import {
+  getNewbieGraduateSaleWindow,
+  NEWBIE_GRADUATE_DISCOUNT_PERCENT,
+  NEWBIE_GRADUATE_SALE_PLAN_IDS,
+} from "@/lib/newbieGraduateSale";
 
 function formatRecent(timestamp: string): string {
   return formatInGymTZ(timestamp);
@@ -187,6 +192,15 @@ export async function GET(req: NextRequest) {
       validUntil = d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
     }
 
+    const saleWin = await getNewbieGraduateSaleWindow(supabase, memberId);
+    const newbie_graduate_sale = saleWin.active
+      ? {
+          ends_at: saleWin.endsAt,
+          discount_percent: NEWBIE_GRADUATE_DISCOUNT_PERCENT,
+          eligible_plan_ids: [...NEWBIE_GRADUATE_SALE_PLAN_IDS],
+        }
+      : null;
+
     const responseMember = {
       id: memberRow.id,
       displayId: memberRow.member_code ?? null,
@@ -223,6 +237,7 @@ export async function GET(req: NextRequest) {
           fulfilled_at: (r.fulfilled_at as string | null) ?? null,
         })),
       },
+      newbie_graduate_sale,
     };
 
     return NextResponse.json({ member: responseMember }, { headers: { "Cache-Control": "no-store, max-age=0" } });

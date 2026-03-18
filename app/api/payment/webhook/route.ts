@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { computeNewExpiry } from "@/lib/membershipExtension";
 import { bookNewbieClass } from "@/lib/newbieClassBooking";
+import { amountsMatchVnd, effectivePriceForPlan } from "@/lib/newbieGraduateSale";
 
 const webhookSecret = process.env.PAYMENT_WEBHOOK_SECRET;
 
@@ -92,7 +93,16 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date();
-  const validPlans = ["day_pass", "month_pass", "year_pass", "newbie_class", "visit_5", "visit_10", "visit_20"];
+  const validPlans = [
+    "day_pass",
+    "month_pass",
+    "half_year_pass",
+    "year_pass",
+    "newbie_class",
+    "visit_5",
+    "visit_10",
+    "visit_20",
+  ];
   if (!validPlans.includes(planId)) {
     return NextResponse.json({ error: "Invalid plan_id" }, { status: 400 });
   }
@@ -106,7 +116,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Plan not found" }, { status: 404 });
   }
   const planName = plan.name as string;
-  const amountVnd = plan.price_vnd as number;
+  const listPriceVnd = plan.price_vnd as number;
+  const { chargeVnd } = await effectivePriceForPlan(supabase, memberRow.id, planId, listPriceVnd);
+  const amountVnd = chargeVnd;
+  if (typeof body.amount === "number" && Number.isFinite(body.amount) && !amountsMatchVnd(body.amount, amountVnd)) {
+    return NextResponse.json({ error: "amount mismatch" }, { status: 400 });
+  }
   const durationVisits = (plan.duration_visits as number | null) ?? 0;
   const isVisitPass = durationVisits > 0;
   const currentVisits = (memberRow.visits_remaining as number) ?? 0;

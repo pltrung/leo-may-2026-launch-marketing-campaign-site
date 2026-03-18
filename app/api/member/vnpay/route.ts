@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@/lib/supabaseServer";
 import { buildVnPayPaymentUrl, isVnPayConfigured } from "@/lib/vnpay";
+import { effectivePriceForPlan } from "@/lib/newbieGraduateSale";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -24,7 +25,16 @@ export async function GET(req: NextRequest) {
 
   const planId = req.nextUrl.searchParams.get("plan_id")?.trim();
   const returnUrl = req.nextUrl.searchParams.get("return_url")?.trim();
-  const validPlans = ["day_pass", "month_pass", "year_pass", "newbie_class", "visit_5", "visit_10", "visit_20"];
+    const validPlans = [
+      "day_pass",
+      "month_pass",
+      "half_year_pass",
+      "year_pass",
+      "newbie_class",
+      "visit_5",
+      "visit_10",
+      "visit_20",
+    ];
 
   if (!planId || !validPlans.includes(planId)) {
     return NextResponse.json({ error: "Invalid plan_id" }, { status: 400 });
@@ -65,7 +75,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Plan not found" }, { status: 404 });
     }
     const planName = plan.name as string;
-    const priceVnd = plan.price_vnd as number;
+    const listPriceVnd = plan.price_vnd as number;
+    const { chargeVnd, saleActive, saleEndsAt } = await effectivePriceForPlan(
+      supabase,
+      member.id as string,
+      planId,
+      listPriceVnd
+    );
+    const priceVnd = chargeVnd;
 
     const txnRef = `LM-${member.id.slice(0, 8)}-${Date.now()}`;
     const orderInfo = `${member.id}|${planId}`;
@@ -86,6 +103,10 @@ export async function GET(req: NextRequest) {
       url: paymentUrl,
       plan_name: planName,
       price_vnd: priceVnd,
+      list_price_vnd: saleActive ? listPriceVnd : undefined,
+      newbie_graduate_sale: saleActive
+        ? { discount_percent: 50, ends_at: saleEndsAt }
+        : undefined,
       txn_ref: txnRef,
     });
   } catch (e) {

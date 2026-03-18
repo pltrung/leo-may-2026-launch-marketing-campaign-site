@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getVietQRUrl } from "@/lib/vietqr";
 import { computeNewExpiry } from "@/lib/membershipExtension";
+import { effectivePriceForPlan } from "@/lib/newbieGraduateSale";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -19,7 +20,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const planId = req.nextUrl.searchParams.get("plan_id")?.trim();
-  const validPlans = ["day_pass", "month_pass", "year_pass", "newbie_class", "visit_5", "visit_10", "visit_20"];
+  const validPlans = [
+    "day_pass",
+    "month_pass",
+    "half_year_pass",
+    "year_pass",
+    "newbie_class",
+    "visit_5",
+    "visit_10",
+    "visit_20",
+  ];
   if (!planId || !validPlans.includes(planId)) {
     return NextResponse.json({ error: "Invalid plan_id" }, { status: 400 });
   }
@@ -49,7 +59,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Plan not found" }, { status: 404 });
     }
     const planName = plan.name as string;
-    const priceVnd = plan.price_vnd as number;
+    const listPriceVnd = plan.price_vnd as number;
+    const { chargeVnd, saleActive, saleEndsAt } = await effectivePriceForPlan(
+      supabase,
+      member.id as string,
+      planId,
+      listPriceVnd
+    );
+    const priceVnd = chargeVnd;
     const durationVisits = (plan.duration_visits as number | null) ?? 0;
     const isVisitPass = durationVisits > 0;
     const currentVisits = (member.visits_remaining as number) ?? 0;
@@ -81,6 +98,10 @@ export async function GET(req: NextRequest) {
       url: qrUrl,
       plan_name: planName,
       price_vnd: priceVnd,
+      list_price_vnd: saleActive ? listPriceVnd : undefined,
+      newbie_graduate_sale: saleActive
+        ? { discount_percent: 50, ends_at: saleEndsAt }
+        : undefined,
       memo,
       current_expiry: member.membership_expires_at ?? null,
       new_expiry: newExpiry?.toISOString() ?? null,
