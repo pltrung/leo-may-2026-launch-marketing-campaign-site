@@ -156,11 +156,24 @@ export async function GET(req: NextRequest) {
       expensesMtd += Number((e as { cost: number }).cost) || 0;
     }
 
-    const monthlyCosts = payrollTotal + rentAmount + expensesMtd;
+    // MTD costs: prorate fixed costs (rent + payroll) by days elapsed in month so profit isn't skewed early in the month.
+    // Full month fixed = 1000 → cost per day = 1000/daysInMonth → MTD fixed = (1000/daysInMonth) * daysElapsed.
+    const [ty, tm] = today.split("-").map(Number);
+    const dayOfMonth = parseInt(today.slice(8, 10), 10) || 1;
+    const daysInMonth = new Date(ty, tm, 0).getDate();
+    const daysElapsed = Math.min(Math.max(1, dayOfMonth), daysInMonth);
+    const fixedFullMonth = rentAmount + payrollTotal;
+    const proratedFixed = daysInMonth > 0 ? (fixedFullMonth * daysElapsed) / daysInMonth : 0;
+    const monthlyCosts = Math.round(proratedFixed + expensesMtd);
+
     const profit = revenueMtd - monthlyCosts;
     const cash = Number(config.current_cash) || 0;
+    // Runway uses full-month burn (fixed + extrapolated expenses), not MTD prorated.
+    const expensesExtrapolated =
+      daysElapsed > 0 ? (expensesMtd * daysInMonth) / daysElapsed : expensesMtd;
+    const fullMonthlyCosts = Math.round(fixedFullMonth + expensesExtrapolated);
     const runwayMonths =
-      monthlyCosts > 0 ? Math.round((cash / monthlyCosts) * 10) / 10 : null;
+      fullMonthlyCosts > 0 ? Math.round((cash / fullMonthlyCosts) * 10) / 10 : null;
 
     const { data: prRow } = await supabase
       .from("payroll_records")

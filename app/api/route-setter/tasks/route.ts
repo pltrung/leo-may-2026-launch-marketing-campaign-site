@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = createServerClient();
+  const today = getGymToday();
   const { data: staff } = await supabase
     .from("staff_profiles")
     .select("id, display_name")
@@ -44,13 +45,17 @@ export async function GET(request: NextRequest) {
     .single();
   if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
 
-  // Daily reset: if due_date is not today, reset status/completion. This simulates
-  // midnight reset in-app using gym timezone.
-  const today = getGymToday();
-  await supabase
-    .from("staff_tasks")
-    .update({ status: "pending", completed_at: null, completed_by: null, due_date: today, updated_at: new Date().toISOString() })
-    .or(`due_date.is.null,due_date.neq.${today}`);
+  // Use same daily reset as admin: staff_daily_reset so tasks reset once per gym day for everyone.
+  const { data: resetRow } = await supabase.from("staff_daily_reset").select("last_reset_date").maybeSingle();
+  const lastResetDate = resetRow?.last_reset_date ?? null;
+  if (!lastResetDate || today > lastResetDate) {
+    const { error: tasksUpdateError } = await supabase
+      .from("staff_tasks")
+      .update({ status: "pending", completed_at: null, completed_by: null });
+    if (!tasksUpdateError) {
+      await supabase.from("staff_daily_reset").upsert({ id: 1, last_reset_date: today }, { onConflict: "id" });
+    }
+  }
 
   const { data: tasks, error } = await supabase
     .from("staff_tasks")

@@ -165,15 +165,17 @@ export async function GET(request: NextRequest) {
       | null;
   }[];
 
-  // When the gym date rolls over (midnight), reset staff_tasks so alerts/overview show a fresh day
+  // When the gym date rolls over (midnight), reset staff_tasks so alerts/overview show a fresh day.
+  // Only advance last_reset_date after the tasks update succeeds, so we don't mark "reset done" if it failed.
   const lastResetDate = resetTrackerRes.data?.last_reset_date ?? null;
   if (!lastResetDate || today > lastResetDate) {
-    await supabase
+    const { error: tasksUpdateError } = await supabase
       .from("staff_tasks")
       .update({ status: "pending", completed_at: null, completed_by: null });
-    await supabase.from("staff_daily_reset").update({ last_reset_date: today }).eq("id", 1);
-    // Also reflect reset status in the in-memory tasks array for this response
-    tasks = tasks.map((t) => ({ ...t, status: "pending", completed_at: null, completed_by: null }));
+    if (!tasksUpdateError) {
+      await supabase.from("staff_daily_reset").upsert({ id: 1, last_reset_date: today }, { onConflict: "id" });
+      tasks = tasks.map((t) => ({ ...t, status: "pending", completed_at: null, completed_by: null }));
+    }
   }
 
   const staffIn = attendance.filter((a) => a.status === "IN");
