@@ -30,7 +30,7 @@ function getStoredLocale(): Locale {
 }
 
 export default function OnboardingPage() {
-  const { loading, hasAccess, adminFetch, role, signOut } = useAdminAuth();
+  const { loading, hasAccess, adminFetch, role, signOut, staffDisplayName } = useAdminAuth();
   const [locale, setLocale] = useState<Locale>("vi");
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [progress, setProgress] = useState<{
@@ -38,7 +38,18 @@ export default function OnboardingPage() {
     streak_days: number;
     hearts_remaining: number;
     skill_scores?: { communication: number; safety: number; sales: number; teamwork: number };
-    day_completion: Record<number, { completed: boolean; lesson_index: number; current_step?: number; completed_at?: string | null }>;
+    day_completion: Record<
+      number,
+      {
+        completed: boolean;
+        lesson_index: number;
+        current_step?: number;
+        completed_at?: string | null;
+        quiz_correct_count?: number | null;
+        quiz_total?: number | null;
+        xp_earned?: number;
+      }
+    >;
     final_score?: number | null;
     passed?: boolean | null;
     critical_fail?: boolean | null;
@@ -105,11 +116,12 @@ export default function OnboardingPage() {
     setLocaleAndStore(getStoredLocale());
   }, [setLocaleAndStore]);
 
-  const fetchProgress = useCallback(() => {
-    adminFetch("/api/admin/onboarding/progress")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.day_completion != null) setProgress({
+  const fetchProgress = useCallback(async () => {
+    try {
+      const r = await adminFetch("/api/admin/onboarding/progress");
+      const d = await r.json();
+      if (d.day_completion != null) {
+        setProgress({
           xp_total: d.xp_total ?? 0,
           streak_days: d.streak_days ?? 0,
           hearts_remaining: d.hearts_remaining ?? HEARTS_MAX,
@@ -120,12 +132,14 @@ export default function OnboardingPage() {
           critical_fail: d.critical_fail ?? undefined,
           certification_date: d.certification_date ?? undefined,
         });
-      })
-      .catch(() => {});
+      }
+    } catch {
+      /* ignore */
+    }
   }, [adminFetch]);
 
   useEffect(() => {
-    if (hasAccess) fetchProgress();
+    if (hasAccess) void fetchProgress();
   }, [hasAccess, fetchProgress]);
 
   const updateProgress = useCallback(async (action: string, payload?: Record<string, unknown>) => {
@@ -706,6 +720,102 @@ export default function OnboardingPage() {
                 </p>
               </section>
 
+              {/* Certificate + analytics after passing 7-day certification */}
+              {progress?.passed && progress.certification_date && (
+                <section
+                  className="max-w-2xl mx-auto mb-8 rounded-2xl border-2 border-amber-500/50 bg-gradient-to-b from-slate-800/95 via-slate-900/90 to-slate-950 p-6 md:p-8 shadow-[0_0_48px_rgba(245,158,11,0.12)]"
+                  aria-label={locale === "vi" ? "Chứng nhận hoàn thành" : "Completion certificate"}
+                >
+                  <p className="text-center text-amber-400/90 text-[11px] md:text-xs font-semibold tracking-[0.25em] uppercase mb-2">
+                    {locale === "vi" ? "Chứng nhận hoàn thành" : "Certificate of completion"}
+                  </p>
+                  <h2 className="text-center text-xl md:text-2xl font-bold text-white mb-1">
+                    {staffDisplayName?.trim() || (locale === "vi" ? "Nhân viên" : "Staff member")}
+                  </h2>
+                  <p className="text-center text-slate-400 text-sm mb-4">
+                    {locale === "vi"
+                      ? "Đã hoàn thành chương trình đào tạo 7 ngày — Leo Mây"
+                      : "Completed the 7-day Leo Mây onboarding program"}
+                  </p>
+                  <div className="flex justify-center mb-6">
+                    <div className="rounded-xl bg-emerald-500/15 border border-emerald-500/40 px-6 py-3">
+                      <p className="text-center text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">
+                        {locale === "vi" ? "Điểm chứng nhận" : "Final certification score"}
+                      </p>
+                      <p className="text-center text-3xl md:text-4xl font-bold text-emerald-400 tabular-nums">
+                        {progress.final_score ?? "—"}
+                        <span className="text-lg text-slate-500 font-semibold">/100</span>
+                      </p>
+                    </div>
+                  </div>
+                  {progress.skill_scores && (
+                    <div className="mb-6">
+                      <p className="text-center text-[10px] text-slate-500 uppercase tracking-wider mb-3">
+                        {locale === "vi" ? "Kỹ năng (sau khóa)" : "Skill levels"}
+                      </p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+                        {(
+                          [
+                            ["communication", locale === "vi" ? "Giao tiếp" : "Communication"],
+                            ["safety", locale === "vi" ? "An toàn" : "Safety"],
+                            ["sales", locale === "vi" ? "Bán hàng" : "Sales"],
+                            ["teamwork", locale === "vi" ? "Làm nhóm" : "Teamwork"],
+                          ] as const
+                        ).map(([key, label]) => {
+                          const v = progress.skill_scores![key] ?? 0;
+                          return (
+                            <div key={key} className="rounded-lg bg-slate-800/80 border border-slate-600/80 p-3 text-center">
+                              <p className="text-[10px] text-slate-500 mb-1">{label}</p>
+                              <p className="text-xl font-bold text-amber-400 tabular-nums">{v}</p>
+                              <div className="mt-2 h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                                <div className="h-full rounded-full bg-amber-500/80" style={{ width: `${Math.min(100, v)}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-center text-[10px] text-slate-500 uppercase tracking-wider mb-3">
+                      {locale === "vi" ? "7 ngày đào tạo" : "7-day journey"}
+                    </p>
+                    <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+                      {[1, 2, 3, 4, 5, 6, 7].map((day) => {
+                        const dc = progress.day_completion[day];
+                        const done = dc?.completed ?? false;
+                        const q =
+                          dc?.quiz_total != null && dc.quiz_total > 0
+                            ? `${dc.quiz_correct_count ?? 0}/${dc.quiz_total}`
+                            : null;
+                        const xp = dc?.xp_earned != null && dc.xp_earned > 0 ? `+${dc.xp_earned} XP` : null;
+                        return (
+                          <div
+                            key={day}
+                            className={`rounded-lg border p-2 text-center ${
+                              done ? "bg-emerald-500/20 border-emerald-500/50" : "bg-slate-800/50 border-slate-600 opacity-60"
+                            }`}
+                          >
+                            <p className="text-xs font-bold text-white">{locale === "vi" ? `N${day}` : `D${day}`}</p>
+                            {done ? <p className="text-emerald-400 text-sm mt-0.5">✓</p> : <p className="text-slate-600 text-xs mt-0.5">—</p>}
+                            {q && <p className="text-[9px] text-slate-400 mt-1 leading-tight">{locale === "vi" ? `Quiz ${q}` : `Quiz ${q}`}</p>}
+                            {xp && done && <p className="text-[9px] text-amber-400/80 mt-0.5">{xp}</p>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <p className="text-center text-slate-500 text-xs mt-5">
+                    {locale === "vi" ? "Ngày cấp: " : "Issued: "}
+                    {new Date(progress.certification_date).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </p>
+                </section>
+              )}
+
               {/* Game-style progression */}
               {progress && (
                 <div className="flex justify-center mb-6 md:mb-8">
@@ -1107,7 +1217,12 @@ export default function OnboardingPage() {
                     </p>
                     <button
                       type="button"
-                      onClick={() => { setCurrentDay(null); setPhase("map"); setCertificationResult(null); }}
+                      onClick={async () => {
+                        await fetchProgress();
+                        setCurrentDay(null);
+                        setPhase("map");
+                        setCertificationResult(null);
+                      }}
                       className="w-full py-3 rounded-xl bg-amber-500 text-slate-900 font-bold hover:bg-amber-400"
                     >
                       {locale === "vi" ? "← Quay lại bản đồ" : "← Back to map"}

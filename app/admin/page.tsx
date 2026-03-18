@@ -2676,6 +2676,36 @@ export default function AdminPage() {
                       setTimeout(() => setInventoryActionMessage(null), 3000);
                     } else setInventoryCreateError(d?.error ?? "Failed");
                   }} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-500">{m.stockOut}</button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const q = window.prompt(
+                        locale === "vi" ? "Số lượng cần nhập thêm:" : "Quantity to reorder:",
+                        "10"
+                      );
+                      if (!q || !scannedVariant?.id) return;
+                      const res = await adminFetch("/api/admin/inventory/reorder-requests", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          variant_id: scannedVariant.id,
+                          quantity_requested: parseInt(q, 10) || 1,
+                        }),
+                      });
+                      const d = await res.json();
+                      if (res.ok && d.ok) {
+                        setInventoryActionMessage(
+                          locale === "vi"
+                            ? "Đã gửi yêu cầu nhập hàng."
+                            : "Restock request sent."
+                        );
+                        setTimeout(() => setInventoryActionMessage(null), 5000);
+                      } else setInventoryCreateError(d?.error ?? "Failed");
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-sm font-medium bg-sky-600 text-white hover:bg-sky-500"
+                  >
+                    {locale === "vi" ? "Yêu cầu" : "Request"}
+                  </button>
                   <button type="button" onClick={() => { setScannedVariant(null); setScannedProduct(null); setScannedStockQuantity(0); setScannedOtherSizesInStock([]); setInventoryQty("1"); }} className="text-xs text-slate-500 underline">{m.cancel}</button>
                 </div>
               </div>

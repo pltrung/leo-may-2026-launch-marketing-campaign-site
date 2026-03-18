@@ -31,7 +31,7 @@ Each **day** is a linear sequence of phases. User can resume from the last saved
 
 | Phase | Description |
 |-------|-------------|
-| **map** | Day grid (1–5). Day 1 always unlocked; day N unlocks **24 hours after** day N−1 was completed (uses `completed_at`). Locked days show a countdown (e.g. "Unlocks in 18h 20m"); countdown refreshes every 60s. Click a day to start or resume. |
+| **map** | Day grid (1–7). After **passing** final certification (`passed` + `certification_date`), the map shows a **certificate card**: name, final score, skill bars, 7-day grid (✓, quiz ratio, XP per day), issued date. "Back to map" from certification result **refetches progress** so the certificate appears immediately. |
 | **lesson** | Lesson cards (sections). Types: **text**, **choice**, **goodvsbad**, **list**, **choose_better**, **fix_sentence**, **reorder_steps**, **tap_mistake**. For any wrong answer the UI shows: why it's wrong, what is correct, how it impacts member experience, and an example of correct phrasing. "Next" advances; after last section → scenario. |
 | **scenario** | Free-text AI scenario. User types response → Submit → score (0–100), feedback, "Why not 100?", and "Perfect answer" in Leo Mây tone. Evaluation: friendliness, clarity, safety correctness, helpfulness, Leo Mây tone. "Next" → next scenario, **simulation** (if present), or quiz. |
 | **simulation** | **One multi-step simulation per day** (Days 1–5). Steps can be **decision** (multiple choice; wrong choice shows why wrong, impact, correct behavior) or **ai_response** (free text evaluated like a scenario). Branching result screen: "Peak Hour Completed" (good) or "Needs Improvement" (poor) with XP and skill rewards. "Next" → next step or quiz. |
