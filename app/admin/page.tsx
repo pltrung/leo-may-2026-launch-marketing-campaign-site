@@ -219,10 +219,6 @@ export default function AdminPage() {
   const inventoryQtyInputRef = React.useRef<HTMLInputElement>(null);
   const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState<"all" | "shoes" | "merch">("all");
   const [inventorySearchQuery, setInventorySearchQuery] = useState("");
-  const [fdRestockVariantId, setFdRestockVariantId] = useState("");
-  const [fdRestockQty, setFdRestockQty] = useState("6");
-  const [fdRestockNote, setFdRestockNote] = useState("");
-  const [fdRestockMsg, setFdRestockMsg] = useState<string | null>(null);
   const [productDetailProductId, setProductDetailProductId] = useState<string | null>(null);
   const [productDetailData, setProductDetailData] = useState<{ product: InvProduct; variants: (InvVariant & { stock_quantity: number })[] } | null>(null);
   const [productDetailEditProduct, setProductDetailEditProduct] = useState<{ name: string; brand: string | null; category: string; image: string | null } | null>(null);
@@ -2059,76 +2055,6 @@ export default function AdminPage() {
             </div>
           </section>
 
-          {staffId &&
-            (canDoCheckIn || canAccessInventory) &&
-            products.some((p) => (p.variants?.length ?? 0) > 0) && (
-              <section className="rounded-xl border border-sky-200 bg-sky-50/80 p-4 mb-4">
-                <h3 className="text-sm font-semibold text-slate-900 mb-2">
-                  {locale === "vi" ? "Yêu cầu nhập hàng (quản lý / tài chính)" : "Request inventory restock (ops & finance)"}
-                </h3>
-                <p className="text-xs text-slate-600 mb-3">
-                  {locale === "vi"
-                    ? "Chọn SKU và số lượng. Xem Phân tích → Tài chính."
-                    : "Select SKU and qty. View under Analytics → Finance."}
-                </p>
-                {fdRestockMsg && <p className="text-xs text-emerald-700 mb-2">{fdRestockMsg}</p>}
-                <div className="flex flex-col sm:flex-row gap-2 flex-wrap items-stretch sm:items-end">
-                  <select
-                    value={fdRestockVariantId}
-                    onChange={(e) => setFdRestockVariantId(e.target.value)}
-                    className="flex-1 min-w-[200px] px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900"
-                  >
-                    <option value="">{locale === "vi" ? "Chọn biến thể…" : "Select variant…"}</option>
-                    {products.flatMap((p) =>
-                      (p.variants ?? []).map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {v.sku} — {p.name}
-                          {v.size ? ` (${v.size})` : ""}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                  <input
-                    type="number"
-                    min={1}
-                    value={fdRestockQty}
-                    onChange={(e) => setFdRestockQty(e.target.value)}
-                    className="w-20 px-2 py-2 rounded-lg border border-slate-200 text-sm"
-                  />
-                  <input
-                    placeholder={locale === "vi" ? "Ghi chú" : "Note"}
-                    value={fdRestockNote}
-                    onChange={(e) => setFdRestockNote(e.target.value)}
-                    className="flex-1 min-w-[120px] px-3 py-2 rounded-lg border border-slate-200 text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!fdRestockVariantId) return;
-                      setFdRestockMsg(null);
-                      const res = await adminFetch("/api/admin/inventory/reorder-requests", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          variant_id: fdRestockVariantId,
-                          quantity_requested: parseInt(fdRestockQty, 10) || 1,
-                          note: fdRestockNote.trim() || undefined,
-                        }),
-                      });
-                      const d = await res.json();
-                      if (res.ok && d.ok) {
-                        setFdRestockMsg(locale === "vi" ? "Đã gửi yêu cầu." : "Request submitted.");
-                        setFdRestockNote("");
-                      } else setFdRestockMsg(d?.error ?? "Failed");
-                    }}
-                    className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium"
-                  >
-                    {locale === "vi" ? "Gửi" : "Submit"}
-                  </button>
-                </div>
-              </section>
-            )}
-
           {/* MEMBER PROFILE & ACTIONS */}
           {foundMember && (
             <section className="space-y-4">
@@ -3911,7 +3837,7 @@ export default function AdminPage() {
 
           {/* ANALYTICS — admin only */}
           {adminArea === "analytics" && canAccessAnalytics && (
-            <section className="rounded-2xl bg-white border border-slate-200 shadow-sm p-4 md:p-6 min-w-0">
+            <section className="rounded-2xl bg-white border border-slate-200 shadow-sm p-4 md:p-6 min-w-0 text-slate-900">
               <h2 className="text-lg font-semibold text-slate-900">{locale === "vi" ? "Phân tích & Báo cáo" : "Analytics & Reporting"}</h2>
               <p className="text-sm text-slate-600 mt-1">{locale === "vi" ? "Tab đầu là tóm tắt điều hành; các tab sau chi tiết từng mảng (doanh thu, thành viên, email, v.v.)." : "First tab is the executive summary; other tabs drill into each area (revenue, members, email, etc.)."}</p>
 

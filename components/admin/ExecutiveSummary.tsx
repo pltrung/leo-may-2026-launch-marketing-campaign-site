@@ -241,7 +241,7 @@ export default function ExecutiveSummary({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-slate-900">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
         <div>
           <p className="text-xs font-semibold text-teal-800 uppercase tracking-wider">
@@ -442,8 +442,8 @@ export default function ExecutiveSummary({
                   {campaignLogs.map((log, i) => (
                     <tr key={i} className="border-b border-slate-100">
                       <td className="py-2 pr-2 font-medium text-slate-800 truncate max-w-[140px]">{log.segment}</td>
-                      <td className="py-2 pr-2 text-right">{log.recipient_count}</td>
-                      <td className="py-2 pr-2 text-right">{log.redemption_count ?? "—"}</td>
+                      <td className="py-2 pr-2 text-right tabular-nums text-slate-900 font-medium">{log.recipient_count}</td>
+                      <td className="py-2 pr-2 text-right tabular-nums text-slate-900 font-medium">{log.redemption_count ?? "—"}</td>
                       <td className="py-2 text-slate-600 whitespace-nowrap">
                         {log.sent_at ? new Date(log.sent_at).toLocaleDateString(isVi ? "vi-VN" : "en-US") : "—"}
                       </td>
