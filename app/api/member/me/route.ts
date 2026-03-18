@@ -8,6 +8,10 @@ import {
   NEWBIE_GRADUATE_DISCOUNT_PERCENT,
   NEWBIE_GRADUATE_SALE_PLAN_IDS,
 } from "@/lib/newbieGraduateSale";
+import {
+  clearMerchDiscountIfLapsed,
+  effectiveMerchDiscountPercent,
+} from "@/lib/membershipBenefits";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -42,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     const { data: existing, error: rowError } = await supabase
       .from("member_profiles")
-      .select("id, auth_id, email, phone, full_name, display_name, tier, waiver_signed, waiver_signed_at, created_at, member_code, membership_status, membership_expires_at, visits_remaining, guest_passes_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender, address, id_verified_from_cccd, current_streak, best_streak")
+      .select("id, auth_id, email, phone, full_name, display_name, tier, waiver_signed, waiver_signed_at, created_at, member_code, membership_status, membership_expires_at, visits_remaining, guest_passes_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender, address, id_verified_from_cccd, current_streak, best_streak, merchandise_discount_percent")
       .eq("auth_id", user.id)
       .maybeSingle();
 
@@ -87,7 +91,7 @@ export async function GET(request: NextRequest) {
             tier,
             membership_status: "inactive",
           })
-          .select("id, auth_id, email, phone, full_name, display_name, tier, waiver_signed, waiver_signed_at, created_at, member_code, membership_status, membership_expires_at, visits_remaining, guest_passes_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender, address, id_verified_from_cccd, current_streak, best_streak")
+          .select("id, auth_id, email, phone, full_name, display_name, tier, waiver_signed, waiver_signed_at, created_at, member_code, membership_status, membership_expires_at, visits_remaining, guest_passes_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender, address, id_verified_from_cccd, current_streak, best_streak, merchandise_discount_percent")
           .single();
 
         if (!insertErr && inserted) memberRow = inserted;
@@ -131,9 +135,28 @@ export async function GET(request: NextRequest) {
         }
       : null;
 
+    await clearMerchDiscountIfLapsed(supabase, memberRow.id as string, {
+      merchandise_discount_percent: memberRow.merchandise_discount_percent as number | null,
+      membership_expires_at: memberRow.membership_expires_at as string | null,
+      visits_remaining: memberRow.visits_remaining as number | null,
+    });
+    const { data: refreshed } = await supabase
+      .from("member_profiles")
+      .select("merchandise_discount_percent")
+      .eq("id", memberRow.id)
+      .maybeSingle();
+    const merchStored = (refreshed?.merchandise_discount_percent as number) ?? (memberRow.merchandise_discount_percent as number) ?? 0;
+    const merchandise_discount_effective = effectiveMerchDiscountPercent({
+      merchandise_discount_percent: merchStored,
+      membership_expires_at: memberRow.membership_expires_at as string | null,
+      visits_remaining: memberRow.visits_remaining as number | null,
+    });
+
     return NextResponse.json({
       member: {
         ...memberRow,
+        merchandise_discount_percent: merchStored,
+        merchandise_discount_effective,
         total_visits: count ?? 0,
         last_checkin: lastCheckin.data?.timestamp ?? null,
         checked_in_today,

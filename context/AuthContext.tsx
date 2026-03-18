@@ -36,6 +36,9 @@ export interface MemberProfile {
     discount_percent: number;
     eligible_plan_ids: string[];
   } | null;
+  /** Stored tier (5 or 10); use merchandise_discount_effective at POS eligibility */
+  merchandise_discount_percent?: number;
+  merchandise_discount_effective?: number;
 }
 
 type AuthValue = {

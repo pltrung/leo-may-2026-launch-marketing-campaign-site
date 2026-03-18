@@ -78,6 +78,9 @@ interface AdminMember {
     discount_percent: number;
     eligible_plan_ids: string[];
   } | null;
+  merchandise_discount_percent?: number;
+  merchandise_discount_effective?: number;
+  friend_guest_codes?: { code: string; used: boolean; expired: boolean }[];
 }
 
 interface NameSearchResult {
@@ -132,7 +135,7 @@ export default function AdminPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<null | "checkin" | "manual" | "undo" | "extend" | "cancel" | "upgrade" | "payment" | "confirm">(null);
   const [climbingFulfillMv, setClimbingFulfillMv] = useState<number | null>(null);
-  const [plans, setPlans] = useState<{ id: string; name: string; duration_days: number; duration_visits?: number | null; price_vnd: number; pass_type?: "newbie" | "day" | "visit" }[]>([]);
+  const [plans, setPlans] = useState<{ id: string; name: string; duration_days: number; duration_visits?: number | null; price_vnd: number; pass_type?: "newbie" | "day" | "visit"; description?: string | null }[]>([]);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentQrFullscreen, setPaymentQrFullscreen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"vietqr" | "cash">("vietqr");
@@ -236,6 +239,14 @@ export default function AdminPage() {
   const [newProductImageDataUrl, setNewProductImageDataUrl] = useState<string | null>(null);
   const newProductPhotoInputRef = React.useRef<HTMLInputElement>(null);
   const [posAddQty, setPosAddQty] = useState(1);
+  const posCartSubtotal = useMemo(
+    () => posCart.reduce((s, i) => s + i.quantity * i.price, 0),
+    [posCart]
+  );
+  const posMerchPct = foundMember?.merchandise_discount_effective ?? 0;
+  const posMerchDiscountVnd =
+    posMerchPct > 0 ? Math.round((posCartSubtotal * posMerchPct) / 100) : 0;
+  const posCartTotalDue = Math.max(0, posCartSubtotal - posMerchDiscountVnd);
   const productDetailPhotoInputRef = React.useRef<HTMLInputElement>(null);
   const [staffSalesSummary, setStaffSalesSummary] = useState<{ sales_today: number; commission_today: number } | null>(null);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
@@ -2227,6 +2238,64 @@ export default function AdminPage() {
                   </ul>
                 </div>
 
+                {((foundMember.merchandise_discount_effective ?? 0) > 0 ||
+                  (foundMember.friend_guest_codes?.length ?? 0) > 0) && (
+                  <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_16px_40px_rgba(15,23,42,0.7)] p-4 md:p-5">
+                    <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-3">
+                      {locale === "vi" ? "Quyền lợi gói pass" : "Pass perks"}
+                    </h3>
+                    {(foundMember.merchandise_discount_effective ?? 0) > 0 && (
+                      <p className="text-sm text-emerald-300/90 mb-3">
+                        {locale === "vi" ? "Giảm giá đồ tại quầy (POS)" : "Merch discount at POS"}:{" "}
+                        <span className="font-semibold">{foundMember.merchandise_discount_effective}%</span>
+                        {locale === "vi"
+                          ? " — áp dụng khi còn hạn pass hoặc còn lượt."
+                          : " — while day pass is active or visits remain."}
+                      </p>
+                    )}
+                    {(foundMember.friend_guest_codes?.length ?? 0) > 0 && (
+                      <div>
+                        <p className="text-[11px] text-slate-400 uppercase tracking-wide mb-2">
+                          {locale === "vi" ? "Mã mời bạn mới (LMG-)" : "New-guest invite codes (LMG-)"}
+                        </p>
+                        <ul className="space-y-1.5 font-mono text-xs text-slate-200 max-h-40 overflow-y-auto">
+                          {foundMember.friend_guest_codes!.map((gc) => (
+                            <li key={gc.code} className="flex flex-wrap items-center gap-2">
+                              <span>{gc.code}</span>
+                              <span
+                                className={
+                                  gc.used
+                                    ? "text-amber-400/90"
+                                    : gc.expired
+                                      ? "text-slate-500"
+                                      : "text-emerald-400/90"
+                                }
+                              >
+                                {gc.used
+                                  ? locale === "vi"
+                                    ? "Đã dùng"
+                                    : "Used"
+                                  : gc.expired
+                                    ? locale === "vi"
+                                      ? "Hết hạn"
+                                      : "Expired"
+                                    : locale === "vi"
+                                      ? "Còn hạn"
+                                      : "Active"}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="text-[11px] text-slate-500 mt-2">
+                          {locale === "vi"
+                            ? "Mỗi mã: 1 lượt cho thành viên mới (≤30 ngày, chưa check-in lượt). Mỗi người chỉ đổi được 1 mã loại này."
+                            : "Each code: +1 visit for a new member (under 30 days from signup, no visit check-in yet). One such redemption per person ever."}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {foundMember.climbing_rewards &&
                   (foundMember.climbing_rewards.guest_codes.length > 0 ||
                     foundMember.climbing_rewards.merch.length > 0) && (
@@ -2548,7 +2617,22 @@ export default function AdminPage() {
                   )}
                   {posCart.length > 0 && (
                     <>
-                      <p className="text-sm font-semibold text-slate-900">{m.total}: {posCart.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString("vi-VN")} VND</p>
+                      {posMerchPct > 0 ? (
+                        <div className="text-sm space-y-0.5 text-slate-800">
+                          <p>
+                            {locale === "vi" ? "Tạm tính" : "Subtotal"}: {posCartSubtotal.toLocaleString("vi-VN")} VND
+                          </p>
+                          <p className="text-emerald-700 font-medium">
+                            {locale === "vi" ? "Giảm thành viên" : "Member discount"} ({posMerchPct}%): −
+                            {posMerchDiscountVnd.toLocaleString("vi-VN")} VND
+                          </p>
+                          <p className="font-semibold text-slate-900 pt-1 border-t border-slate-200">
+                            {m.total}: {posCartTotalDue.toLocaleString("vi-VN")} VND
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-sm font-semibold text-slate-900">{m.total}: {posCartSubtotal.toLocaleString("vi-VN")} VND</p>
+                      )}
                       <button type="button" onClick={() => { setPosPaymentModalOpen(true); setPosPaymentMethod("vietqr"); setPosQrUrl(null); setPosPendingTransactionId(null); }} disabled={posCheckoutLoading} className="mt-2 w-full px-3 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60">{m.checkout}</button>
                     </>
                   )}
@@ -4258,9 +4342,22 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
             <h3 className="text-lg font-semibold text-slate-900">{m.checkout}</h3>
-            <p className="text-sm text-slate-600">
-              {m.total}: {posCart.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString("vi-VN")} VND
-            </p>
+            <div className="text-sm text-slate-600 space-y-1">
+              {posMerchPct > 0 && (
+                <>
+                  <p>
+                    {locale === "vi" ? "Tạm tính" : "Subtotal"}: {posCartSubtotal.toLocaleString("vi-VN")} VND
+                  </p>
+                  <p className="text-emerald-700">
+                    −{posMerchDiscountVnd.toLocaleString("vi-VN")} VND ({posMerchPct}%{" "}
+                    {locale === "vi" ? "thành viên" : "member"})
+                  </p>
+                </>
+              )}
+              <p className="font-semibold text-slate-900">
+                {m.total}: {posCartTotalDue.toLocaleString("vi-VN")} VND
+              </p>
+            </div>
             {!posQrUrl ? (
               <div className="flex flex-col gap-2">
                 <button
@@ -4372,6 +4469,28 @@ export default function AdminPage() {
                   ));
                 })()}
               </select>
+              {paymentPlanId && (() => {
+                const sel = plans.find((p) => p.id === paymentPlanId);
+                const desc = sel?.description;
+                if (!desc) return null;
+                const bullets = desc
+                  .split(/[•\n]/)
+                  .map((s) => s.trim())
+                  .filter(Boolean);
+                if (bullets.length === 0) return null;
+                return (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 mt-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                      {locale === "vi" ? "Quyền lợi gói" : "Plan benefits"}
+                    </p>
+                    <ul className="text-xs text-slate-700 space-y-0.5 list-disc list-inside">
+                      {bullets.slice(0, 8).map((line, i) => (
+                        <li key={i}>{line}</li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()}
             </div>
             <div className="space-y-2">
               <label className="block text-xs font-medium text-slate-600">Payment method</label>

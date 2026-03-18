@@ -11,6 +11,7 @@ interface Plan {
   price_vnd: number;
   duration_days?: number;
   duration_visits?: number;
+  description?: string | null;
 }
 
 interface PricingSheetProps {
@@ -49,10 +50,29 @@ export default function PricingSheet({ open, onClose }: PricingSheetProps) {
             {dayPlans.map((p) => (
               <div
                 key={p.id}
-                className="rounded-xl border border-white/20 bg-white/5 p-4 flex justify-between items-center"
+                className="rounded-xl border border-white/20 bg-white/5 p-4 flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-start"
               >
-                <p className="font-medium text-white">{p.name}</p>
-                <p className="font-semibold text-white">{formatVnd(p.price_vnd)} VND</p>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-white">{p.name}</p>
+                  {p.description && (
+                    <>
+                      <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/50">
+                        {locale === "vi" ? "Quyền lợi" : "Benefits"}
+                      </p>
+                      <ul className="mt-1 text-[11px] text-white/55 space-y-0.5 list-disc list-inside">
+                        {p.description
+                          .split(/[•\n]/)
+                          .map((s) => s.trim())
+                          .filter(Boolean)
+                          .slice(0, 8)
+                          .map((line, i) => (
+                            <li key={i}>{line}</li>
+                          ))}
+                      </ul>
+                    </>
+                  )}
+                </div>
+                <p className="font-semibold text-white shrink-0">{formatVnd(p.price_vnd)} VND</p>
               </div>
             ))}
           </div>
@@ -65,10 +85,29 @@ export default function PricingSheet({ open, onClose }: PricingSheetProps) {
             {visitPlans.map((p) => (
               <div
                 key={p.id}
-                className="rounded-xl border border-white/20 bg-white/5 p-4 flex justify-between items-center"
+                className="rounded-xl border border-white/20 bg-white/5 p-4 flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-start"
               >
-                <p className="font-medium text-white">{p.name}</p>
-                <p className="font-semibold text-white">{formatVnd(p.price_vnd)} VND</p>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-white">{p.name}</p>
+                  {p.description && (
+                    <>
+                      <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/50">
+                        {locale === "vi" ? "Quyền lợi" : "Benefits"}
+                      </p>
+                      <ul className="mt-1 text-[11px] text-white/55 space-y-0.5 list-disc list-inside">
+                        {p.description
+                          .split(/[•\n]/)
+                          .map((s) => s.trim())
+                          .filter(Boolean)
+                          .slice(0, 6)
+                          .map((line, i) => (
+                            <li key={i}>{line}</li>
+                          ))}
+                      </ul>
+                    </>
+                  )}
+                </div>
+                <p className="font-semibold text-white shrink-0">{formatVnd(p.price_vnd)} VND</p>
               </div>
             ))}
           </div>
@@ -76,6 +115,9 @@ export default function PricingSheet({ open, onClose }: PricingSheetProps) {
         {plans.length === 0 && (
           <p className="text-center text-sm text-white/60">{m.comingSoon}</p>
         )}
+        <p className="text-[11px] text-white/45 leading-relaxed border-t border-white/10 pt-3 mt-2">
+          {m.newbieClassNote} {m.passBenefitsNote}
+        </p>
       </div>
     </BottomSheet>
   );

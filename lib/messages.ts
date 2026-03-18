@@ -394,6 +394,8 @@ const en = {
     },
     pricingModal: {
       title: "Pricing",
+      newbieClassNote: "Newbie class includes free rental shoes + chalk for the session.",
+      passBenefitsNote: "180-day & 365-day passes include merch discounts and friend visit codes — see dashboard after purchase.",
       tier1: "Starter",
       tier2: "Climber",
       tier3: "Sky",
@@ -1308,6 +1310,8 @@ const vi: Messages = {
     },
     pricingModal: {
       title: "Bảng giá",
+      newbieClassNote: "Lớp Newbie: miễn phí giày thuê + phấn trong buổi.",
+      passBenefitsNote: "Gói 180 ngày & 365 ngày có giảm giá đồ & mã mời bạn — xem bảng điều khiển sau khi mua.",
       tier1: "Starter",
       tier2: "Climber",
       tier3: "Sky",

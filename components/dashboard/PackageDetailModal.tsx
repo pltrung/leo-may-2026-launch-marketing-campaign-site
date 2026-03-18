@@ -139,13 +139,18 @@ export default function PackageDetailModal({
             );
           })()}
           {bullets.length > 0 && (
-            <div className="mb-6 text-sm text-white/80 space-y-1">
-              {bullets.map((b, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <span className="text-emerald-400 mt-0.5">•</span>
-                  <span>{b}</span>
-                </div>
-              ))}
+            <div className="mb-6">
+              <p className="text-xs font-semibold uppercase tracking-wider text-white/50 mb-2">
+                {isVi ? "Quyền lợi" : "Benefits"}
+              </p>
+              <div className="text-sm text-white/80 space-y-1">
+                {bullets.map((b, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <span className="text-emerald-400 mt-0.5">•</span>
+                    <span>{b}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           <div className="flex gap-2">

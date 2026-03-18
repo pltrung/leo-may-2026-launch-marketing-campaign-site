@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabaseServer";
 import { computeNewExpiry } from "@/lib/membershipExtension";
 import { verifyVnPaySecureHash } from "@/lib/vnpay";
 import { amountsMatchVnd, effectivePriceForPlan } from "@/lib/newbieGraduateSale";
+import { applyDayPassPurchaseBenefits } from "@/lib/membershipBenefits";
 
 const VNPAY_HASH_SECRET = process.env.VNPAY_HASH_SECRET ?? "";
 
@@ -127,7 +128,11 @@ export async function GET(req: NextRequest) {
   };
   if (txnRef) insertPayload.gateway_transaction_id = txnRef;
 
-  const { error: payErr } = await supabase.from("payments").insert(insertPayload);
+  const { data: insertedPay, error: payErr } = await supabase
+    .from("payments")
+    .insert(insertPayload)
+    .select("id")
+    .single();
   if (payErr) {
     if (payErr.code === "23505") {
       return NextResponse.json({ RspCode: "02", Message: "Order already confirmed" });
@@ -135,6 +140,7 @@ export async function GET(req: NextRequest) {
     console.error("vnpay ipn insert error", payErr);
     return NextResponse.json({ RspCode: "99", Message: "Unknown error" });
   }
+  const vnpayPaymentId = insertedPay?.id ?? null;
 
   const updatePayload: Record<string, unknown> = { updated_at: now.toISOString() };
   if (isVisitPass) {
@@ -152,6 +158,16 @@ export async function GET(req: NextRequest) {
   if (updateErr) {
     console.error("vnpay ipn member update error", updateErr);
     return NextResponse.json({ RspCode: "99", Message: "Unknown error" });
+  }
+
+  if (!isVisitPass && planId !== "newbie_class") {
+    await applyDayPassPurchaseBenefits(
+      supabase,
+      memberRow.id,
+      planId,
+      newExpiry!,
+      vnpayPaymentId
+    );
   }
 
   return NextResponse.json({ RspCode: "00", Message: "Confirm Success" });

@@ -8,6 +8,10 @@ import {
   NEWBIE_GRADUATE_DISCOUNT_PERCENT,
   NEWBIE_GRADUATE_SALE_PLAN_IDS,
 } from "@/lib/newbieGraduateSale";
+import {
+  clearMerchDiscountIfLapsed,
+  effectiveMerchDiscountPercent,
+} from "@/lib/membershipBenefits";
 
 function formatRecent(timestamp: string): string {
   return formatInGymTZ(timestamp);
@@ -32,7 +36,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const baseSelect =
-      "id, auth_id, email, phone, full_name, tier, member_code, created_at, membership_status, membership_expires_at, visits_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender, waiver_signed, waiver_signed_at";
+      "id, auth_id, email, phone, full_name, tier, member_code, created_at, membership_status, membership_expires_at, visits_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender, waiver_signed, waiver_signed_at, merchandise_discount_percent";
 
     // Name search: return a list of basic matches to let the UI choose.
     if (!id && !code && name) {
@@ -192,6 +196,36 @@ export async function GET(req: NextRequest) {
       validUntil = d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
     }
 
+    await clearMerchDiscountIfLapsed(supabase, memberId, {
+      merchandise_discount_percent: memberRow.merchandise_discount_percent as number | null,
+      membership_expires_at: memberRow.membership_expires_at as string | null,
+      visits_remaining: visitsRemaining,
+    });
+    const { data: merchRow } = await supabase
+      .from("member_profiles")
+      .select("merchandise_discount_percent")
+      .eq("id", memberId)
+      .maybeSingle();
+    const merchStored = (merchRow?.merchandise_discount_percent as number) ?? 0;
+    const merchandise_discount_effective = effectiveMerchDiscountPercent({
+      merchandise_discount_percent: merchStored,
+      membership_expires_at: memberRow.membership_expires_at as string | null,
+      visits_remaining: visitsRemaining,
+    });
+
+    const { data: friendCodes } = await supabase
+      .from("member_guest_invite_codes")
+      .select("code, redeemed_by_member_id, expires_at")
+      .eq("issuer_member_id", memberId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    const nowMs = Date.now();
+    const friend_guest_codes = (friendCodes ?? []).map((c) => ({
+      code: c.code as string,
+      used: !!(c.redeemed_by_member_id as string | null),
+      expired: new Date(c.expires_at as string).getTime() < nowMs,
+    }));
+
     const saleWin = await getNewbieGraduateSaleWindow(supabase, memberId);
     const newbie_graduate_sale = saleWin.active
       ? {
@@ -238,6 +272,9 @@ export async function GET(req: NextRequest) {
         })),
       },
       newbie_graduate_sale,
+      merchandise_discount_percent: merchStored,
+      merchandise_discount_effective,
+      friend_guest_codes,
     };
 
     return NextResponse.json({ member: responseMember }, { headers: { "Cache-Control": "no-store, max-age=0" } });

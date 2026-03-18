@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabaseServer";
 import { computeNewExpiry } from "@/lib/membershipExtension";
 import { bookNewbieClass } from "@/lib/newbieClassBooking";
 import { amountsMatchVnd, effectivePriceForPlan } from "@/lib/newbieGraduateSale";
+import { applyDayPassPurchaseBenefits } from "@/lib/membershipBenefits";
 
 const webhookSecret = process.env.PAYMENT_WEBHOOK_SECRET;
 
@@ -197,6 +198,16 @@ export async function POST(req: NextRequest) {
   if (updateErr) {
     console.error("webhook member update error", updateErr);
     return NextResponse.json({ error: "Failed to extend membership" }, { status: 500 });
+  }
+
+  if (!isVisitPass && planId !== "newbie_class") {
+    await applyDayPassPurchaseBenefits(
+      supabase,
+      memberRow.id,
+      planId,
+      newExpiry!,
+      paymentId
+    );
   }
 
   return NextResponse.json({ received: true });

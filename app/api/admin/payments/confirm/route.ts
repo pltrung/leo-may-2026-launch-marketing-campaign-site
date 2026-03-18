@@ -4,6 +4,7 @@ import { getUnifiedAdminOrStaffFromRequest, canCollectMembershipPayment } from "
 import { computeNewExpiry } from "@/lib/membershipExtension";
 import { bookNewbieClass } from "@/lib/newbieClassBooking";
 import { amountsMatchVnd, effectivePriceForPlan } from "@/lib/newbieGraduateSale";
+import { applyDayPassPurchaseBenefits } from "@/lib/membershipBenefits";
 
 /**
  * POST - Confirm payment and extend membership
@@ -114,6 +115,11 @@ export async function POST(req: NextRequest) {
     if (updateErr) {
       console.error("member update error", updateErr);
       return NextResponse.json({ error: "Failed to extend membership" }, { status: 500 });
+    }
+
+    if (!isVisitPass && !isNewbieClass) {
+      const newExp = computeNewExpiry(currentExpiry, durationDays, now);
+      await applyDayPassPurchaseBenefits(supabase, memberId, planId, newExp, paymentId);
     }
 
     return NextResponse.json({

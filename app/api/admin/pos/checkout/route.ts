@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getUnifiedAdminOrStaffFromRequest, canDoPos } from "@/lib/unifiedAdminAuth";
 import { getVietQRUrl } from "@/lib/vietqr";
+import { effectiveMerchDiscountPercent } from "@/lib/membershipBenefits";
 
 const DEFAULT_COMMISSION_RATE = 0.1; // 10%
 
@@ -26,7 +27,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "member_id and items required" }, { status: 400 });
     }
 
-    const { data: member } = await supabase.from("member_profiles").select("id").eq("id", memberId).maybeSingle();
+    const { data: member } = await supabase
+      .from("member_profiles")
+      .select("id, merchandise_discount_percent, membership_expires_at, visits_remaining")
+      .eq("id", memberId)
+      .maybeSingle();
     if (!member) return NextResponse.json({ error: "Member not found" }, { status: 404 });
 
     let total = 0;
@@ -69,6 +74,15 @@ export async function POST(req: NextRequest) {
     }
     if (lineItems.length === 0) return NextResponse.json({ error: "No valid items" }, { status: 400 });
 
+    const subtotalBeforeDiscount = total;
+    const merchPct = effectiveMerchDiscountPercent({
+      merchandise_discount_percent: member.merchandise_discount_percent as number | null,
+      membership_expires_at: member.membership_expires_at as string | null,
+      visits_remaining: member.visits_remaining as number | null,
+    });
+    const discountVnd = merchPct > 0 ? Math.round((subtotalBeforeDiscount * merchPct) / 100) : 0;
+    total = Math.max(0, subtotalBeforeDiscount - discountVnd);
+
     const status = paymentMethod === "cash" ? "success" : "pending";
     const memo = paymentMethod === "vietqr" ? `LM_PURCHASE:${lineItems.map((i) => i.sku).join(",")}` : null;
 
@@ -87,6 +101,8 @@ export async function POST(req: NextRequest) {
         memo,
         commission_rate: commissionRate,
         commission_amount: commissionAmount,
+        subtotal_before_discount_vnd: subtotalBeforeDiscount,
+        member_merch_discount_percent: merchPct > 0 ? merchPct : null,
       })
       .select("id")
       .single();
@@ -119,11 +135,27 @@ export async function POST(req: NextRequest) {
           else await supabase.from("inventory").update({ quantity: newQty, updated_at: new Date().toISOString() }).eq("id", row.id);
         }
       }
-      return NextResponse.json({ ok: true, transaction_id: tx.id });
+      return NextResponse.json({
+        ok: true,
+        transaction_id: tx.id,
+        subtotal_before_discount_vnd: subtotalBeforeDiscount,
+        member_merch_discount_percent: merchPct > 0 ? merchPct : null,
+        discount_vnd: discountVnd,
+        total,
+      });
     }
 
     const url = getVietQRUrl(total, memo ?? "");
-    return NextResponse.json({ ok: true, transaction_id: tx.id, url, memo, total });
+    return NextResponse.json({
+      ok: true,
+      transaction_id: tx.id,
+      url,
+      memo,
+      total,
+      subtotal_before_discount_vnd: subtotalBeforeDiscount,
+      member_merch_discount_percent: merchPct > 0 ? merchPct : null,
+      discount_vnd: discountVnd,
+    });
   } catch (e) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }

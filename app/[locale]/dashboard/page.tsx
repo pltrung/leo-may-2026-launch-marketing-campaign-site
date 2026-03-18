@@ -239,6 +239,9 @@ export default function DashboardPage() {
   const [redeemLoading, setRedeemLoading] = useState(false);
   const [redeemMessage, setRedeemMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [milestoneCopiedCode, setMilestoneCopiedCode] = useState<string | null>(null);
+  const [friendInviteCodes, setFriendInviteCodes] = useState<
+    { code: string; used: boolean; expired: boolean; expires_at: string }[]
+  >([]);
   const [newbieClass, setNewbieClass] = useState<{
     session_id: string;
     start_time: string;
@@ -333,6 +336,46 @@ export default function DashboardPage() {
     if (!accessToken || !raw) return;
     setRedeemLoading(true);
     setRedeemMessage(null);
+
+    if (raw.startsWith("LMG-")) {
+      try {
+        const res = await fetch("/api/member/redeem-guest-code", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ code: raw }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          setRedeemMessage({
+            type: "success",
+            text:
+              locale === "vi"
+                ? "Đã cộng 1 lượt từ mã mời bạn."
+                : "1 visit added from your friend's invite code.",
+          });
+          setRedeemCode("");
+          refresh({ backgroundMemberFetch: true });
+        } else {
+          setRedeemMessage({
+            type: "error",
+            text:
+              typeof data.error === "string"
+                ? data.error
+                : locale === "vi"
+                  ? "Không thể dùng mã này."
+                  : "Could not use this code.",
+          });
+        }
+      } catch {
+        setRedeemMessage({
+          type: "error",
+          text: locale === "vi" ? "Lỗi kết nối." : "Connection error.",
+        });
+      } finally {
+        setRedeemLoading(false);
+      }
+      return;
+    }
 
     const tryGuestPass = async (): Promise<boolean> => {
       const res = await fetch("/api/member/redeem-milestone-guest", {
@@ -442,6 +485,22 @@ export default function DashboardPage() {
       })
       .catch(() => { if (!cancelled) setNewbieClass(null); });
     return () => { cancelled = true; };
+  }, [accessToken, paymentSuccess]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    let cancelled = false;
+    fetch("/api/member/guest-invite-codes", { headers: { Authorization: `Bearer ${accessToken}` } })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && Array.isArray(data?.codes)) setFriendInviteCodes(data.codes);
+      })
+      .catch(() => {
+        if (!cancelled) setFriendInviteCodes([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [accessToken, paymentSuccess]);
 
   // Fetch leaderboard via API (no client Supabase)
@@ -1067,7 +1126,16 @@ export default function DashboardPage() {
           const tab = step.navigate?.dashboardTab;
           if (tab) setDashboardTab(tab);
         }}
-        getCanAdvance={tourPhase === "onboarding" ? (i) => (i === 0 ? !!member?.waiver_signed : i === 1 ? canCheckIn : !!member?.profile_photo_url) : undefined}
+        getCanAdvance={
+          tourPhase === "onboarding"
+            ? (i) =>
+                i === 0
+                  ? !!member?.waiver_signed
+                  : i === 1
+                    ? !!member?.profile_photo_url
+                    : canCheckIn
+            : undefined
+        }
         onOnboardingComplete={tourPhase === "onboarding" ? () => setTourPhase("main") : undefined}
       />
 
@@ -1219,13 +1287,17 @@ export default function DashboardPage() {
                     />
                   </div>
                 </div>
-                <p className="text-amber-200/95 text-[14px]">
+                <p className="text-amber-200/95 text-[14px] leading-relaxed">
                   {!member.waiver_signed
                     ? (isVi ? "1. Ký giấy từ chối trách nhiệm trước khi check-in." : "1. Sign the waiver first before checking in.")
-                    : !canCheckIn
-                    ? (isVi ? "2. Mua Day Pass hoặc gói thành viên bên dưới để check-in." : "2. Purchase a Day Pass or membership below to check in.")
                     : !member.profile_photo_url
-                    ? (isVi ? "3. Thêm ảnh hồ sơ trước khi check-in. Nhấn tên của bạn ở trên để mở hồ sơ." : "3. Add a profile photo before check-in. Tap your name above to open profile.")
+                    ? (isVi
+                        ? "2. Thêm ảnh hồ sơ — nhấn tên bạn ở trên để mở hồ sơ."
+                        : "2. Add a profile photo — tap your name above to open profile.")
+                    : !canCheckIn
+                    ? (isVi
+                        ? "3. Có ít nhất 1 lượt: mua pass (tab Thẻ thành viên) hoặc đổi mã mời bạn LMG-… (tab Đổi mã). Sau đó QR check-in sẽ hiện."
+                        : "3. Get at least one visit: buy a pass (Membership tab) or redeem a friend’s invite code LMG-… (Redeem tab). Your check-in QR will then appear.")
                     : null}
                 </p>
               </div>
@@ -1256,7 +1328,7 @@ export default function DashboardPage() {
             </section>
           )}
 
-          {/* CHECK IN - only show when all 3 steps (waiver, package, profile photo) are done */}
+          {/* CHECK IN — waiver, profile photo, then visits (pass or LMG- redeem) */}
           {canShowQR && (
           <section data-tour="dashboard-qr">
             <div className="relative rounded-[20px] p-6 flex flex-col items-center transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
@@ -1298,16 +1370,24 @@ export default function DashboardPage() {
                           <span className="text-4xl">📝</span>
                           <p className="text-[15px] font-medium">{isVi ? "Ký giấy từ chối trách nhiệm để hiện mã QR" : "Sign the waiver to show your check-in QR code"}</p>
                         </>
-                      ) : !canCheckIn ? (
-                        <>
-                          <span className="text-4xl">🎫</span>
-                          <p className="text-[15px] font-medium">{isVi ? "Mua pass để có mã QR" : "Buy a pass for your check-in QR code"}</p>
-                        </>
-                      ) : (
+                      ) : !member.profile_photo_url ? (
                         <>
                           <span className="text-4xl">📷</span>
                           <p className="text-[15px] font-medium">{isVi ? "Thêm ảnh hồ sơ để có mã QR" : "Add a profile photo for your check-in QR code"}</p>
                         </>
+                      ) : !canCheckIn ? (
+                        <>
+                          <span className="text-4xl">🎫</span>
+                          <p className="text-[15px] font-medium">
+                            {isVi
+                              ? "Mua pass hoặc đổi mã LMG- (tab Đổi mã) để có QR"
+                              : "Buy a pass or redeem LMG- code (Redeem tab) for your QR"}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-[14px] text-white/45 animate-pulse">
+                          {isVi ? "Đang tải mã QR…" : "Loading QR…"}
+                        </p>
                       )}
                     </div>
                   )}
@@ -1444,6 +1524,88 @@ export default function DashboardPage() {
                     <span className="font-medium text-emerald-300/90">{(member as { guest_passes_remaining?: number }).guest_passes_remaining ?? 0} {isVi ? "vé" : "pass(es)"}</span>
                   </div>
                 )}
+                {(member.merchandise_discount_effective ?? 0) > 0 && (
+                  <div
+                    className="flex items-center justify-between rounded-xl px-3 py-2.5 mt-1"
+                    style={{
+                      background: "rgba(16,185,129,0.1)",
+                      border: "1px solid rgba(16,185,129,0.25)",
+                    }}
+                  >
+                    <span className="text-white/75 text-[14px]">
+                      {isVi ? "Giảm giá đồ / gear tại quầy" : "Merch / gear discount at desk"}
+                    </span>
+                    <span className="font-semibold text-emerald-300">{member.merchandise_discount_effective}%</span>
+                  </div>
+                )}
+                {friendInviteCodes.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-white/[0.08]">
+                    <p className="text-[13px] font-medium text-white/80 mb-2">
+                      {isVi ? "Mã mời bạn mới (LMG-…)" : "New-guest codes (LMG-…)"}
+                    </p>
+                    <p className="text-[11px] text-white/50 mb-2 leading-relaxed">
+                      {isVi
+                        ? "Chia sẻ cho người mới (≤30 ngày đăng ký, chưa dùng lượt check-in). Mỗi người chỉ đổi 1 mã."
+                        : "Share with new members (under 30 days from signup, no visit check-in yet). Each person can redeem only one such code."}
+                    </p>
+                    <ul className="space-y-2 max-h-36 overflow-y-auto">
+                      {friendInviteCodes.map((gc) => (
+                        <li
+                          key={gc.code}
+                          className="flex flex-wrap items-center gap-2 rounded-[12px] px-2.5 py-2"
+                          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                        >
+                          <code className="text-[13px] text-sky-200 font-mono">{gc.code}</code>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void navigator.clipboard?.writeText(gc.code);
+                              setMilestoneCopiedCode(gc.code);
+                              window.setTimeout(() => setMilestoneCopiedCode((c) => (c === gc.code ? null : c)), 2000);
+                            }}
+                            className="text-[11px] text-sky-300/90 hover:underline"
+                          >
+                            {milestoneCopiedCode === gc.code
+                              ? isVi
+                                ? "Đã copy"
+                                : "Copied"
+                              : isVi
+                                ? "Copy"
+                                : "Copy"}
+                          </button>
+                          <span
+                            className={`text-[11px] ${
+                              gc.used ? "text-amber-400/90" : gc.expired ? "text-white/40" : "text-emerald-400/90"
+                            }`}
+                          >
+                            {gc.used ? (isVi ? "Đã dùng" : "Used") : gc.expired ? (isVi ? "Hết hạn" : "Expired") : isVi ? "Dùng được" : "Active"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div
+                  className="mt-3 rounded-[14px] px-3 py-2.5 text-[11px] text-white/55 leading-relaxed"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                >
+                  <p className="font-medium text-white/70 mb-1">{isVi ? "Gia hạn & quyền lợi" : "Extensions & perks"}</p>
+                  {isVi ? (
+                    <>
+                      <p>• Gói 30 ngày: không thêm mã / không đổi % giảm giá.</p>
+                      <p>• Gói 180 ngày: +5 mã LMG-, giảm tối thiểu 5% đồ (nếu chưa có cao hơn).</p>
+                      <p>• Gói 365 ngày: +15 mã, 10% đồ.</p>
+                      <p>• Ví dụ: đang 30 ngày → mua thêm 180 ngày: bạn nhận thêm 5 mã; hết hạn mã theo ngày hết pass sau lần mua đó.</p>
+                    </>
+                  ) : (
+                    <>
+                      <p>• 30-day pass: no extra codes or merch tier change.</p>
+                      <p>• 180-day: +5 LMG- codes, at least 5% merch (unless you already have 10%).</p>
+                      <p>• 365-day: +15 codes, 10% merch.</p>
+                      <p>• Example: on 30-day, you buy 180-day → you get +5 codes; code expiry follows the membership end date from that purchase.</p>
+                    </>
+                  )}
+                </div>
               </div>
               <div className="mt-4 pt-3 border-t border-white/[0.08] text-[13px] text-white/70 space-y-1">
                 {canCheckIn && (
@@ -1787,8 +1949,8 @@ export default function DashboardPage() {
             </h2>
             <p className="text-[14px] text-white/65 mb-6 max-w-xl">
               {isVi
-                ? "Nhập mã từ email chiến dịch Leo Mây hoặc mã vé khách (LEO-G-…) từ thành viên. Hệ thống tự nhận diện và áp dụng đúng ưu đãi."
-                : "Enter your email campaign code or a guest pass code (LEO-G-…) from a member. We’ll apply the right benefit automatically."}
+                ? "Mã chiến dịch (LEO-…), vé khách mốc leo (LEO-G-…), hoặc mã mời bạn (LMG-…) từ thành viên có gói 180/365 ngày. Hệ thống tự nhận diện."
+                : "Campaign codes (LEO-…), milestone guest passes (LEO-G-…), or friend invites (LMG-…) from 180/365-day members. We detect the right benefit."}
             </p>
             <div
               className="rounded-[18px] p-5 md:p-6 max-w-lg"
@@ -1805,7 +1967,7 @@ export default function DashboardPage() {
                     setRedeemCode(e.target.value.toUpperCase());
                     setRedeemMessage(null);
                   }}
-                  placeholder={isVi ? "VD: LEO-… hoặc LEO-G-…" : "e.g. LEO-… or LEO-G-…"}
+                  placeholder={isVi ? "LEO-… / LEO-G-… / LMG-…" : "LEO-… / LEO-G-… / LMG-…"}
                   className="flex-1 rounded-xl px-4 py-3 text-[15px] text-white placeholder:text-white/35 bg-white/10 border border-white/15 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 font-mono tracking-wide"
                   autoCapitalize="characters"
                   autoCorrect="off"
