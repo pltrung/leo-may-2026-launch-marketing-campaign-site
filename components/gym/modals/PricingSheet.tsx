@@ -102,11 +102,43 @@ function planBadgeText(id: string, isVi: boolean): string | null {
   return null;
 }
 
-function PlanCard({ plan, benefitsLabel, isVi }: { plan: Plan; benefitsLabel: string; isVi: boolean }) {
+const PLAN_BENEFITS_FALLBACK_VI: Record<string, string> = {
+  newbie_class: "30 phút coaching + 1 ngày vào phòng • Giày thuê + phấn miễn phí trong buổi",
+  day_pass: "Vào phòng gym trọn 1 ngày (theo lịch)",
+  month_pass: "Leo không giới hạn trong 30 ngày",
+  half_year_pass:
+    "Leo không giới hạn 180 ngày • Giảm 5% đồ/gear tại quầy • 5 mã mời bạn (mỗi mã = 1 thành viên mới, 1 lượt thưởng)",
+  year_pass:
+    "Leo không giới hạn 365 ngày • Giảm 10% đồ/gear tại quầy • 15 mã mời bạn (mỗi mã = 1 thành viên mới, 1 lượt thưởng)",
+  visit_5: "5 lượt trả trước — dùng bất kỳ lúc nào khi tài khoản còn hiệu lực",
+  visit_10: "10 lượt trả trước — dùng bất kỳ lúc nào khi tài khoản còn hiệu lực",
+  visit_20: "20 lượt trả trước — dùng bất kỳ lúc nào khi tài khoản còn hiệu lực",
+};
+
+const PLAN_BENEFITS_FALLBACK_EN: Record<string, string> = {
+  newbie_class: "30 minute coaching + 1 day access • Free rental shoes + chalk for your class",
+  day_pass: "Full gym access for one calendar day",
+  month_pass: "Unlimited climbing for 30 days",
+  half_year_pass:
+    "Unlimited climbing for 180 days • 5% off merchandise & gear • 5 friend visit codes (each code = one new member, one bonus visit)",
+  year_pass:
+    "Unlimited climbing for 365 days • 10% off merchandise & gear • 15 friend visit codes (each code = one new member, one bonus visit)",
+  visit_5: "5 prepaid visits — use anytime while your account is active",
+  visit_10: "10 prepaid visits — use anytime while your account is active",
+  visit_20: "20 prepaid visits — use anytime while your account is active",
+};
+
+function getPlanDescription(plan: Plan, isVi: boolean): string {
+  const raw = plan.description?.trim();
+  if (raw) return raw;
+  return isVi ? PLAN_BENEFITS_FALLBACK_VI[plan.id] ?? "" : PLAN_BENEFITS_FALLBACK_EN[plan.id] ?? "";
+}
+
+function PlanCard({ plan, benefitsLabel, isVi, description }: { plan: Plan; benefitsLabel: string; isVi: boolean; description: string }) {
   const s = styleForPlan(plan.id);
   const badge = planBadgeText(plan.id, isVi);
-  const lines = plan.description
-    ? plan.description
+  const lines = description
+    ? description
         .split(/[•\n]/)
         .map((x) => x.trim())
         .filter(Boolean)
@@ -219,7 +251,13 @@ export default function PricingSheet({ open, onClose }: PricingSheetProps) {
             <p className="py-8 text-center text-sm text-white/45">{m.comingSoon}</p>
           )}
           {activeList.map((p) => (
-            <PlanCard key={p.id} plan={p} benefitsLabel={m.benefits} isVi={locale === "vi"} />
+            <PlanCard
+              key={p.id}
+              plan={p}
+              benefitsLabel={m.benefits}
+              isVi={locale === "vi"}
+              description={getPlanDescription(p, locale === "vi")}
+            />
           ))}
         </div>
 

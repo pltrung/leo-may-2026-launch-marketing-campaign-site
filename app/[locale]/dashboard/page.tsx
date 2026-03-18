@@ -1018,6 +1018,9 @@ export default function DashboardPage() {
     ? "Inactive"
     : "Active";
 
+  const showPayRenew =
+    (daysRemaining != null && daysRemaining < 5) || visitsRemaining === 1;
+
   const graduateSale = member.newbie_graduate_sale;
   const saleEndsMs = graduateSale?.ends_at ? new Date(graduateSale.ends_at).getTime() : 0;
   const graduateSaleLive = !!(graduateSale && saleEndsMs > Date.now());
@@ -1566,7 +1569,7 @@ export default function DashboardPage() {
                     <span className="font-semibold text-emerald-300">{member.merchandise_discount_effective}%</span>
                   </div>
                 )}
-                {friendInviteCodes.length > 0 && (
+                {friendInviteCodes.filter((gc) => !gc.used).length > 0 && (
                   <div className="mt-3 pt-3 border-t border-white/[0.08]">
                     <p className="text-[13px] font-medium text-white/80 mb-1">
                       {isVi ? "Mã mời bạn mới (LMG-…)" : "New-guest codes (LMG-…)"}
@@ -1577,27 +1580,19 @@ export default function DashboardPage() {
                         : "Share with new members (under 30 days from signup, no visit check-in yet). Swipe sideways to see more codes."}
                     </p>
                     <div
-                      className="flex gap-3 overflow-x-auto overflow-y-hidden pb-2 pt-1 scroll-smooth snap-x snap-mandatory touch-pan-x -mx-1 px-1"
-                      style={{ scrollbarWidth: "thin", WebkitOverflowScrolling: "touch" }}
+                      className="flex gap-3 overflow-x-auto overflow-y-hidden pb-2 pt-1 scroll-smooth snap-x snap-mandatory touch-pan-x -mx-1 px-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                      style={{ WebkitOverflowScrolling: "touch" }}
                       data-carousel="friend-codes"
                     >
-                      {friendInviteCodes.map((gc) => {
-                        const statusLabel = gc.used
+                      {friendInviteCodes.filter((gc) => !gc.used).map((gc) => {
+                        const statusLabel = gc.expired
                           ? isVi
-                            ? "Đã dùng"
-                            : "Used"
-                          : gc.expired
-                            ? isVi
-                              ? "Hết hạn"
-                              : "Expired"
-                            : isVi
-                              ? "Dùng được"
-                              : "Active";
-                        const statusClass = gc.used
-                          ? "text-amber-300/95"
-                          : gc.expired
-                            ? "text-white/45"
-                            : "text-emerald-300/95";
+                            ? "Hết hạn"
+                            : "Expired"
+                          : isVi
+                            ? "Dùng được"
+                            : "Active";
+                        const statusClass = gc.expired ? "text-white/45" : "text-emerald-300/95";
                         return (
                           <div
                             key={gc.code}
@@ -1643,14 +1638,6 @@ export default function DashboardPage() {
                         );
                       })}
                     </div>
-                    {friendInviteCodes.length > 1 && (
-                      <p className="text-[10px] text-center text-white/35 mt-1">
-                        {isVi
-                          ? `← ${friendInviteCodes.length} mã — vuốt →`
-                          : `← ${friendInviteCodes.length} codes — swipe →`}
-                      </p>
-                    )}
-                    <style>{`[data-carousel="friend-codes"]::-webkit-scrollbar { height: 4px; } [data-carousel="friend-codes"]::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }`}</style>
                   </div>
                 )}
               </div>
@@ -1666,6 +1653,7 @@ export default function DashboardPage() {
                 </p>
               </div>
 
+              {showPayRenew && (
               <div className="mt-6 pt-4 border-t border-white/[0.08]">
                 <div className="flex items-center justify-between mb-4 gap-2">
                   <div className="flex items-center gap-2 min-w-0">
@@ -1789,7 +1777,7 @@ export default function DashboardPage() {
                         ...purchases.map((tx) => ({ type: "retail" as const, id: tx.id, date: tx.created_at, amount: tx.total, label: isVi ? "Mua hàng" : "Retail", items: tx.items })),
                       ]
                         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                        .slice(0, 8)
+                        .slice(0, 3)
                         .map((entry) => (
                           <li key={`${entry.type}-${entry.id}`} className="flex flex-col gap-0.5">
                             <div className="flex justify-between items-center text-sm">
@@ -1817,6 +1805,7 @@ export default function DashboardPage() {
                   </div>
                 )}
               </div>
+              )}
             </div>
           </section>
           )}

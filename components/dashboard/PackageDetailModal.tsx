@@ -12,8 +12,8 @@ export interface Plan {
   pass_type?: "newbie" | "day" | "visit";
 }
 
-/** When DB description is empty, show these (EN) so benefits always appear in the modal. */
-const PLAN_BENEFITS_FALLBACK: Record<string, string> = {
+/** When DB description is empty, show these so benefits always appear. */
+const PLAN_BENEFITS_FALLBACK_EN: Record<string, string> = {
   newbie_class:
     "30 minute coaching + 1 day access • Free rental shoes + chalk for your class",
   day_pass: "Full gym access for one calendar day",
@@ -25,6 +25,20 @@ const PLAN_BENEFITS_FALLBACK: Record<string, string> = {
   visit_5: "5 prepaid visits — use anytime while your account is active",
   visit_10: "10 prepaid visits — use anytime while your account is active",
   visit_20: "20 prepaid visits — use anytime while your account is active",
+};
+
+const PLAN_BENEFITS_FALLBACK_VI: Record<string, string> = {
+  newbie_class:
+    "30 phút coaching + 1 ngày vào phòng • Giày thuê + phấn miễn phí trong buổi",
+  day_pass: "Vào phòng gym trọn 1 ngày (theo lịch)",
+  month_pass: "Leo không giới hạn trong 30 ngày",
+  half_year_pass:
+    "Leo không giới hạn 180 ngày • Giảm 5% đồ/gear tại quầy • 5 mã mời bạn (mỗi mã = 1 thành viên mới, 1 lượt thưởng)",
+  year_pass:
+    "Leo không giới hạn 365 ngày • Giảm 10% đồ/gear tại quầy • 15 mã mời bạn (mỗi mã = 1 thành viên mới, 1 lượt thưởng)",
+  visit_5: "5 lượt trả trước — dùng bất kỳ lúc nào khi tài khoản còn hiệu lực",
+  visit_10: "10 lượt trả trước — dùng bất kỳ lúc nào khi tài khoản còn hiệu lực",
+  visit_20: "20 lượt trả trước — dùng bất kỳ lúc nào khi tài khoản còn hiệu lực",
 };
 
 interface PackageDetailModalProps {
@@ -66,7 +80,7 @@ export default function PackageDetailModal({
   };
   const descSource =
     plan.description?.trim() ||
-    PLAN_BENEFITS_FALLBACK[plan.id] ||
+    (isVi ? PLAN_BENEFITS_FALLBACK_VI[plan.id] : PLAN_BENEFITS_FALLBACK_EN[plan.id]) ||
     "";
   const bullets = descSource ? formatDescription(descSource) : [];
 
