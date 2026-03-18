@@ -8,7 +8,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export type AuditActionType =
   | "member_checkin"
   | "membership_extend"
-  | "membership_freeze"
   | "membership_cancel"
   | "membership_upgrade"
   | "inventory_stock_in"

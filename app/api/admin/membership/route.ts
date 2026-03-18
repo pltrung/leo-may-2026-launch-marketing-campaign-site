@@ -3,10 +3,10 @@ import { createServerClient } from "@/lib/supabaseServer";
 import { getUnifiedAdminOrStaffFromRequest, canDoMembershipModify } from "@/lib/unifiedAdminAuth";
 import { insertAdminAuditLog, getStaffIdFromAuthId } from "@/lib/auditLog";
 
-type MembershipAction = "extend" | "freeze" | "cancel" | "upgrade";
+type MembershipAction = "extend" | "cancel" | "upgrade";
 
 /**
- * POST - Membership actions (extend, freeze, cancel, upgrade).
+ * POST - Membership actions (extend, cancel, upgrade).
  * Allowed: admin, frontdesk (not staff).
  */
 export async function POST(req: NextRequest) {
@@ -17,10 +17,16 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const memberId = typeof body.member_id === "string" ? body.member_id.trim() : "";
-    const action = body.action as MembershipAction | undefined;
 
-    if (!memberId || !action) {
+    if (!memberId || !body.action) {
       return NextResponse.json({ error: "member_id and action are required" }, { status: 400 });
+    }
+    const action = body.action as MembershipAction;
+    if (action !== "extend" && action !== "cancel" && action !== "upgrade") {
+      return NextResponse.json(
+        { error: "Invalid action. Use extend, cancel, or upgrade." },
+        { status: 400 }
+      );
     }
 
     const { data: current, error: currentErr } = await supabase
@@ -49,8 +55,6 @@ export async function POST(req: NextRequest) {
       extended.setMonth(extended.getMonth() + 1); // extend by 1 month
       nextExpires = extended.toISOString();
       nextStatus = "active";
-    } else if (action === "freeze") {
-      nextStatus = "frozen";
     } else if (action === "cancel") {
       nextStatus = "cancelled";
       nextExpires = null; // Clear expiry so all active membership is gone
@@ -85,16 +89,16 @@ export async function POST(req: NextRequest) {
     await insertAdminAuditLog(supabase, {
       adminAuthId: unified.user.id,
       staffId: auditStaffId,
-      actionType: action === "extend" ? "membership_extend" : action === "freeze" ? "membership_freeze" : action === "cancel" ? "membership_cancel" : "membership_upgrade",
+      actionType:
+        action === "extend"
+          ? "membership_extend"
+          : action === "cancel"
+            ? "membership_cancel"
+            : "membership_upgrade",
       entityId: memberId,
     });
 
-    const statusLabel =
-      updated.membership_status === "frozen"
-        ? "Frozen"
-        : updated.membership_status === "cancelled"
-        ? "Cancelled"
-        : "Active";
+    const statusLabel = updated.membership_status === "cancelled" ? "Cancelled" : "Active";
 
     let validUntil = "March 2026";
     if (updated.membership_expires_at) {

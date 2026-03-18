@@ -75,7 +75,7 @@ State: `adminArea` ∈ { `front_desk`, `operations`, `management`, `staff`, `ana
 2. **Member profile** (when `foundMember`)
    - **Sub-tabs:** `memberProfileSubTab` ∈ { `summary`, `membership`, `sales`, `history` }.
    - **Summary:** Profile card (photo, name, membership, status, valid until, check-ins, visits, waiver).
-   - **Membership:** **Front desk / admin** (`canDoMembershipModify`): check-in actions, extend/freeze/cancel/upgrade, collect payment. **Staff** (`canCollectMembershipPayment` only): **Collect payment** for pass renewal (plans, VietQR, confirm) — no extend/freeze/cancel/check-in.
+   - **Membership:** **Front desk / admin** (`canDoMembershipModify`): check-in actions, extend/cancel/upgrade, collect payment. **Staff** (`canCollectMembershipPayment` only): **Collect payment** for pass renewal (plans, VietQR, confirm) — no extend/cancel/check-in.
    - **Sales:** POS cart; barcode lookup; checkout; payment confirm (VietQR/cash).
    - **History:** Purchase/payment history.
 

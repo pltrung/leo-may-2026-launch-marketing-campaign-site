@@ -52,7 +52,7 @@ interface AdminMember {
   email?: string | null;
   phone?: string | null;
   membershipType: MembershipType | string;
-  status: "Active" | "Inactive" | "Frozen" | "Cancelled";
+  status: "Active" | "Inactive" | "Cancelled";
   validUntil: string;
   checkinsThisMonth: number;
   totalVisits: number;
@@ -125,7 +125,7 @@ export default function AdminPage() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState<null | "checkin" | "manual" | "undo" | "extend" | "freeze" | "cancel" | "upgrade" | "payment" | "confirm">(null);
+  const [actionLoading, setActionLoading] = useState<null | "checkin" | "manual" | "undo" | "extend" | "cancel" | "upgrade" | "payment" | "confirm">(null);
   const [climbingFulfillMv, setClimbingFulfillMv] = useState<number | null>(null);
   const [plans, setPlans] = useState<{ id: string; name: string; duration_days: number; duration_visits?: number | null; price_vnd: number; pass_type?: "newbie" | "day" | "visit" }[]>([]);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -1171,28 +1171,6 @@ export default function AdminPage() {
       .finally(() => setActionLoading(null));
   }, [foundMember, m]);
 
-  const handleFreeze = useCallback(() => {
-    if (!foundMember) return;
-    if (!window.confirm(`${m.areYouSure}\n\n${m.confirmFreeze}`)) return;
-    setActionLoading("freeze");
-    setActionError(null);
-    setActionMessage(null);
-    adminFetch("/api/admin/membership", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ member_id: foundMember.id, action: "freeze" }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.member) throw new Error(data.error || "Failed");
-        updateStatus("Frozen", m.membershipFrozen);
-      })
-      .catch(() => {
-        setActionError(m.unableToFreeze);
-      })
-      .finally(() => setActionLoading(null));
-  }, [foundMember, updateStatus, m]);
-
   const handleCancel = useCallback(() => {
     if (!foundMember) return;
     if (!window.confirm(`${m.areYouSure}\n\n${m.confirmCancel}`)) return;
@@ -2102,8 +2080,8 @@ export default function AdminPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-lg font-semibold text-white truncate">{foundMember.name}</h2>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 ${foundMember.status === "Active" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/50" : foundMember.status === "Frozen" ? "bg-amber-500/20 text-amber-300 border border-amber-400/50" : "bg-rose-500/20 text-rose-300 border border-rose-400/50"}`}>
-                        {foundMember.status === "Active" ? m.statusActive : foundMember.status === "Inactive" ? m.statusInactive : foundMember.status === "Frozen" ? m.statusFrozen : m.statusCancelled}
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 ${foundMember.status === "Active" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/50" : foundMember.status === "Inactive" ? "bg-slate-500/20 text-slate-300 border border-slate-400/50" : "bg-rose-500/20 text-rose-300 border border-rose-400/50"}`}>
+                        {foundMember.status === "Active" ? m.statusActive : foundMember.status === "Inactive" ? m.statusInactive : m.statusCancelled}
                       </span>
                       {foundMember.checked_in_today && (
                         <span className="px-2.5 py-1 rounded-full text-xs font-medium shrink-0 bg-teal-500/25 text-teal-200 border border-teal-400/50" title={locale === "vi" ? "Đã check-in hôm nay" : "Checked in today"}>
@@ -2380,14 +2358,6 @@ export default function AdminPage() {
                       className="px-4 py-2 rounded-full text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-60"
                     >
                       {actionLoading === "extend" ? "Extending..." : "Extend (no payment)"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleFreeze}
-                      disabled={actionLoading === "freeze"}
-                      className="px-4 py-2 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 disabled:opacity-60"
-                    >
-                      {actionLoading === "freeze" ? m.freezing : m.freezeMembership}
                     </button>
                     <button
                       type="button"
@@ -3058,8 +3028,8 @@ export default function AdminPage() {
                             </td>
                             <td className="py-1.5 px-2 text-slate-200">
                               {locale === "vi"
-                                ? (e.action_type === "member_checkin" ? "Check-in thành viên" : e.action_type === "staff_checkin" ? "Check-in nhân sự" : e.action_type === "membership_extend" ? "Gia hạn" : e.action_type === "membership_freeze" ? "Tạm ngưng" : e.action_type === "membership_cancel" ? "Hủy gói" : e.action_type === "membership_upgrade" ? "Nâng cấp" : e.action_type === "inventory_stock_in" ? "Nhập kho" : e.action_type === "inventory_stock_out" ? "Xuất kho" : e.action_type === "route_reset_complete" ? "Reset tường" : e.action_type === "staff_task_complete" ? "Hoàn thành task" : e.action_type)
-                                : (e.action_type === "member_checkin" ? "Member check-in" : e.action_type === "staff_checkin" ? "Staff check-in" : e.action_type === "membership_extend" ? "Extend membership" : e.action_type === "membership_freeze" ? "Freeze" : e.action_type === "membership_cancel" ? "Cancel membership" : e.action_type === "membership_upgrade" ? "Upgrade" : e.action_type === "inventory_stock_in" ? "Stock in" : e.action_type === "inventory_stock_out" ? "Stock out" : e.action_type === "route_reset_complete" ? "Route reset" : e.action_type === "staff_task_complete" ? "Task complete" : e.action_type)}
+                                ? (e.action_type === "member_checkin" ? "Check-in thành viên" : e.action_type === "staff_checkin" ? "Check-in nhân sự" : e.action_type === "membership_extend" ? "Gia hạn" : e.action_type === "membership_cancel" ? "Hủy gói" : e.action_type === "membership_upgrade" ? "Nâng cấp" : e.action_type === "inventory_stock_in" ? "Nhập kho" : e.action_type === "inventory_stock_out" ? "Xuất kho" : e.action_type === "route_reset_complete" ? "Reset tường" : e.action_type === "staff_task_complete" ? "Hoàn thành task" : e.action_type)
+                                : (e.action_type === "member_checkin" ? "Member check-in" : e.action_type === "staff_checkin" ? "Staff check-in" : e.action_type === "membership_extend" ? "Extend membership" : e.action_type === "membership_cancel" ? "Cancel membership" : e.action_type === "membership_upgrade" ? "Upgrade" : e.action_type === "inventory_stock_in" ? "Stock in" : e.action_type === "inventory_stock_out" ? "Stock out" : e.action_type === "route_reset_complete" ? "Route reset" : e.action_type === "staff_task_complete" ? "Task complete" : e.action_type)}
                               {e.entity_id ? ` (${e.entity_id})` : ""}
                             </td>
                           </tr>

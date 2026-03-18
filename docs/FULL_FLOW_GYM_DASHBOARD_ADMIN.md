@@ -175,7 +175,7 @@ When **logged in**, the **header** shows “Dashboard” and “Logout” instea
 - **Waiver card:** If `!member.waiver_signed`, show “Safety Waiver” card with button “Open Waiver” → **WaiverModal** (inline waiver sign; on success `refresh()`).
 - **CHECK IN block:** Shown when `canShowQR` (waiver signed, canCheckIn, profile_photo_url). QR value: `origin/api/checkin?member_id=<id>` or `leo-member:<id>`. Tap → fullscreen QR modal (wake lock while open). Last check-in time shown.
 - **Gym status:** Fetches **GET `/api/admin/occupancy`** (no auth). That route requires admin; so for a normal member the request returns 401 and occupancy is not set (shows “Loading gym status…” or similar).
-- **Membership card:** Tier, status, valid until, member ID, visits/days remaining, progress bar. Freeze/Unfreeze → **POST `/api/member/membership`** with `action: "freeze"` or `"unfreeze"` (Bearer). Pay / Renew: list of plans from **GET `/api/plans`** (public). Filter: All / Day / Visit. Tap plan → **PackageDetailModal**; “Buy” → **GET `/api/member/vietqr?plan_id=...`** (Bearer) → **PaymentModal** (VietQR image or VNPay button). VNPay: **GET `/api/member/vnpay?plan_id=...&return_url=...`** (Bearer) → redirect to VNPay; return URL is `/${locale}/dashboard` with vnp_ params. Payment history: **GET `/api/member/payments`** (Bearer). Realtime: subscribe to **payments** and **gym_checkins** for this member; on INSERT → set payment/check-in success banner and `refresh()`.
+- **Membership card:** Tier, status, valid until, member ID, visits/days remaining, progress bar. Pay / Renew: list of plans from **GET `/api/plans`** (public). Filter: All / Day / Visit. Tap plan → **PackageDetailModal**; “Buy” → **GET `/api/member/vietqr?plan_id=...`** (Bearer) → **PaymentModal** (VietQR image or VNPay button). VNPay: **GET `/api/member/vnpay?plan_id=...&return_url=...`** (Bearer) → redirect to VNPay; return URL is `/${locale}/dashboard` with vnp_ params. Payment history: **GET `/api/member/payments`** (Bearer). Realtime: subscribe to **payments** and **gym_checkins** for this member; on INSERT → set payment/check-in success banner and `refresh()`.
 - **Climbing activity:** Visits this month, “monthly streak”, reward progress (e.g. sessions/8).
 - **Upcoming events:** Static list `DASHBOARD_EVENTS`; tap → **EventDetailModal** (RSVP via **POST `/api/member/event-rsvp`** if needed).
 - **Community leaderboard:** **GET `/api/member/leaderboard?gender=...`** (Bearer). Filter: All / Male / Female. Shows top list and current user rank.
@@ -192,7 +192,6 @@ When **logged in**, the **header** shows “Dashboard” and “Logout” instea
 | `/api/member/payments` | GET | Bearer | Payment history |
 | `/api/member/vietqr` | GET | Bearer | VietQR URL for plan purchase |
 | `/api/member/vnpay` | GET | Bearer | VNPay redirect URL |
-| `/api/member/membership` | POST | Bearer | Freeze / unfreeze |
 | `/api/member/profile` | PATCH | Bearer | Update profile (and photo) |
 | `/api/member/leaderboard` | GET | Bearer | Leaderboard + current user |
 | `/api/member/event-rsvp` | POST | Bearer | Event RSVP (if used) |
@@ -244,7 +243,7 @@ When **logged in**, the **header** shows “Dashboard” and “Logout” instea
   - **Scan QR:** Opens **QrScannerModal**; on scan, parse payload (leo-member:id or URL with member_id), then **POST /api/checkin** (or GET) to record check-in, then **loadMemberById** to show member.
 - **Member profile (when found):** Photo, name, email/phone, Member ID, membership type, valid until, gender, Instagram, govt ID, DOB, waiver signed (with “View waiver” → waiver modal). Activity: check-ins this month, total visits, visits remaining. Recent check-ins list. Recent payments (polled **GET `/api/admin/payments?member_id=...`** every 4s; on count increase → “Payment received”, reload member).
 - **Check-in actions:** “Check In”, “Manual Check-In”, “Undo Check-In” (local state only; no API). Check In / Manual → **POST /api/checkin** with member_id and location.
-- **Membership controls:** “Collect Payment” → opens payment modal (plan select, VietQR or Cash; **GET `/api/admin/vietqr?plan_id=...&member_id=...`**, then “Confirm Payment” → **POST `/api/admin/payments/confirm`**). “Extend (no payment)”, “Freeze”, “Cancel”, “Upgrade” → **POST `/api/admin/membership`** with `member_id` and `action`.
+- **Membership controls:** “Collect Payment” → opens payment modal (plan select, VietQR or Cash; **GET `/api/admin/vietqr?plan_id=...&member_id=...`**, then “Confirm Payment” → **POST `/api/admin/payments/confirm`**). “Extend (no payment)”, “Cancel”, “Upgrade” → **POST `/api/admin/membership`** with `member_id` and `action`.
 - **Admin tools:** Add New Member (scroll to form; form is demo-only, no API in code). Generate Day Pass (opens payment modal with day_pass). Recent Check-ins → modal with **GET `/api/admin/checkins?days=7`**. View Gym Occupancy → modal (same count as header). View Leaderboard → `window.open('/en/countdown')`. Revenue → modal **GET `/api/admin/revenue?period=day|week|month`**.
 - **New member form:** Name, email, phone, membership type; submit shows “New member created (demo only)” and clears form (no backend in current code).
 - **Modals:** Occupancy, Check-ins (7 days), Revenue (with period tabs), Waiver view (signed waiver text + signature), Collect Payment (plan, method, VietQR or cash, confirm), VietQR fullscreen, **QrScannerModal** (camera scan → member_id → check-in + load member).
@@ -261,7 +260,7 @@ All require **Authorization: Bearer <admin_access_token>** and **getAdminFromReq
 | `/api/admin/payments` | GET | Payments for a member_id (polling) |
 | `/api/admin/payments/confirm` | POST | Confirm payment (member_id, plan_id, method) → insert payments, update member_profiles |
 | `/api/admin/vietqr` | GET | VietQR URL for plan + member_id |
-| `/api/admin/membership` | POST | extend / freeze / cancel / upgrade |
+| `/api/admin/membership` | POST | extend / cancel / upgrade |
 | `/api/admin/checkins` | GET | Check-ins last 7 days (for modal) |
 | `/api/admin/occupancy` | GET | Distinct members checked in last 2 hours |
 | `/api/admin/revenue` | GET | Revenue by period (day/week/month) |
@@ -430,7 +429,7 @@ This section describes how gym staff use the system during daily operations.
 ### 13.4 Managing members
 
 - **Lookup:** By member ID, display code (e.g. LM-XXXX), or name search. Name search returns a list; staff select the correct member to view full profile, activity, waiver, and payments.
-- **Membership controls:** From the member panel, staff can **Extend** (add one month without payment), **Freeze**, **Cancel**, or **Upgrade** membership via **POST /api/admin/membership**. These actions update `member_profiles` (status, expiry, tier).
+- **Membership controls:** From the member panel, staff can **Extend** (add one month without payment), **Cancel**, or **Upgrade** membership via **POST /api/admin/membership**. These actions update `member_profiles` (status, expiry, tier). Freezing membership is no longer supported.
 - **View waiver:** If the member has signed the waiver, staff can open “View waiver” to see the signed text and signature from `member_waivers`.
 - **Add new member:** The “Add New Member” form in admin is currently demo-only (no backend persistence). Production would require a dedicated flow (e.g. invite link or staff-created account).
 
@@ -488,7 +487,7 @@ This section describes how gym staff use the system during daily operations.
 
 ### 15.2 Member APIs
 
-- **Protection:** Member routes (e.g. `/api/member/me`, `/api/member/waiver`, `/api/member/onboard`, `/api/member/profile`, `/api/member/payments`, `/api/member/vietqr`, `/api/member/vnpay`, `/api/member/leaderboard`, `/api/member/membership`) expect **Authorization: Bearer <access_token>** (Supabase JWT).
+- **Protection:** Member routes (e.g. `/api/member/me`, `/api/member/waiver`, `/api/member/onboard`, `/api/member/profile`, `/api/member/payments`, `/api/member/vietqr`, `/api/member/vnpay`, `/api/member/leaderboard`) expect **Authorization: Bearer <access_token>** (Supabase JWT).
 - **Mechanism:** The server validates the token with Supabase (e.g. `getUser`) and, where applicable, ensures the operation is scoped to the authenticated user (e.g. member profile by `auth_id`, payments by member_id derived from auth).
 - **Result:** Invalid or expired token → 401. Valid token grants access only to that user’s data (or to create/update their own profile, waiver, etc.).
 
@@ -519,7 +518,7 @@ The following business metrics are supported by the current APIs and database. Q
 ### 16.2 Active members
 
 - **Definition:** Members with a current valid membership (e.g. active day pass with future expiry or visit pass with visits remaining).
-- **Source:** Table **member_profiles**. `membership_status = 'active'` and (`membership_expires_at > now()` OR `visits_remaining > 0`). Frozen or cancelled members can be excluded by filtering on `membership_status`.
+- **Source:** Table **member_profiles**. `membership_status = 'active'` and (`membership_expires_at > now()` OR `visits_remaining > 0`). Cancelled members are excluded via `membership_status`.
 - **Query concept:** `SELECT COUNT(*) FROM member_profiles WHERE membership_status = 'active' AND (membership_expires_at > now() OR visits_remaining > 0)` (adjust for timezone and exact schema). No dedicated admin API exists for this count; it can be added or run as a SQL report.
 
 ### 16.3 Revenue

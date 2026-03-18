@@ -175,9 +175,7 @@ export async function GET(req: NextRequest) {
     const hasValidMembership = hasValidDayPass || hasValidVisitPass;
 
     const status =
-      statusRaw === "frozen"
-        ? ("Frozen" as const)
-        : statusRaw === "cancelled"
+      statusRaw === "cancelled"
         ? ("Cancelled" as const)
         : hasValidMembership
         ? ("Active" as const)

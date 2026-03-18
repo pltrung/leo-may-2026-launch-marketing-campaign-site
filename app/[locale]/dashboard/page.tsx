@@ -207,7 +207,6 @@ export default function DashboardPage() {
   const [renewNewExpiry, setRenewNewExpiry] = useState<string | null>(null);
   const [renewVisitsAdded, setRenewVisitsAdded] = useState<number | null>(null);
   const [renewError, setRenewError] = useState<string | null>(null);
-  const [freezeLoading, setFreezeLoading] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   /** null = hidden; first = first check-in today; repeat = already had check-in today (matches admin "welcome back") */
   const [checkInToast, setCheckInToast] = useState<null | "first" | "repeat">(null);
@@ -673,22 +672,6 @@ export default function DashboardPage() {
     };
   }, [member?.id, accessToken, refresh]);
 
-  const handleFreeze = useCallback(async () => {
-    if (!accessToken) return;
-    setFreezeLoading(true);
-    try {
-      const res = await fetch("/api/member/membership", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ action: "freeze" }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      if (typeof window !== "undefined") window.location.reload();
-    } catch {
-      setFreezeLoading(false);
-    }
-  }, [accessToken]);
-
   const handleBuyPass = useCallback(
     (plan: Plan) => {
       if (!accessToken) return;
@@ -749,22 +732,6 @@ export default function DashboardPage() {
     }
     setVnpayLoading(false);
   }, [accessToken, renewPlanId, locale]);
-
-  const handleUnfreeze = useCallback(async () => {
-    if (!accessToken) return;
-    setFreezeLoading(true);
-    try {
-      const res = await fetch("/api/member/membership", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ action: "unfreeze" }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      if (typeof window !== "undefined") window.location.reload();
-    } catch {
-      setFreezeLoading(false);
-    }
-  }, [accessToken]);
 
   // Fullscreen QR: keep screen awake while open.
   useEffect(() => {
@@ -950,15 +917,11 @@ export default function DashboardPage() {
     (member.waiver_signed ? 1 : 0) + (canCheckIn ? 1 : 0) + (!!member.profile_photo_url ? 1 : 0);
 
   const statusLabel = isVi
-    ? rawStatus === "frozen"
-      ? "Tạm đóng băng"
-      : rawStatus === "cancelled"
+    ? rawStatus === "cancelled"
       ? "Đã hủy"
       : !canCheckIn
       ? "Chưa kích hoạt"
       : "Đang hoạt động"
-    : rawStatus === "frozen"
-    ? "Frozen"
     : rawStatus === "cancelled"
     ? "Cancelled"
     : !canCheckIn
@@ -1385,8 +1348,6 @@ export default function DashboardPage() {
                       color:
                         !canCheckIn
                           ? "rgba(255,255,255,0.6)"
-                          : rawStatus === "frozen"
-                          ? "#f59e0b"
                           : rawStatus === "cancelled"
                           ? "#ef4444"
                           : "#22c55e",
@@ -1438,30 +1399,6 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <span>{isVi ? "Tham gia từ" : "Member since"}</span>
                     <span className="text-white/90">{memberSince}</span>
-                  </div>
-                )}
-                {hasValidDayPass && (
-                  <div className="pt-2">
-                    <button
-                      type="button"
-                      onClick={handleFreeze}
-                      disabled={freezeLoading}
-                      className="text-amber-300/90 hover:text-amber-300 text-[11px] underline disabled:opacity-60"
-                    >
-                      {freezeLoading ? (isVi ? "Đang xử lý…" : "Processing…") : isVi ? "Tạm đóng băng thẻ" : "Freeze membership"}
-                    </button>
-                  </div>
-                )}
-                {rawStatus === "frozen" && (
-                  <div className="pt-2">
-                    <button
-                      type="button"
-                      onClick={handleUnfreeze}
-                      disabled={freezeLoading}
-                      className="text-emerald-300/90 hover:text-emerald-300 text-[11px] underline disabled:opacity-60"
-                    >
-                      {freezeLoading ? (isVi ? "Đang xử lý…" : "Processing…") : isVi ? "Mở thẻ trở lại" : "Unfreeze membership"}
-                    </button>
                   </div>
                 )}
                 <p className="text-[11px] text-white/65 font-mono break-all pt-1">
