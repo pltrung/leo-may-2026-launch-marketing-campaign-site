@@ -1215,6 +1215,7 @@ export default function AdminPage() {
 
     const handleCollectPayment = useCallback(() => {
     if (!foundMember) return;
+    setAdminPassFilter("all");
     setPaymentModalOpen(true);
     const defaultPlan = foundMember.has_active_visit_pass
       ? "visit_5"
@@ -4250,21 +4251,38 @@ export default function AdminPage() {
                 onChange={(e) => handlePaymentPlanChange(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-900"
               >
-                {plans
-                  .filter((p) => {
-                    const isDayPlan = p.pass_type === "day" || p.id === "newbie_class";
-                    const isVisitPlan = p.pass_type === "visit";
-                    if (foundMember?.has_active_visit_pass && isDayPlan) return false;
-                    if (foundMember?.has_active_day_pass && !foundMember?.has_active_visit_pass && isVisitPlan) return false;
-                    if (adminPassFilter === "day") return isDayPlan;
-                    if (adminPassFilter === "visit") return isVisitPlan;
+                {(() => {
+                  const isDay = (p: (typeof plans)[0]) => p.pass_type === "day" || p.id === "newbie_class";
+                  const isVisit = (p: (typeof plans)[0]) => p.pass_type === "visit";
+                  const withMemberRules = plans.filter((p) => {
+                    if (foundMember?.has_active_visit_pass && isDay(p)) return false;
+                    if (foundMember?.has_active_day_pass && !foundMember?.has_active_visit_pass && isVisit(p)) return false;
+                    if (adminPassFilter === "day") return isDay(p);
+                    if (adminPassFilter === "visit") return isVisit(p);
                     return true;
-                  })
-                  .map((p) => (
+                  });
+                  let opts =
+                    withMemberRules.length > 0
+                      ? withMemberRules
+                      : plans.filter((p) => {
+                          if (adminPassFilter === "day") return isDay(p);
+                          if (adminPassFilter === "visit") return isVisit(p);
+                          return true;
+                        });
+                  if (opts.length === 0 && plans.length > 0) opts = plans;
+                  if (opts.length === 0 && plans.length === 0) {
+                    return (
+                      <option value="">
+                        {locale === "vi" ? "Đang tải gói… (hoặc lỗi mạng)" : "Loading plans… (or session error)"}
+                      </option>
+                    );
+                  }
+                  return opts.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name} — {p.price_vnd > 0 ? `${p.price_vnd.toLocaleString("vi-VN")} VND` : "prorated"}
                     </option>
-                  ))}
+                  ));
+                })()}
               </select>
             </div>
             <div className="space-y-2">
