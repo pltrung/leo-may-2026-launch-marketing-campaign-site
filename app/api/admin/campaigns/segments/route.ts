@@ -8,6 +8,7 @@ import { createServerClient } from "@/lib/supabaseServer";
 import { CAMPAIGN_SEGMENTS } from "@/lib/campaignSegments";
 import { getSegmentRecipients } from "@/lib/campaignSegmentQueries";
 import type { CampaignSegmentId } from "@/lib/campaignSegments";
+import { MARKETING_AUDIENCES, getMarketingAudienceRecipients } from "@/lib/marketingAudienceQueries";
 
 export async function GET(req: NextRequest) {
   const unified = await getUnifiedAdminOrStaffFromRequest(req);
@@ -34,5 +35,19 @@ export async function GET(req: NextRequest) {
     })
   );
 
-  return NextResponse.json({ segments: segmentsWithCounts });
+  const marketingAudiences = await Promise.all(
+    MARKETING_AUDIENCES.map(async (a) => {
+      const recipients = await getMarketingAudienceRecipients(supabase, a.id);
+      return {
+        id: a.id,
+        nameEn: a.nameEn,
+        nameVi: a.nameVi,
+        descriptionEn: a.descriptionEn,
+        descriptionVi: a.descriptionVi,
+        count: recipients.length,
+      };
+    })
+  );
+
+  return NextResponse.json({ segments: segmentsWithCounts, marketingAudiences });
 }

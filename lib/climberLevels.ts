@@ -54,13 +54,28 @@ export function getLevelProgress(totalVisits: number): {
   };
 }
 
-/** Level-based rewards for display (upcoming reward at next threshold). */
+/** Level-based rewards at each visit threshold (aligned with milestone system). */
 export const LEVEL_REWARDS: Record<number, { reward: string; rewardVi: string }> = {
-  10: { reward: "Free chalk", rewardVi: "Phấn miễn phí" },
-  25: { reward: "Free day pass", rewardVi: "Vé ngày miễn phí" },
-  50: { reward: "Leo Mây shirt", rewardVi: "Áo Leo Mây" },
-  100: { reward: "Membership discount", rewardVi: "Giảm giá thẻ thành viên" },
-  250: { reward: "Legend reward", rewardVi: "Phần thưởng huyền thoại" },
+  10: {
+    reward: "1 guest pass code (friend gets 1 free visit)",
+    rewardVi: "1 mã vé khách (bạn bè được 1 lượt miễn phí)",
+  },
+  25: {
+    reward: "5 guest pass codes",
+    rewardVi: "5 mã vé khách",
+  },
+  50: {
+    reward: "Leo May cap — pick up at front desk",
+    rewardVi: "Mũ Leo Mây — nhận tại quầy lễ tân",
+  },
+  100: {
+    reward: "Leo May t-shirt — pick up at front desk",
+    rewardVi: "Áo Leo Mây — nhận tại quầy lễ tân",
+  },
+  250: {
+    reward: "Leo May climbing shoes — pick up at front desk",
+    rewardVi: "Giày leo Leo Mây — nhận tại quầy lễ tân",
+  },
 };
 
 export function getNextLevelReward(totalVisits: number): { atVisits: number; reward: string; rewardVi: string } | null {

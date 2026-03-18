@@ -245,6 +245,14 @@ export function getSubjectWithBrand(subject: string): string {
   return `${withBrand} · Code inside`;
 }
 
+/** Marketing blasts: Leo Mây prefix only (no promo-code suffix). */
+export function getMarketingSubject(subject: string): string {
+  const trimmed = subject?.trim() || "";
+  if (!trimmed) return "Leo Mây";
+  if (trimmed.toLowerCase().startsWith("leo mây") || trimmed.toLowerCase().startsWith("[leo mây]")) return trimmed;
+  return `Leo Mây — ${trimmed}`;
+}
+
 /** Replace [Name] with display name or full_name fallback */
 export function renderBody(body: string, name: string): string {
   const displayName = name?.trim() || "there";
@@ -274,14 +282,19 @@ export function getCampaignLogoUrl(): string {
  */
 export function bodyToHtml(
   body: string,
-  options?: { promoCode?: string; locale?: "en" | "vi"; subject?: string }
+  options?: { promoCode?: string; locale?: "en" | "vi"; subject?: string; marketing?: boolean }
 ): string {
   const baseUrl = getCampaignBaseUrl();
   const logoUrl = getCampaignLogoUrl();
   const gymPath = options?.locale === "vi" ? "/vi/gym#intro" : "/en/gym#intro";
   const loginUrl = `${baseUrl}${gymPath}`;
-  const ctaEn = `Go to <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${baseUrl}${gymPath.replace(/#intro$/, "")}</a>, sign in with your email, and redeem your code in the dashboard to earn your benefits and visit the gym.`;
-  const ctaVi = `Truy cập <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${baseUrl}${gymPath.replace(/#intro$/, "")}</a>, đăng nhập bằng email của bạn và nhập mã trong dashboard để nhận ưu đãi và tới phòng tập.`;
+  const displayUrl = `${baseUrl}${gymPath.replace(/#intro$/, "")}`;
+  const ctaEn = options?.marketing
+    ? `Visit us at <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${displayUrl}</a> — sign in with your email to manage your membership, check in, and see what&apos;s new at Leo Mây.`
+    : `Go to <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${displayUrl}</a>, sign in with your email, and redeem your code in the dashboard to earn your benefits and visit the gym.`;
+  const ctaVi = options?.marketing
+    ? `Ghé <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${displayUrl}</a> — đăng nhập bằng email để quản lý thành viên, check-in và xem tin mới tại Leo Mây.`
+    : `Truy cập <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${displayUrl}</a>, đăng nhập bằng email của bạn và nhập mã trong dashboard để nhận ưu đãi và tới phòng tập.`;
   const cta = options?.locale === "vi" ? ctaVi : ctaEn;
   const codeBlock =
     options?.promoCode && options.promoCode.trim()

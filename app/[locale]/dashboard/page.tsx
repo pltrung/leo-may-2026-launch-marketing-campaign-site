@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -17,6 +17,7 @@ import EventDetailModal, { type DashboardEvent } from "@/components/dashboard/Ev
 import WaiverModal from "@/components/dashboard/WaiverModal";
 import AchievementUnlockModal, { type AchievementUnlockData } from "@/components/dashboard/AchievementUnlockModal";
 import { GuidedTour, TOUR_STEPS_DASHBOARD, TOUR_STEPS_ONBOARDING } from "@/components/admin/GuidedTour";
+import { getMessages } from "@/lib/messages";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -223,6 +224,8 @@ export default function DashboardPage() {
     current_streak: number; best_streak: number;
     recent_achievements: { code: string; name: string; name_vi: string | null; description?: string | null; icon: string; reward: string | null; reward_vi: string | null }[];
     upcoming_rewards: { type: string; at_visits?: number; name: string; name_vi: string | null; reward: string | null; reward_vi: string | null }[];
+    milestone_guest_codes?: { code: string; milestone_visits: number; redeemed: boolean }[];
+    milestone_merch?: { milestone_visits: number; item: string; fulfilled: boolean; fulfilled_at: string | null }[];
   } | null>(null);
   const [achievementUnlock, setAchievementUnlock] = useState<AchievementUnlockData | null>(null);
   const [showAchievementUnlock, setShowAchievementUnlock] = useState(false);
@@ -232,6 +235,10 @@ export default function DashboardPage() {
   const [campaignCode, setCampaignCode] = useState("");
   const [campaignRedeemLoading, setCampaignRedeemLoading] = useState(false);
   const [campaignRedeemMessage, setCampaignRedeemMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [milestoneRedeemCode, setMilestoneRedeemCode] = useState("");
+  const [milestoneRedeemLoading, setMilestoneRedeemLoading] = useState(false);
+  const [milestoneRedeemMsg, setMilestoneRedeemMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [milestoneCopiedCode, setMilestoneCopiedCode] = useState<string | null>(null);
   const [newbieClass, setNewbieClass] = useState<{
     session_id: string;
     start_time: string;
@@ -241,7 +248,9 @@ export default function DashboardPage() {
     minutes_until: number;
   } | null>(null);
   const [tick, setTick] = useState(0);
-  const lastCheckinRef = useRef<string | null>(null);
+  /** Latest check-in ts we treat as "already known" — only show success when API reports newer (avoids banner on login if already checked in today). */
+  const checkInBaselineTsRef = useRef<number>(0);
+  const ignoreCheckinRealtimeUntilRef = useRef<number>(0);
 
   // Live countdown tick for newbie class (updates every second)
   useEffect(() => {
@@ -311,6 +320,41 @@ export default function DashboardPage() {
       .catch(() => {});
     return () => { cancelled = true; };
   }, [accessToken, checkInSuccess, paymentSuccess]);
+
+  const handleMilestoneGuestRedeem = useCallback(async () => {
+    const code = milestoneRedeemCode.trim();
+    if (!accessToken || !code) return;
+    setMilestoneRedeemLoading(true);
+    setMilestoneRedeemMsg(null);
+    try {
+      const res = await fetch("/api/member/redeem-milestone-guest", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      setMilestoneRedeemMsg({
+        type: "ok",
+        text: locale === "vi" ? "Đã cộng 1 lượt vào tài khoản của bạn." : "1 visit added to your account.",
+      });
+      setMilestoneRedeemCode("");
+      refresh();
+      const pr = await fetch("/api/member/progress", { headers: { Authorization: `Bearer ${accessToken}` } });
+      const pd = await pr.json();
+      if (pd && typeof pd.level === "string") setClimbingProgress(pd);
+    } catch (e) {
+      setMilestoneRedeemMsg({ type: "err", text: (e as Error).message });
+    } finally {
+      setMilestoneRedeemLoading(false);
+    }
+  }, [accessToken, milestoneRedeemCode, refresh, locale]);
+
+  const copyMilestoneCode = useCallback((code: string) => {
+    void navigator.clipboard?.writeText(code);
+    setMilestoneCopiedCode(code);
+    window.setTimeout(() => setMilestoneCopiedCode((c) => (c === code ? null : c)), 2000);
+  }, []);
 
   // Fetch upcoming newbie class (when member has purchased Newbie Class)
   useEffect(() => {
@@ -425,7 +469,15 @@ export default function DashboardPage() {
           filter: `member_id=eq.${member.id}`,
         },
         () => {
+          if (Date.now() < ignoreCheckinRealtimeUntilRef.current) return;
           setCheckInSuccess(true);
+          fetch("/api/member/me", { headers: { Authorization: `Bearer ${accessToken}` } })
+            .then((r) => r.json())
+            .then((data) => {
+              const t = data?.member?.last_checkin ? new Date(data.member.last_checkin).getTime() : 0;
+              if (t) checkInBaselineTsRef.current = Math.max(checkInBaselineTsRef.current, t);
+            })
+            .catch(() => {});
           refresh();
           setTimeout(() => setCheckInSuccess(false), 20000);
           // Explicitly refetch climbing progress so it updates in real time
@@ -437,27 +489,39 @@ export default function DashboardPage() {
             .catch(() => {});
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          ignoreCheckinRealtimeUntilRef.current = Date.now() + 2000;
+        }
+      });
     return () => {
       supabase.removeChannel(channel);
     };
   }, [member?.id, accessToken, refresh]);
 
-  // Polling fallback: when Realtime doesn't deliver, detect new check-in by comparing last_checkin
+  // Sync baseline from loaded profile so login / refresh never counts as "new" check-in
+  useEffect(() => {
+    if (!member?.id) {
+      checkInBaselineTsRef.current = 0;
+      return;
+    }
+    const ts = member.last_checkin ? new Date(member.last_checkin).getTime() : 0;
+    checkInBaselineTsRef.current = Math.max(checkInBaselineTsRef.current, ts);
+  }, [member?.id, member?.last_checkin]);
+
+  // Polling fallback: only if last_checkin is strictly newer than baseline (real new check-in)
   useEffect(() => {
     if (!accessToken || !member?.id) return;
-    lastCheckinRef.current = member.last_checkin ?? null;
     const interval = setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       fetch("/api/member/me", { headers: { Authorization: `Bearer ${accessToken}` } })
         .then((r) => r.json())
         .then((data) => {
           const newLastCheckin = data?.member?.last_checkin ?? null;
-          const prev = lastCheckinRef.current;
           if (!newLastCheckin) return;
-          const prevTs = prev ? new Date(prev).getTime() : 0;
-          if (new Date(newLastCheckin).getTime() > prevTs) {
-            lastCheckinRef.current = newLastCheckin;
+          const newTs = new Date(newLastCheckin).getTime();
+          if (newTs > checkInBaselineTsRef.current) {
+            checkInBaselineTsRef.current = newTs;
             setCheckInSuccess(true);
             setTimeout(() => setCheckInSuccess(false), 20000);
             refresh();
@@ -467,14 +531,12 @@ export default function DashboardPage() {
                 if (d && typeof d.level === "string") setClimbingProgress(d);
               })
               .catch(() => {});
-          } else {
-            lastCheckinRef.current = newLastCheckin;
           }
         })
         .catch(() => {});
     }, 12000);
     return () => clearInterval(interval);
-  }, [accessToken, member?.id, member?.last_checkin, refresh]);
+  }, [accessToken, member?.id, refresh]);
 
   // Subscribe to member_achievements to show achievement unlock modal when a new one is earned (e.g. after check-in)
   useEffect(() => {
@@ -686,6 +748,8 @@ export default function DashboardPage() {
     // Client-side navigation keeps Supabase session in memory, stays on dashboard
     router.replace(`/${target}/dashboard`);
   };
+
+  const d = useMemo(() => getMessages(locale).dashboard, [locale]);
 
   const glassCard = "rgba(0,0,0,0.4)";
   const accentColor = "#7DD3FC";
@@ -1564,6 +1628,122 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   )}
+
+                  {((climbingProgress.milestone_guest_codes?.length ?? 0) > 0 ||
+                    (climbingProgress.milestone_merch?.length ?? 0) > 0) && (
+                    <div className="mt-6 pt-5 border-t border-white/10 space-y-5">
+                      {(climbingProgress.milestone_guest_codes?.length ?? 0) > 0 && (
+                        <div className="space-y-3">
+                          <p className="text-[14px] font-semibold text-white/85">{d.milestoneGuestPasses}</p>
+                          <p className="text-[12px] text-white/55 leading-relaxed">{d.milestoneGuestHowTo}</p>
+                          {([10, 25] as const).map((mv) => {
+                            const list = (climbingProgress.milestone_guest_codes ?? []).filter((c) => c.milestone_visits === mv);
+                            if (list.length === 0) return null;
+                            return (
+                              <div key={mv}>
+                                <p className="text-[11px] uppercase tracking-wide text-white/45 mb-2">
+                                  {mv === 10 ? d.milestoneAt10 : d.milestoneAt25}
+                                </p>
+                                <div className="flex flex-col gap-2">
+                                  {list.map((c) => (
+                                    <div
+                                      key={c.code}
+                                      className="flex flex-wrap items-center gap-2 rounded-[14px] px-3 py-2.5"
+                                      style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                                    >
+                                      <code className="text-[14px] text-sky-200 font-mono tracking-wide">{c.code}</code>
+                                      <button
+                                        type="button"
+                                        onClick={() => copyMilestoneCode(c.code)}
+                                        className="text-[11px] font-medium text-sky-300/90 hover:underline"
+                                      >
+                                        {milestoneCopiedCode === c.code ? d.milestoneCopied : d.milestoneCopy}
+                                      </button>
+                                      <span className={`text-[11px] ${c.redeemed ? "text-amber-400/90" : "text-emerald-400/90"}`}>
+                                        {c.redeemed ? (isVi ? "Đã dùng" : "Used") : isVi ? "Chưa dùng" : "Available"}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {(climbingProgress.milestone_merch?.length ?? 0) > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-[14px] font-semibold text-white/85">
+                            {isVi ? "Quà mốc leo" : "Milestone gifts"}
+                          </p>
+                          {(climbingProgress.milestone_merch ?? []).map((row) => {
+                            const label =
+                              row.item === "cap"
+                                ? d.milestoneMerchCap
+                                : row.item === "shirt"
+                                  ? d.milestoneMerchShirt
+                                  : d.milestoneMerchShoes;
+                            return (
+                              <div
+                                key={`${row.milestone_visits}-${row.item}`}
+                                className="rounded-[14px] px-3 py-3"
+                                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                              >
+                                <p className="text-[13px] font-medium text-white/90">
+                                  {label}{" "}
+                                  <span className="text-white/45 font-normal">
+                                    ({row.milestone_visits} {isVi ? "lượt" : "visits"})
+                                  </span>
+                                </p>
+                                {row.fulfilled && row.fulfilled_at ? (
+                                  <p className="text-[12px] text-emerald-300/90 mt-1">
+                                    {d.milestoneMerchDone}{" "}
+                                    {safeDateTime(row.fulfilled_at, isVi ? "vi-VN" : "en-US")}
+                                  </p>
+                                ) : (
+                                  <p className="text-[12px] text-amber-200/80 mt-1">{d.milestoneMerchPending}</p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="mt-6 pt-5 border-t border-white/10">
+                    <p className="text-[14px] font-semibold text-white/85 mb-2">{d.milestoneRedeemGuestPass}</p>
+                    <p className="text-[12px] text-white/50 mb-3">
+                      {isVi
+                        ? "Nếu bạn nhận được mã từ thành viên Leo Mây, nhập bên dưới để được cộng 1 lượt miễn phí."
+                        : "If a Leo May member shared a guest code with you, enter it below to add 1 free visit to your account."}
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        value={milestoneRedeemCode}
+                        onChange={(e) => setMilestoneRedeemCode(e.target.value)}
+                        placeholder={d.milestoneRedeemPlaceholder}
+                        className="flex-1 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/35 bg-white/10 border border-white/15 focus:outline-none focus:ring-1 focus:ring-sky-400/50"
+                        autoCapitalize="characters"
+                      />
+                      <button
+                        type="button"
+                        disabled={milestoneRedeemLoading || !milestoneRedeemCode.trim()}
+                        onClick={() => void handleMilestoneGuestRedeem()}
+                        className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-sky-500/90 text-white hover:bg-sky-400 disabled:opacity-50"
+                      >
+                        {milestoneRedeemLoading ? "…" : d.milestoneRedeem}
+                      </button>
+                    </div>
+                    {milestoneRedeemMsg && (
+                      <p
+                        className={`text-[13px] mt-2 ${milestoneRedeemMsg.type === "ok" ? "text-emerald-300" : "text-rose-300"}`}
+                      >
+                        {milestoneRedeemMsg.text}
+                      </p>
+                    )}
+                  </div>
                 </>
               )}
             </div>

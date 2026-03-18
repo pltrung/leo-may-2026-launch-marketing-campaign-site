@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { renderBody } from "@/lib/campaignSegments";
+import { MARKETING_AUDIENCES } from "@/lib/marketingAudienceQueries";
 import {
   LineChart,
   Line,
@@ -141,12 +142,24 @@ export default function AnalyticsCharts({
   const t = (en: string, vi: string) => (isVi ? vi : en);
 
   const [campaignSegments, setCampaignSegments] = useState<CampaignSegmentRow[]>([]);
+  const [marketingAudiences, setMarketingAudiences] = useState<
+    { id: string; nameEn: string; nameVi: string; descriptionEn: string; descriptionVi: string; count: number }[]
+  >([]);
   const [campaignSegmentsLoading, setCampaignSegmentsLoading] = useState(false);
   const [campaignModal, setCampaignModal] = useState<{
     segment: CampaignSegmentRow;
     subject: string;
     body: string;
   } | null>(null);
+  const [createCampaignOpen, setCreateCampaignOpen] = useState(false);
+  const [createAudienceId, setCreateAudienceId] = useState("marketing_all_members");
+  const [createSubject, setCreateSubject] = useState("");
+  const [createBody, setCreateBody] = useState("");
+  const [createShowPreview, setCreateShowPreview] = useState(false);
+  const [createTestSending, setCreateTestSending] = useState(false);
+  const [createTestMessage, setCreateTestMessage] = useState<string | null>(null);
+  const [createSending, setCreateSending] = useState(false);
+  const [createSuccess, setCreateSuccess] = useState<number | null>(null);
   const [campaignSending, setCampaignSending] = useState(false);
   const [campaignSuccess, setCampaignSuccess] = useState<number | null>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -165,8 +178,14 @@ export default function AnalyticsCharts({
     setCampaignSegmentsLoading(true);
     adminFetch("/api/admin/campaigns/segments")
       .then((r) => r.json())
-      .then((d) => setCampaignSegments(d.segments ?? []))
-      .catch(() => setCampaignSegments([]))
+      .then((d) => {
+        setCampaignSegments(d.segments ?? []);
+        setMarketingAudiences(d.marketingAudiences ?? []);
+      })
+      .catch(() => {
+        setCampaignSegments([]);
+        setMarketingAudiences([]);
+      })
       .finally(() => setCampaignSegmentsLoading(false));
     fetchCampaignLogs();
   }, [tab, adminFetch, fetchCampaignLogs]);
@@ -176,6 +195,88 @@ export default function AnalyticsCharts({
     setCampaignSuccess(null);
     setShowPreview(false);
   }, []);
+
+  const openCreateCampaign = useCallback(() => {
+    setCreateAudienceId("marketing_all_members");
+    setCreateSubject("");
+    setCreateBody(
+      `Hey [Name],\n\nThank you for being part of Leo Mây.\n\n(Write your marketing message here.)\n\nSee you at the gym,\nLeo Mây Team`
+    );
+    setCreateShowPreview(false);
+    setCreateTestMessage(null);
+    setCreateSuccess(null);
+    setCreateCampaignOpen(true);
+  }, []);
+
+  const sendCreateCampaignTest = useCallback(async () => {
+    if (!adminFetch || !createSubject.trim() || !createBody.trim()) {
+      setCreateTestMessage(t("Fill subject and body first.", "Điền tiêu đề và nội dung trước."));
+      return;
+    }
+    setCreateTestSending(true);
+    setCreateTestMessage(null);
+    try {
+      const res = await adminFetch("/api/admin/campaigns/test-send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: createSubject.trim(),
+          body: createBody,
+          marketing: true,
+          locale: isVi ? "vi" : "en",
+        }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok && d.sent_to) {
+        setCreateTestMessage(t(`Test email sent to ${d.sent_to}`, `Đã gửi thử tới ${d.sent_to}`));
+      } else {
+        setCreateTestMessage(d.error || t("Test send failed.", "Gửi thử thất bại."));
+      }
+    } catch {
+      setCreateTestMessage(t("Test send failed.", "Gửi thử thất bại."));
+    } finally {
+      setCreateTestSending(false);
+    }
+  }, [adminFetch, createSubject, createBody, isVi, t]);
+
+  const sendCreateCampaign = useCallback(async () => {
+    if (!adminFetch || !createAudienceId || !createSubject.trim() || !createBody.trim()) return;
+    setCreateSending(true);
+    setCreateSuccess(null);
+    try {
+      const res = await adminFetch("/api/admin/campaigns/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          marketing_audience: createAudienceId,
+          subject: createSubject.trim(),
+          body: createBody,
+        }),
+      });
+      const d = await res.json();
+      if (res.ok && d.sent != null) {
+        setCreateSuccess(d.sent);
+        fetchCampaignLogs();
+        adminFetch("/api/admin/campaigns/segments")
+          .then((r) => r.json())
+          .then((seg) => {
+            setCampaignSegments(seg.segments ?? []);
+            setMarketingAudiences(seg.marketingAudiences ?? []);
+          })
+          .catch(() => {});
+        setTimeout(() => {
+          setCreateCampaignOpen(false);
+          setCreateSuccess(null);
+        }, 2200);
+      } else {
+        setCreateSuccess(-1);
+      }
+    } catch {
+      setCreateSuccess(-1);
+    } finally {
+      setCreateSending(false);
+    }
+  }, [adminFetch, createAudienceId, createSubject, createBody, fetchCampaignLogs]);
 
   const sendCampaign = useCallback(async () => {
     if (!campaignModal || !adminFetch) return;
@@ -225,7 +326,15 @@ export default function AnalyticsCharts({
         {adminFetch ? (
           <div className="rounded-xl border-2 border-teal-200 bg-teal-50/50 p-4 md:p-6">
             <p className="text-sm font-semibold text-teal-900 mb-2">{t("Email campaigns", "Chiến dịch email")}</p>
-            <p className="text-xs text-teal-800/90 mb-4">{t("Send targeted emails with pre-built templates. Edit subject/body in the modal before sending.", "Gửi email theo đối tượng với mẫu có sẵn. Chỉnh sửa tiêu đề/nội dung trong hộp thoại trước khi gửi.")}</p>
+            <p className="text-xs text-teal-800/90 mb-3">{t("Send targeted emails with pre-built templates. Edit subject/body in the modal before sending.", "Gửi email theo đối tượng với mẫu có sẵn. Chỉnh sửa tiêu đề/nội dung trong hộp thoại trước khi gửi.")}</p>
+            <button
+              type="button"
+              onClick={openCreateCampaign}
+              className="mb-4 w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 border border-slate-800 shadow-sm"
+            >
+              {t("Create a new campaign", "Tạo chiến dịch mới")}
+            </button>
+            <p className="text-xs text-teal-700/90 mb-4 font-medium">{t("Pre-built segments", "Nhóm có sẵn")}</p>
             {campaignSegmentsLoading ? (
               <p className="text-sm text-slate-500">{t("Loading segments…", "Đang tải nhóm…")}</p>
             ) : (
@@ -284,6 +393,117 @@ export default function AnalyticsCharts({
         ) : (
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-8 text-center text-slate-500">
             {t("Admin access required for email campaigns.", "Cần quyền admin để dùng chiến dịch email.")}
+          </div>
+        )}
+        {createCampaignOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+            onClick={() => !createSending && !createTestSending && setCreateCampaignOpen(false)}
+          >
+            <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold text-slate-900 mb-1">
+                {t("New marketing campaign", "Chiến dịch marketing mới")}
+              </h3>
+              <p className="text-xs text-slate-500 mb-4">
+                {t("No promo code — general announcement. Use Test send to preview in your inbox.", "Không kèm mã ưu đãi — thông báo chung. Dùng Gửi thử để xem trong hộp thư của bạn.")}
+              </p>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t("Audience", "Đối tượng")}</label>
+              <select
+                value={createAudienceId}
+                onChange={(e) => setCreateAudienceId(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white mb-4"
+              >
+                {(marketingAudiences.length
+                  ? marketingAudiences
+                  : MARKETING_AUDIENCES.map((a) => ({ ...a, count: 0 }))
+                ).map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {isVi ? a.nameVi : a.nameEn} ({a.count})
+                  </option>
+                ))}
+              </select>
+              {(() => {
+                const a =
+                  marketingAudiences.find((x) => x.id === createAudienceId) ||
+                  MARKETING_AUDIENCES.find((x) => x.id === createAudienceId);
+                return a ? (
+                  <p className="text-xs text-slate-500 mb-4">{isVi ? a.descriptionVi : a.descriptionEn}</p>
+                ) : null;
+              })()}
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t("Subject", "Tiêu đề")}</label>
+              <input
+                type="text"
+                value={createSubject}
+                onChange={(e) => setCreateSubject(e.target.value)}
+                placeholder={t("e.g. Spring climbing social", "vd: Sự kiện leo mùa xuân")}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white mb-2"
+              />
+              <p className="text-xs text-slate-500 mb-4">
+                {t("Subject will show as “Leo Mây — …” (no promo-code line).", "Tiêu đề hiển thị dạng “Leo Mây — …” (không dòng mã ưu đãi).")}
+              </p>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t("Body", "Nội dung")}</label>
+              <textarea
+                value={createBody}
+                onChange={(e) => setCreateBody(e.target.value)}
+                rows={12}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white mb-2 font-mono"
+              />
+              <p className="text-xs text-slate-500 mb-4">{t("Use [Name] for the member’s first name.", "Dùng [Name] cho tên thành viên.")}</p>
+              <button type="button" onClick={() => setCreateShowPreview((v) => !v)} className="mb-3 text-sm text-teal-600 hover:underline">
+                {createShowPreview ? t("Hide preview", "Ẩn xem trước") : t("Preview message", "Xem trước nội dung")}
+              </button>
+              {createShowPreview && (
+                <div className="mb-4 p-4 rounded-lg bg-slate-100 border border-slate-200 text-sm">
+                  <p className="font-medium text-slate-700 mb-1">
+                    {t("Sample", "Mẫu")} (Alex): {createSubject || "—"}
+                  </p>
+                  <pre className="whitespace-pre-wrap font-sans text-slate-800">{renderBody(createBody || "", "Alex")}</pre>
+                </div>
+              )}
+              {createTestMessage && <p className="text-sm mb-3 text-teal-700">{createTestMessage}</p>}
+              {createSuccess !== null && (
+                <p className={`text-sm mb-3 ${createSuccess >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                  {createSuccess >= 0
+                    ? t(`Sent to ${createSuccess} recipients.`, `Đã gửi tới ${createSuccess} người nhận.`)
+                    : t("Send failed.", "Gửi thất bại.")}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setCreateCampaignOpen(false)}
+                  disabled={createSending || createTestSending}
+                  className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {t("Cancel", "Hủy")}
+                </button>
+                <button
+                  type="button"
+                  onClick={sendCreateCampaignTest}
+                  disabled={createTestSending || createSending || !createSubject.trim() || !createBody.trim()}
+                  className="px-4 py-2 rounded-lg border border-teal-600 text-teal-700 hover:bg-teal-50 disabled:opacity-50"
+                >
+                  {createTestSending ? t("Sending test…", "Đang gửi thử…") : t("Test send (to me)", "Gửi thử (tới tôi)")}
+                </button>
+                <button
+                  type="button"
+                  onClick={sendCreateCampaign}
+                  disabled={
+                    createSending ||
+                    createTestSending ||
+                    !createSubject.trim() ||
+                    !createBody.trim() ||
+                    (() => {
+                      const c = marketingAudiences.find((a) => a.id === createAudienceId)?.count;
+                      return c !== undefined && c === 0;
+                    })()
+                  }
+                  className="px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-500 disabled:opacity-50"
+                >
+                  {createSending ? t("Sending…", "Đang gửi…") : t("Send campaign", "Gửi chiến dịch")}
+                </button>
+              </div>
+            </div>
           </div>
         )}
         {campaignModal && (
@@ -487,14 +707,14 @@ export default function AnalyticsCharts({
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{t("By membership type", "Theo loại gói")}</p>
             )}
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm text-slate-900">
                 <thead>
                   <tr className="border-b border-slate-200">
-                    <th className="text-left py-1.5 font-medium text-slate-600">{t("Plan", "Gói")}</th>
-                    <th className="text-right py-1.5 font-medium text-slate-600">{t("Active", "Hoạt động")}</th>
-                    <th className="text-right py-1.5 font-medium text-slate-600">{t("At-risk", "Rủi ro")}</th>
-                    <th className="text-right py-1.5 font-medium text-slate-600">{t("Inactive", "Không HĐ")}</th>
-                    <th className="text-right py-1.5 font-medium text-slate-600">{t("Expiring soon", "Sắp hết hạn")}</th>
+                    <th className="text-left py-1.5 font-semibold text-slate-700">{t("Plan", "Gói")}</th>
+                    <th className="text-right py-1.5 font-semibold text-slate-700">{t("Active", "Hoạt động")}</th>
+                    <th className="text-right py-1.5 font-semibold text-slate-700">{t("At-risk", "Rủi ro")}</th>
+                    <th className="text-right py-1.5 font-semibold text-slate-700">{t("Inactive", "Không HĐ")}</th>
+                    <th className="text-right py-1.5 font-semibold text-slate-700">{t("Expiring soon", "Sắp hết hạn")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -504,11 +724,11 @@ export default function AnalyticsCharts({
                     const names = planDisplayNames[key];
                     return (
                       <tr key={key} className="border-b border-slate-100">
-                        <td className="py-1.5 text-slate-800">{isVi ? names.vi : names.en}</td>
-                        <td className="py-1.5 text-right">{row.active}</td>
-                        <td className="py-1.5 text-right">{row.at_risk}</td>
-                        <td className="py-1.5 text-right">{row.inactive}</td>
-                        <td className="py-1.5 text-right">{row.expiring_soon}</td>
+                        <td className="py-2 text-slate-800 font-medium">{isVi ? names.vi : names.en}</td>
+                        <td className="py-2 text-right text-slate-900 font-semibold tabular-nums">{row.active}</td>
+                        <td className="py-2 text-right text-slate-900 font-semibold tabular-nums">{row.at_risk}</td>
+                        <td className="py-2 text-right text-slate-900 font-semibold tabular-nums">{row.inactive}</td>
+                        <td className="py-2 text-right text-slate-900 font-semibold tabular-nums">{row.expiring_soon}</td>
                       </tr>
                     );
                   })}

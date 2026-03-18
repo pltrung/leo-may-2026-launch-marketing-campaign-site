@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getGymStartOfDay, getGymEndOfDay } from "@/lib/gymTimezone";
 import { computeStreakUpdate, evaluateAndGrantAchievements } from "@/lib/achievements";
+import { syncClimbingMilestoneRewards } from "@/lib/climbingMilestones";
 
 /**
  * Core check-in logic: validate member, insert gym_checkins, update streaks and achievements.
@@ -125,6 +126,8 @@ export async function performCheckIn(memberId: string, location: string | null):
       currentStreak: newCurrentStreak,
       checkinTimestamp,
     });
+
+    await syncClimbingMilestoneRewards(supabase, memberId, totalVisits);
 
     return NextResponse.json({ ok: true, new_achievements: newlyGranted });
   } catch {

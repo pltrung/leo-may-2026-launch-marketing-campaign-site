@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getLevelProgress, getNextLevelReward, CLIMBER_LEVELS } from "@/lib/climberLevels";
+import { syncClimbingMilestoneRewards } from "@/lib/climbingMilestones";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -66,6 +67,21 @@ export async function GET(request: NextRequest) {
     const totalVisits = count ?? 0;
     const currentStreak = (profile.current_streak as number) ?? 0;
     const bestStreak = (profile.best_streak as number) ?? 0;
+
+    await syncClimbingMilestoneRewards(supabase, profile.id, totalVisits);
+
+    const { data: guestCodeRows } = await supabase
+      .from("milestone_guest_pass_codes")
+      .select("code, milestone_visits, redeemed_at")
+      .eq("owner_member_id", profile.id)
+      .order("milestone_visits", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    const { data: merchRows } = await supabase
+      .from("member_climbing_merch_rewards")
+      .select("milestone_visits, item, fulfilled_at")
+      .eq("member_id", profile.id)
+      .order("milestone_visits", { ascending: true });
 
     const levelProgress = getLevelProgress(totalVisits);
     const nextLevelReward = getNextLevelReward(totalVisits);
@@ -153,6 +169,17 @@ export async function GET(request: NextRequest) {
         best_streak: bestStreak,
         recent_achievements: recentAchievements,
         upcoming_rewards: upcomingRewards.slice(0, 5),
+        milestone_guest_codes: (guestCodeRows ?? []).map((r) => ({
+          code: r.code as string,
+          milestone_visits: r.milestone_visits as number,
+          redeemed: !!(r.redeemed_at as string | null),
+        })),
+        milestone_merch: (merchRows ?? []).map((r) => ({
+          milestone_visits: r.milestone_visits as number,
+          item: r.item as string,
+          fulfilled: !!(r.fulfilled_at as string | null),
+          fulfilled_at: (r.fulfilled_at as string | null) ?? null,
+        })),
       },
       { headers: { "Cache-Control": "no-store, max-age=0" } }
     );

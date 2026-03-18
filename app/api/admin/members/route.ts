@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getUnifiedAdminOrStaffFromRequest } from "@/lib/unifiedAdminAuth";
 import { getGymStartOfMonth, getGymStartOfDay, getGymEndOfDay, formatInGymTZ } from "@/lib/gymTimezone";
+import { syncClimbingMilestoneRewards } from "@/lib/climbingMilestones";
 
 function formatRecent(timestamp: string): string {
   return formatInGymTZ(timestamp);
@@ -113,6 +114,22 @@ export async function GET(req: NextRequest) {
       .select("id", { count: "exact", head: true })
       .eq("member_id", memberId);
 
+    const tv = totalVisits ?? 0;
+    await syncClimbingMilestoneRewards(supabase, memberId, tv);
+
+    const { data: climbingGuestCodes } = await supabase
+      .from("milestone_guest_pass_codes")
+      .select("code, milestone_visits, redeemed_at")
+      .eq("owner_member_id", memberId)
+      .order("milestone_visits", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    const { data: climbingMerch } = await supabase
+      .from("member_climbing_merch_rewards")
+      .select("milestone_visits, item, fulfilled_at")
+      .eq("member_id", memberId)
+      .order("milestone_visits", { ascending: true });
+
     // Check-ins this month (gym TZ = America/Los_Angeles)
     const startOfMonth = getGymStartOfMonth();
     const startOfToday = getGymStartOfDay();
@@ -194,6 +211,18 @@ export async function GET(req: NextRequest) {
       waiver_signed: !!memberRow.waiver_signed,
       waiver_signed_at: memberRow.waiver_signed_at ?? null,
       waiver: waiverRecord,
+      climbing_rewards: {
+        guest_codes: (climbingGuestCodes ?? []).map((r) => ({
+          code: r.code as string,
+          milestone_visits: r.milestone_visits as number,
+          redeemed_at: (r.redeemed_at as string | null) ?? null,
+        })),
+        merch: (climbingMerch ?? []).map((r) => ({
+          milestone_visits: r.milestone_visits as number,
+          item: r.item as string,
+          fulfilled_at: (r.fulfilled_at as string | null) ?? null,
+        })),
+      },
     };
 
     return NextResponse.json({ member: responseMember }, { headers: { "Cache-Control": "no-store, max-age=0" } });

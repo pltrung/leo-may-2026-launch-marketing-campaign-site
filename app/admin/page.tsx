@@ -66,6 +66,10 @@ interface AdminMember {
   waiver_signed?: boolean;
   waiver_signed_at?: string | null;
   waiver?: WaiverRecord | null;
+  climbing_rewards?: {
+    guest_codes: { code: string; milestone_visits: number; redeemed_at: string | null }[];
+    merch: { milestone_visits: number; item: string; fulfilled_at: string | null }[];
+  };
 }
 
 interface NameSearchResult {
@@ -118,6 +122,7 @@ export default function AdminPage() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<null | "checkin" | "manual" | "undo" | "extend" | "freeze" | "cancel" | "upgrade" | "payment" | "confirm">(null);
+  const [climbingFulfillMv, setClimbingFulfillMv] = useState<number | null>(null);
   const [plans, setPlans] = useState<{ id: string; name: string; duration_days: number; duration_visits?: number | null; price_vnd: number; pass_type?: "newbie" | "day" | "visit" }[]>([]);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentQrFullscreen, setPaymentQrFullscreen] = useState(false);
@@ -408,6 +413,12 @@ export default function AdminPage() {
     if (!canDoMembershipModify && memberProfileSubTab === "membership") setMemberProfileSubTab("summary");
     if (adminArea === "management" && !canAccessAdminTools && managementTab !== "inventory") setManagementTab("inventory");
   }, [role, canAccessFrontDeskFull, canAccessFrontDeskLimited, canAccessOperations, canAccessManagement, canAccessAnalytics, adminArea, canDoCheckIn, frontDeskTab, canDoMembershipModify, memberProfileSubTab, canAccessAdminTools, managementTab, meFetched]);
+
+  // Don't carry Front Desk toast messages across Check-in ↔ Member (stale "check-in recorded" before search)
+  useEffect(() => {
+    setActionMessage(null);
+    setActionError(null);
+  }, [frontDeskTab]);
 
   // Fetch products for front desk sales and management inventory
   useEffect(() => {
@@ -1029,6 +1040,32 @@ export default function AdminPage() {
       setActionLoading(null);
     }
   }, [foundMember, loadMemberById, m, adminFetch]);
+
+  const handleClimbingMilestoneFulfill = useCallback(
+    async (milestoneVisits: 50 | 100 | 250) => {
+      if (!foundMember) return;
+      setClimbingFulfillMv(milestoneVisits);
+      setActionError(null);
+      try {
+        const res = await adminFetch("/api/admin/climbing-milestone-fulfill", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ member_id: foundMember.id, milestone_visits: milestoneVisits }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error((data?.error as string) ?? "Failed");
+        }
+        setActionMessage(locale === "vi" ? "Đã ghi nhận nhận quà tại quầy." : "Gift pickup recorded.");
+        await loadMemberById(foundMember.id);
+      } catch (e) {
+        setActionError((e as Error).message ?? "Failed");
+      } finally {
+        setClimbingFulfillMv(null);
+      }
+    },
+    [foundMember, adminFetch, loadMemberById, locale]
+  );
 
   const handleManualCheckIn = useCallback(async () => {
     if (!foundMember) return;
@@ -1950,10 +1987,6 @@ export default function AdminPage() {
                   />
                 </label>
                 {searchError && <p className="text-xs text-red-500">{searchError}</p>}
-                {actionMessage && !searchError && (
-                  <p className="text-xs text-emerald-600">{actionMessage}</p>
-                )}
-                {actionError && <p className="text-xs text-red-500">{actionError}</p>}
                 {searchMode === "name" && nameResults.length > 0 && (
                   <div className="mt-2 space-y-1.5">
                     <p className="text-[11px] text-slate-500">
@@ -2133,6 +2166,82 @@ export default function AdminPage() {
                     ))}
                   </ul>
                 </div>
+
+                {foundMember.climbing_rewards &&
+                  (foundMember.climbing_rewards.guest_codes.length > 0 ||
+                    foundMember.climbing_rewards.merch.length > 0) && (
+                    <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_16px_40px_rgba(15,23,42,0.7)] p-4 md:p-5">
+                      <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-3">
+                        {m.climbingMilestoneTitle}
+                      </h3>
+                      {foundMember.climbing_rewards.guest_codes.length > 0 && (
+                        <div className="mb-4">
+                          <p className="text-[11px] text-slate-400 uppercase tracking-wide mb-2">{m.climbingGuestCodes}</p>
+                          <ul className="space-y-1.5 font-mono text-xs text-slate-200">
+                            {foundMember.climbing_rewards.guest_codes.map((gc) => (
+                              <li key={gc.code} className="flex flex-wrap items-center gap-2">
+                                <span>{gc.code}</span>
+                                <span className="text-slate-500">({gc.milestone_visits} {m.climbingVisitsSuffix})</span>
+                                <span className={gc.redeemed_at ? "text-amber-400/90" : "text-emerald-400/90"}>
+                                  {gc.redeemed_at ? m.climbingCodeUsed : m.climbingCodeAvailable}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {foundMember.climbing_rewards.merch.length > 0 && (
+                        <div>
+                          <p className="text-[11px] text-slate-400 uppercase tracking-wide mb-2">{m.climbingMerchTitle}</p>
+                          <ul className="space-y-2 text-sm text-slate-200">
+                            {foundMember.climbing_rewards.merch.map((row) => {
+                              const label =
+                                row.item === "cap"
+                                  ? m.climbingCap
+                                  : row.item === "shirt"
+                                    ? m.climbingShirt
+                                    : m.climbingShoes;
+                              const mv = row.milestone_visits as 50 | 100 | 250;
+                              return (
+                                <li
+                                  key={`${row.milestone_visits}-${row.item}`}
+                                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-xl bg-slate-700/40 border border-slate-600/80 px-3 py-2"
+                                >
+                                  <div>
+                                    <span className="font-medium text-white">{label}</span>
+                                    <span className="text-slate-500 text-xs ml-2">
+                                      ({row.milestone_visits} {m.climbingVisitsSuffix})
+                                    </span>
+                                    {row.fulfilled_at ? (
+                                      <p className="text-xs text-emerald-400/90 mt-0.5">
+                                        {m.climbingMerchPickedUp}{" "}
+                                        {new Date(row.fulfilled_at).toLocaleString(locale === "vi" ? "vi-VN" : "en-US", {
+                                          dateStyle: "medium",
+                                          timeStyle: "short",
+                                        })}
+                                      </p>
+                                    ) : (
+                                      <p className="text-xs text-amber-300/90 mt-0.5">{m.climbingMerchPending}</p>
+                                    )}
+                                  </div>
+                                  {canDoCheckIn && !row.fulfilled_at && (
+                                    <button
+                                      type="button"
+                                      disabled={climbingFulfillMv === row.milestone_visits}
+                                      onClick={() => handleClimbingMilestoneFulfill(mv)}
+                                      className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60"
+                                    >
+                                      {climbingFulfillMv === row.milestone_visits ? "…" : m.climbingMarkPickedUp}
+                                    </button>
+                                  )}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
               </div>
               )}
 
