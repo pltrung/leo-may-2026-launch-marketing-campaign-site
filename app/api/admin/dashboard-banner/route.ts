@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
     supabase
       .from("gym_checkins")
       .select("id", { count: "exact", head: true })
+      .eq("counts_as_visit", true)
       .gte("timestamp", startOfToday)
       .lt("timestamp", endOfToday),
     supabase.from("inventory").select("variant_id, quantity"),

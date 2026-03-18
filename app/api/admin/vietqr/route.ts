@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getUnifiedAdminOrStaffFromRequest, canDoMembershipModify } from "@/lib/unifiedAdminAuth";
+import { getUnifiedAdminOrStaffFromRequest, canCollectMembershipPayment } from "@/lib/unifiedAdminAuth";
 import { getVietQRUrl } from "@/lib/vietqr";
 import { computeNewExpiry } from "@/lib/membershipExtension";
 
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "plan_id and member_id required" }, { status: 400 });
   }
   const unified = await getUnifiedAdminOrStaffFromRequest(req);
-  if (!unified || !canDoMembershipModify(unified.role)) {
+  if (!unified || !canCollectMembershipPayment(unified.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const supabase = createServerClient();

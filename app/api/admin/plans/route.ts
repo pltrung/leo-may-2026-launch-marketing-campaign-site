@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getUnifiedAdminOrStaffFromRequest, canDoMembershipModify } from "@/lib/unifiedAdminAuth";
+import { getUnifiedAdminOrStaffFromRequest, canCollectMembershipPayment } from "@/lib/unifiedAdminAuth";
 
 const PLAN_ORDER = ["newbie_class", "day_pass", "month_pass", "year_pass", "visit_5", "visit_10", "visit_20"];
 
@@ -13,7 +13,7 @@ function passType(planId: string): "newbie" | "day" | "visit" {
 
 export async function GET(req: NextRequest) {
   const unified = await getUnifiedAdminOrStaffFromRequest(req);
-  if (!unified || !canDoMembershipModify(unified.role)) {
+  if (!unified || !canCollectMembershipPayment(unified.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const supabase = createServerClient();

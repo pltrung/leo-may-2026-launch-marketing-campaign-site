@@ -192,6 +192,11 @@ export function canDoMembershipModify(role: UnifiedRole): boolean {
   return role === "admin" || role === "frontdesk";
 }
 
+/** Load plans, VietQR, confirm membership payment (pass renewal) — includes staff at desk */
+export function canCollectMembershipPayment(role: UnifiedRole): boolean {
+  return role === "admin" || role === "frontdesk" || role === "staff";
+}
+
 export function canDoPaymentConfirm(role: UnifiedRole): boolean {
   return role === "admin" || role === "frontdesk";
 }

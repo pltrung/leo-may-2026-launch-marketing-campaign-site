@@ -135,6 +135,7 @@ export async function GET(req: NextRequest) {
         const { data: checkins } = await supabase
           .from("gym_checkins")
           .select("member_id")
+          .eq("counts_as_visit", true)
           .gte("timestamp", since)
           .lte("timestamp", until);
         const activeSet = new Set((checkins ?? []).map((c: { member_id: string }) => c.member_id));
@@ -145,6 +146,7 @@ export async function GET(req: NextRequest) {
         const { data: checkins } = await supabase
           .from("gym_checkins")
           .select("member_id")
+          .eq("counts_as_visit", true)
           .gte("timestamp", since)
           .lte("timestamp", until);
         const activeSet = new Set((checkins ?? []).map((c: { member_id: string }) => c.member_id));
@@ -230,6 +232,7 @@ export async function GET(req: NextRequest) {
     const { data: checkinRows } = await supabase
       .from("gym_checkins")
       .select("member_id, timestamp")
+      .eq("counts_as_visit", true)
       .gte("timestamp", since)
       .lte("timestamp", until);
     let checkins = checkinRows ?? [];
@@ -280,6 +283,7 @@ export async function GET(req: NextRequest) {
     const { data: prevCheckins } = await supabase
       .from("gym_checkins")
       .select("member_id")
+      .eq("counts_as_visit", true)
       .gte("timestamp", prevPeriodStart)
       .lt("timestamp", since);
     const prevActive = new Set((prevCheckins ?? []).map((c: { member_id: string }) => c.member_id));
@@ -420,7 +424,8 @@ export async function GET(req: NextRequest) {
     // ---- RETENTION (simplified) ----
     const { data: firstCheckins } = await supabase
       .from("gym_checkins")
-      .select("member_id, timestamp");
+      .select("member_id, timestamp")
+      .eq("counts_as_visit", true);
     const firstByMember = new Map<string, string>();
     for (const c of (firstCheckins ?? []) as { member_id: string; timestamp: string }[]) {
       const existing = firstByMember.get(c.member_id);

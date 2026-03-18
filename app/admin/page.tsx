@@ -8,6 +8,7 @@ import { getMessages } from "@/lib/messages";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import type { Locale } from "@/lib/i18n";
 import { formatInGymTZ, getGymToday, getGymDateFromISO, getCurrentPhase } from "@/lib/gymTimezone";
+import { formatVndCompact } from "@/lib/formatVndCompact";
 import { parseCccdPipeDelimited } from "@/lib/vnEidQr";
 
 const QrScannerModal = dynamic(() => import("@/components/admin/QrScannerModal"), { ssr: false });
@@ -96,6 +97,7 @@ export default function AdminPage() {
     canAccessManagement,
     canDoPos,
     canDoMembershipModify,
+    canCollectMembershipPayment,
     canDoPaymentConfirm,
     canDoCheckIn,
     canAccessInventory,
@@ -429,9 +431,9 @@ export default function AdminPage() {
       setAdminArea(allowed[0]);
     }
     if (adminArea === "front_desk" && meFetched && !canDoCheckIn && frontDeskTab === "checkin") setFrontDeskTab("member");
-    if (!canDoMembershipModify && memberProfileSubTab === "membership") setMemberProfileSubTab("summary");
+    if (!canDoMembershipModify && !canCollectMembershipPayment && memberProfileSubTab === "membership") setMemberProfileSubTab("summary");
     if (adminArea === "management" && !canAccessAdminTools && managementTab !== "inventory") setManagementTab("inventory");
-  }, [role, canAccessFrontDeskFull, canAccessFrontDeskLimited, canAccessOperations, canAccessManagement, canAccessAnalytics, adminArea, canDoCheckIn, frontDeskTab, canDoMembershipModify, memberProfileSubTab, canAccessAdminTools, managementTab, meFetched]);
+  }, [role, canAccessFrontDeskFull, canAccessFrontDeskLimited, canAccessOperations, canAccessManagement, canAccessAnalytics, adminArea, canDoCheckIn, frontDeskTab, canDoMembershipModify, canCollectMembershipPayment, memberProfileSubTab, canAccessAdminTools, managementTab, meFetched]);
 
   // Don't carry Front Desk toast messages across Check-in ↔ Member (stale "check-in recorded" before search)
   useEffect(() => {
@@ -1649,23 +1651,46 @@ export default function AdminPage() {
 
       <main className="flex-1 min-h-0">
         <div className="max-w-[1100px] mx-auto px-3 py-3 md:px-4 md:py-6 space-y-2 md:space-y-4">
-          {/* For staff and frontdesk: compact "You're checked in" bar above nav (only when checked in today) */}
-          {(role === "staff" || role === "frontdesk") && staffId != null && (() => {
+          {/* Sales + commission (single place): frontdesk/admin always; staff only when shift IN. VND compact + full on hover. */}
+          {staffId != null && staffSalesSummary != null && (() => {
             const today = getGymToday();
             const hasShiftToday = shiftCheckInAttendance != null && shiftCheckInAttendance.date === today;
             const isShiftIn = hasShiftToday && shiftCheckInAttendance!.status === "IN";
-            if (!isShiftIn) return null;
+            if (role === "staff" && !isShiftIn) return null;
             const staffMsg = getMessages(locale).staff;
+            const sales = staffSalesSummary.sales_today ?? 0;
+            const comm = staffSalesSummary.commission_today ?? 0;
+            const fullSales = `${sales.toLocaleString("vi-VN")} VND`;
+            const fullComm = `${comm.toLocaleString("vi-VN")} VND`;
             return (
-              <div className="flex flex-wrap items-center gap-2 md:gap-4 rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1.5 md:p-3" data-tour="staff-commission-bar">
-                <p className="text-slate-200 text-xs md:text-sm"><span className="text-emerald-400 font-medium">{staffMsg.youAreCheckedIn}</span></p>
-                {staffSalesSummary != null && (
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 md:gap-x-4 rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1.5 md:p-3" data-tour="staff-commission-bar">
+                {isShiftIn && (
                   <>
-                    <span className="text-slate-500">|</span>
-                    <span className="text-[10px] md:text-xs text-slate-400">{locale === "vi" ? "Doanh số" : "Sales"}: <span className="font-semibold text-white">{(staffSalesSummary.sales_today ?? 0).toLocaleString("vi-VN")}</span></span>
-                    <span className="text-[10px] md:text-xs text-slate-400">{locale === "vi" ? "Hoa hồng" : "Commission"}: <span className="font-semibold text-white">{(staffSalesSummary.commission_today ?? 0).toLocaleString("vi-VN")}</span> VND</span>
+                    <p className="text-slate-200 text-xs md:text-sm shrink-0">
+                      <span className="text-emerald-400 font-medium">{staffMsg.youAreCheckedIn}</span>
+                    </p>
+                    <span className="text-slate-500 hidden sm:inline">|</span>
                   </>
                 )}
+                <span
+                  className="text-[10px] md:text-xs text-slate-400"
+                  title={locale === "vi" ? `Doanh số hôm nay: ${fullSales}` : `Sales today: ${fullSales}`}
+                >
+                  {locale === "vi" ? "Doanh số" : "Sales"}:{" "}
+                  <span className="font-semibold text-white tabular-nums">
+                    {formatVndCompact(sales)} VND
+                  </span>
+                </span>
+                <span className="text-slate-500">·</span>
+                <span
+                  className="text-[10px] md:text-xs text-slate-400"
+                  title={locale === "vi" ? `Hoa hồng hôm nay: ${fullComm}` : `Commission today: ${fullComm}`}
+                >
+                  {locale === "vi" ? "Hoa hồng" : "Commission"}:{" "}
+                  <span className="font-semibold text-white tabular-nums">
+                    {formatVndCompact(comm)} VND
+                  </span>
+                </span>
               </div>
             );
           })()}
@@ -1834,14 +1859,6 @@ export default function AdminPage() {
           </nav>
             );
           })()}
-
-          {/* Frontdesk commission — compact bar */}
-          {staffId != null && role !== "staff" && staffSalesSummary != null && (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 px-2.5 py-1.5 md:p-3 flex flex-wrap items-center gap-2 md:gap-4">
-              <span className="text-[10px] md:text-xs text-emerald-800">{locale === "vi" ? "Doanh số" : "Sales"}: <span className="font-bold text-emerald-900">{(staffSalesSummary.sales_today ?? 0).toLocaleString("vi-VN")}</span></span>
-              <span className="text-[10px] md:text-xs text-emerald-800">{locale === "vi" ? "Hoa hồng" : "Commission"}: <span className="font-bold text-emerald-900">{(staffSalesSummary.commission_today ?? 0).toLocaleString("vi-VN")}</span> VND</span>
-            </div>
-          )}
 
           {/* FRONT DESK sub-tabs: Check-in | Member — secondary hierarchy (smaller) */}
           {adminArea === "front_desk" && (
@@ -2100,10 +2117,10 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Sub-tabs (staff: no membership tab) */}
+              {/* Sub-tabs (staff: membership = collect pass payment only) */}
               <nav className="flex gap-1 p-1 rounded-xl bg-slate-800/80 border border-slate-700 overflow-x-auto" aria-label="Member sections">
                 {(["summary", "membership", "sales", "history"] as const)
-                  .filter((tab) => tab !== "membership" || canDoMembershipModify)
+                  .filter((tab) => tab !== "membership" || canDoMembershipModify || canCollectMembershipPayment)
                   .map((tab) => (
                   <button
                     key={tab}
@@ -2302,8 +2319,9 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {memberProfileSubTab === "membership" && canDoMembershipModify && (
+              {memberProfileSubTab === "membership" && (canDoMembershipModify || canCollectMembershipPayment) && (
               <div className="space-y-4 md:space-y-6">
+                {canDoMembershipModify && (
                 <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_50px_rgba(15,23,42,0.75)] p-4 md:p-6">
                   <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-200 uppercase mb-4">
                     {m.checkInActions}
@@ -2340,7 +2358,9 @@ export default function AdminPage() {
                     </button>
                   </div>
                 </div>
+                )}
 
+                {canDoMembershipModify && (
                 <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_16px_40px_rgba(15,23,42,0.7)] p-4 md:p-5">
                   <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-3">
                     {m.membershipControls}
@@ -2387,6 +2407,27 @@ export default function AdminPage() {
                     </button>
                   </div>
                 </div>
+                )}
+
+                {canCollectMembershipPayment && !canDoMembershipModify && (
+                <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_16px_40px_rgba(15,23,42,0.7)] p-4 md:p-5">
+                  <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-2">
+                    {locale === "vi" ? "Thanh toán gia hạn vé" : "Pass renewal payment"}
+                  </h3>
+                  <p className="text-sm text-slate-400 mb-4">
+                    {locale === "vi"
+                      ? "Lễ tân xử lý check-in và thay đổi gói. Bạn có thể thu tiền gia hạn / mua vé tại đây."
+                      : "Front desk handles check-in and plan changes. You can collect pass renewal payment here."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleCollectPayment}
+                    className="px-4 py-2 rounded-full text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-500"
+                  >
+                    {m.collectPayment}
+                  </button>
+                </div>
+                )}
               </div>
               )}
 

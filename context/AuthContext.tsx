@@ -36,9 +36,11 @@ type AuthValue = {
   session: Session | null;
   user: User | null;
   member: MemberProfile | null;
+  /** True while /api/member/me is in flight for the latest request */
+  memberLoading: boolean;
   loading: boolean;
   accessToken: string | null;
-  refresh: () => Promise<void>;
+  refresh: (opts?: { backgroundMemberFetch?: boolean }) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -55,11 +57,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [member, setMember] = useState<MemberProfile | null>(null);
+  const [memberLoading, setMemberLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const initialLoadDoneRef = useRef(false);
+  const fetchMemberGenRef = useRef(0);
+  const memberRef = useRef<MemberProfile | null>(null);
 
-  const fetchMember = useCallback(async (token: string) => {
+  const fetchMember = useCallback(async (token: string, options?: { background?: boolean }) => {
+    const background = options?.background === true;
+    const gen = ++fetchMemberGenRef.current;
+    if (!background) setMemberLoading(true);
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -68,15 +76,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
-      const data = await res.json();
-      if (res.ok && data?.member) setMember(data.member);
-      else setMember(null);
+      if (gen !== fetchMemberGenRef.current) return;
+
+      let data: { member?: MemberProfile } = {};
+      try {
+        data = await res.json();
+      } catch {
+        /* non-JSON */
+      }
+
+      if (res.ok && data?.member) {
+        setMember(data.member);
+        return;
+      }
+      if (res.status === 401) {
+        setMember(null);
+        return;
+      }
+      setMember((prev) => prev);
     } catch {
-      setMember(null);
+      if (gen !== fetchMemberGenRef.current) return;
+      setMember((prev) => prev);
+    } finally {
+      if (!background && gen === fetchMemberGenRef.current) setMemberLoading(false);
     }
   }, []);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (opts?: { backgroundMemberFetch?: boolean }) => {
     // Only show full-page loading on first load. Background refresh (e.g. after check-in) must not unmount dashboard.
     if (!initialLoadDoneRef.current) setLoading(true);
     let supabase;
@@ -86,6 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(null);
       setUser(null);
       setMember(null);
+      setMemberLoading(false);
       setAccessToken(null);
       setLoading(false);
       return;
@@ -114,8 +141,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAccessToken(token);
     setLoading(false);
 
-    fetchMember(token);
+    fetchMember(token, { background: opts?.backgroundMemberFetch === true });
   }, [fetchMember]);
+
+  useEffect(() => {
+    memberRef.current = member;
+  }, [member]);
 
   useEffect(() => {
     let supabase;
@@ -135,11 +166,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session.user ?? null);
         setAccessToken(token);
         setLoading(false);
-        fetchMember(token);
+        fetchMember(token, { background: memberRef.current != null });
       } else {
+        fetchMemberGenRef.current += 1;
         setSession(null);
         setUser(null);
         setMember(null);
+        setMemberLoading(false);
         setAccessToken(null);
         setLoading(false);
       }
@@ -156,9 +189,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       /* env vars may be missing */
     }
     initialLoadDoneRef.current = false;
+    fetchMemberGenRef.current += 1;
     setSession(null);
     setUser(null);
     setMember(null);
+    setMemberLoading(false);
     setAccessToken(null);
   }, []);
 
@@ -166,6 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     user,
     member,
+    memberLoading,
     loading,
     accessToken,
     refresh,

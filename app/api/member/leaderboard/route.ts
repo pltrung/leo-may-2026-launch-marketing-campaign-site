@@ -70,6 +70,7 @@ export async function GET(request: NextRequest) {
     const { data: checkins, error: checkinErr } = await supabase
       .from("gym_checkins")
       .select("member_id, member:member_profiles(full_name, display_name, instagram_handle, gender, profile_photo_url)")
+      .eq("counts_as_visit", true)
       .gte("timestamp", since);
 
     if (checkinErr) {

@@ -112,7 +112,8 @@ export async function GET(req: NextRequest) {
     const { count: totalVisits } = await supabase
       .from("gym_checkins")
       .select("id", { count: "exact", head: true })
-      .eq("member_id", memberId);
+      .eq("member_id", memberId)
+      .eq("counts_as_visit", true);
 
     const tv = totalVisits ?? 0;
     await syncClimbingMilestoneRewards(supabase, memberId, tv);
@@ -139,6 +140,7 @@ export async function GET(req: NextRequest) {
       .from("gym_checkins")
       .select("id", { count: "exact", head: true })
       .eq("member_id", memberId)
+      .eq("counts_as_visit", true)
       .gte("timestamp", startOfMonth);
 
     // Recent check-ins (latest 5)

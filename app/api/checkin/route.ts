@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
  * GET /api/checkin?member_id=xxx&qr=TOKEN
  * If qr is present, it is verified and used as source of truth for member ID.
  * Otherwise falls back to member_id for legacy/static QR codes.
- * All check-in paths (POST and GET) insert into gym_checkins and trigger Realtime.
+ * Inserts gym_checkins (primary visit or same-day re-entry row) so Realtime can notify the member app.
  */
 export async function GET(request: NextRequest) {
   const search = request.nextUrl.searchParams;

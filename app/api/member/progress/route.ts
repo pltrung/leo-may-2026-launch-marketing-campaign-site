@@ -62,7 +62,8 @@ export async function GET(request: NextRequest) {
     const { count } = await supabase
       .from("gym_checkins")
       .select("id", { count: "exact", head: true })
-      .eq("member_id", profile.id);
+      .eq("member_id", profile.id)
+      .eq("counts_as_visit", true);
 
     const totalVisits = count ?? 0;
     const currentStreak = (profile.current_streak as number) ?? 0;

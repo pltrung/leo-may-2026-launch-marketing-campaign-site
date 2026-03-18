@@ -96,7 +96,8 @@ export async function GET(request: NextRequest) {
     const { count } = await supabase
       .from("gym_checkins")
       .select("id", { count: "exact", head: true })
-      .eq("member_id", memberRow.id);
+      .eq("member_id", memberRow.id)
+      .eq("counts_as_visit", true);
 
     const lastCheckin = await supabase
       .from("gym_checkins")

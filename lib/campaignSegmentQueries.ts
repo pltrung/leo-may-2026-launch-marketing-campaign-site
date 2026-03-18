@@ -46,8 +46,8 @@ export async function getSegmentRecipients(
 
   const { data: checkins } = await supabase
     .from("gym_checkins")
-    .select("member_id, timestamp");
-  const allCheckins = (checkins ?? []) as { member_id: string; timestamp: string }[];
+    .select("member_id, timestamp, counts_as_visit");
+  const allCheckins = (checkins ?? []) as { member_id: string; timestamp: string; counts_as_visit?: boolean }[];
 
   const { data: payments } = await supabase
     .from("payments")
@@ -62,10 +62,12 @@ export async function getSegmentRecipients(
   }
   const totalVisitsByMember = new Map<string, number>();
   for (const c of allCheckins) {
+    if (c.counts_as_visit === false) continue;
     totalVisitsByMember.set(c.member_id, (totalVisitsByMember.get(c.member_id) ?? 0) + 1);
   }
   const visitsLast4Weeks = new Map<string, number>();
   for (const c of allCheckins) {
+    if (c.counts_as_visit === false) continue;
     if (c.timestamp >= fourWeeksAgo)
       visitsLast4Weeks.set(c.member_id, (visitsLast4Weeks.get(c.member_id) ?? 0) + 1);
   }

@@ -73,7 +73,10 @@ export async function getMarketingAudienceRecipients(
     visits_remaining?: number | null;
   }[];
 
-  const { data: checkins } = await supabase.from("gym_checkins").select("member_id");
+  const { data: checkins } = await supabase
+    .from("gym_checkins")
+    .select("member_id")
+    .eq("counts_as_visit", true);
   const visitCount = new Map<string, number>();
   for (const c of checkins ?? []) {
     const id = (c as { member_id: string }).member_id;

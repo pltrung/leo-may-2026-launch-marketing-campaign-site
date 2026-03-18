@@ -43,6 +43,8 @@ interface AdminAuthContextValue {
   canAccessManagement: boolean;
   canDoPos: boolean;
   canDoMembershipModify: boolean;
+  /** Plans, VietQR, confirm pass renewal (admin, frontdesk, staff) */
+  canCollectMembershipPayment: boolean;
   canDoPaymentConfirm: boolean;
   canAccessRevenue: boolean;
   canDoCheckIn: boolean;
@@ -65,6 +67,7 @@ function perm(role: UnifiedRole | null) {
     canAccessManagement: false,
     canDoPos: false,
     canDoMembershipModify: false,
+    canCollectMembershipPayment: false,
     canDoPaymentConfirm: false,
     canAccessRevenue: false,
     canDoCheckIn: false,
@@ -79,6 +82,7 @@ function perm(role: UnifiedRole | null) {
     canAccessManagement: role === "admin" || role === "frontdesk",
     canDoPos: true,
     canDoMembershipModify: role === "admin" || role === "frontdesk",
+    canCollectMembershipPayment: role === "admin" || role === "frontdesk" || role === "staff",
     canDoPaymentConfirm: role === "admin" || role === "frontdesk",
     canAccessRevenue: role === "admin",
     canDoCheckIn: role === "admin" || role === "frontdesk",

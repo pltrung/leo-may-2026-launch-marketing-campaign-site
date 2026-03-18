@@ -64,7 +64,24 @@ export async function performCheckIn(memberId: string, location: string | null):
     const alreadyCheckedInToday = (todayCount ?? 0) >= 1;
 
     if (alreadyCheckedInToday) {
-      return NextResponse.json({ ok: true, already_checked_in_today: true });
+      const { data: reentry, error: reErr } = await supabase
+        .from("gym_checkins")
+        .insert({
+          member_id: memberId,
+          location: location ?? null,
+          counts_as_visit: false,
+        })
+        .select("timestamp")
+        .single();
+      if (reErr) {
+        console.error("Same-day re-entry checkin insert error:", reErr);
+        return NextResponse.json({ error: "Failed to record check-in" }, { status: 500 });
+      }
+      return NextResponse.json({
+        ok: true,
+        already_checked_in_today: true,
+        timestamp: (reentry?.timestamp as string) ?? new Date().toISOString(),
+      });
     }
 
     const { data: inserted, error } = await supabase
@@ -72,6 +89,7 @@ export async function performCheckIn(memberId: string, location: string | null):
       .insert({
         member_id: memberId,
         location: location ?? null,
+        counts_as_visit: true,
       })
       .select("timestamp")
       .single();
@@ -117,7 +135,8 @@ export async function performCheckIn(memberId: string, location: string | null):
     const { count } = await supabase
       .from("gym_checkins")
       .select("id", { count: "exact", head: true })
-      .eq("member_id", memberId);
+      .eq("member_id", memberId)
+      .eq("counts_as_visit", true);
 
     const totalVisits = count ?? 0;
 

@@ -137,7 +137,7 @@ const QRCodeSVG = dynamic(
 export default function DashboardPage() {
   const locale = useLocale();
   const router = useRouter();
-  const { user, member, accessToken, signOut, refresh } = useMemberAuth();
+  const { user, member, memberLoading, accessToken, signOut, refresh } = useMemberAuth();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -284,7 +284,7 @@ export default function DashboardPage() {
     const isSuccess = vnp === "00";
     if (isSuccess) {
       setPaymentSuccess(true);
-      refresh();
+      refresh({ backgroundMemberFetch: true });
       setTimeout(() => setPaymentSuccess(false), 8000);
     }
     u.searchParams.forEach((_, k) => {
@@ -347,7 +347,7 @@ export default function DashboardPage() {
           text: locale === "vi" ? "Đã cộng 1 lượt vào tài khoản của bạn." : "1 visit added to your account.",
         });
         setRedeemCode("");
-        refresh();
+        refresh({ backgroundMemberFetch: true });
         const pr = await fetch("/api/member/progress", { headers: { Authorization: `Bearer ${accessToken}` } });
         const pd = await pr.json();
         if (pd && typeof pd.level === "string") setClimbingProgress(pd);
@@ -386,7 +386,7 @@ export default function DashboardPage() {
                 : "Code redeemed successfully.";
         setRedeemMessage({ type: "success", text: successText });
         if (!data.alreadyRedeemed) setRedeemCode("");
-        refresh();
+        refresh({ backgroundMemberFetch: true });
         return "ok";
       }
       const err = data?.error as string | undefined;
@@ -513,7 +513,7 @@ export default function DashboardPage() {
         },
         () => {
           setPaymentSuccess(true);
-          refresh();
+          refresh({ backgroundMemberFetch: true });
           setTimeout(() => setPaymentSuccess(false), 8000);
         }
       )
@@ -561,7 +561,7 @@ export default function DashboardPage() {
               if (t) checkInBaselineTsRef.current = Math.max(checkInBaselineTsRef.current, t);
             })
             .catch(() => {});
-          refresh();
+          refresh({ backgroundMemberFetch: true });
           // Explicitly refetch climbing progress so it updates in real time
           fetch("/api/member/progress", { headers: { Authorization: `Bearer ${accessToken}` } })
             .then((r) => r.json())
@@ -614,7 +614,7 @@ export default function DashboardPage() {
               setCheckInToast(null);
               checkInToastTimerRef.current = null;
             }, 5000);
-            refresh();
+            refresh({ backgroundMemberFetch: true });
             fetch("/api/member/progress", { headers: { Authorization: `Bearer ${accessToken}` } })
               .then((res) => res.json())
               .then((d) => {
@@ -648,7 +648,7 @@ export default function DashboardPage() {
           filter: `member_id=eq.${member.id}`,
         },
         async () => {
-          refresh();
+          refresh({ backgroundMemberFetch: true });
           const res = await fetch("/api/member/progress", { headers: { Authorization: `Bearer ${accessToken}` } });
           const data = await res.json();
           const first = data?.recent_achievements?.[0];
@@ -844,7 +844,20 @@ export default function DashboardPage() {
   const glassCard = "rgba(0,0,0,0.4)";
   const accentColor = "#7DD3FC";
 
-  // ProtectedRoute ensures session exists; member may still be loading
+  // ProtectedRoute ensures session exists; wait for /api/member/me before "no profile" state
+  if (memberLoading && !member) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 relative overflow-hidden">
+        <div className="fixed inset-0" style={{ background: skyBg, zIndex: 1 }} aria-hidden />
+        <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 2 }} aria-hidden>
+          <HeroStarfield heroTransitioning={false} />
+        </div>
+        <p className="relative z-10 text-white/90 text-center text-[15px] drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+          {locale === "vi" ? "Đang tải hồ sơ…" : "Loading your profile…"}
+        </p>
+      </div>
+    );
+  }
   if (!member) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 relative overflow-hidden">
@@ -2086,7 +2099,7 @@ export default function DashboardPage() {
           id_verified_from_cccd: member.id_verified_from_cccd,
         }}
         accessToken={accessToken}
-        onSaved={refresh}
+        onSaved={() => refresh({ backgroundMemberFetch: true })}
         isVi={isVi}
       />
 
@@ -2109,7 +2122,7 @@ export default function DashboardPage() {
       <WaiverModal
         open={waiverModalOpen}
         onClose={() => setWaiverModalOpen(false)}
-        onSuccess={() => refresh()}
+        onSuccess={() => refresh({ backgroundMemberFetch: true })}
         locale={locale as "en" | "vi"}
         defaultFullName={member?.full_name?.trim() ?? ""}
         accessToken={accessToken}
