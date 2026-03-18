@@ -61,8 +61,11 @@ export default function OnboardingAnalyticsTable({
           </span>
         )}
       </div>
-      <div className="overflow-x-auto rounded-lg border border-slate-200">
-        <table className="min-w-full text-sm">
+      <div
+        className="overflow-x-auto max-w-full min-w-0 rounded-lg border border-slate-200 touch-pan-x"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
+        <table className="min-w-[920px] w-full text-sm">
           <thead className="bg-slate-100 text-left">
             <tr>
               <th className="px-3 py-2 font-semibold text-slate-700">{isVi ? "Tên" : "Name"}</th>

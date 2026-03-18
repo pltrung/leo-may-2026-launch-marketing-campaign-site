@@ -357,6 +357,18 @@ export default function AdminPage() {
       );
   }, []);
 
+  /** Must run before any early return — otherwise hook count changes (React #310). */
+  const tourSteps = useMemo(() => {
+    if (role === "frontdesk") return TOUR_STEPS_FRONTDESK;
+    if (role === "staff") return TOUR_STEPS_STAFF;
+    if (!canAccessAdminTools) {
+      return TOUR_STEPS_ADMIN.filter(
+        (s) => !ADMIN_TOUR_STEP_IDS_ADMIN_TOOLS.includes(s.id as (typeof ADMIN_TOUR_STEP_IDS_ADMIN_TOOLS)[number])
+      );
+    }
+    return TOUR_STEPS_ADMIN;
+  }, [role, canAccessAdminTools]);
+
   const m = getMessages(locale).admin;
 
   // Fetch plans
@@ -1562,15 +1574,6 @@ export default function AdminPage() {
       </div>
     );
   }
-
-  const tourSteps = useMemo(() => {
-    if (role === "frontdesk") return TOUR_STEPS_FRONTDESK;
-    if (role === "staff") return TOUR_STEPS_STAFF;
-    if (!canAccessAdminTools) {
-      return TOUR_STEPS_ADMIN.filter((s) => !ADMIN_TOUR_STEP_IDS_ADMIN_TOOLS.includes(s.id as (typeof ADMIN_TOUR_STEP_IDS_ADMIN_TOOLS)[number]));
-    }
-    return TOUR_STEPS_ADMIN;
-  }, [role, canAccessAdminTools]);
 
   // Gym status pill: only computed when rendering main dashboard (after all early returns).
   const currentPhase = phase?.current_phase ?? "gym_open";
@@ -3908,7 +3911,7 @@ export default function AdminPage() {
 
           {/* ANALYTICS — admin only */}
           {adminArea === "analytics" && canAccessAnalytics && (
-            <section className="rounded-2xl bg-white border border-slate-200 shadow-sm p-4 md:p-6">
+            <section className="rounded-2xl bg-white border border-slate-200 shadow-sm p-4 md:p-6 min-w-0">
               <h2 className="text-lg font-semibold text-slate-900">{locale === "vi" ? "Phân tích & Báo cáo" : "Analytics & Reporting"}</h2>
               <p className="text-sm text-slate-600 mt-1">{locale === "vi" ? "Tab đầu là tóm tắt điều hành; các tab sau chi tiết từng mảng (doanh thu, thành viên, email, v.v.)." : "First tab is the executive summary; other tabs drill into each area (revenue, members, email, etc.)."}</p>
 
@@ -3988,7 +3991,7 @@ export default function AdminPage() {
                 ))}
               </nav>
 
-              <div className="mt-6">
+              <div className="mt-6 min-w-0 max-w-full">
                 {analyticsTab === "finance" ? (
                   <FinanceTab adminFetch={adminFetch} locale={locale} />
                 ) : (

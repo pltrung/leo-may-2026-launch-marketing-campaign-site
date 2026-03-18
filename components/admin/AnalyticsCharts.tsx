@@ -846,8 +846,8 @@ export default function AnalyticsCharts({
     const op: Partial<NonNullable<AnalyticsData["operations"]>> = data?.operations ?? {};
     const staffList = data?.staff ?? [];
     return (
-      <div className="space-y-14">
-        <section>
+      <div className="space-y-14 min-w-0 max-w-full">
+        <section className="min-w-0">
           <h2 className="text-lg font-semibold text-slate-900 mb-1">{t("Operations", "Vận hành")}</h2>
           <p className="text-xs text-slate-500 mb-4">{t("Tasks, walls, coaching — period totals.", "Nhiệm vụ, tường, coaching trong kỳ.")}</p>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -859,36 +859,43 @@ export default function AnalyticsCharts({
             <KpiCard label={t("Coaching missed", "Coaching chưa giao")} value={op.coaching_missed ?? 0} />
           </div>
         </section>
-        <section className="pt-6 border-t border-slate-200">
+        <section className="pt-6 border-t border-slate-200 min-w-0">
           <h2 className="text-lg font-semibold text-slate-900 mb-1">{t("Staff performance", "Hiệu suất nhân sự")}</h2>
           <p className="text-xs text-slate-500 mb-4">{t("POS sales, variable pay, tasks, attendance.", "Doanh số POS, trả biến đổi, nhiệm vụ, chấm công.")}</p>
-          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-100 border-b border-slate-200">
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">{t("Staff", "Nhân sự")}</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">{t("Role", "Vai trò")}</th>
-                  <th className="text-right py-3 px-4 font-semibold text-slate-700">{t("Sales", "Doanh số")}</th>
-                  <th className="text-right py-3 px-4 font-semibold text-slate-700">{t("Commission", "Hoa hồng")}</th>
-                  <th className="text-right py-3 px-4 font-semibold text-slate-700">{t("Tasks done", "Nhiệm vụ")}</th>
-                  <th className="text-right py-3 px-4 font-semibold text-slate-700">{t("Attendance days", "Số ngày có mặt")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {staffList.map((s) => (
-                  <tr key={s.staff_id} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="py-3 px-4 font-medium text-slate-900">{s.display_name}</td>
-                    <td className="py-3 px-4 text-slate-600">{s.role}</td>
-                    <td className="py-3 px-4 text-right text-slate-900">{(s.sales ?? 0).toLocaleString("vi-VN")} VND</td>
-                    <td className="py-3 px-4 text-right text-slate-900">{(s.commission ?? 0).toLocaleString("vi-VN")} VND</td>
-                    <td className="py-3 px-4 text-right text-slate-700">{s.tasks_completed ?? 0}</td>
-                    <td className="py-3 px-4 text-right text-slate-700">{s.attendance_days ?? 0}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {staffList.length === 0 && (
+          <p className="text-xs text-slate-400 mb-2 md:hidden">{t("Swipe horizontally to see all columns.", "Vuốt ngang để xem đủ các cột.")}</p>
+          <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            {staffList.length === 0 ? (
               <p className="p-6 text-center text-slate-500">{t("No staff data for this period.", "Không có dữ liệu nhân sự trong kỳ.")}</p>
+            ) : (
+              <div
+                className="overflow-x-auto max-w-full min-w-0 overscroll-x-contain touch-pan-x"
+                style={{ WebkitOverflowScrolling: "touch" }}
+              >
+                <table className="w-full min-w-[720px] text-sm">
+                  <thead>
+                    <tr className="bg-slate-100 border-b border-slate-200">
+                      <th className="text-left py-3 px-4 font-semibold text-slate-700 whitespace-nowrap">{t("Staff", "Nhân sự")}</th>
+                      <th className="text-left py-3 px-4 font-semibold text-slate-700 whitespace-nowrap">{t("Role", "Vai trò")}</th>
+                      <th className="text-right py-3 px-4 font-semibold text-slate-700 whitespace-nowrap">{t("Sales", "Doanh số")}</th>
+                      <th className="text-right py-3 px-4 font-semibold text-slate-700 whitespace-nowrap">{t("Commission", "Hoa hồng")}</th>
+                      <th className="text-right py-3 px-4 font-semibold text-slate-700 whitespace-nowrap">{t("Tasks done", "Nhiệm vụ")}</th>
+                      <th className="text-right py-3 px-4 font-semibold text-slate-700 whitespace-nowrap">{t("Attendance days", "Số ngày có mặt")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {staffList.map((s) => (
+                      <tr key={s.staff_id} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="py-3 px-4 font-medium text-slate-900 whitespace-nowrap">{s.display_name}</td>
+                        <td className="py-3 px-4 text-slate-600 whitespace-nowrap">{s.role}</td>
+                        <td className="py-3 px-4 text-right text-slate-900 whitespace-nowrap tabular-nums">{(s.sales ?? 0).toLocaleString("vi-VN")} VND</td>
+                        <td className="py-3 px-4 text-right text-slate-900 whitespace-nowrap tabular-nums">{(s.commission ?? 0).toLocaleString("vi-VN")} VND</td>
+                        <td className="py-3 px-4 text-right text-slate-700 tabular-nums">{s.tasks_completed ?? 0}</td>
+                        <td className="py-3 px-4 text-right text-slate-700 tabular-nums">{s.attendance_days ?? 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </section>
