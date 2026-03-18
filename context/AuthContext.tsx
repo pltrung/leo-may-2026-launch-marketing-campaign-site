@@ -73,8 +73,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchMemberGenRef = useRef(0);
   const memberRef = useRef<MemberProfile | null>(null);
 
-  const fetchMember = useCallback(async (token: string, options?: { background?: boolean }) => {
+  const fetchMember = useCallback(async (token: string, options?: { background?: boolean; authUserId?: string }) => {
     const background = options?.background === true;
+    const authUserId = options?.authUserId;
     const gen = ++fetchMemberGenRef.current;
     if (!background) setMemberLoading(true);
     try {
@@ -85,7 +86,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
-      if (gen !== fetchMemberGenRef.current) return;
 
       let data: { member?: MemberProfile } = {};
       try {
@@ -94,18 +94,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         /* non-JSON */
       }
 
+      const applyMember = (m: MemberProfile) => {
+        if (authUserId && m.auth_id && m.auth_id !== authUserId) return;
+        if (gen === fetchMemberGenRef.current) {
+          setMember(m);
+          return;
+        }
+        /* Another fetch started (e.g. onAuthStateChange right after refresh). If this one succeeded first, keep it when we still have no member. */
+        setMember((prev) => (prev == null ? m : prev));
+      };
+
       if (res.ok && data?.member) {
-        setMember(data.member);
+        applyMember(data.member);
         return;
       }
       if (res.status === 401) {
-        setMember(null);
+        if (gen === fetchMemberGenRef.current) setMember(null);
         return;
       }
-      setMember((prev) => prev);
+      if (gen === fetchMemberGenRef.current) setMember((prev) => prev);
     } catch {
-      if (gen !== fetchMemberGenRef.current) return;
-      setMember((prev) => prev);
+      if (gen === fetchMemberGenRef.current) setMember((prev) => prev);
     } finally {
       if (!background && gen === fetchMemberGenRef.current) setMemberLoading(false);
     }
@@ -150,7 +159,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAccessToken(token);
     setLoading(false);
 
-    fetchMember(token, { background: opts?.backgroundMemberFetch === true });
+    fetchMember(token, {
+      background: opts?.backgroundMemberFetch === true,
+      authUserId: s.user.id,
+    });
   }, [fetchMember]);
 
   useEffect(() => {
@@ -175,7 +187,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session.user ?? null);
         setAccessToken(token);
         setLoading(false);
-        fetchMember(token, { background: memberRef.current != null });
+        fetchMember(token, {
+          background: memberRef.current != null,
+          authUserId: session.user.id,
+        });
       } else {
         fetchMemberGenRef.current += 1;
         setSession(null);

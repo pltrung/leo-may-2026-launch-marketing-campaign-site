@@ -394,6 +394,9 @@ const en = {
     },
     pricingModal: {
       title: "Pricing",
+      tabDay: "Day passes",
+      tabVisit: "Visit packs",
+      benefits: "Benefits",
       newbieClassNote: "Newbie class includes free rental shoes + chalk for the session.",
       passBenefitsNote: "180-day & 365-day passes include merch discounts and friend visit codes — see dashboard after purchase.",
       tier1: "Starter",
@@ -1310,6 +1313,9 @@ const vi: Messages = {
     },
     pricingModal: {
       title: "Bảng giá",
+      tabDay: "Theo ngày",
+      tabVisit: "Theo lượt",
+      benefits: "Quyền lợi",
       newbieClassNote: "Lớp Newbie: miễn phí giày thuê + phấn trong buổi.",
       passBenefitsNote: "Gói 180 ngày & 365 ngày có giảm giá đồ & mã mời bạn — xem bảng điều khiển sau khi mua.",
       tier1: "Starter",

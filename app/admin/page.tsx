@@ -4411,7 +4411,7 @@ export default function AdminPage() {
       {/* Collect Payment Modal */}
       {paymentModalOpen && foundMember && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+          <div className="bg-white text-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
             <h3 className="text-lg font-semibold text-slate-900">Collect Payment</h3>
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
@@ -4517,31 +4517,31 @@ export default function AdminPage() {
             </div>
             {paymentPlanName && (
               <>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <span className="text-slate-500">Plan</span>
-                  <span className="font-medium">{paymentPlanName}</span>
-                  <span className="text-slate-500">Price</span>
-                  <span className="font-medium">
+                <div className="grid grid-cols-2 gap-2 text-sm rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <span className="text-slate-600 font-medium">Plan</span>
+                  <span className="font-semibold text-slate-900 text-right">{paymentPlanName}</span>
+                  <span className="text-slate-600 font-medium">Price</span>
+                  <span className="font-semibold text-slate-900 text-right">
                     {paymentListPriceVnd != null && paymentListPriceVnd > paymentPrice ? (
                       <>
-                        <span className="text-slate-400 line-through mr-2">
+                        <span className="text-slate-500 line-through mr-2">
                           {paymentListPriceVnd.toLocaleString("vi-VN")}
                         </span>
                         <span className="text-emerald-700">{paymentPrice.toLocaleString("vi-VN")} VND</span>
-                        <span className="block text-xs text-amber-700 font-normal mt-0.5">
+                        <span className="block text-xs text-amber-800 font-medium mt-0.5">
                           {locale === "vi" ? "Giá ưu đãi sau Newbie" : "Newbie graduate price"}
                         </span>
                       </>
                     ) : (
-                      <>{paymentPrice.toLocaleString("vi-VN")} VND</>
+                      <span>{paymentPrice.toLocaleString("vi-VN")} VND</span>
                     )}
                   </span>
-                  <span className="text-slate-500">Member ID</span>
-                  <span className="font-medium">{foundMember.displayId ?? foundMember.id}</span>
+                  <span className="text-slate-600 font-medium">Member ID</span>
+                  <span className="font-semibold text-slate-900 font-mono text-right">{foundMember.displayId ?? foundMember.id}</span>
                   {(paymentCurrentExpiry || paymentNewExpiry || paymentVisitsAdded) && (
                     <>
-                      <span className="text-slate-500">Current expiry</span>
-                      <span className="font-medium">
+                      <span className="text-slate-600 font-medium">Current expiry</span>
+                      <span className="font-semibold text-slate-900 text-right">
                         {paymentCurrentExpiry
                           ? new Date(paymentCurrentExpiry).toLocaleDateString("en-US", {
                               day: "numeric",
@@ -4550,8 +4550,8 @@ export default function AdminPage() {
                             })
                           : "—"}
                       </span>
-                      <span className="text-slate-500">{paymentVisitsAdded ? m.addsVisits : m.afterPurchase}</span>
-                      <span className="font-medium text-emerald-600">
+                      <span className="text-slate-600 font-medium">{paymentVisitsAdded ? m.addsVisits : m.afterPurchase}</span>
+                      <span className="font-semibold text-emerald-700 text-right">
                         {paymentVisitsAdded != null
                           ? `+${paymentVisitsAdded} visits`
                           : paymentNewExpiry

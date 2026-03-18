@@ -242,6 +242,7 @@ export default function DashboardPage() {
   const [friendInviteCodes, setFriendInviteCodes] = useState<
     { code: string; used: boolean; expired: boolean; expires_at: string }[]
   >([]);
+  const [perksInfoOpen, setPerksInfoOpen] = useState(false);
   const [newbieClass, setNewbieClass] = useState<{
     session_id: string;
     start_time: string;
@@ -1540,72 +1541,91 @@ export default function DashboardPage() {
                 )}
                 {friendInviteCodes.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-white/[0.08]">
-                    <p className="text-[13px] font-medium text-white/80 mb-2">
+                    <p className="text-[13px] font-medium text-white/80 mb-1">
                       {isVi ? "Mã mời bạn mới (LMG-…)" : "New-guest codes (LMG-…)"}
                     </p>
                     <p className="text-[11px] text-white/50 mb-2 leading-relaxed">
                       {isVi
-                        ? "Chia sẻ cho người mới (≤30 ngày đăng ký, chưa dùng lượt check-in). Mỗi người chỉ đổi 1 mã."
-                        : "Share with new members (under 30 days from signup, no visit check-in yet). Each person can redeem only one such code."}
+                        ? "Chia sẻ cho người mới (≤30 ngày đăng ký, chưa dùng lượt check-in). Vuốt ngang để xem các mã."
+                        : "Share with new members (under 30 days from signup, no visit check-in yet). Swipe sideways to see more codes."}
                     </p>
-                    <ul className="space-y-2 max-h-36 overflow-y-auto">
-                      {friendInviteCodes.map((gc) => (
-                        <li
-                          key={gc.code}
-                          className="flex flex-wrap items-center gap-2 rounded-[12px] px-2.5 py-2"
-                          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
-                        >
-                          <code className="text-[13px] text-sky-200 font-mono">{gc.code}</code>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void navigator.clipboard?.writeText(gc.code);
-                              setMilestoneCopiedCode(gc.code);
-                              window.setTimeout(() => setMilestoneCopiedCode((c) => (c === gc.code ? null : c)), 2000);
-                            }}
-                            className="text-[11px] text-sky-300/90 hover:underline"
+                    <div
+                      className="flex gap-3 overflow-x-auto overflow-y-hidden pb-2 pt-1 scroll-smooth snap-x snap-mandatory touch-pan-x -mx-1 px-1"
+                      style={{ scrollbarWidth: "thin", WebkitOverflowScrolling: "touch" }}
+                      data-carousel="friend-codes"
+                    >
+                      {friendInviteCodes.map((gc) => {
+                        const statusLabel = gc.used
+                          ? isVi
+                            ? "Đã dùng"
+                            : "Used"
+                          : gc.expired
+                            ? isVi
+                              ? "Hết hạn"
+                              : "Expired"
+                            : isVi
+                              ? "Dùng được"
+                              : "Active";
+                        const statusClass = gc.used
+                          ? "text-amber-300/95"
+                          : gc.expired
+                            ? "text-white/45"
+                            : "text-emerald-300/95";
+                        return (
+                          <div
+                            key={gc.code}
+                            className="snap-center shrink-0 w-[min(calc(100vw-3rem),14rem)] sm:w-56 rounded-2xl px-3 py-3 flex flex-col gap-2.5 border border-white/10 bg-white/[0.06]"
                           >
-                            {milestoneCopiedCode === gc.code
-                              ? isVi
-                                ? "Đã copy"
-                                : "Copied"
-                              : isVi
-                                ? "Copy"
-                                : "Copy"}
-                          </button>
-                          <span
-                            className={`text-[11px] ${
-                              gc.used ? "text-amber-400/90" : gc.expired ? "text-white/40" : "text-emerald-400/90"
-                            }`}
-                          >
-                            {gc.used ? (isVi ? "Đã dùng" : "Used") : gc.expired ? (isVi ? "Hết hạn" : "Expired") : isVi ? "Dùng được" : "Active"}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-[9px] font-semibold uppercase tracking-wider text-white/40">
+                                {isVi ? "Trạng thái" : "Status"}
+                              </span>
+                              <span className={`text-[13px] font-semibold ${statusClass}`}>{statusLabel}</span>
+                            </div>
+                            <div className="flex flex-col gap-0.5 min-h-0">
+                              <span className="text-[9px] font-semibold uppercase tracking-wider text-white/40">
+                                {isVi ? "Mã" : "Code"}
+                              </span>
+                              <code className="text-[12px] sm:text-[13px] text-sky-200 font-mono tracking-wide break-all leading-snug">
+                                {gc.code}
+                              </code>
+                            </div>
+                            <div className="flex flex-col gap-1.5 mt-auto pt-1">
+                              <span className="text-[9px] font-semibold uppercase tracking-wider text-white/40">
+                                {isVi ? "Sao chép" : "Copy"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  void navigator.clipboard?.writeText(gc.code);
+                                  setMilestoneCopiedCode(gc.code);
+                                  window.setTimeout(() => setMilestoneCopiedCode((c) => (c === gc.code ? null : c)), 2000);
+                                }}
+                                className="w-full py-2 rounded-xl text-[12px] font-semibold bg-sky-500/25 text-sky-200 border border-sky-400/30 hover:bg-sky-500/35 active:scale-[0.98] transition-all"
+                              >
+                                {milestoneCopiedCode === gc.code
+                                  ? isVi
+                                    ? "Đã copy ✓"
+                                    : "Copied ✓"
+                                  : isVi
+                                    ? "Copy mã"
+                                    : "Copy code"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {friendInviteCodes.length > 1 && (
+                      <p className="text-[10px] text-center text-white/35 mt-1">
+                        {isVi
+                          ? `← ${friendInviteCodes.length} mã — vuốt →`
+                          : `← ${friendInviteCodes.length} codes — swipe →`}
+                      </p>
+                    )}
+                    <style>{`[data-carousel="friend-codes"]::-webkit-scrollbar { height: 4px; } [data-carousel="friend-codes"]::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }`}</style>
                   </div>
                 )}
-                <div
-                  className="mt-3 rounded-[14px] px-3 py-2.5 text-[11px] text-white/55 leading-relaxed"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
-                >
-                  <p className="font-medium text-white/70 mb-1">{isVi ? "Gia hạn & quyền lợi" : "Extensions & perks"}</p>
-                  {isVi ? (
-                    <>
-                      <p>• Gói 30 ngày: không thêm mã / không đổi % giảm giá.</p>
-                      <p>• Gói 180 ngày: +5 mã LMG-, giảm tối thiểu 5% đồ (nếu chưa có cao hơn).</p>
-                      <p>• Gói 365 ngày: +15 mã, 10% đồ.</p>
-                      <p>• Ví dụ: đang 30 ngày → mua thêm 180 ngày: bạn nhận thêm 5 mã; hết hạn mã theo ngày hết pass sau lần mua đó.</p>
-                    </>
-                  ) : (
-                    <>
-                      <p>• 30-day pass: no extra codes or merch tier change.</p>
-                      <p>• 180-day: +5 LMG- codes, at least 5% merch (unless you already have 10%).</p>
-                      <p>• 365-day: +15 codes, 10% merch.</p>
-                      <p>• Example: on 30-day, you buy 180-day → you get +5 codes; code expiry follows the membership end date from that purchase.</p>
-                    </>
-                  )}
-                </div>
               </div>
               <div className="mt-4 pt-3 border-t border-white/[0.08] text-[13px] text-white/70 space-y-1">
                 {canCheckIn && (
@@ -1620,11 +1640,24 @@ export default function DashboardPage() {
               </div>
 
               <div className="mt-6 pt-4 border-t border-white/[0.08]">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-[18px] font-medium text-white/90">
-                    {isVi ? "Thanh toán / gia hạn" : "Pay / Renew"}
-                  </h3>
-                  <div className="flex gap-1">
+                <div className="flex items-center justify-between mb-4 gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <h3 className="text-[18px] font-medium text-white/90">
+                      {isVi ? "Thanh toán / gia hạn" : "Pay / Renew"}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setPerksInfoOpen(true)}
+                      className="shrink-0 w-8 h-8 rounded-full border border-white/20 text-sky-300/90 hover:text-sky-200 hover:bg-white/10 flex items-center justify-center"
+                      aria-label={isVi ? "Gia hạn và quyền lợi gói dài hạn" : "How extensions & long-pass perks work"}
+                      title={isVi ? "Gia hạn & quyền lợi" : "Extensions & perks"}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
                     {(["all", "day", "visit"] as const).map((f) => (
                       <button
                         key={f}
@@ -2298,6 +2331,65 @@ export default function DashboardPage() {
         defaultFullName={member?.full_name?.trim() ?? ""}
         accessToken={accessToken}
       />
+
+      {perksInfoOpen && (
+        <div
+          className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/65 backdrop-blur-sm"
+          onClick={() => setPerksInfoOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="perks-info-title"
+        >
+          <div
+            className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-white/10 bg-[#0f1419] p-5 sm:p-6 shadow-2xl max-h-[78dvh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start gap-3 mb-2">
+              <h3 id="perks-info-title" className="text-lg font-semibold text-white">
+                {isVi ? "Gia hạn & quyền lợi gói dài" : "Extensions & long-pass perks"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setPerksInfoOpen(false)}
+                className="shrink-0 w-9 h-9 rounded-full bg-white/10 text-white/80 hover:bg-white/15 flex items-center justify-center text-xl leading-none"
+                aria-label={isVi ? "Đóng" : "Close"}
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-[12px] text-white/45 mb-4">
+              {isVi
+                ? "Chỉ cần khi bạn quan tâm gói 180/365 ngày hoặc gia hạn."
+                : "Optional reading — mainly for 180/365-day passes and renewals."}
+            </p>
+            <div className="space-y-3 text-[13px] text-white/75 leading-relaxed">
+              {isVi ? (
+                <>
+                  <p>• Gói 30 ngày: không thêm mã LMG- / không đổi % giảm giá đồ.</p>
+                  <p>• Gói 180 ngày: +5 mã mời bạn, giảm tối thiểu 5% đồ tại quầy (trừ khi bạn đã có 10%).</p>
+                  <p>• Gói 365 ngày: +15 mã, 10% đồ tại quầy.</p>
+                  <p>• Ví dụ: đang 30 ngày rồi mua thêm 180 ngày → thêm 5 mã; mã hết hạn theo ngày hết pass sau lần mua đó.</p>
+                </>
+              ) : (
+                <>
+                  <p>• 30-day pass: no extra LMG- codes or merch discount tier change.</p>
+                  <p>• 180-day: +5 friend-invite codes, at least 5% merch at the desk (unless you already have 10%).</p>
+                  <p>• 365-day: +15 codes, 10% merch at the desk.</p>
+                  <p>• Example: on a 30-day pass you buy 180-day → you get +5 codes; codes expire with the membership end date from that purchase.</p>
+                </>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setPerksInfoOpen(false)}
+              className="mt-5 w-full py-3 rounded-full bg-white/12 text-white text-sm font-medium hover:bg-white/18"
+            >
+              {isVi ? "Đóng" : "Close"}
+            </button>
+          </div>
+        </div>
+      )}
+
       <AchievementUnlockModal
         open={showAchievementUnlock}
         onClose={() => { setShowAchievementUnlock(false); setAchievementUnlock(null); }}

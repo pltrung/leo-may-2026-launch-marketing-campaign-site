@@ -12,6 +12,21 @@ export interface Plan {
   pass_type?: "newbie" | "day" | "visit";
 }
 
+/** When DB description is empty, show these (EN) so benefits always appear in the modal. */
+const PLAN_BENEFITS_FALLBACK: Record<string, string> = {
+  newbie_class:
+    "30 minute coaching + 1 day access • Free rental shoes + chalk for your class",
+  day_pass: "Full gym access for one calendar day",
+  month_pass: "Unlimited climbing for 30 days",
+  half_year_pass:
+    "Unlimited climbing for 180 days • 5% off merchandise & gear • 5 friend visit codes (each code = one new member, one bonus visit)",
+  year_pass:
+    "Unlimited climbing for 365 days • 10% off merchandise & gear • 15 friend visit codes (each code = one new member, one bonus visit)",
+  visit_5: "5 prepaid visits — use anytime while your account is active",
+  visit_10: "10 prepaid visits — use anytime while your account is active",
+  visit_20: "20 prepaid visits — use anytime while your account is active",
+};
+
 interface PackageDetailModalProps {
   open: boolean;
   onClose: () => void;
@@ -49,7 +64,11 @@ export default function PackageDetailModal({
     }
     return [desc];
   };
-  const bullets = plan.description ? formatDescription(plan.description) : [];
+  const descSource =
+    plan.description?.trim() ||
+    PLAN_BENEFITS_FALLBACK[plan.id] ||
+    "";
+  const bullets = descSource ? formatDescription(descSource) : [];
 
   return (
     <div
