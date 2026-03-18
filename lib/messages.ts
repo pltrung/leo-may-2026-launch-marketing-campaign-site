@@ -510,7 +510,7 @@ const en = {
     verifiedFromCccdLocked: "Verified from CCCD — not editable",
     milestoneGuestPasses: "Your guest pass codes",
     milestoneGuestHowTo:
-      "Share a code with a friend. They open the member dashboard → Activity tab, enter the code under “Redeem a guest pass”, and get 1 free visit on their account. Each code works once; you can’t use your own codes.",
+      "Share a code with a friend. They open the member dashboard → Redeem tab, paste the code, and get 1 free visit on their account. Each code works once; you can’t use your own codes.",
     milestoneRedeemGuestPass: "Redeem a guest pass",
     milestoneRedeemPlaceholder: "Enter code (e.g. LEO-G-…)",
     milestoneRedeem: "Redeem",
@@ -1426,7 +1426,7 @@ const vi: Messages = {
     verifiedFromCccdLocked: "Xác thực từ CCCD — không chỉnh sửa",
     milestoneGuestPasses: "Mã vé khách của bạn",
     milestoneGuestHowTo:
-      "Gửi mã cho bạn bè. Họ mở dashboard thành viên → tab Hoạt động, nhập mã ở mục “Đổi vé khách” để được cộng 1 lượt miễn phí. Mỗi mã dùng một lần; bạn không thể dùng mã của chính mình.",
+      "Gửi mã cho bạn bè. Họ mở dashboard thành viên → tab Đổi mã, dán mã để được cộng 1 lượt miễn phí. Mỗi mã dùng một lần; bạn không thể dùng mã của chính mình.",
     milestoneRedeemGuestPass: "Đổi vé khách",
     milestoneRedeemPlaceholder: "Nhập mã (vd: LEO-G-…)",
     milestoneRedeem: "Đổi",

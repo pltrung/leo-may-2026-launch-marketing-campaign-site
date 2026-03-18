@@ -163,7 +163,7 @@ export default function DashboardPage() {
     currentUser: { rank: number | null; visits: number; full_name: string };
   } | null>(null);
   const [leaderboardGender, setLeaderboardGender] = useState<"all" | "male" | "female">("all");
-  const [dashboardTab, setDashboardTab] = useState<"membership" | "activity" | "events" | "leaderboard">("membership");
+  const [dashboardTab, setDashboardTab] = useState<"membership" | "activity" | "redeem" | "events" | "leaderboard">("membership");
   const [passFilter, setPassFilter] = useState<"all" | "day" | "visit">("all");
   const [plans, setPlans] = useState<Plan[]>([]);
   const [payments, setPayments] = useState<{ id: string; plan_name: string; amount: number; created_at: string }[]>([]);
@@ -232,12 +232,9 @@ export default function DashboardPage() {
   const [leaderboardPeriod, setLeaderboardPeriod] = useState<"week" | "month" | "all">("month");
   const [guidedTourActive, setGuidedTourActive] = useState(false);
   const [tourPhase, setTourPhase] = useState<"onboarding" | "main">("onboarding");
-  const [campaignCode, setCampaignCode] = useState("");
-  const [campaignRedeemLoading, setCampaignRedeemLoading] = useState(false);
-  const [campaignRedeemMessage, setCampaignRedeemMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [milestoneRedeemCode, setMilestoneRedeemCode] = useState("");
-  const [milestoneRedeemLoading, setMilestoneRedeemLoading] = useState(false);
-  const [milestoneRedeemMsg, setMilestoneRedeemMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [redeemCode, setRedeemCode] = useState("");
+  const [redeemLoading, setRedeemLoading] = useState(false);
+  const [redeemMessage, setRedeemMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [milestoneCopiedCode, setMilestoneCopiedCode] = useState<string | null>(null);
   const [newbieClass, setNewbieClass] = useState<{
     session_id: string;
@@ -321,34 +318,101 @@ export default function DashboardPage() {
     return () => { cancelled = true; };
   }, [accessToken, checkInSuccess, paymentSuccess]);
 
-  const handleMilestoneGuestRedeem = useCallback(async () => {
-    const code = milestoneRedeemCode.trim();
-    if (!accessToken || !code) return;
-    setMilestoneRedeemLoading(true);
-    setMilestoneRedeemMsg(null);
-    try {
+  const handleUnifiedRedeem = useCallback(async () => {
+    const raw = redeemCode.trim().toUpperCase();
+    if (!accessToken || !raw) return;
+    setRedeemLoading(true);
+    setRedeemMessage(null);
+
+    const tryGuestPass = async (): Promise<boolean> => {
       const res = await fetch("/api/member/redeem-milestone-guest", {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code: raw }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed");
-      setMilestoneRedeemMsg({
-        type: "ok",
-        text: locale === "vi" ? "Đã cộng 1 lượt vào tài khoản của bạn." : "1 visit added to your account.",
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setRedeemMessage({
+          type: "success",
+          text: locale === "vi" ? "Đã cộng 1 lượt vào tài khoản của bạn." : "1 visit added to your account.",
+        });
+        setRedeemCode("");
+        refresh();
+        const pr = await fetch("/api/member/progress", { headers: { Authorization: `Bearer ${accessToken}` } });
+        const pd = await pr.json();
+        if (pd && typeof pd.level === "string") setClimbingProgress(pd);
+        return true;
+      }
+      setRedeemMessage({
+        type: "error",
+        text:
+          typeof data.error === "string"
+            ? data.error
+            : locale === "vi"
+              ? "Mã không hợp lệ hoặc đã dùng."
+              : "Invalid or already used code.",
       });
-      setMilestoneRedeemCode("");
-      refresh();
-      const pr = await fetch("/api/member/progress", { headers: { Authorization: `Bearer ${accessToken}` } });
-      const pd = await pr.json();
-      if (pd && typeof pd.level === "string") setClimbingProgress(pd);
-    } catch (e) {
-      setMilestoneRedeemMsg({ type: "err", text: (e as Error).message });
+      return false;
+    };
+
+    const tryCampaign = async (): Promise<"ok" | "fail" | "skip"> => {
+      const res = await fetch("/api/member/campaign-redeem", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ code: raw }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.success) {
+        const successText = data.alreadyRedeemed
+          ? locale === "vi"
+            ? "Bạn đã dùng mã này rồi."
+            : "You have already redeemed this code."
+          : locale === "vi" && typeof data.messageVi === "string"
+            ? data.messageVi
+            : typeof data.message === "string"
+              ? data.message
+              : locale === "vi"
+                ? "Áp dụng mã thành công."
+                : "Code redeemed successfully.";
+        setRedeemMessage({ type: "success", text: successText });
+        if (!data.alreadyRedeemed) setRedeemCode("");
+        refresh();
+        return "ok";
+      }
+      const err = data?.error as string | undefined;
+      if (err === "Invalid or expired code" || res.status === 404) return "fail";
+      setRedeemMessage({
+        type: "error",
+        text:
+          err === "Invalid or expired code"
+            ? locale === "vi"
+              ? "Mã không hợp lệ hoặc đã hết hạn."
+              : "Invalid or expired code."
+            : err ?? (locale === "vi" ? "Không thể áp dụng mã." : "Could not redeem code."),
+      });
+      return "skip";
+    };
+
+    try {
+      if (raw.startsWith("LEO-G-")) {
+        await tryGuestPass();
+        return;
+      }
+      const camp = await tryCampaign();
+      if (camp === "ok") return;
+      if (camp === "fail") {
+        const guestOk = await tryGuestPass();
+        if (guestOk) return;
+      }
+    } catch {
+      setRedeemMessage({
+        type: "error",
+        text: locale === "vi" ? "Lỗi kết nối." : "Connection error.",
+      });
     } finally {
-      setMilestoneRedeemLoading(false);
+      setRedeemLoading(false);
     }
-  }, [accessToken, milestoneRedeemCode, refresh, locale]);
+  }, [accessToken, redeemCode, refresh, locale]);
 
   const copyMilestoneCode = useCallback((code: string) => {
     void navigator.clipboard?.writeText(code);
@@ -1117,6 +1181,7 @@ export default function DashboardPage() {
           {/* CHECK IN - only show when all 3 steps (waiver, package, profile photo) are done */}
           {canShowQR && (
           <section data-tour="dashboard-qr">
+            {/* Only after a *new* check-in this session (realtime / polling vs baseline), not because member already checked in earlier today */}
             {checkInSuccess && (
               <div className="w-full mb-4 rounded-[20px] px-6 py-4 flex flex-col gap-1 border-2 border-emerald-400/60 shadow-lg shadow-emerald-500/20 animate-in fade-in slide-in-from-top-2 duration-300" style={{ background: glassCard, backdropFilter: "blur(20px)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
                 <p className="text-[18px] font-medium text-emerald-200">
@@ -1124,16 +1189,6 @@ export default function DashboardPage() {
                 </p>
                 <p className="text-[15px] text-emerald-100/90">
                   {isVi ? "Chào mừng bạn đến Leo Mây" : "Welcome to Leo Mây"}
-                </p>
-              </div>
-            )}
-            {(member as { checked_in_today?: boolean }).checked_in_today && !checkInSuccess && (
-              <div className="w-full mb-4 rounded-[20px] px-6 py-3 flex flex-col gap-0.5 border border-emerald-500/40" style={{ background: "rgba(16,185,129,0.12)", backdropFilter: "blur(12px)", textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}>
-                <p className="text-[16px] font-medium text-emerald-200">
-                  {isVi ? "Chào bạn quay lại hôm nay!" : "Welcome back again today!"}
-                </p>
-                <p className="text-[14px] text-emerald-100/80">
-                  {isVi ? "Hệ thống đã ghi nhận bạn đã tới phòng gym hôm nay." : "We've got you checked in for today."}
                 </p>
               </div>
             )}
@@ -1235,21 +1290,22 @@ export default function DashboardPage() {
             style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 4px 20px rgba(0,0,0,0.3)" }}
             aria-label={isVi ? "Điều hướng dashboard" : "Dashboard tabs"}
           >
-            {(["membership", "activity", "events", "leaderboard"] as const).map((tab) => (
+            {(["membership", "activity", "redeem", "events", "leaderboard"] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
                 onClick={() => setDashboardTab(tab)}
-                className={`flex-1 min-w-0 py-2.5 px-3 rounded-lg text-[13px] font-medium transition-all ${
+                className={`flex-1 min-w-0 py-2.5 px-2 sm:px-3 rounded-lg text-[11px] sm:text-[13px] font-medium transition-all ${
                   dashboardTab === tab
                     ? "bg-white text-slate-900 shadow"
                     : "text-white/80 hover:text-white hover:bg-white/10"
                 }`}
               >
-                {tab === "membership" ? (isVi ? "Thẻ thành viên" : "Membership") : null}
+                {tab === "membership" ? (isVi ? "Thẻ TV" : "Membership") : null}
                 {tab === "activity" ? (isVi ? "Hoạt động" : "Activity") : null}
+                {tab === "redeem" ? (isVi ? "Đổi mã" : "Redeem") : null}
                 {tab === "events" ? (isVi ? "Sự kiện" : "Events") : null}
-                {tab === "leaderboard" ? (isVi ? "Bảng xếp hạng" : "Leaderboard") : null}
+                {tab === "leaderboard" ? (isVi ? "BXH" : "Rank") : null}
               </button>
             ))}
           </nav>
@@ -1358,69 +1414,6 @@ export default function DashboardPage() {
                 <p className="text-[11px] text-white/65 font-mono break-all pt-1">
                   {isVi ? "ID nội bộ:" : "Internal ID:"} {member.id}
                 </p>
-              </div>
-
-              {/* Redeem campaign code */}
-              <div className="mt-6 pt-4 border-t border-white/[0.08]">
-                <h3 className="text-[18px] font-medium text-white/90 mb-2">
-                  {isVi ? "Mã ưu đãi từ email" : "Redeem campaign code"}
-                </h3>
-                <p className="text-[13px] text-white/60 mb-3">
-                  {isVi ? "Nhập mã từ email chiến dịch Leo Mây để áp dụng ưu đãi." : "Enter the code from your Leo Mây campaign email to apply your benefit."}
-                </p>
-                <div className="flex gap-2 flex-wrap">
-                  <input
-                    type="text"
-                    value={campaignCode}
-                    onChange={(e) => { setCampaignCode(e.target.value.trim().toUpperCase()); setCampaignRedeemMessage(null); }}
-                    placeholder={isVi ? "VD: LEO-XXXXXXXX" : "e.g. LEO-XXXXXXXX"}
-                    className="flex-1 min-w-[140px] rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-[15px] text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
-                  />
-                  <button
-                    type="button"
-                    disabled={campaignRedeemLoading || !campaignCode.trim()}
-                    onClick={async () => {
-                      if (!accessToken || !campaignCode.trim()) return;
-                      setCampaignRedeemLoading(true);
-                      setCampaignRedeemMessage(null);
-                      try {
-                        const res = await fetch("/api/member/campaign-redeem", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-                          body: JSON.stringify({ code: campaignCode.trim() }),
-                        });
-                        const data = await res.json().catch(() => ({}));
-                        if (res.ok && data?.success) {
-                          const successText = data.alreadyRedeemed
-                              ? (isVi ? "Bạn đã dùng mã này rồi." : "You have already redeemed this code.")
-                              : (isVi && typeof data.messageVi === "string" ? data.messageVi : typeof data.message === "string" ? data.message : (isVi ? "Áp dụng mã thành công." : "Code redeemed successfully."));
-                          setCampaignRedeemMessage({ type: "success", text: successText });
-                          if (!data.alreadyRedeemed) setCampaignCode("");
-                          refresh();
-                        } else {
-                          setCampaignRedeemMessage({
-                            type: "error",
-                            text: data?.error === "Invalid or expired code"
-                              ? (isVi ? "Mã không hợp lệ hoặc đã hết hạn." : "Invalid or expired code.")
-                              : (data?.error ?? (isVi ? "Không thể áp dụng mã." : "Could not redeem code.")),
-                          });
-                        }
-                      } catch {
-                        setCampaignRedeemMessage({ type: "error", text: isVi ? "Lỗi kết nối." : "Connection error." });
-                      } finally {
-                        setCampaignRedeemLoading(false);
-                      }
-                    }}
-                    className="shrink-0 px-4 py-2 rounded-lg bg-emerald-500/90 text-white font-medium text-[14px] hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {campaignRedeemLoading ? (isVi ? "Đang xử lý…" : "Processing…") : isVi ? "Áp dụng mã" : "Redeem"}
-                  </button>
-                </div>
-                {campaignRedeemMessage && (
-                  <p className={`mt-2 text-[13px] ${campaignRedeemMessage.type === "success" ? "text-emerald-300" : "text-amber-300"}`}>
-                    {campaignRedeemMessage.text}
-                  </p>
-                )}
               </div>
 
               <div className="mt-6 pt-4 border-t border-white/[0.08]">
@@ -1635,7 +1628,12 @@ export default function DashboardPage() {
                       {(climbingProgress.milestone_guest_codes?.length ?? 0) > 0 && (
                         <div className="space-y-3">
                           <p className="text-[14px] font-semibold text-white/85">{d.milestoneGuestPasses}</p>
-                          <p className="text-[12px] text-white/55 leading-relaxed">{d.milestoneGuestHowTo}</p>
+                          <p className="text-[12px] text-white/55 leading-relaxed">
+                            {d.milestoneGuestHowTo}{" "}
+                            {isVi
+                              ? "Họ đổi mã tại tab Đổi mã."
+                              : "They redeem in the Redeem tab."}
+                          </p>
                           {([10, 25] as const).map((mv) => {
                             const list = (climbingProgress.milestone_guest_codes ?? []).filter((c) => c.milestone_visits === mv);
                             if (list.length === 0) return null;
@@ -1712,39 +1710,67 @@ export default function DashboardPage() {
                   )}
 
                   <div className="mt-6 pt-5 border-t border-white/10">
-                    <p className="text-[14px] font-semibold text-white/85 mb-2">{d.milestoneRedeemGuestPass}</p>
-                    <p className="text-[12px] text-white/50 mb-3">
+                    <p className="text-[13px] text-white/55">
                       {isVi
-                        ? "Nếu bạn nhận được mã từ thành viên Leo Mây, nhập bên dưới để được cộng 1 lượt miễn phí."
-                        : "If a Leo May member shared a guest code with you, enter it below to add 1 free visit to your account."}
+                        ? "Bạn có mã email hoặc mã vé khách? Mở tab Đổi mã để áp dụng."
+                        : "Have an email code or guest pass? Open the Redeem tab to apply it."}
                     </p>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <input
-                        type="text"
-                        value={milestoneRedeemCode}
-                        onChange={(e) => setMilestoneRedeemCode(e.target.value)}
-                        placeholder={d.milestoneRedeemPlaceholder}
-                        className="flex-1 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/35 bg-white/10 border border-white/15 focus:outline-none focus:ring-1 focus:ring-sky-400/50"
-                        autoCapitalize="characters"
-                      />
-                      <button
-                        type="button"
-                        disabled={milestoneRedeemLoading || !milestoneRedeemCode.trim()}
-                        onClick={() => void handleMilestoneGuestRedeem()}
-                        className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-sky-500/90 text-white hover:bg-sky-400 disabled:opacity-50"
-                      >
-                        {milestoneRedeemLoading ? "…" : d.milestoneRedeem}
-                      </button>
-                    </div>
-                    {milestoneRedeemMsg && (
-                      <p
-                        className={`text-[13px] mt-2 ${milestoneRedeemMsg.type === "ok" ? "text-emerald-300" : "text-rose-300"}`}
-                      >
-                        {milestoneRedeemMsg.text}
-                      </p>
-                    )}
                   </div>
                 </>
+              )}
+            </div>
+          </section>
+          )}
+
+          {dashboardTab === "redeem" && (
+          <section
+            data-tour="dashboard-redeem"
+            className="rounded-[20px] p-6 transition-transform duration-200 hover:-translate-y-0.5"
+            style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}
+          >
+            <h2 className="text-[22px] font-semibold text-white/90 mb-2">
+              {isVi ? "ĐỔI MÃ" : "REDEEM A CODE"}
+            </h2>
+            <p className="text-[14px] text-white/65 mb-6 max-w-xl">
+              {isVi
+                ? "Nhập mã từ email chiến dịch Leo Mây hoặc mã vé khách (LEO-G-…) từ thành viên. Hệ thống tự nhận diện và áp dụng đúng ưu đãi."
+                : "Enter your email campaign code or a guest pass code (LEO-G-…) from a member. We’ll apply the right benefit automatically."}
+            </p>
+            <div
+              className="rounded-[18px] p-5 md:p-6 max-w-lg"
+              style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}
+            >
+              <label className="block text-[12px] font-medium text-white/50 uppercase tracking-wide mb-2">
+                {isVi ? "Mã" : "Code"}
+              </label>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  value={redeemCode}
+                  onChange={(e) => {
+                    setRedeemCode(e.target.value.toUpperCase());
+                    setRedeemMessage(null);
+                  }}
+                  placeholder={isVi ? "VD: LEO-… hoặc LEO-G-…" : "e.g. LEO-… or LEO-G-…"}
+                  className="flex-1 rounded-xl px-4 py-3 text-[15px] text-white placeholder:text-white/35 bg-white/10 border border-white/15 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 font-mono tracking-wide"
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                />
+                <button
+                  type="button"
+                  disabled={redeemLoading || !redeemCode.trim()}
+                  onClick={() => void handleUnifiedRedeem()}
+                  className="shrink-0 px-6 py-3 rounded-xl text-[15px] font-semibold bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:opacity-95 disabled:opacity-45"
+                >
+                  {redeemLoading ? (isVi ? "Đang xử lý…" : "Applying…") : isVi ? "Áp dụng" : "Apply"}
+                </button>
+              </div>
+              {redeemMessage && (
+                <p
+                  className={`mt-4 text-[14px] font-medium ${redeemMessage.type === "success" ? "text-emerald-300" : "text-amber-300"}`}
+                >
+                  {redeemMessage.text}
+                </p>
               )}
             </div>
           </section>

@@ -15,6 +15,7 @@ const BarcodeScannerModal = dynamic(() => import("@/components/admin/BarcodeScan
 const QRCodeSVG = dynamic(() => import("qrcode.react").then((m) => m.QRCodeSVG), { ssr: false });
 const EidQrScannerModal = dynamic(() => import("@/components/dashboard/EidQrScannerModal"), { ssr: false });
 const AnalyticsCharts = dynamic(() => import("@/components/admin/AnalyticsCharts"), { ssr: false });
+const FinanceTab = dynamic(() => import("@/components/admin/FinanceTab"), { ssr: false });
 import { GuidedTour, TOUR_STEPS_FRONTDESK, TOUR_STEPS_STAFF, TOUR_STEPS_ADMIN } from "@/components/admin/GuidedTour";
 
 const ADMIN_LOCALE_KEY = "admin-locale";
@@ -217,6 +218,10 @@ export default function AdminPage() {
   const inventoryQtyInputRef = React.useRef<HTMLInputElement>(null);
   const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState<"all" | "shoes" | "merch">("all");
   const [inventorySearchQuery, setInventorySearchQuery] = useState("");
+  const [fdRestockVariantId, setFdRestockVariantId] = useState("");
+  const [fdRestockQty, setFdRestockQty] = useState("6");
+  const [fdRestockNote, setFdRestockNote] = useState("");
+  const [fdRestockMsg, setFdRestockMsg] = useState<string | null>(null);
   const [productDetailProductId, setProductDetailProductId] = useState<string | null>(null);
   const [productDetailData, setProductDetailData] = useState<{ product: InvProduct; variants: (InvVariant & { stock_quantity: number })[] } | null>(null);
   const [productDetailEditProduct, setProductDetailEditProduct] = useState<{ name: string; brand: string | null; category: string; image: string | null } | null>(null);
@@ -231,7 +236,9 @@ export default function AdminPage() {
   const [assigningSessionId, setAssigningSessionId] = useState<string | null>(null);
   const [staffQrToken, setStaffQrToken] = useState<string | null>(null);
   const [staffCheckInSuccess, setStaffCheckInSuccess] = useState(false);
-  const [analyticsTab, setAnalyticsTab] = useState<"overview" | "revenue" | "members" | "email_campaigns" | "retention" | "behavior" | "funnel" | "operations" | "staff" | "onboarding">("overview");
+  const [analyticsTab, setAnalyticsTab] = useState<
+    "overview" | "revenue" | "members" | "email_campaigns" | "retention" | "behavior" | "funnel" | "operations" | "staff" | "onboarding" | "finance"
+  >("overview");
   const [analyticsPeriod, setAnalyticsPeriod] = useState<"day" | "week" | "month" | "custom">("month");
   const [analyticsFrom, setAnalyticsFrom] = useState("");
   const [analyticsTo, setAnalyticsTo] = useState("");
@@ -343,7 +350,21 @@ export default function AdminPage() {
     if (n.managementTab) setManagementTab(n.managementTab);
     if (n.staffSubTab) setStaffSubTab(n.staffSubTab);
     if (n.operationsTab) setStaffModalTab(n.operationsTab);
-    if (n.analyticsTab) setAnalyticsTab(n.analyticsTab as "overview" | "revenue" | "members" | "email_campaigns" | "retention" | "behavior" | "funnel" | "operations" | "staff" | "onboarding");
+    if (n.analyticsTab)
+      setAnalyticsTab(
+        n.analyticsTab as
+          | "overview"
+          | "revenue"
+          | "members"
+          | "email_campaigns"
+          | "retention"
+          | "behavior"
+          | "funnel"
+          | "operations"
+          | "staff"
+          | "onboarding"
+          | "finance"
+      );
   }, []);
 
   const m = getMessages(locale).admin;
@@ -2038,6 +2059,76 @@ export default function AdminPage() {
             </div>
           </section>
 
+          {staffId &&
+            (canDoCheckIn || canAccessInventory) &&
+            products.some((p) => (p.variants?.length ?? 0) > 0) && (
+              <section className="rounded-xl border border-sky-200 bg-sky-50/80 p-4 mb-4">
+                <h3 className="text-sm font-semibold text-slate-900 mb-2">
+                  {locale === "vi" ? "Yêu cầu nhập hàng (quản lý / tài chính)" : "Request inventory restock (ops & finance)"}
+                </h3>
+                <p className="text-xs text-slate-600 mb-3">
+                  {locale === "vi"
+                    ? "Chọn SKU và số lượng. Xem Phân tích → Tài chính."
+                    : "Select SKU and qty. View under Analytics → Finance."}
+                </p>
+                {fdRestockMsg && <p className="text-xs text-emerald-700 mb-2">{fdRestockMsg}</p>}
+                <div className="flex flex-col sm:flex-row gap-2 flex-wrap items-stretch sm:items-end">
+                  <select
+                    value={fdRestockVariantId}
+                    onChange={(e) => setFdRestockVariantId(e.target.value)}
+                    className="flex-1 min-w-[200px] px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900"
+                  >
+                    <option value="">{locale === "vi" ? "Chọn biến thể…" : "Select variant…"}</option>
+                    {products.flatMap((p) =>
+                      (p.variants ?? []).map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.sku} — {p.name}
+                          {v.size ? ` (${v.size})` : ""}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  <input
+                    type="number"
+                    min={1}
+                    value={fdRestockQty}
+                    onChange={(e) => setFdRestockQty(e.target.value)}
+                    className="w-20 px-2 py-2 rounded-lg border border-slate-200 text-sm"
+                  />
+                  <input
+                    placeholder={locale === "vi" ? "Ghi chú" : "Note"}
+                    value={fdRestockNote}
+                    onChange={(e) => setFdRestockNote(e.target.value)}
+                    className="flex-1 min-w-[120px] px-3 py-2 rounded-lg border border-slate-200 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!fdRestockVariantId) return;
+                      setFdRestockMsg(null);
+                      const res = await adminFetch("/api/admin/inventory/reorder-requests", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          variant_id: fdRestockVariantId,
+                          quantity_requested: parseInt(fdRestockQty, 10) || 1,
+                          note: fdRestockNote.trim() || undefined,
+                        }),
+                      });
+                      const d = await res.json();
+                      if (res.ok && d.ok) {
+                        setFdRestockMsg(locale === "vi" ? "Đã gửi yêu cầu." : "Request submitted.");
+                        setFdRestockNote("");
+                      } else setFdRestockMsg(d?.error ?? "Failed");
+                    }}
+                    className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium"
+                  >
+                    {locale === "vi" ? "Gửi" : "Submit"}
+                  </button>
+                </div>
+              </section>
+            )}
+
           {/* MEMBER PROFILE & ACTIONS */}
           {foundMember && (
             <section className="space-y-4">
@@ -2776,6 +2867,9 @@ export default function AdminPage() {
                       <th className="px-3 py-2 border-b border-slate-600">{locale === "vi" ? "SKU / Tên / Thương hiệu / Size" : "SKU / Name / Brand / Size"}</th>
                       <th className="px-3 py-2 border-b border-slate-600 text-right">{m.quantity}</th>
                       <th className="px-3 py-2 border-b border-slate-600 text-right">{m.price}</th>
+                      <th className="px-3 py-2 border-b border-slate-600 text-center w-[100px]">
+                        {locale === "vi" ? "Nhập thêm" : "Restock"}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2807,6 +2901,40 @@ export default function AdminPage() {
                           </td>
                           <td className="px-3 py-2 text-right font-medium text-slate-100">{inv.quantity}</td>
                           <td className="px-3 py-2 text-right text-slate-300">{(inv.variant?.price ?? 0).toLocaleString("vi-VN")} VND</td>
+                          <td className="px-2 py-2 text-center" onClick={(e) => e.stopPropagation()}>
+                            {inv.variant?.id ? (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const q = window.prompt(
+                                    locale === "vi" ? "Số lượng cần nhập thêm:" : "Quantity to reorder:",
+                                    "10"
+                                  );
+                                  if (!q || !inv.variant?.id) return;
+                                  const res = await adminFetch("/api/admin/inventory/reorder-requests", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      variant_id: inv.variant.id,
+                                      quantity_requested: parseInt(q, 10) || 1,
+                                    }),
+                                  });
+                                  const d = await res.json();
+                                  if (res.ok && d.ok) {
+                                    setInventoryActionMessage(
+                                      locale === "vi"
+                                        ? "Đã gửi yêu cầu nhập hàng. Xem tab Phân tích → Tài chính."
+                                        : "Restock request sent. See Analytics → Finance."
+                                    );
+                                    setTimeout(() => setInventoryActionMessage(null), 5000);
+                                  } else setInventoryCreateError(d?.error ?? "Failed");
+                                }}
+                                className="text-[11px] px-2 py-1 rounded-lg bg-sky-600 text-white hover:bg-sky-500 font-medium"
+                              >
+                                {locale === "vi" ? "Yêu cầu" : "Request"}
+                              </button>
+                            ) : null}
+                          </td>
                         </tr>
                       ))}
                   </tbody>
@@ -3841,7 +3969,7 @@ export default function AdminPage() {
 
               {/* Analytics sub-tabs */}
               <nav className="mt-4 flex gap-1 p-1 border-b border-slate-200 overflow-x-auto" aria-label="Analytics tabs">
-                {(["overview", "revenue", "members", "email_campaigns", "retention", "behavior", "funnel", "operations", "staff", "onboarding"] as const).map((t) => (
+                {(["overview", "revenue", "members", "email_campaigns", "retention", "behavior", "funnel", "operations", "staff", "onboarding", "finance"] as const).map((t) => (
                   <button
                     key={t}
                     type="button"
@@ -3861,12 +3989,15 @@ export default function AdminPage() {
                     {t === "operations" ? (locale === "vi" ? "Vận hành" : "Operations") : null}
                     {t === "staff" ? (locale === "vi" ? "Nhân sự" : "Staff") : null}
                     {t === "onboarding" ? (locale === "vi" ? "Đào tạo" : "Onboarding") : null}
+                    {t === "finance" ? (locale === "vi" ? "Tài chính" : "Finance") : null}
                   </button>
                 ))}
               </nav>
 
               <div className="mt-6">
-                {analyticsTab === "onboarding" ? (
+                {analyticsTab === "finance" ? (
+                  <FinanceTab adminFetch={adminFetch} locale={locale} />
+                ) : analyticsTab === "onboarding" ? (
                   <>
                     {onboardingAnalyticsLoading && <p className="text-slate-500 text-sm">{locale === "vi" ? "Đang tải..." : "Loading…"}</p>}
                     {!onboardingAnalyticsLoading && onboardingAnalytics && (
