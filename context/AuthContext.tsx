@@ -74,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const memberRef = useRef<MemberProfile | null>(null);
   const memberFetchAbortRef = useRef<AbortController | null>(null);
   const scheduleMemberLoadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingMemberFetchRef = useRef<{ token: string; authUserId: string } | null>(null);
 
   /**
    * Loads /api/member/me. Aborts any in-flight request when a newer run starts (avoids stale
@@ -174,30 +175,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * Single debounced /api/member/me after refresh() + onAuthStateChange coalesce (same login tick).
-   * Foreground (spinner) only when member not loaded yet; silent refresh once profile exists.
+   * Debounced /api/member/me — use the token we already have instead of getSession() again.
+   * After login redirect, getSession() can still return null 120ms later; using the session
+   * from refresh()/onAuthStateChange avoids "Something went wrong" then Retry works.
    */
-  const scheduleMemberFetch = useCallback(() => {
+  const scheduleMemberFetch = useCallback((token: string, authUserId: string) => {
+    if (!token || !authUserId) return;
+    pendingMemberFetchRef.current = { token, authUserId };
     if (!memberRef.current) setMemberLoading(true);
     if (scheduleMemberLoadTimerRef.current) clearTimeout(scheduleMemberLoadTimerRef.current);
     scheduleMemberLoadTimerRef.current = setTimeout(() => {
       scheduleMemberLoadTimerRef.current = null;
-      try {
-        const sb = getSupabaseBrowserClient();
-        sb.auth.getSession().then(({ data: { session: s } }) => {
-          if (!s?.user?.id || !s.access_token) {
-            setMemberLoading(false);
-            return;
-          }
-          const bg = memberRef.current != null;
-          fetchMember(s.access_token, {
-            background: bg,
-            authUserId: s.user.id,
-          });
+      const pending = pendingMemberFetchRef.current;
+      if (pending?.token && pending?.authUserId) {
+        const bg = memberRef.current != null;
+        fetchMember(pending.token, {
+          background: bg,
+          authUserId: pending.authUserId,
         });
-      } catch {
+      } else {
         setMemberLoading(false);
       }
+      pendingMemberFetchRef.current = null;
     }, 120);
   }, [fetchMember]);
 
@@ -240,7 +239,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAccessToken(token);
     setLoading(false);
 
-    scheduleMemberFetch();
+    scheduleMemberFetch(token, s.user.id);
   }, [scheduleMemberFetch]);
 
   useEffect(() => {
@@ -265,7 +264,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session.user ?? null);
         setAccessToken(token);
         setLoading(false);
-        scheduleMemberFetch();
+        if (token) scheduleMemberFetch(token, session.user.id);
       } else {
         fetchMemberGenRef.current += 1;
         memberFetchAbortRef.current?.abort();
