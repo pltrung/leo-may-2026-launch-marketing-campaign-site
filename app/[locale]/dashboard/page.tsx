@@ -267,6 +267,7 @@ export default function DashboardPage() {
     minutes_until: number;
   } | null>(null);
   const [tick, setTick] = useState(0);
+  const [saleTick, setSaleTick] = useState(0);
   /** Latest check-in ts we treat as "already known" — only show success when API reports newer (avoids banner on login if already checked in today). */
   const checkInBaselineTsRef = useRef<number>(0);
   const ignoreCheckinRealtimeUntilRef = useRef<number>(0);
@@ -279,6 +280,15 @@ export default function DashboardPage() {
     const id = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, [newbieClass?.start_time, newbieClass]);
+
+  // Sale countdown tick (must be before early return so hook count is stable — fixes React #310 when /api/member/me 404)
+  const graduateSaleFromMember = member?.newbie_graduate_sale;
+  const graduateSaleLiveComputed = !!(graduateSaleFromMember?.ends_at && new Date(graduateSaleFromMember.ends_at).getTime() > Date.now());
+  useEffect(() => {
+    if (!graduateSaleLiveComputed) return;
+    const id = window.setInterval(() => setSaleTick((x) => x + 1), 1000);
+    return () => clearInterval(id);
+  }, [graduateSaleLiveComputed]);
 
   function formatCountdown(startTimeIso: string): { text: string; done: boolean } {
     const start = new Date(startTimeIso).getTime();
@@ -1011,12 +1021,6 @@ export default function DashboardPage() {
   const graduateSale = member.newbie_graduate_sale;
   const saleEndsMs = graduateSale?.ends_at ? new Date(graduateSale.ends_at).getTime() : 0;
   const graduateSaleLive = !!(graduateSale && saleEndsMs > Date.now());
-  const [saleTick, setSaleTick] = useState(0);
-  useEffect(() => {
-    if (!graduateSaleLive) return;
-    const id = window.setInterval(() => setSaleTick((x) => x + 1), 1000);
-    return () => clearInterval(id);
-  }, [graduateSaleLive]);
   const saleCountdownStr = (() => {
     void saleTick;
     if (!graduateSale?.ends_at) return "";
