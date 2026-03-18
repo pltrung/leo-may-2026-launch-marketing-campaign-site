@@ -285,23 +285,23 @@ export default function ExecutiveSummary({
         </p>
       )}
 
-      {/* Financial health — MTD + forecast */}
+      {/* Financial health — period-aware labels (day/week/month/quarter/custom) */}
       <Section
         title={t("Financial health", "Sức khỏe tài chính")}
-        subtitle={t("This month (books) + membership forecast", "Tháng này (sổ sách) + dự báo thành viên")}
+        subtitle={t("Selected period (books) + membership forecast", "Kỳ đã chọn (sổ sách) + dự báo thành viên")}
       >
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <MiniKpi
-            label={t("Profit (MTD)", "Lợi nhuận (tháng)")}
+            label={isVi ? `Lợi nhuận (${periodLabel})` : `Profit (${periodLabel})`}
             value={finance != null ? fmtVnd(finance.profit) : extrasLoading ? "…" : "—"}
-            hint={t("Revenue − costs (month to date)", "Doanh thu − chi phí (đầu tháng đến nay)")}
+            hint={t("Revenue − costs for selected period", "Doanh thu − chi phí trong kỳ đã chọn")}
           />
           <MiniKpi
-            label={t("Revenue (MTD)", "Doanh thu (tháng)")}
+            label={isVi ? `Doanh thu (${periodLabel})` : `Revenue (${periodLabel})`}
             value={finance != null ? fmtVnd(finance.revenue_mtd) : extrasLoading ? "…" : fmtVnd(r.total ?? o.total_revenue ?? 0)}
           />
           <MiniKpi
-            label={t("Costs (MTD)", "Chi phí (tháng)")}
+            label={isVi ? `Chi phí (${periodLabel})` : `Costs (${periodLabel})`}
             value={finance != null ? fmtVnd(finance.monthly_costs) : extrasLoading ? "…" : "—"}
           />
           <MiniKpi
@@ -313,7 +313,7 @@ export default function ExecutiveSummary({
                   ? "…"
                   : "—"
             }
-            hint={t("From Finance cash & MTD costs", "Từ quỹ & chi phí tháng (Tài chính)")}
+            hint={t("From Finance cash & full-month costs", "Từ quỹ & chi phí tháng (Tài chính)")}
           />
         </div>
         {forecastExtra && (
