@@ -16,7 +16,8 @@ const QRCodeSVG = dynamic(() => import("qrcode.react").then((m) => m.QRCodeSVG),
 const EidQrScannerModal = dynamic(() => import("@/components/dashboard/EidQrScannerModal"), { ssr: false });
 const AnalyticsCharts = dynamic(() => import("@/components/admin/AnalyticsCharts"), { ssr: false });
 const FinanceTab = dynamic(() => import("@/components/admin/FinanceTab"), { ssr: false });
-import { GuidedTour, TOUR_STEPS_FRONTDESK, TOUR_STEPS_STAFF, TOUR_STEPS_ADMIN } from "@/components/admin/GuidedTour";
+import { GuidedTour, TOUR_STEPS_FRONTDESK, TOUR_STEPS_STAFF, TOUR_STEPS_ADMIN, ADMIN_TOUR_STEP_IDS_ADMIN_TOOLS } from "@/components/admin/GuidedTour";
+import OnboardingAnalyticsTable from "@/components/admin/OnboardingAnalyticsTable";
 
 const ADMIN_LOCALE_KEY = "admin-locale";
 /** Used for "Busy" status when occupancy exceeds this share of capacity. */
@@ -237,7 +238,7 @@ export default function AdminPage() {
   const [staffQrToken, setStaffQrToken] = useState<string | null>(null);
   const [staffCheckInSuccess, setStaffCheckInSuccess] = useState(false);
   const [analyticsTab, setAnalyticsTab] = useState<
-    "overview" | "revenue" | "members" | "email_campaigns" | "retention" | "behavior" | "funnel" | "operations" | "staff" | "onboarding" | "finance"
+    "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance"
   >("overview");
   const [analyticsPeriod, setAnalyticsPeriod] = useState<"day" | "week" | "month" | "custom">("month");
   const [analyticsFrom, setAnalyticsFrom] = useState("");
@@ -342,7 +343,7 @@ export default function AdminPage() {
     summary: { staff_in_today: number; staff_out_today: number; staff_total?: number; sessions_today: number; newbie_attendance_today?: number; zones_overdue: number; tasks_pending: number; tasks_completed?: number; tasks_overdue?: number; tasks_total?: number; pre_open_completed?: number; pre_open_total?: number; closing_overdue?: number; unassigned_sessions?: number; staff_required?: number };
   } | null>(null);
 
-  const handleTourNavigate = useCallback((step: { navigate?: { area?: "front_desk" | "operations" | "management" | "staff" | "analytics"; frontDeskTab?: "checkin" | "member"; managementTab?: "inventory" | "admin_tools"; staffSubTab?: "routes" | "coaching"; operationsTab?: "overview" | "tasks" | "attendance" | "coaching" | "routes"; analyticsTab?: "overview" | "revenue" | "members" | "retention" | "behavior" | "funnel" | "operations" | "staff" | "onboarding" } }) => {
+  const handleTourNavigate = useCallback((step: { navigate?: { area?: "front_desk" | "operations" | "management" | "staff" | "analytics"; frontDeskTab?: "checkin" | "member"; managementTab?: "inventory" | "admin_tools"; staffSubTab?: "routes" | "coaching"; operationsTab?: "overview" | "tasks" | "attendance" | "coaching" | "routes"; analyticsTab?: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance" } }) => {
     if (!step?.navigate) return;
     const n = step.navigate;
     if (n.area) setAdminArea(n.area);
@@ -352,18 +353,7 @@ export default function AdminPage() {
     if (n.operationsTab) setStaffModalTab(n.operationsTab);
     if (n.analyticsTab)
       setAnalyticsTab(
-        n.analyticsTab as
-          | "overview"
-          | "revenue"
-          | "members"
-          | "email_campaigns"
-          | "retention"
-          | "behavior"
-          | "funnel"
-          | "operations"
-          | "staff"
-          | "onboarding"
-          | "finance"
+        n.analyticsTab as "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance"
       );
   }, []);
 
@@ -597,7 +587,7 @@ export default function AdminPage() {
   }, [adminArea, canAccessAnalytics, analyticsPeriod, analyticsFrom, analyticsTo, analyticsMemberType, analyticsActivity, analyticsActivityLevel, adminFetch]);
 
   useEffect(() => {
-    if (adminArea !== "analytics" || analyticsTab !== "onboarding" || !canAccessAnalytics) return;
+    if (adminArea !== "analytics" || analyticsTab !== "ops_team" || !canAccessAnalytics) return;
     setOnboardingAnalyticsLoading(true);
     adminFetch("/api/admin/onboarding/analytics")
       .then((r) => (r.ok ? r.json() : null))
@@ -1573,7 +1563,14 @@ export default function AdminPage() {
     );
   }
 
-  const tourSteps = role === "frontdesk" ? TOUR_STEPS_FRONTDESK : role === "staff" ? TOUR_STEPS_STAFF : TOUR_STEPS_ADMIN;
+  const tourSteps = useMemo(() => {
+    if (role === "frontdesk") return TOUR_STEPS_FRONTDESK;
+    if (role === "staff") return TOUR_STEPS_STAFF;
+    if (!canAccessAdminTools) {
+      return TOUR_STEPS_ADMIN.filter((s) => !ADMIN_TOUR_STEP_IDS_ADMIN_TOOLS.includes(s.id as (typeof ADMIN_TOUR_STEP_IDS_ADMIN_TOOLS)[number]));
+    }
+    return TOUR_STEPS_ADMIN;
+  }, [role, canAccessAdminTools]);
 
   // Gym status pill: only computed when rendering main dashboard (after all early returns).
   const currentPhase = phase?.current_phase ?? "gym_open";
@@ -1690,7 +1687,7 @@ export default function AdminPage() {
             const sessionsToday = (staffOpsData.sessionsToday ?? staffOpsData.sessions ?? []).length;
             const routeResetToday = staffOpsData.summary?.zones_overdue ?? (staffOpsData.zones ?? []).filter((z: { overdue?: boolean }) => z.overdue).length;
             return (
-              <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+              <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden" data-tour="staff-status-banner">
                 <div className="flex flex-wrap gap-2 md:gap-4 px-2.5 py-1.5 md:px-3 md:py-2">
                   <div className={`rounded border px-2 py-1 min-w-0 ${gymReady ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200"}`}>
                     <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Gym" : "Gym"}</p>
@@ -2586,7 +2583,7 @@ export default function AdminPage() {
                   <button
                     key={tab}
                     type="button"
-                    data-tour={tab === "inventory" ? "tab-inventory" : undefined}
+                    data-tour={tab === "inventory" ? "tab-inventory" : tab === "admin_tools" ? "tab-admin_tools" : undefined}
                     onClick={() => setManagementTab(tab)}
                     className={`flex-none whitespace-nowrap py-2 px-3 rounded-lg text-sm font-medium ${
                       managementTab === tab ? "bg-white shadow border border-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-200"
@@ -2975,7 +2972,7 @@ export default function AdminPage() {
 
           {/* MANAGEMENT → Admin Tools tab — CEO-only: reset attendance, audit log, countdown display */}
           {adminArea === "management" && managementTab === "admin_tools" && (
-          <section className="space-y-6">
+          <section className="space-y-6" data-tour="admin-tools-section">
             <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_18px_45px_rgba(15,23,42,0.8)] p-4 md:p-5">
               <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-1">
                 {m.adminTools}
@@ -3971,26 +3968,21 @@ export default function AdminPage() {
 
               {/* Analytics sub-tabs */}
               <nav className="mt-4 flex gap-1 p-1 border-b border-slate-200 overflow-x-auto" aria-label="Analytics tabs">
-                {(["overview", "revenue", "members", "email_campaigns", "retention", "behavior", "funnel", "operations", "staff", "onboarding", "finance"] as const).map((t) => (
+                {(["overview", "revenue_members", "engagement", "ops_team", "marketing", "finance"] as const).map((t) => (
                   <button
                     key={t}
                     type="button"
                     data-tour={`analytics-tab-${t}`}
                     onClick={() => setAnalyticsTab(t)}
-                    className={`flex-none whitespace-nowrap px-3 py-2 rounded-lg text-sm font-medium ${
+                    className={`flex-none whitespace-nowrap px-2.5 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium ${
                       analyticsTab === t ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
                     }`}
                   >
                     {t === "overview" ? (locale === "vi" ? "Tóm tắt ĐH" : "Executive") : null}
-                    {t === "revenue" ? (locale === "vi" ? "Doanh thu" : "Revenue") : null}
-                    {t === "members" ? (locale === "vi" ? "Thành viên" : "Members") : null}
-                    {t === "email_campaigns" ? (locale === "vi" ? "Chiến dịch email" : "Email campaigns") : null}
-                    {t === "retention" ? (locale === "vi" ? "Giữ chân" : "Retention") : null}
-                    {t === "behavior" ? (locale === "vi" ? "Hành vi" : "Behavior") : null}
-                    {t === "funnel" ? (locale === "vi" ? "Phễu" : "Funnel") : null}
-                    {t === "operations" ? (locale === "vi" ? "Vận hành" : "Operations") : null}
-                    {t === "staff" ? (locale === "vi" ? "Nhân sự" : "Staff") : null}
-                    {t === "onboarding" ? (locale === "vi" ? "Đào tạo" : "Onboarding") : null}
+                    {t === "revenue_members" ? (locale === "vi" ? "Doanh thu & TV" : "Revenue & members") : null}
+                    {t === "engagement" ? (locale === "vi" ? "Tương tác" : "Engagement") : null}
+                    {t === "ops_team" ? (locale === "vi" ? "VH & đội ngũ" : "Ops & team") : null}
+                    {t === "marketing" ? (locale === "vi" ? "Marketing" : "Marketing") : null}
                     {t === "finance" ? (locale === "vi" ? "Tài chính" : "Finance") : null}
                   </button>
                 ))}
@@ -3999,60 +3991,31 @@ export default function AdminPage() {
               <div className="mt-6">
                 {analyticsTab === "finance" ? (
                   <FinanceTab adminFetch={adminFetch} locale={locale} />
-                ) : analyticsTab === "onboarding" ? (
-                  <>
-                    {onboardingAnalyticsLoading && <p className="text-slate-500 text-sm">{locale === "vi" ? "Đang tải..." : "Loading…"}</p>}
-                    {!onboardingAnalyticsLoading && onboardingAnalytics && (
-                      <div className="space-y-4">
-                        <div className="flex flex-wrap gap-4 text-sm">
-                          <span className="font-medium text-slate-700">{locale === "vi" ? "Tổng số" : "Total staff"}: {onboardingAnalytics.summary.total_staff}</span>
-                          <span className="text-slate-600">{locale === "vi" ? "Chương trình" : "Program"}: 1–{onboardingAnalytics.summary.days_total ?? 7} {locale === "vi" ? "ngày" : "days"}</span>
-                          {onboardingAnalytics.summary.avg_ai_score_overall != null && <span className="text-slate-600">{locale === "vi" ? "Điểm AI trung bình" : "Avg AI score"}: {onboardingAnalytics.summary.avg_ai_score_overall}</span>}
-                          {onboardingAnalytics.summary.quiz_accuracy_overall != null && <span className="text-slate-600">{locale === "vi" ? "Độ chính xác quiz" : "Quiz accuracy"}: {onboardingAnalytics.summary.quiz_accuracy_overall}%</span>}
-                          {onboardingAnalytics.summary.certified_count != null && <span className="text-slate-600">{locale === "vi" ? "Đã chứng nhận" : "Certified"}: {onboardingAnalytics.summary.certified_count}</span>}
-                          {onboardingAnalytics.summary.avg_certification_score != null && <span className="text-slate-600">{locale === "vi" ? "Điểm chứng nhận TB" : "Avg cert. score"}: {onboardingAnalytics.summary.avg_certification_score}</span>}
-                        </div>
-                        <div className="overflow-x-auto rounded-lg border border-slate-200">
-                          <table className="min-w-full text-sm">
-                            <thead className="bg-slate-100 text-left">
-                              <tr>
-                                <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Tên" : "Name"}</th>
-                                <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Điểm AI TB" : "Avg AI score"}</th>
-                                <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Quiz %" : "Quiz accuracy"}</th>
-                                <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Ngày xong" : "Days done"}</th>
-                                <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Chứng nhận (D7)" : "Cert. (Day 7)"}</th>
-                                <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Điểm CN" : "Cert. score"}</th>
-                                <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Kỹ năng yếu" : "Weakest skill"}</th>
-                                <th className="px-3 py-2 font-semibold text-slate-700">{locale === "vi" ? "Thời gian hoàn thành (ngày)" : "Completion time (days)"}</th>
-                                <th className="px-3 py-2 font-semibold text-slate-700">XP</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-200">
-                              {onboardingAnalytics.byStaff.map((row) => (
-                                <tr key={row.staff_name + row.xp_total + (row.days_completed ?? 0)} className="hover:bg-slate-50">
-                                  <td className="px-3 py-2 text-slate-800">{row.staff_name}</td>
-                                  <td className="px-3 py-2 text-slate-600">{row.avg_ai_score ?? "—"}</td>
-                                  <td className="px-3 py-2 text-slate-600">{row.quiz_accuracy != null ? `${row.quiz_accuracy}%` : "—"}</td>
-                                  <td className="px-3 py-2 text-slate-600">{row.days_completed}/{row.days_total ?? 7}</td>
-                                  <td className="px-3 py-2 text-slate-600">
-                                    {row.certification_passed === true ? (locale === "vi" ? "Đạt" : "Pass") : row.certification_passed === false ? (locale === "vi" ? "Chưa đạt" : "Fail") : "—"}
-                                    {row.certification_critical_fail === true && <span className="ml-1 text-red-600" title={locale === "vi" ? "Lỗi nghiêm trọng" : "Critical fail"}>⚠</span>}
-                                  </td>
-                                  <td className="px-3 py-2 text-slate-600">{row.certification_final_score != null ? row.certification_final_score : "—"}</td>
-                                  <td className="px-3 py-2 text-slate-600">{row.weakest_skill} ({row.weakest_skill_value})</td>
-                                  <td className="px-3 py-2 text-slate-600">{row.completion_time_days ?? "—"}</td>
-                                  <td className="px-3 py-2 text-slate-600">{row.xp_total}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-                    {!onboardingAnalyticsLoading && !onboardingAnalytics && <p className="text-slate-500 text-sm">{locale === "vi" ? "Không có dữ liệu." : "No data."}</p>}
-                  </>
                 ) : (
-                  <AnalyticsCharts data={analyticsData} tab={analyticsTab} locale={locale} loading={analyticsLoading} adminFetch={canAccessAnalytics ? adminFetch : undefined} />
+                  <AnalyticsCharts
+                    data={analyticsData}
+                    tab={analyticsTab}
+                    locale={locale}
+                    loading={analyticsLoading}
+                    adminFetch={canAccessAnalytics ? adminFetch : undefined}
+                    onboardingExtra={
+                      analyticsTab === "ops_team" ? (
+                        onboardingAnalyticsLoading ? (
+                          <p className="text-slate-500 text-sm">{locale === "vi" ? "Đang tải đào tạo…" : "Loading training…"}</p>
+                        ) : onboardingAnalytics &&
+                          onboardingAnalytics.byStaff &&
+                          onboardingAnalytics.byStaff.length > 0 ? (
+                          <OnboardingAnalyticsTable data={onboardingAnalytics} locale={locale === "vi" ? "vi" : "en"} />
+                        ) : (
+                          <p className="text-slate-500 text-sm">
+                            {locale === "vi"
+                              ? "Chưa có dữ liệu đào tạo hoặc cần quyền admin."
+                              : "No training data yet or admin access required."}
+                          </p>
+                        )
+                      ) : undefined
+                    }
+                  />
                 )}
               </div>
             </section>
