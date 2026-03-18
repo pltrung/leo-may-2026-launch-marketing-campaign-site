@@ -84,6 +84,15 @@ export async function POST(req: NextRequest) {
 
     if (!member) return NextResponse.json({ error: "Member not found" }, { status: 404 });
 
+    const { data: row, error: rowErr } = await supabase
+      .from("member_profiles")
+      .select("profile_photo_url, id_number, full_name, gender, date_of_birth, id_verified_from_cccd")
+      .eq("id", member.id)
+      .maybeSingle();
+    if (rowErr || !row) {
+      return NextResponse.json({ error: "Failed to load profile" }, { status: 500 });
+    }
+
     const body = await req.json().catch(() => ({}));
     const photoBase64 = typeof body.profile_photo_base64 === "string" ? body.profile_photo_base64.trim() : null;
     const idNumber = typeof body.id_number === "string" ? body.id_number.trim() || null : null;
@@ -160,6 +169,46 @@ export async function POST(req: NextRequest) {
     if (gender !== undefined) updates.gender = gender ?? null;
     if (address !== undefined) updates.address = address ?? null;
     if (idVerifiedFromCccd) updates.id_verified_from_cccd = true;
+
+    const nextPhoto = profilePhotoUrl ?? (row.profile_photo_url as string | null);
+    const nextVerified = Boolean(idVerifiedFromCccd || row.id_verified_from_cccd);
+    const nextId =
+      typeof body.id_number === "string"
+        ? body.id_number.trim() || null
+        : body.id_number === null
+          ? null
+          : (row.id_number as string | null);
+    const nextFull =
+      typeof body.full_name === "string"
+        ? body.full_name.trim()
+        : (row.full_name as string) ?? "";
+    const nextGender =
+      gender !== undefined ? gender : (row.gender as string | null);
+    const nextDob =
+      typeof body.date_of_birth === "string"
+        ? body.date_of_birth.trim() || null
+        : body.date_of_birth === null
+          ? null
+          : (row.date_of_birth as string | null);
+
+    const identityOk =
+      nextVerified ||
+      (Boolean(nextId && nextId.length >= 8) &&
+        Boolean(nextFull && nextFull.length >= 2) &&
+        (nextGender === "male" || nextGender === "female") &&
+        Boolean(nextDob && nextDob.length >= 8));
+    const photoOk = Boolean(nextPhoto);
+
+    if (!photoOk || !identityOk) {
+      return NextResponse.json(
+        {
+          error: !photoOk
+            ? "Profile photo is required."
+            : "Scan your VN eID (chip QR) or enter CCCD number, full legal name, gender, and date of birth.",
+        },
+        { status: 400 }
+      );
+    }
 
     // Sync full_name to Auth user metadata (for display; email/phone stay in member_profiles only)
     if (fullName !== undefined) {

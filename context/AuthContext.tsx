@@ -72,53 +72,134 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const initialLoadDoneRef = useRef(false);
   const fetchMemberGenRef = useRef(0);
   const memberRef = useRef<MemberProfile | null>(null);
+  const memberFetchAbortRef = useRef<AbortController | null>(null);
+  const scheduleMemberLoadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /**
+   * Loads /api/member/me. Aborts any in-flight request when a newer run starts (avoids stale
+   * responses winning the gen race). Retries 5xx/network. On 401, retries once with a fresh
+   * session token before clearing member — fixes duplicate refresh()+onAuthStateChange races.
+   */
   const fetchMember = useCallback(async (token: string, options?: { background?: boolean; authUserId?: string }) => {
     const background = options?.background === true;
     const authUserId = options?.authUserId;
     const gen = ++fetchMemberGenRef.current;
+
+    memberFetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    memberFetchAbortRef.current = controller;
+
     if (!background) setMemberLoading(true);
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-      const res = await fetch("/api/member/me", {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
 
-      let data: { member?: MemberProfile } = {};
-      try {
-        data = await res.json();
-      } catch {
-        /* non-JSON */
+    const applyMember = (m: MemberProfile) => {
+      if (authUserId && m.auth_id && m.auth_id !== authUserId) return;
+      if (gen === fetchMemberGenRef.current) {
+        setMember(m);
+        return;
       }
+      setMember((prev) => (prev == null ? m : prev));
+    };
 
-      const applyMember = (m: MemberProfile) => {
-        if (authUserId && m.auth_id && m.auth_id !== authUserId) return;
-        if (gen === fetchMemberGenRef.current) {
-          setMember(m);
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+    let attemptToken = token;
+    let retried401 = false;
+    try {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (gen !== fetchMemberGenRef.current) return;
+
+        let res: Response;
+        try {
+          const timeoutId = setTimeout(() => controller.abort(), 20000);
+          res = await fetch("/api/member/me", {
+            headers: { Authorization: `Bearer ${attemptToken}` },
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+        } catch (e) {
+          if ((e as Error)?.name === "AbortError") return;
+          if (attempt < 2 && gen === fetchMemberGenRef.current) {
+            await sleep(350 * (attempt + 1));
+            continue;
+          }
+          if (gen === fetchMemberGenRef.current) setMember((prev) => prev);
           return;
         }
-        /* Another fetch started (e.g. onAuthStateChange right after refresh). If this one succeeded first, keep it when we still have no member. */
-        setMember((prev) => (prev == null ? m : prev));
-      };
 
-      if (res.ok && data?.member) {
-        applyMember(data.member);
+        let data: { member?: MemberProfile } = {};
+        try {
+          data = await res.json();
+        } catch {
+          /* non-JSON */
+        }
+
+        if (res.ok && data?.member) {
+          applyMember(data.member);
+          return;
+        }
+
+        if (res.status === 401) {
+          if (!retried401 && authUserId) {
+            try {
+              const sb = getSupabaseBrowserClient();
+              const { data: sess } = await sb.auth.getSession();
+              const fresh = sess.session?.access_token;
+              const uid = sess.session?.user?.id;
+              if (fresh && uid === authUserId) {
+                retried401 = true;
+                attemptToken = fresh;
+                await sleep(80);
+                attempt -= 1;
+                continue;
+              }
+            } catch {
+              /* ignore */
+            }
+          }
+          if (gen === fetchMemberGenRef.current) setMember(null);
+          return;
+        }
+
+        if (res.status >= 500 && attempt < 2 && gen === fetchMemberGenRef.current) {
+          await sleep(400 * (attempt + 1));
+          continue;
+        }
+
+        if (gen === fetchMemberGenRef.current) setMember((prev) => prev);
         return;
       }
-      if (res.status === 401) {
-        if (gen === fetchMemberGenRef.current) setMember(null);
-        return;
-      }
-      if (gen === fetchMemberGenRef.current) setMember((prev) => prev);
-    } catch {
-      if (gen === fetchMemberGenRef.current) setMember((prev) => prev);
     } finally {
-      if (!background && gen === fetchMemberGenRef.current) setMemberLoading(false);
+      if (gen === fetchMemberGenRef.current) setMemberLoading(false);
     }
   }, []);
+
+  /**
+   * Single debounced /api/member/me after refresh() + onAuthStateChange coalesce (same login tick).
+   * Foreground (spinner) only when member not loaded yet; silent refresh once profile exists.
+   */
+  const scheduleMemberFetch = useCallback(() => {
+    if (!memberRef.current) setMemberLoading(true);
+    if (scheduleMemberLoadTimerRef.current) clearTimeout(scheduleMemberLoadTimerRef.current);
+    scheduleMemberLoadTimerRef.current = setTimeout(() => {
+      scheduleMemberLoadTimerRef.current = null;
+      try {
+        const sb = getSupabaseBrowserClient();
+        sb.auth.getSession().then(({ data: { session: s } }) => {
+          if (!s?.user?.id || !s.access_token) {
+            setMemberLoading(false);
+            return;
+          }
+          const bg = memberRef.current != null;
+          fetchMember(s.access_token, {
+            background: bg,
+            authUserId: s.user.id,
+          });
+        });
+      } catch {
+        setMemberLoading(false);
+      }
+    }, 120);
+  }, [fetchMember]);
 
   const refresh = useCallback(async (opts?: { backgroundMemberFetch?: boolean }) => {
     // Only show full-page loading on first load. Background refresh (e.g. after check-in) must not unmount dashboard.
@@ -159,11 +240,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAccessToken(token);
     setLoading(false);
 
-    fetchMember(token, {
-      background: opts?.backgroundMemberFetch === true,
-      authUserId: s.user.id,
-    });
-  }, [fetchMember]);
+    scheduleMemberFetch();
+  }, [scheduleMemberFetch]);
 
   useEffect(() => {
     memberRef.current = member;
@@ -187,12 +265,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session.user ?? null);
         setAccessToken(token);
         setLoading(false);
-        fetchMember(token, {
-          background: memberRef.current != null,
-          authUserId: session.user.id,
-        });
+        scheduleMemberFetch();
       } else {
         fetchMemberGenRef.current += 1;
+        memberFetchAbortRef.current?.abort();
         setSession(null);
         setUser(null);
         setMember(null);
@@ -202,8 +278,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, [refresh, fetchMember]);
+    return () => {
+      subscription.unsubscribe();
+      if (scheduleMemberLoadTimerRef.current) clearTimeout(scheduleMemberLoadTimerRef.current);
+    };
+  }, [refresh, scheduleMemberFetch]);
 
   const signOut = useCallback(async () => {
     try {
@@ -214,6 +293,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     initialLoadDoneRef.current = false;
     fetchMemberGenRef.current += 1;
+    memberFetchAbortRef.current?.abort();
     setSession(null);
     setUser(null);
     setMember(null);

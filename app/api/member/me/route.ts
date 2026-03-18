@@ -135,22 +135,36 @@ export async function GET(request: NextRequest) {
         }
       : null;
 
-    await clearMerchDiscountIfLapsed(supabase, memberRow.id as string, {
-      merchandise_discount_percent: memberRow.merchandise_discount_percent as number | null,
-      membership_expires_at: memberRow.membership_expires_at as string | null,
-      visits_remaining: memberRow.visits_remaining as number | null,
-    });
-    const { data: refreshed } = await supabase
-      .from("member_profiles")
-      .select("merchandise_discount_percent")
-      .eq("id", memberRow.id)
-      .maybeSingle();
-    const merchStored = (refreshed?.merchandise_discount_percent as number) ?? (memberRow.merchandise_discount_percent as number) ?? 0;
-    const merchandise_discount_effective = effectiveMerchDiscountPercent({
-      merchandise_discount_percent: merchStored,
-      membership_expires_at: memberRow.membership_expires_at as string | null,
-      visits_remaining: memberRow.visits_remaining as number | null,
-    });
+    let merchStored =
+      (memberRow.merchandise_discount_percent as number) ?? 0;
+    let merchandise_discount_effective = 0;
+    try {
+      await clearMerchDiscountIfLapsed(supabase, memberRow.id as string, {
+        merchandise_discount_percent: memberRow.merchandise_discount_percent as number | null,
+        membership_expires_at: memberRow.membership_expires_at as string | null,
+        visits_remaining: memberRow.visits_remaining as number | null,
+      });
+      const { data: refreshed } = await supabase
+        .from("member_profiles")
+        .select("merchandise_discount_percent")
+        .eq("id", memberRow.id)
+        .maybeSingle();
+      merchStored =
+        (refreshed?.merchandise_discount_percent as number) ??
+        (memberRow.merchandise_discount_percent as number) ??
+        0;
+      merchandise_discount_effective = effectiveMerchDiscountPercent({
+        merchandise_discount_percent: merchStored,
+        membership_expires_at: memberRow.membership_expires_at as string | null,
+        visits_remaining: memberRow.visits_remaining as number | null,
+      });
+    } catch {
+      merchandise_discount_effective = effectiveMerchDiscountPercent({
+        merchandise_discount_percent: merchStored,
+        membership_expires_at: memberRow.membership_expires_at as string | null,
+        visits_remaining: memberRow.visits_remaining as number | null,
+      });
+    }
 
     return NextResponse.json({
       member: {

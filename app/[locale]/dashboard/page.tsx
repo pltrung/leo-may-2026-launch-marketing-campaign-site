@@ -20,6 +20,7 @@ import { GuidedTour, TOUR_STEPS_DASHBOARD, TOUR_STEPS_ONBOARDING } from "@/compo
 import { getMessages } from "@/lib/messages";
 import { getGymDateFromISO, getGymToday } from "@/lib/gymTimezone";
 import { roundSalePriceVnd } from "@/lib/newbieGraduateSale";
+import { memberIdentityComplete } from "@/lib/memberIdentity";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -149,11 +150,25 @@ export default function DashboardPage() {
     if (!mounted || typeof window === "undefined" || member == null) return;
     if (window.localStorage.getItem("dashboard_tour_done")) return;
     const hasPass = (member.membership_expires_at && new Date(member.membership_expires_at).getTime() > Date.now()) || (member.visits_remaining ?? 0) > 0;
-    const readyForQr = member.waiver_signed && hasPass && !!member.profile_photo_url;
+    const profileReady =
+      !!member.profile_photo_url && memberIdentityComplete(member);
+    const readyForQr = member.waiver_signed && hasPass && profileReady;
     if (readyForQr) return;
     setGuidedTourActive(true);
     setTourPhase("onboarding");
-  }, [mounted, member?.id, member?.waiver_signed, member?.profile_photo_url, member?.visits_remaining, member?.membership_expires_at]);
+  }, [
+    mounted,
+    member?.id,
+    member?.waiver_signed,
+    member?.profile_photo_url,
+    member?.id_number,
+    member?.full_name,
+    member?.gender,
+    member?.date_of_birth,
+    member?.id_verified_from_cccd,
+    member?.visits_remaining,
+    member?.membership_expires_at,
+  ]);
 
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isVietQrModalOpen, setIsVietQrModalOpen] = useState(false);
@@ -973,9 +988,13 @@ export default function DashboardPage() {
   const hasValidDayPass = rawStatus === "active" && daysRemaining != null && daysRemaining > 0;
   const hasValidVisitPass = visitsRemaining > 0;
   const canCheckIn = hasValidDayPass || hasValidVisitPass;
-  const canShowQR = member.waiver_signed && canCheckIn && !!member.profile_photo_url;
+  const profileStepComplete =
+    !!member.profile_photo_url && memberIdentityComplete(member);
+  const canShowQR = member.waiver_signed && canCheckIn && profileStepComplete;
   const checkInStepsCompleted =
-    (member.waiver_signed ? 1 : 0) + (canCheckIn ? 1 : 0) + (!!member.profile_photo_url ? 1 : 0);
+    (member.waiver_signed ? 1 : 0) +
+    (profileStepComplete ? 1 : 0) +
+    (canCheckIn ? 1 : 0);
 
   const statusLabel = isVi
     ? rawStatus === "cancelled"
@@ -1133,7 +1152,7 @@ export default function DashboardPage() {
                 i === 0
                   ? !!member?.waiver_signed
                   : i === 1
-                    ? !!member?.profile_photo_url
+                    ? !!member?.profile_photo_url && memberIdentityComplete(member)
                     : canCheckIn
             : undefined
         }
@@ -1291,10 +1310,10 @@ export default function DashboardPage() {
                 <p className="text-amber-200/95 text-[14px] leading-relaxed">
                   {!member.waiver_signed
                     ? (isVi ? "1. Ký giấy từ chối trách nhiệm trước khi check-in." : "1. Sign the waiver first before checking in.")
-                    : !member.profile_photo_url
+                    : !profileStepComplete
                     ? (isVi
-                        ? "2. Thêm ảnh hồ sơ — nhấn tên bạn ở trên để mở hồ sơ."
-                        : "2. Add a profile photo — tap your name above to open profile.")
+                        ? "2. Hoàn tất hồ sơ: ảnh đại diện + giấy tờ (quét QR chip CCCD hoặc nhập số CCCD, họ tên, giới tính, ngày sinh) — nhấn tên bạn ở trên."
+                        : "2. Complete profile: photo + ID (scan VN eID chip QR or enter CCCD, full name, gender, DoB) — tap your name above.")
                     : !canCheckIn
                     ? (isVi
                         ? "3. Có ít nhất 1 lượt: mua pass (tab Thẻ thành viên) hoặc đổi mã mời bạn LMG-… (tab Đổi mã). Sau đó QR check-in sẽ hiện."
@@ -1348,7 +1367,7 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() => {
                   if (!member.waiver_signed) setWaiverModalOpen(true);
-                  else if (canCheckIn && !member.profile_photo_url) setProfileModalOpen(true);
+                  else if (canCheckIn && !profileStepComplete) setProfileModalOpen(true);
                   else if (canShowQR) setIsQrModalOpen(true);
                 }}
                 className="relative rounded-[20px] p-6 md:p-8 flex flex-col items-center justify-center transition-all duration-200 active:scale-[0.98] hover:-translate-y-1 disabled:cursor-default disabled:hover:translate-y-0 disabled:opacity-70"
@@ -1371,10 +1390,14 @@ export default function DashboardPage() {
                           <span className="text-4xl">📝</span>
                           <p className="text-[15px] font-medium">{isVi ? "Ký giấy từ chối trách nhiệm để hiện mã QR" : "Sign the waiver to show your check-in QR code"}</p>
                         </>
-                      ) : !member.profile_photo_url ? (
+                      ) : !profileStepComplete ? (
                         <>
-                          <span className="text-4xl">📷</span>
-                          <p className="text-[15px] font-medium">{isVi ? "Thêm ảnh hồ sơ để có mã QR" : "Add a profile photo for your check-in QR code"}</p>
+                          <span className="text-4xl">🪪</span>
+                          <p className="text-[15px] font-medium">
+                            {isVi
+                              ? "Ảnh + giấy tờ (CCCD): mở hồ sơ qua tên bạn ở trên"
+                              : "Photo + ID required: open profile via your name above"}
+                          </p>
                         </>
                       ) : !canCheckIn ? (
                         <>

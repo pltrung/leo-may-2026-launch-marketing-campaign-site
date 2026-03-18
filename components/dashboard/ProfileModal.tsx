@@ -3,6 +3,7 @@
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import { getMessages } from "@/lib/messages";
 import { parseCccdPipeDelimited, extractIdFromVnEidQr } from "@/lib/vnEidQr";
+import { memberIdentityComplete } from "@/lib/memberIdentity";
 import EidQrScannerModal from "@/components/dashboard/EidQrScannerModal";
 
 interface ProfileModalProps {
@@ -85,9 +86,22 @@ export default function ProfileModal({
       setPasswordSuccess(false);
       setEidScannerOpen(false);
     }
-  }, [open, member.full_name, member.display_name, member.email, member.phone, member.instagram_handle, member.gender, member.id_number, member.date_of_birth, member.address, member.profile_photo_url]);
+  }, [open, member.full_name, member.display_name, member.email, member.phone, member.instagram_handle, member.gender, member.id_number, member.date_of_birth, member.address, member.profile_photo_url, member.id_verified_from_cccd]);
 
   const lockedFromCccd = Boolean(member.id_verified_from_cccd);
+
+  const identityReady =
+    lockedFromCccd ||
+    cccdScanPending ||
+    memberIdentityComplete({
+      id_verified_from_cccd: false,
+      id_number: idNumber,
+      full_name: fullName,
+      gender: gender || null,
+      date_of_birth: dateOfBirth || null,
+    });
+  const photoReady = Boolean(photoFile || member.profile_photo_url);
+  const canSaveProfile = identityReady && photoReady;
 
   const handleEidScanned = useCallback(
     async (rawContent: string) => {
@@ -169,6 +183,14 @@ export default function ProfileModal({
 
   const handleSave = useCallback(async () => {
     if (!accessToken) return;
+    if (!photoReady) {
+      setError(d.profileSaveNeedPhoto);
+      return;
+    }
+    if (!identityReady) {
+      setError(d.profileSaveNeedIdentity);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -215,7 +237,7 @@ export default function ProfileModal({
     } finally {
       setLoading(false);
     }
-  }, [accessToken, fullName, displayName, email, phone, instagramHandle, gender, idNumber, dateOfBirth, address, cccdScanPending, photoFile, onSaved, onClose, isVi]);
+  }, [accessToken, fullName, displayName, email, phone, instagramHandle, gender, idNumber, dateOfBirth, address, cccdScanPending, photoFile, onSaved, onClose, isVi, d.profileSaveNeedPhoto, d.profileSaveNeedIdentity, photoReady, identityReady]);
 
   const handleChangePassword = useCallback(async () => {
     if (!accessToken) return;
@@ -299,46 +321,20 @@ export default function ProfileModal({
 
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain px-4 pb-4">
-          {/* Photo */}
-          <div className="flex flex-col items-center mb-6">
-            <div className="relative">
-              {photoPreview ? (
-                <img
-                  src={photoPreview}
-                  alt=""
-                  className="w-24 h-24 rounded-full object-cover border-2 border-white/20"
-                />
-              ) : (
-                <div className="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center text-white/60 text-2xl font-semibold">
-                  {member.full_name?.charAt(0).toUpperCase() ?? "?"}
-                </div>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-sm hover:bg-emerald-400"
-                title={isVi ? "Chụp / tải ảnh" : "Take / upload photo"}
-              >
-                +
-              </button>
-            </div>
-            <p className="text-xs text-white/60 mt-2">
-              {isVi ? "Chụp ảnh hoặc chọn từ thư viện" : "Take photo or choose from library"}
-            </p>
+          <div className="rounded-xl border border-amber-400/35 bg-amber-500/10 px-3 py-2.5 mb-4">
+            <p className="text-xs font-semibold text-amber-100">{d.profileGovtIdRequiredTitle}</p>
+            <p className="text-[11px] text-amber-100/85 mt-1 leading-relaxed">{d.profileGovtIdRequiredBody}</p>
           </div>
+          {cccdScanPending && (
+            <p className="text-xs text-emerald-400 mb-3">{d.profileScanVerifiedPending}</p>
+          )}
 
-          {/* Govt ID first, then name, email, phone */}
-          <div className="space-y-4 mb-4">
+          {/* Govt ID + legal identity */}
+          <div className="space-y-4 mb-6">
             <label className="block">
               <span className="text-xs text-white/70">
                 {isVi ? "Số CCCD / Hộ chiếu" : "Govt ID / Passport"}
+                {!lockedFromCccd && !cccdScanPending && <span className="text-amber-300 ml-0.5">*</span>}
               </span>
               {lockedFromCccd && <span className="text-xs text-white/50 ml-1">({d.verifiedFromCccdLocked})</span>}
               <div className="mt-1 flex gap-2">
@@ -371,7 +367,10 @@ export default function ProfileModal({
               hint={d.scanVnEidHint}
             />
             <label className="block">
-              <span className="text-xs text-white/70">{d.fullName}</span>
+              <span className="text-xs text-white/70">
+                {d.fullName}
+                {!lockedFromCccd && !cccdScanPending && <span className="text-amber-300 ml-0.5">*</span>}
+              </span>
               {lockedFromCccd && <span className="text-xs text-white/50 ml-1">({d.verifiedFromCccdLocked})</span>}
               <input
                 type="text"
@@ -382,6 +381,76 @@ export default function ProfileModal({
                 className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-70 disabled:cursor-not-allowed"
               />
             </label>
+            <label className="block">
+              <span className="text-xs text-white/70">
+                {d.gender}
+                {!lockedFromCccd && !cccdScanPending && <span className="text-amber-300 ml-0.5">*</span>}
+              </span>
+              {lockedFromCccd && <span className="text-xs text-white/50 ml-1">({d.verifiedFromCccdLocked})</span>}
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value as "male" | "female" | "")}
+                disabled={lockedFromCccd}
+                className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 [color-scheme:dark] disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                <option value="">{isVi ? "Chọn" : "Select"}</option>
+                <option value="male">{d.genderMale}</option>
+                <option value="female">{d.genderFemale}</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-xs text-white/70">
+                {isVi ? "Ngày sinh" : "Date of birth"}
+                {!lockedFromCccd && !cccdScanPending && <span className="text-amber-300 ml-0.5">*</span>}
+              </span>
+              {lockedFromCccd && <span className="text-xs text-white/50 ml-1">({d.verifiedFromCccdLocked})</span>}
+              <input
+                type="date"
+                value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
+                disabled={lockedFromCccd}
+                className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 [color-scheme:dark] disabled:opacity-70 disabled:cursor-not-allowed"
+              />
+            </label>
+
+          {/* Profile photo — required */}
+          <div className="flex flex-col items-center mb-6 pt-2 border-t border-white/10">
+            <p className="text-xs font-medium text-white/80 mb-2 w-full text-left">
+              {d.profilePhotoRequiredLabel}
+            </p>
+            <div className="relative">
+              {photoPreview ? (
+                <img
+                  src={photoPreview}
+                  alt=""
+                  className="w-24 h-24 rounded-full object-cover border-2 border-white/20"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center text-white/60 text-2xl font-semibold">
+                  {fullName?.charAt(0).toUpperCase() || member.full_name?.charAt(0).toUpperCase() || "?"}
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-sm hover:bg-emerald-400"
+                title={isVi ? "Chụp / tải ảnh" : "Take / upload photo"}
+              >
+                +
+              </button>
+            </div>
+            <p className="text-xs text-white/60 mt-2">
+              {isVi ? "Chụp ảnh hoặc chọn từ thư viện" : "Take photo or choose from library"}
+            </p>
+          </div>
+
             <label className="block">
               <span className="text-xs text-white/70">{d.profileDisplayName}</span>
               <input
@@ -425,33 +494,6 @@ export default function ProfileModal({
                 onChange={(e) => setInstagramHandle(e.target.value)}
                 placeholder={isVi ? "@username hoặc username" : "@username or username"}
                 className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs text-white/70">{d.gender}</span>
-              {lockedFromCccd && <span className="text-xs text-white/50 ml-1">({d.verifiedFromCccdLocked})</span>}
-              <select
-                value={gender}
-                onChange={(e) => setGender(e.target.value as "male" | "female" | "")}
-                disabled={lockedFromCccd}
-                className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 [color-scheme:dark] disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                <option value="">{isVi ? "Chọn" : "Select"}</option>
-                <option value="male">{d.genderMale}</option>
-                <option value="female">{d.genderFemale}</option>
-              </select>
-            </label>
-            <label className="block">
-              <span className="text-xs text-white/70">
-                {isVi ? "Ngày sinh" : "Date of birth"}
-              </span>
-              {lockedFromCccd && <span className="text-xs text-white/50 ml-1">({d.verifiedFromCccdLocked})</span>}
-              <input
-                type="date"
-                value={dateOfBirth}
-                onChange={(e) => setDateOfBirth(e.target.value)}
-                disabled={lockedFromCccd}
-                className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 [color-scheme:dark] disabled:opacity-70 disabled:cursor-not-allowed"
               />
             </label>
             <label className="block">
@@ -531,7 +573,7 @@ export default function ProfileModal({
             <button
               type="button"
               onClick={handleSave}
-              disabled={loading}
+              disabled={loading || !canSaveProfile}
               className="flex-1 py-2 rounded-full text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-60"
             >
               {loading ? (isVi ? "Đang lưu…" : "Saving…") : (isVi ? "Lưu" : "Save")}

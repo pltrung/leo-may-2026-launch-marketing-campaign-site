@@ -513,6 +513,14 @@ const en = {
     noIdInQr: "No valid ID number found in the QR code. Try again or enter manually.",
     address: "Address",
     verifiedFromCccdLocked: "Verified from CCCD — not editable",
+    profileGovtIdRequiredTitle: "Government ID (required)",
+    profileGovtIdRequiredBody:
+      "Scan the chip QR on your VN eID (full CCCD data), or enter CCCD number, full legal name, gender, and date of birth. You cannot save without this.",
+    profilePhotoRequiredLabel: "Profile photo (required)",
+    profileSaveNeedPhoto: "Add a profile photo to save.",
+    profileSaveNeedIdentity:
+      "Scan VN eID (chip QR) or fill in CCCD number, full name, gender, and date of birth.",
+    profileScanVerifiedPending: "ID verified from scan — tap Save to confirm.",
     milestoneGuestPasses: "Your guest pass codes",
     milestoneGuestHowTo:
       "Share a code with a friend. They open the member dashboard → Redeem tab, paste the code, and get 1 free visit on their account. Each code works once; you can’t use your own codes.",
@@ -1432,6 +1440,14 @@ const vi: Messages = {
     noIdInQr: "Không tìm thấy số định danh trong mã QR. Thử lại hoặc nhập tay.",
     address: "Địa chỉ",
     verifiedFromCccdLocked: "Xác thực từ CCCD — không chỉnh sửa",
+    profileGovtIdRequiredTitle: "Giấy tờ (bắt buộc)",
+    profileGovtIdRequiredBody:
+      "Quét mã QR chip trên CCCD VN (đủ dữ liệu), hoặc nhập số CCCD, họ tên đầy đủ, giới tính và ngày sinh. Không thể lưu nếu thiếu.",
+    profilePhotoRequiredLabel: "Ảnh hồ sơ (bắt buộc)",
+    profileSaveNeedPhoto: "Thêm ảnh hồ sơ để lưu.",
+    profileSaveNeedIdentity:
+      "Quét CCCD chip hoặc điền số CCCD, họ tên, giới tính và ngày sinh.",
+    profileScanVerifiedPending: "Đã xác thực từ quét — nhấn Lưu để xác nhận.",
     milestoneGuestPasses: "Mã vé khách của bạn",
     milestoneGuestHowTo:
       "Gửi mã cho bạn bè. Họ mở dashboard thành viên → tab Đổi mã, dán mã để được cộng 1 lượt miễn phí. Mỗi mã dùng một lần; bạn không thể dùng mã của chính mình.",
