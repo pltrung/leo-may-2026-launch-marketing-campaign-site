@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import ForecastPanel from "@/components/admin/ForecastPanel";
 
 type FinanceData = {
   month_key: string;
@@ -89,6 +90,7 @@ export default function FinanceTab({
 
   const [staffEdit, setStaffEdit] = useState<{ id: string; salary: string; rate: string } | null>(null);
   const [snapNote, setSnapNote] = useState("");
+  const [financeView, setFinanceView] = useState<"books" | "forecast">("books");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -257,21 +259,45 @@ export default function FinanceTab({
     }
   };
 
-  if (loading && !data) {
-    return <p className="text-slate-500 text-sm">{t("Loading…", "Đang tải…")}</p>;
-  }
-  if (err && !data) {
-    return (
-      <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800 text-sm">
-        {err}
-        <p className="mt-2 text-xs">{t("Apply migration 055 if tables are missing.", "Chạy migration 055 nếu thiếu bảng.")}</p>
-      </div>
-    );
-  }
-  if (!data) return null;
-
   return (
     <div className="space-y-6 text-slate-900">
+      <nav className="flex flex-wrap gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200" aria-label="Finance sections">
+        <button
+          type="button"
+          onClick={() => setFinanceView("books")}
+          className={`flex-1 min-w-[140px] px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            financeView === "books" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-white/80"
+          }`}
+        >
+          {t("This month", "Tháng này")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setFinanceView("forecast")}
+          className={`flex-1 min-w-[140px] px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            financeView === "forecast" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-white/80"
+          }`}
+        >
+          {t("Forecast", "Dự báo")}
+        </button>
+      </nav>
+
+      {financeView === "forecast" && (
+        <ForecastPanel adminFetch={adminFetch} locale={locale} />
+      )}
+
+      {financeView === "books" && loading && !data && (
+        <p className="text-slate-500 text-sm">{t("Loading…", "Đang tải…")}</p>
+      )}
+      {financeView === "books" && err && !data && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800 text-sm">
+          {err}
+          <p className="mt-2 text-xs">{t("Apply migration 055 if tables are missing.", "Chạy migration 055 nếu thiếu bảng.")}</p>
+        </div>
+      )}
+
+      {financeView === "books" && data && (
+        <>
       {err && <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">{err}</p>}
 
       <div className="flex flex-wrap gap-2">
@@ -624,6 +650,8 @@ export default function FinanceTab({
           )}
         </div>
       </div>
+        </>
+      )}
 
       {/* Modals */}
       {expenseOpen && (

@@ -3913,9 +3913,10 @@ export default function AdminPage() {
           {adminArea === "analytics" && canAccessAnalytics && (
             <section className="rounded-2xl bg-white border border-slate-200 shadow-sm p-4 md:p-6">
               <h2 className="text-lg font-semibold text-slate-900">{locale === "vi" ? "Phân tích & Báo cáo" : "Analytics & Reporting"}</h2>
-              <p className="text-sm text-slate-600 mt-1">{locale === "vi" ? "Tổng quan hiệu suất phòng gym: doanh thu, thành viên, giữ chân, hành vi và vận hành." : "Full view of gym performance: revenue, members, retention, behavior, and operations."}</p>
+              <p className="text-sm text-slate-600 mt-1">{locale === "vi" ? "Tab đầu là tóm tắt điều hành; các tab sau chi tiết từng mảng (doanh thu, thành viên, email, v.v.)." : "First tab is the executive summary; other tabs drill into each area (revenue, members, email, etc.)."}</p>
 
-              {/* Global filters */}
+              {/* Global filters (hidden on Finance — forecast lives there as second tab) */}
+              {analyticsTab !== "finance" && (
               <div className="mt-4 flex flex-wrap gap-3 items-center rounded-xl border border-slate-200 bg-slate-50 p-3" data-tour="analytics-filters">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{locale === "vi" ? "Bộ lọc" : "Filters"}</span>
                 <select
@@ -3966,6 +3967,7 @@ export default function AdminPage() {
                   <option value="inactive">{locale === "vi" ? "Không hoạt động" : "Inactive"}</option>
                 </select>
               </div>
+              )}
 
               {/* Analytics sub-tabs */}
               <nav className="mt-4 flex gap-1 p-1 border-b border-slate-200 overflow-x-auto" aria-label="Analytics tabs">
@@ -3979,7 +3981,7 @@ export default function AdminPage() {
                       analyticsTab === t ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
                     }`}
                   >
-                    {t === "overview" ? (locale === "vi" ? "Tổng quan" : "Overview") : null}
+                    {t === "overview" ? (locale === "vi" ? "Tóm tắt ĐH" : "Executive") : null}
                     {t === "revenue" ? (locale === "vi" ? "Doanh thu" : "Revenue") : null}
                     {t === "members" ? (locale === "vi" ? "Thành viên" : "Members") : null}
                     {t === "email_campaigns" ? (locale === "vi" ? "Chiến dịch email" : "Email campaigns") : null}

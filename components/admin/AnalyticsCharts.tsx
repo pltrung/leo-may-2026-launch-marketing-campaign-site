@@ -14,9 +14,10 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import ExecutiveSummary from "@/components/admin/ExecutiveSummary";
 export type AdminFetch = (url: string, options?: RequestInit) => Promise<Response>;
 
-type AnalyticsData = {
+export type AnalyticsData = {
   filters?: { period: string; since: string; until: string; member_type: string; activity: string };
   overview?: { total_revenue: number; total_members: number; active_members: number; total_visits: number };
   revenue?: {
@@ -556,35 +557,8 @@ export default function AnalyticsCharts({
     );
   }
 
-  if (tab === "overview") {
-    const o: Partial<NonNullable<AnalyticsData["overview"]>> = data?.overview ?? {};
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KpiCard
-            label={t("Total revenue", "Tổng doanh thu")}
-            value={`${(o.total_revenue ?? 0).toLocaleString("vi-VN")} VND`}
-          />
-          <KpiCard label={t("Total members", "Tổng thành viên")} value={o.total_members ?? 0} />
-          <KpiCard label={t("Active (in period)", "Hoạt động (trong kỳ)")} value={o.active_members ?? 0} />
-          <KpiCard label={t("Total visits", "Tổng lượt vào")} value={o.total_visits ?? 0} />
-        </div>
-        {data?.revenue?.over_time && data?.revenue.over_time.length > 0 && (
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-sm font-semibold text-slate-700 mb-3">{t("Revenue over time", "Doanh thu theo thời gian")}</p>
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={data?.revenue?.over_time ?? []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(v: unknown) => [typeof v === "number" ? v.toLocaleString("vi-VN") : String(v ?? 0), t("Revenue", "Doanh thu")]} labelFormatter={(l) => l} />
-                <Line type="monotone" dataKey="total" stroke="#0f766e" strokeWidth={2} dot={{ r: 3 }} name={t("Revenue", "Doanh thu")} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
-    );
+  if (tab === "overview" && data) {
+    return <ExecutiveSummary data={data} locale={locale} adminFetch={adminFetch} />;
   }
 
   if (tab === "revenue") {
