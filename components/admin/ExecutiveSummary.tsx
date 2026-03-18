@@ -89,9 +89,19 @@ export default function ExecutiveSummary({
     if (!adminFetch) return;
     setExtrasLoading(true);
     setExtrasErr(false);
+    const f = data.filters;
+    const financeParams = new URLSearchParams();
+    if (f?.period) {
+      financeParams.set("period", f.period);
+      if (f.period === "custom" && f.since && f.until) {
+        financeParams.set("from", f.since.slice(0, 10));
+        financeParams.set("to", f.until.slice(0, 10));
+      }
+    }
+    const financeUrl = `/api/admin/finance${financeParams.toString() ? `?${financeParams.toString()}` : ""}`;
     try {
       const [finRes, fcRes, onbRes, logRes] = await Promise.all([
-        adminFetch("/api/admin/finance"),
+        adminFetch(financeUrl),
         adminFetch("/api/admin/forecast"),
         adminFetch("/api/admin/onboarding/analytics"),
         adminFetch("/api/admin/campaigns/logs?limit=5"),
@@ -146,7 +156,7 @@ export default function ExecutiveSummary({
     } finally {
       setExtrasLoading(false);
     }
-  }, [adminFetch]);
+  }, [adminFetch, data.filters]);
 
   useEffect(() => {
     loadExtras();
@@ -159,8 +169,8 @@ export default function ExecutiveSummary({
       return `${f.since.slice(0, 10)} → ${f.until.slice(0, 10)}`;
     }
     const map: Record<string, string> = isVi
-      ? { day: "Hôm nay", week: "Tuần này", month: "Tháng này", custom: "Tùy chọn" }
-      : { day: "Today", week: "This week", month: "This month", custom: "Custom" };
+      ? { day: "Hôm nay", week: "Tuần này", month: "Tháng này", quarter: "Quý này", custom: "Tùy chọn" }
+      : { day: "Today", week: "This week", month: "This month", quarter: "This quarter", custom: "Custom" };
     return map[f.period] ?? f.period;
   }, [f, isVi]);
 

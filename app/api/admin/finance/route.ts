@@ -8,10 +8,44 @@ import { getUnifiedAdminOrStaffFromRequest, canAccessAnalytics } from "@/lib/uni
 import {
   getGymToday,
   getGymStartOfMonth,
+  getGymStartOfWeek,
+  getGymStartOfQuarter,
   getGymEndOfDay,
   getGymMonthBoundaries,
   getGymStartOfDay,
 } from "@/lib/gymTimezone";
+
+/** Parse period + optional from/to into since/until ISO and date strings. Same logic as analytics. */
+function parseFinanceRange(
+  period: string | null,
+  fromParam: string | null,
+  toParam: string | null
+): { sinceIso: string; untilIso: string; sinceDate: string; untilDate: string } {
+  const today = getGymToday();
+  const untilIso = toParam && /^\d{4}-\d{2}-\d{2}$/.test(toParam) ? getGymEndOfDay(toParam) : getGymEndOfDay(today);
+  const untilDate = untilIso.slice(0, 10);
+  if (fromParam && toParam && /^\d{4}-\d{2}-\d{2}$/.test(fromParam) && /^\d{4}-\d{2}-\d{2}$/.test(toParam)) {
+    return { sinceIso: getGymStartOfDay(fromParam), untilIso, sinceDate: fromParam, untilDate };
+  }
+  if (period === "week") {
+    const sinceIso = getGymStartOfWeek();
+    return { sinceIso, untilIso, sinceDate: sinceIso.slice(0, 10), untilDate };
+  }
+  if (period === "month") {
+    const sinceIso = getGymStartOfMonth();
+    return { sinceIso, untilIso, sinceDate: sinceIso.slice(0, 10), untilDate };
+  }
+  if (period === "quarter") {
+    const sinceIso = getGymStartOfQuarter();
+    return { sinceIso, untilIso, sinceDate: sinceIso.slice(0, 10), untilDate };
+  }
+  if (period === "day") {
+    const sinceIso = getGymStartOfDay(today);
+    return { sinceIso, untilIso, sinceDate: today, untilDate };
+  }
+  const sinceIso = getGymStartOfMonth();
+  return { sinceIso, untilIso: getGymEndOfDay(today), sinceDate: sinceIso.slice(0, 10), untilDate };
+}
 
 function addCalendarMonths(y: number, m: number, delta: number) {
   const d = new Date(y, m - 1 + delta, 1);
@@ -86,12 +120,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const url = new URL(req.url);
+  const periodParam = url.searchParams.get("period");
+  const fromParam = url.searchParams.get("from");
+  const toParam = url.searchParams.get("to");
+  const useRange = Boolean(periodParam || (fromParam && toParam));
+
   const supabase = createServerClient();
   const today = getGymToday();
   const monthStartIso = getGymStartOfMonth();
   const monthStartDate = monthStartIso.slice(0, 10);
   const monthKey = today.slice(0, 7);
-  const untilIso = getGymEndOfDay(today);
+
+  const { sinceIso, untilIso, sinceDate, untilDate } = useRange
+    ? parseFinanceRange(periodParam, fromParam, toParam)
+    : {
+        sinceIso: monthStartIso,
+        untilIso: getGymEndOfDay(today),
+        sinceDate: monthStartDate,
+        untilDate: today,
+      };
 
   try {
     const { data: configRows } = await supabase.from("finance_config").select("*").limit(1);
@@ -105,13 +153,13 @@ export async function GET(req: NextRequest) {
     const { data: paymentRows } = await supabase
       .from("payments")
       .select("amount, created_at")
-      .gte("created_at", monthStartIso)
+      .gte("created_at", sinceIso)
       .lte("created_at", untilIso)
       .eq("status", "success");
     const { data: posRowsMtd } = await supabase
       .from("pos_transactions")
       .select("total, created_at")
-      .gte("created_at", monthStartIso)
+      .gte("created_at", sinceIso)
       .lte("created_at", untilIso)
       .eq("payment_status", "success");
 
@@ -122,7 +170,7 @@ export async function GET(req: NextRequest) {
     const { data: posStaffRows } = await supabase
       .from("pos_transactions")
       .select("staff_id, total, commission_amount, created_at")
-      .gte("created_at", monthStartIso)
+      .gte("created_at", sinceIso)
       .lte("created_at", untilIso)
       .eq("payment_status", "success");
 
@@ -146,8 +194,8 @@ export async function GET(req: NextRequest) {
       .select(
         "id, expense_date, category, item_name, quantity, cost, notes, reorder_request_id, created_at, created_by_staff_id"
       )
-      .gte("expense_date", monthStartDate)
-      .lte("expense_date", today)
+      .gte("expense_date", sinceDate)
+      .lte("expense_date", untilDate)
       .order("expense_date", { ascending: false })
       .order("created_at", { ascending: false });
 
@@ -156,21 +204,33 @@ export async function GET(req: NextRequest) {
       expensesMtd += Number((e as { cost: number }).cost) || 0;
     }
 
-    // MTD costs: prorate fixed costs (rent + payroll) by days elapsed in month so profit isn't skewed early in the month.
-    // Full month fixed = 1000 → cost per day = 1000/daysInMonth → MTD fixed = (1000/daysInMonth) * daysElapsed.
-    const [ty, tm] = today.split("-").map(Number);
-    const dayOfMonth = parseInt(today.slice(8, 10), 10) || 1;
+    // Prorate fixed costs (rent + payroll) by (days in range / days in current month) so period profit is comparable.
+    const [ty, tm] = today.split(/-/).map(Number);
     const daysInMonth = new Date(ty, tm, 0).getDate();
-    const daysElapsed = Math.min(Math.max(1, dayOfMonth), daysInMonth);
+    const sinceD = new Date(sinceDate + "T12:00:00Z");
+    const untilD = new Date(untilDate + "T12:00:00Z");
+    const daysInRange = Math.max(1, Math.round((untilD.getTime() - sinceD.getTime()) / 86400000) + 1);
     const fixedFullMonth = rentAmount + payrollTotal;
-    const proratedFixed = daysInMonth > 0 ? (fixedFullMonth * daysElapsed) / daysInMonth : 0;
+    const proratedFixed =
+      daysInMonth > 0 ? (fixedFullMonth * daysInRange) / daysInMonth : 0;
     const monthlyCosts = Math.round(proratedFixed + expensesMtd);
 
     const profit = revenueMtd - monthlyCosts;
     const cash = Number(config.current_cash) || 0;
-    // Runway uses full-month burn (fixed + extrapolated expenses), not MTD prorated.
+    // Runway always uses full-month burn (fixed + extrapolated expenses from current month), not the selected range.
+    const dayOfMonth = parseInt(today.slice(8, 10), 10) || 1;
+    const daysElapsed = Math.min(Math.max(1, dayOfMonth), daysInMonth);
+    let expensesForRunway = expensesMtd;
+    if (useRange && (sinceDate !== monthStartDate || untilDate !== today)) {
+      const { data: monthExpRows } = await supabase
+        .from("expenses")
+        .select("cost")
+        .gte("expense_date", monthStartDate)
+        .lte("expense_date", today);
+      expensesForRunway = (monthExpRows ?? []).reduce((s, e) => s + (Number((e as { cost: number }).cost) || 0), 0);
+    }
     const expensesExtrapolated =
-      daysElapsed > 0 ? (expensesMtd * daysInMonth) / daysElapsed : expensesMtd;
+      daysElapsed > 0 ? (expensesForRunway * daysInMonth) / daysElapsed : expensesForRunway;
     const fullMonthlyCosts = Math.round(fixedFullMonth + expensesExtrapolated);
     const runwayMonths =
       fullMonthlyCosts > 0 ? Math.round((cash / fullMonthlyCosts) * 10) / 10 : null;
@@ -201,7 +261,6 @@ export async function GET(req: NextRequest) {
 
     const rentDueDay = Number(config.rent_due_day) || 1;
     const payrollDay = Number(config.payroll_day) || 25;
-    const [ty, tm] = today.split("-").map(Number);
     let rentDueStr = `${ty}-${String(tm).padStart(2, "0")}-${String(rentDueDay).padStart(2, "0")}`;
     if (rentDueStr < today) {
       const n = addCalendarMonths(ty, tm, 1);

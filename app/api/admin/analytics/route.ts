@@ -1,7 +1,7 @@
 /**
  * GET /api/admin/analytics
  * Admin-only. Returns aggregated analytics for the dashboard.
- * Query: period=day|week|month, from=YYYY-MM-DD, to=YYYY-MM-DD (optional custom),
+ * Query: period=day|week|month|quarter, from=YYYY-MM-DD, to=YYYY-MM-DD (optional custom),
  *        member_type=all|member|newbie|casual, activity=all|active|inactive
  */
 import { NextRequest, NextResponse } from "next/server";
@@ -12,6 +12,7 @@ import {
   getGymStartOfDay,
   getGymStartOfWeek,
   getGymStartOfMonth,
+  getGymStartOfQuarter,
   getGymEndOfDay,
   getGymDateFromISO,
 } from "@/lib/gymTimezone";
@@ -28,11 +29,15 @@ function parseDateRange(
   }
   if (period === "week") {
     const since = getGymStartOfWeek();
-    return { since, until: getGymEndOfDay(), label: "week" };
+    return { since, until: getGymEndOfDay(today), label: "week" };
   }
   if (period === "month") {
     const since = getGymStartOfMonth();
-    return { since, until: getGymEndOfDay(), label: "month" };
+    return { since, until: getGymEndOfDay(today), label: "month" };
+  }
+  if (period === "quarter") {
+    const since = getGymStartOfQuarter();
+    return { since, until: getGymEndOfDay(today), label: "quarter" };
   }
   const since = getGymStartOfDay(today);
   return { since, until: getGymEndOfDay(today), label: "day" };

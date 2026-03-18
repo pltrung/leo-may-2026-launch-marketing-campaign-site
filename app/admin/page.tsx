@@ -277,7 +277,7 @@ export default function AdminPage() {
   const [analyticsTab, setAnalyticsTab] = useState<
     "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance"
   >("overview");
-  const [analyticsPeriod, setAnalyticsPeriod] = useState<"day" | "week" | "month" | "custom">("month");
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<"day" | "week" | "month" | "quarter" | "custom">("month");
   const [analyticsFrom, setAnalyticsFrom] = useState("");
   const [analyticsTo, setAnalyticsTo] = useState("");
   const [analyticsMemberType, setAnalyticsMemberType] = useState<"all" | "member" | "newbie" | "casual">("all");
@@ -4041,12 +4041,13 @@ export default function AdminPage() {
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{locale === "vi" ? "Bộ lọc" : "Filters"}</span>
                 <select
                   value={analyticsPeriod}
-                  onChange={(e) => setAnalyticsPeriod(e.target.value as "day" | "week" | "month" | "custom")}
+                  onChange={(e) => setAnalyticsPeriod(e.target.value as "day" | "week" | "month" | "quarter" | "custom")}
                   className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800"
                 >
                   <option value="day">{locale === "vi" ? "Ngày" : "Day"}</option>
                   <option value="week">{locale === "vi" ? "Tuần" : "Week"}</option>
                   <option value="month">{locale === "vi" ? "Tháng" : "Month"}</option>
+                  <option value="quarter">{locale === "vi" ? "Quý" : "Quarter"}</option>
                   <option value="custom">{locale === "vi" ? "Tùy chọn" : "Custom"}</option>
                 </select>
                 {analyticsPeriod === "custom" && (

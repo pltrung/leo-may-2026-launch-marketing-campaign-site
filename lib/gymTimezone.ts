@@ -86,6 +86,29 @@ export function getGymStartOfMonth(): string {
 }
 
 /**
+ * Start of current quarter (Q1=Jan 1, Q2=Apr 1, Q3=Jul 1, Q4=Oct 1) in gym TZ as ISO.
+ */
+export function getGymStartOfQuarter(): string {
+  const today = getGymToday();
+  const [y, m] = today.split("-").map(Number);
+  const qMonth = Math.floor((m - 1) / 3) * 3 + 1;
+  const first = `${y}-${String(qMonth).padStart(2, "0")}-01`;
+  return getGymStartOfDay(first);
+}
+
+/**
+ * End of current quarter (Q1=Mar 31, Q2=Jun 30, Q3=Sep 30, Q4=Dec 31) in gym TZ as ISO.
+ */
+export function getGymEndOfQuarter(): string {
+  const today = getGymToday();
+  const [y, m] = today.split("-").map(Number);
+  const qMonth = Math.floor((m - 1) / 3) * 3 + 3;
+  const lastDay = new Date(y, qMonth, 0).getDate();
+  const last = `${y}-${String(qMonth).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  return getGymEndOfDay(last);
+}
+
+/**
  * Month boundaries in gym TZ as YYYY-MM-DD.
  */
 export function getGymMonthBoundaries(year?: number, month?: number): { start: string; end: string } {
