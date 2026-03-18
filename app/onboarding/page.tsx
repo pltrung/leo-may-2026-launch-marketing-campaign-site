@@ -142,6 +142,18 @@ export default function OnboardingPage() {
     if (hasAccess) void fetchProgress();
   }, [hasAccess, fetchProgress]);
 
+  // If we're on certification result screen but have no local result (e.g. after refresh), fetch from server so we can show pass/fail from progress.
+  useEffect(() => {
+    if (
+      phase === "certification_result" &&
+      currentDay === 7 &&
+      !certificationResult &&
+      (progress?.passed == null || progress?.final_score == null)
+    ) {
+      fetchProgress();
+    }
+  }, [phase, currentDay, certificationResult, progress?.passed, progress?.final_score, fetchProgress]);
+
   const updateProgress = useCallback(async (action: string, payload?: Record<string, unknown>) => {
     setSaving(true);
     try {
@@ -610,6 +622,7 @@ export default function OnboardingPage() {
           weakest_skill,
           suggested_day,
         });
+        setPhase("certification_result");
         adminFetch("/api/admin/onboarding/progress", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -620,9 +633,14 @@ export default function OnboardingPage() {
             critical_fail: certificationCriticalFail,
             certification_date: new Date().toISOString(),
           }),
-        }).then(() => fetchProgress()).catch(() => {});
+        })
+          .then((res) => {
+            if (res.ok) return fetchProgress();
+          })
+          .catch(() => {});
+      } else {
+        setPhase("reflection");
       }
-      setPhase(currentDay === 7 ? "certification_result" : "reflection");
     }
   };
 
@@ -867,7 +885,10 @@ export default function OnboardingPage() {
 
                 {/* Primary CTA */}
                 {progress && (() => {
-                  const dayToStart = [1, 2, 3, 4, 5, 6, 7].find((d) => isDayUnlocked(d) && !progress.day_completion[d]?.completed) ?? 1;
+                  const isDayCompleted = (d: number) =>
+                    progress.day_completion[d]?.completed === true ||
+                    (d === 7 && progress.passed != null && progress.final_score != null);
+                  const dayToStart = [1, 2, 3, 4, 5, 6, 7].find((d) => isDayUnlocked(d) && !isDayCompleted(d)) ?? 1;
                   const canStart = isDayUnlocked(dayToStart);
                   const hasProgress = (progress.day_completion[dayToStart]?.current_step ?? 0) > 0;
                   const label = hasProgress
