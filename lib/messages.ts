@@ -523,6 +523,10 @@ const en = {
     milestoneMerchCap: "Leo May cap",
     milestoneMerchShirt: "Leo May t-shirt",
     milestoneMerchShoes: "Leo May climbing shoes",
+    checkInToastTitle: "Checked in!",
+    checkInToastSubtitle: "Welcome to Leo Mây.",
+    checkInWelcomeBackTitle: "Welcome back again today!",
+    checkInWelcomeBackSubtitle: "Great to see you at the gym.",
   },
   admin: {
     title: "Leo Mây Admin",
@@ -1439,6 +1443,10 @@ const vi: Messages = {
     milestoneMerchCap: "Mũ Leo Mây",
     milestoneMerchShirt: "Áo Leo Mây",
     milestoneMerchShoes: "Giày leo Leo Mây",
+    checkInToastTitle: "Đã check-in!",
+    checkInToastSubtitle: "Chào mừng đến Leo Mây.",
+    checkInWelcomeBackTitle: "Chào bạn quay lại hôm nay!",
+    checkInWelcomeBackSubtitle: "Vui được gặp lại bạn tại gym.",
   },
   admin: {
     title: "Leo Mây Admin",

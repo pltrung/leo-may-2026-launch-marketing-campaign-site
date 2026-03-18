@@ -18,6 +18,7 @@ import WaiverModal from "@/components/dashboard/WaiverModal";
 import AchievementUnlockModal, { type AchievementUnlockData } from "@/components/dashboard/AchievementUnlockModal";
 import { GuidedTour, TOUR_STEPS_DASHBOARD, TOUR_STEPS_ONBOARDING } from "@/components/admin/GuidedTour";
 import { getMessages } from "@/lib/messages";
+import { getGymDateFromISO, getGymToday } from "@/lib/gymTimezone";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -208,7 +209,9 @@ export default function DashboardPage() {
   const [renewError, setRenewError] = useState<string | null>(null);
   const [freezeLoading, setFreezeLoading] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [checkInSuccess, setCheckInSuccess] = useState(false);
+  /** null = hidden; first = first check-in today; repeat = already had check-in today (matches admin "welcome back") */
+  const [checkInToast, setCheckInToast] = useState<null | "first" | "repeat">(null);
+  const checkInToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [vnpayLoading, setVnpayLoading] = useState(false);
   // Use consistent night gradient so EN and VN dashboard backgrounds always match
   const skyBg = "linear-gradient(180deg, #0B0B0F 0%, #0d0d14 40%, #12121a 100%)";
@@ -316,7 +319,14 @@ export default function DashboardPage() {
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [accessToken, checkInSuccess, paymentSuccess]);
+  }, [accessToken, checkInToast, paymentSuccess]);
+
+  useEffect(
+    () => () => {
+      if (checkInToastTimerRef.current) clearTimeout(checkInToastTimerRef.current);
+    },
+    []
+  );
 
   const handleUnifiedRedeem = useCallback(async () => {
     const raw = redeemCode.trim().toUpperCase();
@@ -534,7 +544,16 @@ export default function DashboardPage() {
         },
         () => {
           if (Date.now() < ignoreCheckinRealtimeUntilRef.current) return;
-          setCheckInSuccess(true);
+          const prevMs = checkInBaselineTsRef.current;
+          const today = getGymToday();
+          const repeat =
+            prevMs > 0 && getGymDateFromISO(new Date(prevMs).toISOString()) === today;
+          if (checkInToastTimerRef.current) clearTimeout(checkInToastTimerRef.current);
+          setCheckInToast(repeat ? "repeat" : "first");
+          checkInToastTimerRef.current = setTimeout(() => {
+            setCheckInToast(null);
+            checkInToastTimerRef.current = null;
+          }, 5000);
           fetch("/api/member/me", { headers: { Authorization: `Bearer ${accessToken}` } })
             .then((r) => r.json())
             .then((data) => {
@@ -543,7 +562,6 @@ export default function DashboardPage() {
             })
             .catch(() => {});
           refresh();
-          setTimeout(() => setCheckInSuccess(false), 20000);
           // Explicitly refetch climbing progress so it updates in real time
           fetch("/api/member/progress", { headers: { Authorization: `Bearer ${accessToken}` } })
             .then((r) => r.json())
@@ -585,9 +603,17 @@ export default function DashboardPage() {
           if (!newLastCheckin) return;
           const newTs = new Date(newLastCheckin).getTime();
           if (newTs > checkInBaselineTsRef.current) {
+            const prevMs = checkInBaselineTsRef.current;
+            const today = getGymToday();
+            const repeat =
+              prevMs > 0 && getGymDateFromISO(new Date(prevMs).toISOString()) === today;
             checkInBaselineTsRef.current = newTs;
-            setCheckInSuccess(true);
-            setTimeout(() => setCheckInSuccess(false), 20000);
+            if (checkInToastTimerRef.current) clearTimeout(checkInToastTimerRef.current);
+            setCheckInToast(repeat ? "repeat" : "first");
+            checkInToastTimerRef.current = setTimeout(() => {
+              setCheckInToast(null);
+              checkInToastTimerRef.current = null;
+            }, 5000);
             refresh();
             fetch("/api/member/progress", { headers: { Authorization: `Bearer ${accessToken}` } })
               .then((res) => res.json())
@@ -998,6 +1024,31 @@ export default function DashboardPage() {
         </div>
       </header>
 
+      {checkInToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed left-4 right-4 top-24 md:top-28 z-[35] max-w-md mx-auto pt-[env(safe-area-inset-top,0px)] animate-in fade-in slide-in-from-top-2 duration-300"
+        >
+          <div
+            className="rounded-2xl px-5 py-4 shadow-2xl border-2 border-emerald-400/70"
+            style={{
+              background: "rgba(15,23,42,0.92)",
+              backdropFilter: "blur(16px)",
+              borderColor: "rgba(52,211,153,0.5)",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.45)",
+            }}
+          >
+            <p className="text-[17px] font-semibold text-emerald-300">
+              {checkInToast === "repeat" ? d.checkInWelcomeBackTitle : d.checkInToastTitle}
+            </p>
+            <p className="text-[14px] text-emerald-100/90 mt-1">
+              {checkInToast === "repeat" ? d.checkInWelcomeBackSubtitle : d.checkInToastSubtitle}
+            </p>
+          </div>
+        </div>
+      )}
+
       <GuidedTour
         key={tourPhase}
         steps={tourPhase === "onboarding" ? TOUR_STEPS_ONBOARDING : TOUR_STEPS_DASHBOARD}
@@ -1181,17 +1232,6 @@ export default function DashboardPage() {
           {/* CHECK IN - only show when all 3 steps (waiver, package, profile photo) are done */}
           {canShowQR && (
           <section data-tour="dashboard-qr">
-            {/* Only after a *new* check-in this session (realtime / polling vs baseline), not because member already checked in earlier today */}
-            {checkInSuccess && (
-              <div className="w-full mb-4 rounded-[20px] px-6 py-4 flex flex-col gap-1 border-2 border-emerald-400/60 shadow-lg shadow-emerald-500/20 animate-in fade-in slide-in-from-top-2 duration-300" style={{ background: glassCard, backdropFilter: "blur(20px)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
-                <p className="text-[18px] font-medium text-emerald-200">
-                  {isVi ? "Đã check-in thành công" : "Checked in successfully"}
-                </p>
-                <p className="text-[15px] text-emerald-100/90">
-                  {isVi ? "Chào mừng bạn đến Leo Mây" : "Welcome to Leo Mây"}
-                </p>
-              </div>
-            )}
             <div className="relative rounded-[20px] p-6 flex flex-col items-center transition-transform duration-200 hover:-translate-y-0.5" style={{ background: glassCard, backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               {/* Radial glow behind QR card */}
               <div className="absolute inset-0 rounded-[20px] pointer-events-none opacity-60" style={{ background: "radial-gradient(ellipse 80% 60% at 50% 40%, rgba(125,211,252,0.08) 0%, transparent 70%)" }} aria-hidden />
