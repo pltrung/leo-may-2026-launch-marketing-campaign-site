@@ -1,6 +1,11 @@
 "use client";
 
 import React from "react";
+import {
+  DAY_PASS_BASELINE_PER_VISIT_VND,
+  visitPackVisitCount,
+  visitPackVsDayPassBaseline,
+} from "@/lib/visitPackDayPassBaseline";
 
 export interface Plan {
   id: string;
@@ -84,6 +89,11 @@ export default function PackageDetailModal({
     "";
   const bullets = descSource ? formatDescription(descSource) : [];
 
+  const visitCount = visitPackVisitCount(plan.id, plan.duration_visits);
+  const payVnd =
+    effectivePriceVnd != null && effectivePriceVnd < plan.price_vnd ? effectivePriceVnd : plan.price_vnd;
+  const vsDay = visitCount > 0 ? visitPackVsDayPassBaseline(payVnd, visitCount) : null;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
@@ -132,6 +142,26 @@ export default function PackageDetailModal({
               </p>
             )}
           </div>
+          {vsDay && vsDay.discountPct > 0 && (
+            <div className="mb-4 rounded-xl border border-amber-400/25 bg-amber-500/10 px-3 py-2.5">
+              <p className="text-xs text-white/45 line-through">
+                {vsDay.listAtDayRateVnd.toLocaleString("vi-VN")} VND
+                {isVi
+                  ? ` · ${visitCount}× vé ngày (${DAY_PASS_BASELINE_PER_VISIT_VND.toLocaleString("vi-VN")}đ/lượt)`
+                  : ` · ${visitCount}× day pass (${DAY_PASS_BASELINE_PER_VISIT_VND.toLocaleString("vi-VN")} VND each)`}
+              </p>
+              <p className="mt-1 text-sm font-semibold text-amber-200/95">
+                {isVi
+                  ? `Tiết kiệm ~${vsDay.discountPct}% so với mua lẻ vé ngày`
+                  : `~${vsDay.discountPct}% off vs. buying ${visitCount} separate day passes`}
+              </p>
+              <p className="mt-0.5 text-[11px] text-white/50">
+                {isVi
+                  ? `≈ ${vsDay.perVisitEffectiveVnd.toLocaleString("vi-VN")}đ / lượt trong gói`
+                  : `≈ ${vsDay.perVisitEffectiveVnd.toLocaleString("vi-VN")} VND per visit in this pack`}
+              </p>
+            </div>
+          )}
           <p className="text-sm text-white/60 mb-4">
             {(plan.duration_visits ?? 0) > 0
               ? `${plan.duration_visits} ${isVi ? "lượt" : "visits"}`

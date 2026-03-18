@@ -4,13 +4,18 @@ import React, { useEffect, useState } from "react";
 import BottomSheet from "@/components/ui/BottomSheet";
 import { useLocale } from "@/components/LocaleProvider";
 import { getMessages } from "@/lib/messages";
+import {
+  DAY_PASS_BASELINE_PER_VISIT_VND,
+  visitPackVisitCount,
+  visitPackVsDayPassBaseline,
+} from "@/lib/visitPackDayPassBaseline";
 
 interface Plan {
   id: string;
   name: string;
   price_vnd: number;
   duration_days?: number;
-  duration_visits?: number;
+  duration_visits?: number | null;
   description?: string | null;
 }
 
@@ -102,6 +107,18 @@ function planBadgeText(id: string, isVi: boolean): string | null {
   return null;
 }
 
+/** Localized titles when API returns English names */
+const PLAN_NAME_VI: Record<string, string> = {
+  newbie_class: "Lớp Newbie",
+  day_pass: "Vé 1 ngày",
+  month_pass: "Vé 30 ngày",
+  half_year_pass: "Vé 180 ngày",
+  year_pass: "Vé 365 ngày",
+  visit_5: "Gói 5 lượt",
+  visit_10: "Gói 10 lượt",
+  visit_20: "Gói 20 lượt",
+};
+
 const PLAN_BENEFITS_FALLBACK_VI: Record<string, string> = {
   newbie_class: "30 phút coaching + 1 ngày vào phòng • Giày thuê + phấn miễn phí trong buổi",
   day_pass: "Vào phòng gym trọn 1 ngày (theo lịch)",
@@ -129,14 +146,21 @@ const PLAN_BENEFITS_FALLBACK_EN: Record<string, string> = {
 };
 
 function getPlanDescription(plan: Plan, isVi: boolean): string {
+  const vi = PLAN_BENEFITS_FALLBACK_VI[plan.id];
+  const en = PLAN_BENEFITS_FALLBACK_EN[plan.id];
+  // Vi locale: use localized benefits when we have them (DB descriptions are often English-only).
+  if (isVi && vi) return vi;
   const raw = plan.description?.trim();
   if (raw) return raw;
-  return isVi ? PLAN_BENEFITS_FALLBACK_VI[plan.id] ?? "" : PLAN_BENEFITS_FALLBACK_EN[plan.id] ?? "";
+  return isVi ? vi ?? "" : en ?? "";
 }
 
 function PlanCard({ plan, benefitsLabel, isVi, description }: { plan: Plan; benefitsLabel: string; isVi: boolean; description: string }) {
   const s = styleForPlan(plan.id);
   const badge = planBadgeText(plan.id, isVi);
+  const displayName = isVi ? PLAN_NAME_VI[plan.id] ?? plan.name : plan.name;
+  const visitCount = visitPackVisitCount(plan.id, plan.duration_visits);
+  const vsDay = visitCount > 0 ? visitPackVsDayPassBaseline(plan.price_vnd, visitCount) : null;
   const lines = description
     ? description
         .split(/[•\n]/)
@@ -156,10 +180,27 @@ function PlanCard({ plan, benefitsLabel, isVi, description }: { plan: Plan; bene
         </span>
       )}
       <div className="flex items-start justify-between gap-3">
-        <h3 className="text-[15px] font-semibold leading-snug text-white/95 tracking-tight">{plan.name}</h3>
+        <h3 className="text-[15px] font-semibold leading-snug text-white/95 tracking-tight">{displayName}</h3>
         <div className="shrink-0 text-right">
           <p className={`text-lg font-bold tabular-nums tracking-tight ${s.price}`}>{formatVnd(plan.price_vnd)}</p>
           <p className="text-[10px] font-medium uppercase tracking-wider text-white/35">VND</p>
+          {vsDay && vsDay.discountPct > 0 && (
+            <p className="mt-1 max-w-[9.5rem] text-right text-[10px] leading-snug text-amber-300/95">
+              {isVi ? (
+                <>
+                  <span className="text-white/40 line-through">{formatVnd(vsDay.listAtDayRateVnd)}</span>
+                  <br />
+                  ~{vsDay.discountPct}% so với {visitCount} vé ngày (390k)
+                </>
+              ) : (
+                <>
+                  <span className="text-white/40 line-through">{formatVnd(vsDay.listAtDayRateVnd)}</span>
+                  <br />
+                  ~{vsDay.discountPct}% off vs. {visitCount}× day (390k)
+                </>
+              )}
+            </p>
+          )}
         </div>
       </div>
       {lines.length > 0 && (
@@ -247,6 +288,22 @@ export default function PricingSheet({ open, onClose }: PricingSheetProps) {
         )}
 
         <div className="flex flex-col gap-3 min-h-[120px]" role="tabpanel">
+          {tab === "visit" && activeList.length > 0 && (
+            <p className="rounded-xl border border-violet-400/15 bg-violet-950/20 px-3 py-2 text-[11px] leading-relaxed text-white/55">
+              {locale === "vi" ? (
+                <>
+                  Gói lượt đã giảm so với mua từng vé ngày: mỗi lượt quy về{" "}
+                  <span className="text-white/75">{formatVnd(DAY_PASS_BASELINE_PER_VISIT_VND)}</span>{" "}
+                  (vé 1 ngày).
+                </>
+              ) : (
+                <>
+                  Visit packs are discounted vs. buying separate day passes at{" "}
+                  <span className="text-white/75">{formatVnd(DAY_PASS_BASELINE_PER_VISIT_VND)}</span> each.
+                </>
+              )}
+            </p>
+          )}
           {activeList.length === 0 && plans.length > 0 && (
             <p className="py-8 text-center text-sm text-white/45">{m.comingSoon}</p>
           )}
@@ -262,13 +319,6 @@ export default function PricingSheet({ open, onClose }: PricingSheetProps) {
         </div>
 
         {plans.length === 0 && <p className="py-10 text-center text-sm text-white/50">{m.comingSoon}</p>}
-
-        <div className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2.5">
-          <p className="text-[10px] leading-relaxed text-white/42">
-            <span className="text-emerald-400/80">●</span> {m.newbieClassNote}{" "}
-            <span className="text-amber-400/70">●</span> {m.passBenefitsNote}
-          </p>
-        </div>
       </div>
     </BottomSheet>
   );

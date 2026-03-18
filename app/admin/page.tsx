@@ -199,6 +199,7 @@ export default function AdminPage() {
   const [managementTab, setManagementTab] = useState<"inventory" | "admin_tools">("inventory");
   const [staffModalTab, setStaffModalTab] = useState<"overview" | "tasks" | "attendance" | "coaching" | "routes">("overview");
   const [staffResetLoading, setStaffResetLoading] = useState(false);
+  const [resetAttendanceWarningOpen, setResetAttendanceWarningOpen] = useState(false);
   const [showNewMemberForm, setShowNewMemberForm] = useState(false);
   const [auditLogEntries, setAuditLogEntries] = useState<{ id: string; action_type: string; entity_id: string | null; created_at: string; actor: { display_name: string | null; email: string | null } | null }[] | null>(null);
   const [auditLogLoading, setAuditLogLoading] = useState(false);
@@ -3105,20 +3106,7 @@ export default function AdminPage() {
                 <button
                   type="button"
                   disabled={staffResetLoading}
-                  onClick={async () => {
-                    if (!window.confirm(m.toolResetAttendanceConfirm)) return;
-                    setStaffResetLoading(true);
-                    try {
-                      const res = await adminFetch("/api/admin/staff/reset-attendance", { method: "POST" });
-                      const d = await res.json();
-                      if (res.ok && d.ok) {
-                        if (staffOpsData) adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x));
-                        setActionError(null);
-                      } else setActionError(d?.error ?? "Failed");
-                    } finally {
-                      setStaffResetLoading(false);
-                    }
-                  }}
+                  onClick={() => setResetAttendanceWarningOpen(true)}
                   className="px-4 py-2 rounded-xl border border-amber-500/50 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20 text-sm font-medium disabled:opacity-50"
                 >
                   {staffResetLoading ? "…" : m.toolResetAttendance}
@@ -3362,43 +3350,6 @@ export default function AdminPage() {
                     const coachingLabel = locale === "vi" ? "Buổi coaching" : "Coaching Session";
                     return (
                       <>
-                        <div className="flex justify-end">
-                          <button
-                            type="button"
-                            disabled={staffResetLoading}
-                            onClick={async () => {
-                              setStaffResetLoading(true);
-                              try {
-                                const r = await adminFetch("/api/admin/staff/reset-attendance", {
-                                  method: "POST",
-                                });
-                                const d = await r.json();
-                                if (r.ok) {
-                                  setActionMessage(
-                                    locale === "vi"
-                                      ? "Đã xóa chấm công hôm nay."
-                                      : "Today's staff attendance reset.",
-                                  );
-                                  adminFetch("/api/admin/staff")
-                                    .then((res) => res.json())
-                                    .then((data) => setStaffOpsData(data))
-                                    .catch(() => setStaffOpsData(null));
-                                } else setActionError(d?.error || "Failed");
-                              } catch {
-                                setActionError("Failed");
-                              } finally {
-                                setStaffResetLoading(false);
-                              }
-                            }}
-                            className="text-xs px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 disabled:opacity-50"
-                          >
-                            {staffResetLoading
-                              ? "…"
-                              : locale === "vi"
-                              ? "Xóa chấm công (test)"
-                              : "Reset attendance (test)"}
-                          </button>
-                        </div>
                         {/* CURRENT PHASE — top */}
                         <div className="rounded-lg border-2 border-slate-200 bg-slate-50 p-3">
                           <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
@@ -4713,6 +4664,76 @@ export default function AdminPage() {
             <p className="mt-4 text-xs text-white/80 text-center">
               {locale === "vi" ? "Đưa mã này cho quầy lễ tân để chấm công. Mã thay đổi mỗi 30 giây." : "Show this code to the front desk to check in. Code refreshes every 30 seconds."}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Reset staff attendance — warning modal (Admin Tools + Operations test) */}
+      {resetAttendanceWarningOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/65 p-4"
+          onClick={() => !staffResetLoading && setResetAttendanceWarningOpen(false)}
+          role="presentation"
+        >
+          <div
+            className="max-w-md w-full rounded-2xl border-2 border-amber-500/45 bg-slate-900 shadow-[0_24px_80px_rgba(0,0,0,0.85)] p-5 sm:p-6"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reset-attendance-warning-title"
+          >
+            <div className="flex gap-3 mb-1">
+              <span className="text-2xl shrink-0" aria-hidden>
+                ⚠️
+              </span>
+              <div className="min-w-0">
+                <h2 id="reset-attendance-warning-title" className="text-lg font-bold text-amber-200">
+                  {m.toolResetAttendanceModalTitle}
+                </h2>
+                <p className="text-sm text-slate-300 mt-3 leading-relaxed">{m.toolResetAttendanceModalBody}</p>
+              </div>
+            </div>
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end mt-6">
+              <button
+                type="button"
+                disabled={staffResetLoading}
+                onClick={() => setResetAttendanceWarningOpen(false)}
+                className="px-4 py-2.5 rounded-xl border border-slate-600 text-slate-200 text-sm font-medium hover:bg-slate-800 disabled:opacity-50"
+              >
+                {m.cancel}
+              </button>
+              <button
+                type="button"
+                disabled={staffResetLoading}
+                onClick={async () => {
+                  setStaffResetLoading(true);
+                  try {
+                    const res = await adminFetch("/api/admin/staff/reset-attendance", { method: "POST" });
+                    const d = await res.json();
+                    if (res.ok && d.ok) {
+                      setResetAttendanceWarningOpen(false);
+                      setActionMessage(
+                        locale === "vi" ? "Đã xóa chấm công hôm nay." : "Today's staff attendance reset.",
+                      );
+                      setActionError(null);
+                      adminFetch("/api/admin/staff")
+                        .then((r) => r.json())
+                        .then((data) => setStaffOpsData(data))
+                        .catch(() => setStaffOpsData(null));
+                    } else {
+                      setActionError(d?.error ?? "Failed");
+                    }
+                  } catch {
+                    setActionError("Failed");
+                  } finally {
+                    setStaffResetLoading(false);
+                  }
+                }}
+                className="px-4 py-2.5 rounded-xl bg-amber-600 text-slate-900 text-sm font-semibold hover:bg-amber-500 disabled:opacity-50"
+              >
+                {staffResetLoading ? "…" : m.toolResetAttendanceModalConfirm}
+              </button>
+            </div>
           </div>
         </div>
       )}

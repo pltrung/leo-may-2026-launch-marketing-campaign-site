@@ -21,6 +21,7 @@ import { getMessages } from "@/lib/messages";
 import { getGymDateFromISO, getGymToday } from "@/lib/gymTimezone";
 import { roundSalePriceVnd } from "@/lib/newbieGraduateSale";
 import { memberIdentityComplete } from "@/lib/memberIdentity";
+import { visitPackVisitCount, visitPackVsDayPassBaseline } from "@/lib/visitPackDayPassBaseline";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -894,6 +895,31 @@ export default function DashboardPage() {
 
   const d = useMemo(() => getMessages(locale).dashboard, [locale]);
 
+  const recentMembershipTx = useMemo(() => {
+    const vi = locale === "vi";
+    const retailLabel = vi ? "Mua hàng" : "Retail";
+    return [
+      ...payments.map((p) => ({
+        type: "membership" as const,
+        id: p.id,
+        date: p.created_at,
+        amount: p.amount,
+        label: p.plan_name,
+        items: null as { sku: string; name: string | null; quantity: number; price: number }[] | null,
+      })),
+      ...purchases.map((tx) => ({
+        type: "retail" as const,
+        id: tx.id,
+        date: tx.created_at,
+        amount: tx.total,
+        label: retailLabel,
+        items: tx.items,
+      })),
+    ]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 3);
+  }, [payments, purchases, locale]);
+
   const glassCard = "rgba(0,0,0,0.4)";
   const accentColor = "#7DD3FC";
 
@@ -1706,6 +1732,23 @@ export default function DashboardPage() {
                     return true;
                   });
                   return (
+                <>
+                {passFilter === "visit" &&
+                  filtered.some((p) => visitPackVisitCount(p.id, p.duration_visits) > 0) && (
+                  <p className="text-[11px] leading-snug text-white/55 mb-3 px-0.5">
+                    {isVi ? (
+                      <>
+                        Gói lượt rẻ hơn so với mua từng vé ngày (
+                        <span className="text-white/70">390.000đ/lượt</span>).
+                      </>
+                    ) : (
+                      <>
+                        Visit packs save vs. separate day passes at{" "}
+                        <span className="text-white/70">390,000 VND</span> each.
+                      </>
+                    )}
+                  </p>
+                )}
                 <div
                   data-passes-carousel
                   className="flex gap-3 overflow-x-auto overflow-y-hidden pb-2 mb-4 scroll-smooth snap-x snap-mandatory touch-pan-x"
@@ -1716,6 +1759,8 @@ export default function DashboardPage() {
                     const hasBoughtNewbieClass = payments.some((pmt) => pmt.plan_name === "Newbie Class");
                     const showNewbieAura = isNewbieClass && !hasBoughtNewbieClass;
                     const pr = getPlanPricing(p);
+                    const vCount = visitPackVisitCount(p.id, p.duration_visits);
+                    const vsPack = vCount > 0 ? visitPackVsDayPassBaseline(pr.pay, vCount) : null;
                     return (
                       <button
                         key={p.id}
@@ -1758,54 +1803,65 @@ export default function DashboardPage() {
                               {pr.pay.toLocaleString("vi-VN")} VND
                             </p>
                           )}
+                          {vsPack && vsPack.discountPct > 0 && (
+                            <p className="text-[10px] font-semibold text-amber-300/95 mt-1.5 leading-tight">
+                              {isVi
+                                ? `~${vsPack.discountPct}% so với ${vCount} vé ngày`
+                                : `~${vsPack.discountPct}% off vs. ${vCount} day passes`}
+                            </p>
+                          )}
                         </div>
                       </button>
                     );
                   })}
                 </div>
+                </>
                   );
                 })()}
                 <style>{`[data-passes-carousel]::-webkit-scrollbar { display: none; }`}</style>
-                {(payments.length > 0 || purchases.length > 0) && (
-                  <div className="pt-3 border-t border-white/[0.08]">
-                    <p className="text-xs font-medium text-white/70 uppercase tracking-wider mb-2">
-                      {isVi ? "Lịch sử thanh toán" : "Payment history"}
-                    </p>
-                    <ul className="space-y-1.5">
-                      {[
-                        ...payments.map((p) => ({ type: "membership" as const, id: p.id, date: p.created_at, amount: p.amount, label: p.plan_name, items: null })),
-                        ...purchases.map((tx) => ({ type: "retail" as const, id: tx.id, date: tx.created_at, amount: tx.total, label: isVi ? "Mua hàng" : "Retail", items: tx.items })),
-                      ]
-                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                        .slice(0, 3)
-                        .map((entry) => (
-                          <li key={`${entry.type}-${entry.id}`} className="flex flex-col gap-0.5">
-                            <div className="flex justify-between items-center text-sm">
-                              <span className="text-white/80">
-                                {new Date(entry.date).toLocaleDateString(isVi ? "vi-VN" : "en-US", {
-                                  month: "short",
-                                  day: "numeric",
-                                })}{" "}
-                                {entry.label}
-                              </span>
-                              <span className="text-white/90 font-medium">
-                                {entry.amount.toLocaleString("vi-VN")} VND
-                              </span>
-                            </div>
-                            {entry.items && entry.items.length > 0 && (
-                              <ul className="text-[11px] text-white/50 list-disc list-inside ml-1">
-                                {entry.items.map((it, j) => (
-                                  <li key={j}>{it.name ?? it.sku} × {it.quantity}</li>
-                                ))}
-                              </ul>
-                            )}
-                          </li>
-                        ))}
-                    </ul>
-                  </div>
-                )}
               </div>
               )}
+
+              <div className="mt-6 pt-4 border-t border-white/[0.08]" data-tour="dashboard-recent-tx">
+                <p className="text-xs font-medium text-white/70 uppercase tracking-wider mb-2">
+                  {isVi ? "3 giao dịch gần nhất" : "Recent transactions"}
+                </p>
+                {recentMembershipTx.length > 0 ? (
+                  <ul className="space-y-1.5">
+                    {recentMembershipTx.map((entry) => (
+                      <li key={`${entry.type}-${entry.id}`} className="flex flex-col gap-0.5">
+                        <div className="flex justify-between items-center text-sm gap-2">
+                          <span className="text-white/80 min-w-0">
+                            {new Date(entry.date).toLocaleDateString(isVi ? "vi-VN" : "en-US", {
+                              month: "short",
+                              day: "numeric",
+                            })}{" "}
+                            {entry.label}
+                          </span>
+                          <span className="text-white/90 font-medium shrink-0">
+                            {entry.amount.toLocaleString("vi-VN")} VND
+                          </span>
+                        </div>
+                        {entry.items && entry.items.length > 0 && (
+                          <ul className="text-[11px] text-white/50 list-disc list-inside ml-1">
+                            {entry.items.map((it, j) => (
+                              <li key={j}>
+                                {it.name ?? it.sku} × {it.quantity}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-white/50">
+                    {isVi
+                      ? "Chưa có giao dịch. Gia hạn hoặc mua pass sẽ hiện tại đây."
+                      : "No transactions yet. Renewals and pass purchases will show here."}
+                  </p>
+                )}
+              </div>
             </div>
           </section>
           )}
