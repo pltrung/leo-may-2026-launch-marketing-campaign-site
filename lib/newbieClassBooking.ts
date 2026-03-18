@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getNextNewbieClassSlotStartIso } from "@/lib/gymTimezone";
 
 const MAX_NEWBIES_PER_SESSION = 5;
-const MAX_SESSIONS_PER_SLOT = 2; // 2 sessions x 5 newbies = 10 per 30-min slot
+const MAX_SESSIONS_PER_SLOT = 1; // one 30-min bucket; up to 5 newbies per session
 const SLOT_LENGTH_MINUTES = 30;
 
 /**
@@ -66,9 +67,9 @@ async function tryAutoAssignCoach(
  * After a member pays for newbie_class, create/assign them into a 30-min coaching session bucket.
  * Behaviour:
  * - Slot is determined by purchase time: round up to the next :00 or :30 (e.g. buy at 11:45 → 12:00 slot).
- * - Each 30-min slot can have up to 2 sessions, each with max 5 newbies (total 10 per slot).
- * - Sessions are created on demand only when there is at least one booking.
- * - If the chosen slot is full (2 sessions x 5 newbies), it rolls forward to the next 30‑min slot.
+ * - One session per 30-min slot, max 5 newbies (aligned to gym TZ slots).
+ * - Sessions are created on demand if none exist for that slot.
+ * - If the slot is full (5), rolls forward to the next 30‑min slot.
  * - If the session has no coach and at least one person is now signed up, a route setter
  *   who is IN today is auto-assigned (one with fewest sessions today).
  * Returns the booking id and session id, or null if no slot available.
@@ -81,21 +82,13 @@ export async function bookNewbieClass(
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
 
-  // Helper: get next 30-min slot start (rounded up from now)
-  const getNextSlotStart = (from: Date): Date => {
-    const d = new Date(from.getTime());
-    const minutes = d.getMinutes();
-    const addMinutes = minutes === 0 || minutes === 30 ? 0 : minutes < 30 ? 30 - minutes : 60 - minutes;
-    if (addMinutes > 0) d.setMinutes(minutes + addMinutes, 0, 0);
-    return d;
-  };
-
-  let slotStart = getNextSlotStart(now);
+  let slotIso = getNextNewbieClassSlotStartIso(now);
 
   // Try this slot and a bounded number of future slots (e.g. next 12 = 6 hours) to avoid infinite loops
   for (let attempt = 0; attempt < 12; attempt++) {
+    const slotStart = new Date(slotIso);
     const slotEnd = new Date(slotStart.getTime() + SLOT_LENGTH_MINUTES * 60 * 1000);
-    const startIso = slotStart.toISOString();
+    const startIso = slotIso;
     const endIso = slotEnd.toISOString();
 
     // Load or lazily create up to MAX_SESSIONS_PER_SLOT sessions for this exact slot
@@ -153,8 +146,8 @@ export async function bookNewbieClass(
       return { bookingId: insertedBooking.id, sessionId: session.id };
     }
 
-    // Slot full (2 sessions x 5 newbies) — move to next 30-min slot
-    slotStart = new Date(slotStart.getTime() + SLOT_LENGTH_MINUTES * 60 * 1000);
+    // Slot full (5 newbies) — move to next 30-min slot
+    slotIso = new Date(slotStart.getTime() + SLOT_LENGTH_MINUTES * 60 * 1000).toISOString();
   }
 
   // No available slot within the checked window

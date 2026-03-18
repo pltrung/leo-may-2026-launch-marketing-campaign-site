@@ -24,6 +24,64 @@ function compareHHMM(a: string, b: string): number {
   return (ah * 60 + am) - (bh * 60 + bm);
 }
 
+const MAX_NEWBIES_PER_COACHING_SLOT = 5;
+
+type CoachingSessionRow = {
+  id: string;
+  start_time: string;
+  end_time?: string;
+  coach_id: string | null;
+  session_type?: string;
+  status?: string;
+  location?: string | null;
+  staff_profiles?: unknown;
+};
+
+/** Merge rows that share the same slot (same start_time + location) so UI shows one row + total newbies. */
+function aggregateNewbieSessionsBySlot(
+  sessions: CoachingSessionRow[],
+  newbieCountBySession: Record<string, number>
+): Array<
+  CoachingSessionRow & {
+    newbie_count: number;
+    session_ids: string[];
+    max_newbies: number;
+  }
+> {
+  const map = new Map<
+    string,
+    CoachingSessionRow & { newbie_count: number; session_ids: string[]; max_newbies: number }
+  >();
+  for (const s of sessions) {
+    const n = newbieCountBySession[s.id] ?? 0;
+    if (n <= 0) continue;
+    const loc = (s.location as string) ?? "Main Wall - Beginner Area";
+    const key = `${s.start_time}\0${loc}`;
+    const prev = map.get(key);
+    if (!prev) {
+      map.set(key, {
+        ...s,
+        location: loc,
+        newbie_count: n,
+        session_ids: [s.id],
+        max_newbies: MAX_NEWBIES_PER_COACHING_SLOT,
+      });
+    } else {
+      prev.newbie_count += n;
+      prev.session_ids.push(s.id);
+      if (!prev.coach_id && s.coach_id) {
+        prev.coach_id = s.coach_id;
+        prev.staff_profiles = s.staff_profiles;
+        prev.id = s.id;
+        prev.end_time = s.end_time ?? prev.end_time;
+      }
+    }
+  }
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+  );
+}
+
 /** Minutes from midnight in gym TZ for current moment. */
 function getGymMinutesFromMidnight(): number {
   const t = new Date().toLocaleTimeString("en-GB", {
@@ -221,11 +279,10 @@ export async function GET(request: NextRequest) {
       newbieCountBySession[id] = (newbieCountBySession[id] ?? 0) + 1;
     }
   }
-  const sessionsWithNewbieCount = sessionsNext2h.map((s) => ({
-    ...s,
-    location: (s.location as string) ?? "Main Wall - Beginner Area",
-    newbie_count: newbieCountBySession[s.id] ?? 0,
-  })).filter((s) => (s.newbie_count ?? 0) > 0);
+  const sessionsWithNewbieCount = aggregateNewbieSessionsBySlot(
+    sessionsNext2h as CoachingSessionRow[],
+    newbieCountBySession
+  );
 
   // Booking count for today's sessions (for unassigned-alert: only alert when someone is registered but no coach)
   const sessionIdsToday = sessionsToday.map((s) => s.id);
@@ -241,16 +298,13 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Today's full sessions with location for Coaching tab
-  const sessionsTodayWithLocation = sessionsToday
-    .map((s) => ({
-      ...s,
-      location: (s.location as string) ?? "Main Wall - Beginner Area",
-      newbie_count: newbieCountBySessionToday[s.id] ?? 0,
-    }))
-    .filter((s) => (s.newbie_count ?? 0) > 0);
+  // Today's coaching slots: one row per 30-min wall slot, merged member counts
+  const sessionsTodayWithLocation = aggregateNewbieSessionsBySlot(
+    sessionsToday as CoachingSessionRow[],
+    newbieCountBySessionToday
+  );
 
-  const totalNewbieAttendance = Object.values(newbieCountBySession).reduce((a, b) => a + b, 0);
+  const totalNewbieAttendance = Object.values(newbieCountBySessionToday).reduce((a, b) => a + b, 0);
 
   const preOpen = tasks.filter((t) => (t as { block?: string }).block === "pre_open");
   const during = tasks.filter((t) => (t as { block?: string }).block === "during_hours");
@@ -264,10 +318,7 @@ export async function GET(request: NextRequest) {
     return due ? compareHHMM(nowHHMM, due) > 0 : false;
   }).length;
 
-  // Unassigned with alert: only sessions that have at least one member registered but no coach assigned
-  const unassignedSessions = sessionsToday.filter(
-    (s) => !s.coach_id && (newbieCountBySessionToday[s.id] ?? 0) > 0
-  ).length;
+  const unassignedSessions = sessionsTodayWithLocation.filter((s) => !s.coach_id && s.newbie_count > 0).length;
 
   // Timeline: task_logs with task title and staff name (Supabase returns relations as arrays)
   const timeline = taskLogs.map((log) => {
@@ -389,7 +440,7 @@ export async function GET(request: NextRequest) {
       staff_in_today: staffIn.length,
       staff_out_today: staffOut.length,
       staff_total: staffTotal,
-      sessions_today: sessionsToday.length,
+      sessions_today: sessionsTodayWithLocation.length,
       newbie_attendance_today: totalNewbieAttendance,
       zones_overdue: zonesOverdueCount,
       tasks_pending: tasksPending,

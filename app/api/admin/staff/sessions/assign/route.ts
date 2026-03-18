@@ -12,14 +12,19 @@ export async function POST(request: NextRequest) {
   const unified = await getUnifiedAdminOrStaffFromRequest(request);
   if (!unified || !canAccessOperations(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: { session_id?: string };
+  let body: { session_id?: string; session_ids?: string[] };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
-  const sessionId = body.session_id;
-  if (!sessionId) return NextResponse.json({ error: "session_id required" }, { status: 400 });
+  const sessionIds =
+    Array.isArray(body.session_ids) && body.session_ids.length > 0
+      ? [...new Set(body.session_ids.filter((id): id is string => typeof id === "string" && id.length > 0))]
+      : body.session_id
+        ? [body.session_id]
+        : [];
+  if (sessionIds.length === 0) return NextResponse.json({ error: "session_id or session_ids required" }, { status: 400 });
 
   const supabase = createServerClient();
   let staffId = unified.staffId;
@@ -40,20 +45,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Mark yourself IN before taking sessions" }, { status: 403 });
   }
 
-  const { data: session, error: sessionErr } = await supabase
+  const { data: rows, error: sessionErr } = await supabase
     .from("coaching_sessions")
     .select("id, coach_id")
-    .eq("id", sessionId)
-    .single();
-  if (sessionErr || !session) {
-    return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    .in("id", sessionIds);
+  if (sessionErr || !rows?.length || rows.length !== sessionIds.length) {
+    return NextResponse.json({ error: "One or more sessions not found" }, { status: 404 });
   }
 
   const { error: updateErr } = await supabase
     .from("coaching_sessions")
     .update({ coach_id: staffId, updated_at: new Date().toISOString() })
-    .eq("id", sessionId);
+    .in("id", sessionIds);
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, updated: sessionIds.length });
 }

@@ -259,3 +259,41 @@ export function parseGymDateTime(dateStr: string, timeHHMM: string): string {
   const slotMs = (hh * 60 + mm) * 60 * 1000 + ss * 1000;
   return new Date(midnightLA + slotMs).toISOString();
 }
+
+/**
+ * Next 30-minute newbie-class slot boundary in gym TZ (round up from `from`).
+ * Aligns with pre-seeded coaching_sessions from parseGymDateTime(date, "HH:MM").
+ */
+export function getNextNewbieClassSlotStartIso(from: Date = new Date()): string {
+  const ymd = new Intl.DateTimeFormat("en-CA", {
+    timeZone: GYM_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(from);
+  const h = parseInt(
+    new Intl.DateTimeFormat("en-US", { timeZone: GYM_TZ, hour: "numeric", hour12: false }).format(from),
+    10,
+  );
+  const mi = parseInt(
+    new Intl.DateTimeFormat("en-US", { timeZone: GYM_TZ, minute: "numeric" }).format(from),
+    10,
+  );
+  const se = parseInt(
+    new Intl.DateTimeFormat("en-US", { timeZone: GYM_TZ, second: "numeric" }).format(from),
+    10,
+  );
+  const totalSec = h * 3600 + mi * 60 + se;
+  let slotStartSec = totalSec % 1800 === 0 ? totalSec : Math.ceil(totalSec / 1800) * 1800;
+  const daysAdd = Math.floor(slotStartSec / 86400);
+  const daySec = slotStartSec % 86400;
+  const slotH = Math.floor(daySec / 3600);
+  const slotM = Math.floor((daySec % 3600) / 60);
+  const timeStr = `${String(slotH).padStart(2, "0")}:${slotM === 0 ? "00" : "30"}`;
+  let dateStr = ymd;
+  for (let i = 0; i < daysAdd; i++) {
+    const eod = parseGymDateTime(dateStr, "23:59:59");
+    dateStr = getGymDateFromISO(new Date(new Date(eod).getTime() + 2000).toISOString());
+  }
+  return parseGymDateTime(dateStr, timeStr);
+}

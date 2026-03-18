@@ -354,7 +354,17 @@ export default function AdminPage() {
   const [staffOpsData, setStaffOpsData] = useState<{
     attendance: { in: { staff_id: string; status: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[]; out: { staff_id: string; status: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[] };
     sessions: { id: string; start_time: string; end_time?: string; coach_id: string | null; session_type: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[];
-    sessionsToday?: { id: string; start_time: string; end_time?: string; coach_id: string | null; location?: string; staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] }[];
+    sessionsToday?: {
+      id: string;
+      start_time: string;
+      end_time?: string;
+      coach_id: string | null;
+      location?: string;
+      newbie_count?: number;
+      max_newbies?: number;
+      session_ids?: string[];
+      staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[];
+    }[];
     zones: {
       id: string;
       name: string;
@@ -3696,26 +3706,61 @@ export default function AdminPage() {
                       </div>
                       <div className="rounded-lg border border-slate-200 overflow-hidden">
                         <table className="w-full text-sm">
-                          <thead><tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase"><th className="px-3 py-2">{m.time}</th><th className="px-3 py-2">{m.wallArea}</th><th className="px-3 py-2">{m.coachAssigned}</th><th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th><th className="px-3 py-2">{locale === "vi" ? "Thao tác" : "Action"}</th></tr></thead>
+                          <thead>
+                            <tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase">
+                              <th className="px-3 py-2">{m.time}</th>
+                              <th className="px-3 py-2">{m.wallArea}</th>
+                              <th className="px-3 py-2">{m.coachingMembers}</th>
+                              <th className="px-3 py-2">{m.coachAssigned}</th>
+                              <th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th>
+                              <th className="px-3 py-2">{locale === "vi" ? "Thao tác" : "Action"}</th>
+                            </tr>
+                          </thead>
                           <tbody>
-                            {((staffOpsData.sessionsToday ?? staffOpsData.sessions) as { id: string; start_time: string; coach_id: string | null; location?: string; staff_profiles?: { display_name?: string; email?: string } | unknown }[]).map((s) => {
+                            {((staffOpsData.sessionsToday ?? staffOpsData.sessions) as {
+                              id: string;
+                              start_time: string;
+                              end_time?: string;
+                              coach_id: string | null;
+                              location?: string;
+                              newbie_count?: number;
+                              max_newbies?: number;
+                              session_ids?: string[];
+                              staff_profiles?: { display_name?: string; email?: string } | unknown;
+                            }[]).map((s) => {
+                              const slotKey = (s.session_ids && s.session_ids.length ? s.session_ids : [s.id]).join(",");
                               const p = Array.isArray(s.staff_profiles) ? s.staff_profiles[0] : s.staff_profiles;
                               const name = (p as { display_name?: string; email?: string })?.display_name || (p as { display_name?: string; email?: string })?.email;
+                              const maxN = s.max_newbies ?? 5;
+                              const n = s.newbie_count ?? 1;
+                              const timeEnd =
+                                s.end_time != null
+                                  ? `${new Date(s.start_time).toLocaleTimeString(locale === "vi" ? "vi-VN" : "en-US", { hour: "numeric", minute: "2-digit", hour12: locale === "en" })} – ${new Date(s.end_time).toLocaleTimeString(locale === "vi" ? "vi-VN" : "en-US", { hour: "numeric", minute: "2-digit", hour12: locale === "en" })}`
+                                  : new Date(s.start_time).toLocaleTimeString(locale === "vi" ? "vi-VN" : "en-US", { hour: "numeric", minute: "2-digit", hour12: locale === "en" });
                               return (
-                                <tr key={s.id} className="border-t border-slate-100">
-                                  <td className="px-3 py-2 text-slate-800">{new Date(s.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</td>
+                                <tr key={slotKey} className="border-t border-slate-100">
+                                  <td className="px-3 py-2 text-slate-800 whitespace-nowrap">{timeEnd}</td>
                                   <td className="px-3 py-2 text-slate-700">{s.location ?? "—"}</td>
-                                  <td className="px-3 py-2">{s.coach_id ? (name ?? m.assigned) : "—"}</td>
-                                  <td className="px-3 py-2">{s.coach_id ? <span className="text-emerald-700">{m.assigned}</span> : <span className="text-amber-700">⚠ {m.unassigned}</span>}</td>
-                                  <td className="px-3 py-2">
+                                  <td className="px-3 py-2 text-slate-800 font-medium">
+                                    {n}/{maxN}
+                                    <span className="block text-[10px] font-normal text-slate-500">{locale === "vi" ? m.coachingMembersMax : m.coachingMembersMax}</span>
+                                  </td>
+                                  <td className="px-3 py-2 text-slate-800">{s.coach_id ? (name ?? m.assigned) : "—"}</td>
+                                  <td className="px-3 py-2 text-slate-800">{s.coach_id ? <span className="text-emerald-700 font-medium">{m.assigned}</span> : <span className="text-amber-700 font-medium">⚠ {m.unassigned}</span>}</td>
+                                  <td className="px-3 py-2 text-slate-800">
                                     {!s.coach_id && staffId && (
                                       <button
                                         type="button"
-                                        disabled={assigningSessionId === s.id}
+                                        disabled={assigningSessionId === slotKey}
                                         onClick={async () => {
-                                          setAssigningSessionId(s.id);
+                                          setAssigningSessionId(slotKey);
                                           try {
-                                            const res = await adminFetch("/api/admin/staff/sessions/assign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: s.id }) });
+                                            const ids = s.session_ids?.length ? s.session_ids : [s.id];
+                                            const res = await adminFetch("/api/admin/staff/sessions/assign", {
+                                              method: "POST",
+                                              headers: { "Content-Type": "application/json" },
+                                              body: JSON.stringify({ session_ids: ids }),
+                                            });
                                             if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d));
                                           } finally {
                                             setAssigningSessionId(null);
@@ -3723,7 +3768,7 @@ export default function AdminPage() {
                                         }}
                                         className="px-2 py-1 rounded-lg bg-amber-600 text-white text-xs font-medium hover:bg-amber-500 disabled:opacity-50"
                                       >
-                                        {assigningSessionId === s.id ? "…" : m.assignToMe}
+                                        {assigningSessionId === slotKey ? "…" : m.assignToMe}
                                       </button>
                                     )}
                                   </td>
@@ -3861,7 +3906,16 @@ export default function AdminPage() {
             const activePending = activeTasks.filter((t) => t.status === "pending" || t.status === "upcoming");
             const activeCompleted = activeTasks.filter((t) => t.status === "completed");
             const overdueTasksList = [...preOpen, ...during, ...closing].filter((t) => t.status === "overdue");
-            const sessionsToday = (staffOpsData?.sessionsToday ?? staffOpsData?.sessions ?? []) as { id: string; start_time: string; end_time?: string; coach_id: string | null; location?: string }[];
+            const sessionsToday = (staffOpsData?.sessionsToday ?? staffOpsData?.sessions ?? []) as {
+              id: string;
+              start_time: string;
+              end_time?: string;
+              coach_id: string | null;
+              location?: string;
+              newbie_count?: number;
+              max_newbies?: number;
+              session_ids?: string[];
+            }[];
             const mySessions = staffId ? sessionsToday.filter((s) => s.coach_id === staffId) : [];
             const unassignedSessions = sessionsToday.filter((s) => !s.coach_id);
             const formatTime = (iso: string) => new Date(iso).toLocaleTimeString(locale === "vi" ? "vi-VN" : "en-US", { hour: "numeric", minute: "2-digit", hour12: locale === "en" });
@@ -3970,8 +4024,75 @@ export default function AdminPage() {
                     {staffSubTab === "coaching" && (
                       <div className="rounded-xl bg-slate-800 border border-slate-700 p-4" data-tour="coaching-sessions">
                         <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">{staffMsg.todayCoachingSessions}</h3>
-                        {mySessions.length > 0 && <div className="mb-3"><p className="text-xs text-slate-400 mb-2">{staffMsg.yourSessions}</p><ul className="space-y-1.5">{mySessions.map((s) => <li key={s.id} className="py-2 px-3 rounded-lg bg-slate-700/50 text-sm"><div className="flex justify-between items-center"><span>{formatTime(s.start_time)} – {s.end_time ? formatTime(s.end_time) : ""}</span><span className="text-emerald-400">{staffMsg.assignedToYou}</span></div></li>)}</ul></div>}
-                        {unassignedSessions.length > 0 && <div><p className="text-xs text-slate-400 mb-2">{staffMsg.unassignedTapToTake}</p><ul className="space-y-1.5">{unassignedSessions.map((s, idx) => <li key={s.id} className="py-2 px-3 rounded-lg bg-slate-700/50 text-sm"><div className="flex justify-between items-center"><span>{formatTime(s.start_time)}</span><button type="button" data-tour={idx === 0 ? "coaching-assign" : undefined} disabled={assigningSessionId === s.id} onClick={async () => { setAssigningSessionId(s.id); try { const res = await adminFetch("/api/admin/staff/sessions/assign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: s.id }) }); if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d)); } finally { setAssigningSessionId(null); } }} className="text-amber-400 hover:text-amber-300 text-sm font-medium disabled:opacity-50">{assigningSessionId === s.id ? "…" : staffMsg.assignToMe}</button></div></li>)}</ul></div>}
+                        {mySessions.length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-xs text-slate-400 mb-2">{staffMsg.yourSessions}</p>
+                            <ul className="space-y-1.5">
+                              {mySessions.map((s) => {
+                                const k = (s.session_ids?.length ? s.session_ids : [s.id]).join(",");
+                                const n = s.newbie_count ?? 1;
+                                const mx = s.max_newbies ?? 5;
+                                return (
+                                  <li key={k} className="py-2 px-3 rounded-lg bg-slate-700/50 text-sm">
+                                    <div className="flex justify-between items-center gap-2">
+                                      <span className="text-slate-200">
+                                        {formatTime(s.start_time)}
+                                        {s.end_time ? ` – ${formatTime(s.end_time)}` : ""}
+                                        <span className="text-slate-400 ml-1">({n}/{mx})</span>
+                                      </span>
+                                      <span className="text-emerald-400 shrink-0">{staffMsg.assignedToYou}</span>
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        )}
+                        {unassignedSessions.length > 0 && (
+                          <div>
+                            <p className="text-xs text-slate-400 mb-2">{staffMsg.unassignedTapToTake}</p>
+                            <ul className="space-y-1.5">
+                              {unassignedSessions.map((s, idx) => {
+                                const slotKey = (s.session_ids?.length ? s.session_ids : [s.id]).join(",");
+                                const ids = s.session_ids?.length ? s.session_ids : [s.id];
+                                const n = s.newbie_count ?? 1;
+                                const mx = s.max_newbies ?? 5;
+                                return (
+                                  <li key={slotKey} className="py-2 px-3 rounded-lg bg-slate-700/50 text-sm">
+                                    <div className="flex justify-between items-center gap-2">
+                                      <span className="text-slate-200">
+                                        {formatTime(s.start_time)}
+                                        {s.end_time ? ` – ${formatTime(s.end_time)}` : ""}
+                                        <span className="text-slate-400 ml-1">({n}/{mx})</span>
+                                      </span>
+                                      <button
+                                        type="button"
+                                        data-tour={idx === 0 ? "coaching-assign" : undefined}
+                                        disabled={assigningSessionId === slotKey}
+                                        onClick={async () => {
+                                          setAssigningSessionId(slotKey);
+                                          try {
+                                            const res = await adminFetch("/api/admin/staff/sessions/assign", {
+                                              method: "POST",
+                                              headers: { "Content-Type": "application/json" },
+                                              body: JSON.stringify({ session_ids: ids }),
+                                            });
+                                            if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d));
+                                          } finally {
+                                            setAssigningSessionId(null);
+                                          }
+                                        }}
+                                        className="text-amber-400 hover:text-amber-300 text-sm font-medium disabled:opacity-50 shrink-0"
+                                      >
+                                        {assigningSessionId === slotKey ? "…" : staffMsg.assignToMe}
+                                      </button>
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                     )}
                   </>

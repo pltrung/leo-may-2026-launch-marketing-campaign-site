@@ -210,7 +210,12 @@ export async function PATCH(req: NextRequest) {
         { onConflict: "progress_id,day" }
       );
     return NextResponse.json({ ok: true });
-  } else if (action === "certification_complete" && day === 7 && typeof final_score === "number" && typeof passed === "boolean") {
+  } else if (
+    action === "certification_complete" &&
+    (day === 7 || day === undefined) &&
+    typeof final_score === "number" &&
+    typeof passed === "boolean"
+  ) {
     const certPayload: Record<string, unknown> = {
       final_score: Math.min(100, Math.max(0, final_score)),
       passed,

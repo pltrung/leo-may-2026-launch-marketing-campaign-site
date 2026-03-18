@@ -106,6 +106,7 @@ export default function OnboardingPage() {
     weakest_skill?: "communication" | "safety" | "sales" | "teamwork";
     suggested_day?: number;
   } | null>(null);
+  const [certificationStuckHelp, setCertificationStuckHelp] = useState(false);
 
   const setLocaleAndStore = useCallback((l: Locale) => {
     setLocale(l);
@@ -153,6 +154,22 @@ export default function OnboardingPage() {
       fetchProgress();
     }
   }, [phase, currentDay, certificationResult, progress?.passed, progress?.final_score, fetchProgress]);
+
+  useEffect(() => {
+    if (phase !== "certification_result" || currentDay !== 7) {
+      setCertificationStuckHelp(false);
+      return;
+    }
+    const hasResult =
+      certificationResult != null ||
+      (progress?.passed != null && progress?.final_score != null);
+    if (hasResult) {
+      setCertificationStuckHelp(false);
+      return;
+    }
+    const t = window.setTimeout(() => setCertificationStuckHelp(true), 5000);
+    return () => window.clearTimeout(t);
+  }, [phase, currentDay, certificationResult, progress?.passed, progress?.final_score]);
 
   const updateProgress = useCallback(async (action: string, payload?: Record<string, unknown>) => {
     setSaving(true);
@@ -628,16 +645,21 @@ export default function OnboardingPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "certification_complete",
+            day: 7,
             final_score: finalCapped,
             passed,
             critical_fail: certificationCriticalFail,
             certification_date: new Date().toISOString(),
           }),
         })
-          .then((res) => {
-            if (res.ok) return fetchProgress();
+          .then(async (res) => {
+            if (res.ok) await fetchProgress();
+            else {
+              const err = await res.json().catch(() => ({}));
+              console.error("certification_complete failed", res.status, err);
+            }
           })
-          .catch(() => {});
+          .catch((e) => console.error("certification_complete", e));
       } else {
         setPhase("reflection");
       }
@@ -1328,7 +1350,61 @@ export default function OnboardingPage() {
                 );
               })()
             ) : (
-              <p className="text-slate-400">{locale === "vi" ? "Đang tính kết quả..." : "Computing result..."}</p>
+              <div className="space-y-4">
+                <p className="text-slate-400">{locale === "vi" ? "Đang tính kết quả..." : "Computing result..."}</p>
+                {certificationStuckHelp && (
+                  <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-slate-200 space-y-3">
+                    <p>
+                      {locale === "vi"
+                        ? "Không tải được kết quả đã lưu (có thể do phiên hoặc lỗi lưu trước đó). Bạn có thể về bản đồ hoặc làm lại phần cuối ngày 7."
+                        : "Saved result didn’t load (session or a past save issue). Go back to the map, or redo the end of Day 7."}
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCertificationStuckHelp(false);
+                          setCurrentDay(null);
+                          setPhase("map");
+                        }}
+                        className="w-full py-2 rounded-xl border border-slate-500 text-slate-200 hover:bg-slate-700"
+                      >
+                        {locale === "vi" ? "Về bản đồ" : "Back to map"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCertificationStuckHelp(false);
+                          adminFetch("/api/admin/onboarding/progress", {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ action: "reset_day", day: 7 }),
+                          })
+                            .then(() => fetchProgress())
+                            .then(() => {
+                              setCertificationResult(null);
+                              setPhase("lesson");
+                              setCurrentDay(7);
+                              setLessonIndex(0);
+                              setQuizIndex(0);
+                              setQuizCorrect(0);
+                              setRapidIndex(0);
+                              setRapidCorrectCount(0);
+                              setCertificationScenarioScores([]);
+                              setCertificationSimPassed(false);
+                              setCertificationCriticalFail(false);
+                              setCertificationSimDecisionCorrect([]);
+                            })
+                            .catch(() => {});
+                        }}
+                        className="w-full py-2 rounded-xl bg-amber-500 text-slate-900 font-semibold hover:bg-amber-400"
+                      >
+                        {locale === "vi" ? "Làm lại ngày 7 từ đầu" : "Redo Day 7 from start"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </section>
         )}
