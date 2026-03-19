@@ -11,6 +11,7 @@ import { formatInGymTZ, getGymToday, getGymDateFromISO, getCurrentPhase } from "
 import { formatVndCompact } from "@/lib/formatVndCompact";
 import { getStaffTaskTitle } from "@/lib/staffTaskTitles";
 import { parseCccdPipeDelimited } from "@/lib/vnEidQr";
+import { isStaffEssentialTaskDuringRouteReset } from "@/lib/staffRouteResetTaskFilter";
 import { REFUND_REASONS, getRefundReasonLabel, type RefundReasonValue } from "@/lib/refundReasons";
 
 const QrScannerModal = dynamic(() => import("@/components/admin/QrScannerModal"), { ssr: false });
@@ -426,7 +427,7 @@ export default function AdminPage() {
     timeline?: { id: string; completed_at: string; task_title: string; staff_name: string }[];
     staffTaskPerformance?: { staff_id: string; display_name: string; tasks_completed: number; completion_rate_pct: number }[];
     route_setters?: { id: string; display_name?: string | null; email?: string | null }[];
-    summary: { staff_in_today: number; staff_out_today: number; staff_total?: number; sessions_today: number; newbie_attendance_today?: number; zones_overdue: number; tasks_pending: number; tasks_completed?: number; tasks_overdue?: number; tasks_total?: number; pre_open_completed?: number; pre_open_total?: number; closing_overdue?: number; unassigned_sessions?: number; staff_required?: number };
+    summary: { staff_in_today: number; staff_out_today: number; staff_total?: number; sessions_today: number; newbie_attendance_today?: number; zones_overdue: number; zones_route_reset_today?: number; tasks_pending: number; tasks_completed?: number; tasks_overdue?: number; tasks_total?: number; pre_open_completed?: number; pre_open_total?: number; closing_overdue?: number; unassigned_sessions?: number; staff_required?: number };
   } | null>(null);
 
   const handleTourNavigate = useCallback((step: { navigate?: { area?: "front_desk" | "operations" | "management" | "staff" | "analytics"; frontDeskTab?: "checkin" | "member"; managementTab?: "inventory" | "admin_tools"; staffSubTab?: "routes" | "coaching"; operationsTab?: "overview" | "tasks" | "attendance" | "coaching" | "routes"; analyticsTab?: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance" } }) => {
@@ -1908,18 +1909,32 @@ export default function AdminPage() {
           {role === "staff" && staffOpsData && (() => {
             const sum = staffOpsData.summary;
             const phase = staffOpsData.phase?.current_phase ?? "gym_open";
-            const preOpenDone = sum.pre_open_completed ?? 0;
-            const preOpenTotal = sum.pre_open_total ?? 0;
-            const duringDone = (staffOpsData.during ?? []).filter((t: { status: string }) => t.status === "completed").length;
-            const duringTotal = (staffOpsData.during ?? []).length;
-            const closingDone = (staffOpsData.closing ?? []).filter((t: { status: string }) => t.status === "completed").length;
-            const closingTotal = (staffOpsData.closing ?? []).length;
+            const isRouteResetDayBanner = staffOpsData.route_reset_day === true;
+            const filterTasksForStaffBanner = (list: { title?: string; status: string }[] | undefined) => {
+              const arr = list ?? [];
+              if (!isRouteResetDayBanner) return arr;
+              return arr.filter((t) => isStaffEssentialTaskDuringRouteReset(t.title ?? ""));
+            };
+            const preOpenB = filterTasksForStaffBanner(staffOpsData.preOpen);
+            const duringB = filterTasksForStaffBanner(staffOpsData.during);
+            const closingB = filterTasksForStaffBanner(staffOpsData.closing);
+            const preOpenDone = preOpenB.filter((t: { status: string }) => t.status === "completed").length;
+            const preOpenTotal = preOpenB.length;
+            const duringDone = duringB.filter((t: { status: string }) => t.status === "completed").length;
+            const duringTotal = duringB.length;
+            const closingDone = closingB.filter((t: { status: string }) => t.status === "completed").length;
+            const closingTotal = closingB.length;
             const phaseLabel = phase === "closed" ? (locale === "vi" ? "Đóng cửa" : "Closed") : phase === "pre_open" ? (locale === "vi" ? "Trước mở cửa" : "Pre-Open") : phase === "closing" ? (locale === "vi" ? "Đóng cửa" : "Closing") : (locale === "vi" ? "Giờ mở" : "Gym open");
             const tasksDone = phase === "closed" ? 0 : phase === "pre_open" ? preOpenDone : phase === "closing" ? closingDone : duringDone;
             const tasksTotal = phase === "closed" ? 0 : phase === "pre_open" ? preOpenTotal : phase === "closing" ? closingTotal : duringTotal;
             const gymReady = staffOpsData.phase?.current_phase === "closed" ? false : staffOpsData.phase?.current_phase === "closing" ? staffOpsData.ready_to_close === true : staffOpsData.gym_ready === true;
             const sessionsToday = (staffOpsData.sessionsToday ?? staffOpsData.sessions ?? []).length;
-            const routeResetToday = staffOpsData.summary?.zones_overdue ?? (staffOpsData.zones ?? []).filter((z: { overdue?: boolean }) => z.overdue).length;
+            const routeResetToday =
+              typeof sum.zones_route_reset_today === "number"
+                ? sum.zones_route_reset_today
+                : (staffOpsData.zones ?? []).filter((z: { reset_status?: string }) =>
+                    ["pending", "in_progress", "overdue"].includes(String(z.reset_status ?? ""))
+                  ).length;
             return (
               <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden" data-tour="staff-status-banner">
                 <div className="flex flex-wrap gap-2 md:gap-4 px-2.5 py-1.5 md:px-3 md:py-2">
@@ -4226,6 +4241,10 @@ export default function AdminPage() {
                             const setters = (z.assigned_setters ?? []).map((s) => s.name).join(", ");
                             const age = typeof z.route_age_days === "number" ? z.route_age_days : null;
                             const status = z.reset_status ?? (setters ? "in_progress" : "pending");
+                            const canMarkThisZoneReset =
+                              role === "admin" ||
+                              (staffId != null &&
+                                (z.assigned_setters ?? []).some((s: { staff_id?: string }) => s.staff_id === staffId));
                             return (
                               <tr key={z.id} className={`border-t border-slate-100 ${status === "overdue" ? "bg-red-50" : ""}`}>
                                 <td className="px-3 py-2 font-medium text-slate-800">{z.name}</td>
@@ -4287,7 +4306,8 @@ export default function AdminPage() {
                                         </div>
                                       </div>
                                     </details>
-                                    {(status === "in_progress" || status === "pending" || status === "overdue") && (
+                                    {(status === "in_progress" || status === "pending" || status === "overdue") &&
+                                      canMarkThisZoneReset && (
                                       <button
                                         type="button"
                                         onClick={async () => {
@@ -4296,6 +4316,9 @@ export default function AdminPage() {
                                           const d = await res.json();
                                           if (res.ok && d?.ok) {
                                             adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x));
+                                          } else if (!res.ok) {
+                                            const err = await res.json().catch(() => ({}));
+                                            window.alert((err as { error?: string }).error ?? `Error ${res.status}`);
                                           }
                                         }}
                                         className="px-2 py-1 rounded-lg bg-slate-700 text-white text-xs font-medium hover:bg-slate-600"
@@ -4335,8 +4358,7 @@ export default function AdminPage() {
             const closing = (staffOpsData?.closing ?? []) as typeof preOpen;
             const rawActiveTasks = currentBlock === "closed" ? [] : currentBlock === "pre_open" ? preOpen : currentBlock === "closing" ? closing : during;
             const isRouteResetDay = (staffOpsData?.zones ?? []).some((z: { next_reset_at?: string | null; overdue?: boolean }) => z.overdue || (z.next_reset_at && getGymDateFromISO(z.next_reset_at) === today));
-            const isEssentialTask = (title: string) => /anchor|crash|rental|shoe|front desk|pos|bathroom|safety|check bathroom/i.test(title.toLowerCase());
-            const activeTasks = isRouteResetDay ? rawActiveTasks.filter((t) => isEssentialTask(t.title)) : rawActiveTasks;
+            const activeTasks = isRouteResetDay ? rawActiveTasks.filter((t) => isStaffEssentialTaskDuringRouteReset(t.title)) : rawActiveTasks;
             const activePending = activeTasks.filter((t) => t.status === "pending" || t.status === "upcoming");
             const activeCompleted = activeTasks.filter((t) => t.status === "completed");
             const overdueTasksList = [...preOpen, ...during, ...closing].filter((t) => t.status === "overdue");
@@ -4405,7 +4427,7 @@ export default function AdminPage() {
                           <div className="h-2 rounded-full bg-slate-700 overflow-hidden"><div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${activeTasks.length ? (activeCompleted.length / activeTasks.length) * 100 : 0}%` }} /></div>
                         </>
                       )}
-                      {overdueTasksList.filter((t) => !isRouteResetDay || isEssentialTask(t.title)).map((t, idx) => (
+                      {overdueTasksList.filter((t) => !isRouteResetDay || isStaffEssentialTaskDuringRouteReset(t.title)).map((t, idx) => (
                         <div key={t.id} className="flex justify-between items-center gap-2 text-sm py-1.5">
                           <span className="text-slate-200">{getStaffTaskTitle(t.title, locale)}</span>
                           <button type="button" data-tour={idx === 0 ? "task-complete" : undefined} disabled={completingTaskId === t.id} onClick={async () => { setCompletingTaskId(t.id); setStaffTaskError(null); try { const res = await adminFetch(`/api/admin/staff/tasks/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) }); if (res.ok) { setStaffTaskError(null); adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d)); } else { const body = await res.json().catch(() => ({})); setStaffTaskError((body as { error?: string })?.error ?? `Request failed (${res.status})`); } } finally { setCompletingTaskId(null); } }} className="px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-500 disabled:opacity-50">{completingTaskId === t.id ? "…" : staffMsg.complete}</button>
@@ -4453,6 +4475,8 @@ export default function AdminPage() {
                           {(staffOpsData.zones ?? []).map((z: { id: string; name: string; next_reset_at: string | null; assigned_setters?: { staff_id: string; name: string }[]; reset_status?: string }) => {
                             const setters = (z.assigned_setters ?? []);
                             const status = z.reset_status ?? "not_started";
+                            const canMarkReset =
+                              role === "admin" || (staffId != null && setters.some((s) => s.staff_id === staffId));
                             const statusLabel = status === "completed" ? staffMsg.routeStatusCompleted : status === "overdue" ? staffMsg.overdue : status === "in_progress" ? staffMsg.routeStatusInProgress : status === "pending" ? staffMsg.resetProgressPending : staffMsg.routeStatusNotStarted;
                             const statusBg = status === "completed" ? "bg-emerald-900/40 text-emerald-200" : status === "overdue" ? "bg-red-900/40 text-red-200" : status === "in_progress" || status === "pending" ? "bg-amber-900/40 text-amber-200" : "bg-slate-700/50 text-slate-400";
                             return (
@@ -4467,8 +4491,28 @@ export default function AdminPage() {
                                   {setters.map((s) => <span key={s.staff_id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-700/70 border border-slate-600 text-slate-200 text-xs">{s.name}{staffId && s.staff_id === staffId && <span className="text-emerald-400">{staffMsg.assignedToYou}</span>}</span>)}
                                   <button type="button" data-tour="route-assign-me" onClick={async () => { const nextIds = Array.from(new Set([...setters.map((s) => s.staff_id), staffId].filter(Boolean))); const res = await adminFetch(`/api/admin/routes/zones/${z.id}/assignments`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ staff_ids: nextIds }) }); const d = await res.json(); if (res.ok && d?.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x)); }} className="px-2 py-1 rounded-full bg-slate-800 border border-slate-600 text-slate-200 text-xs hover:bg-slate-700">+ {staffMsg.assignToMe}</button>
                                 </div>
-                                {(status === "in_progress" || status === "pending") && (
-                                  <button type="button" onClick={async () => { if (!window.confirm(m.confirmMarkResetComplete)) return; const res = await adminFetch(`/api/admin/routes/zones/${z.id}/reset`, { method: "POST" }); if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x)); }} className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-100 text-sm hover:bg-slate-600">{staffMsg.markResetComplete}</button>
+                                {(status === "in_progress" || status === "pending" || status === "overdue") &&
+                                  canMarkReset && (
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      if (!window.confirm(m.confirmMarkResetComplete)) return;
+                                      const res = await adminFetch(`/api/admin/routes/zones/${z.id}/reset`, { method: "POST" });
+                                      if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x));
+                                      else {
+                                        const err = await res.json().catch(() => ({}));
+                                        window.alert((err as { error?: string }).error ?? `Error ${res.status}`);
+                                      }
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-100 text-sm hover:bg-slate-600"
+                                  >
+                                    {staffMsg.markResetComplete}
+                                  </button>
+                                )}
+                                {(status === "in_progress" || status === "pending" || status === "overdue") &&
+                                  !canMarkReset &&
+                                  role !== "admin" && (
+                                  <p className="text-xs text-slate-500">{staffMsg.markResetAssignFirst}</p>
                                 )}
                               </div>
                             );

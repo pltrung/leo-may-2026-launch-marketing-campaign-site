@@ -24,6 +24,25 @@ export async function POST(
     staffIdForAudit = sp?.id ?? null;
   }
 
+  /** CEO/admin may complete any zone; other staff must be assigned on this zone */
+  if (unified.role !== "admin") {
+    if (!staffIdForAudit) {
+      return NextResponse.json({ error: "Staff profile required to mark route reset complete" }, { status: 403 });
+    }
+    const { data: assignment } = await supabase
+      .from("route_reset_assignments")
+      .select("zone_id")
+      .eq("zone_id", id)
+      .eq("staff_id", staffIdForAudit)
+      .maybeSingle();
+    if (!assignment) {
+      return NextResponse.json(
+        { error: "Only staff assigned to this zone can mark the route reset complete" },
+        { status: 403 }
+      );
+    }
+  }
+
   const { data: zone, error: fetchErr } = await supabase
     .from("route_zones")
     .select("id, reset_frequency_days")

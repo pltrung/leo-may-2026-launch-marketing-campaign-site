@@ -358,6 +358,10 @@ export async function GET(request: NextRequest) {
   const staffRequired = STAFF_REQUIRED_DEFAULT;
   const staffTotal = typeof staffCountRes.count === "number" ? staffCountRes.count : staffIn.length + staffOut.length;
   const zonesOverdueCount = zonesWithStatus.filter((z) => z.overdue).length;
+  /** Zones that need reset work now: due today (pending/in progress) or past due — not "not_started" or "completed" today */
+  const zonesRouteResetTodayCount = zonesWithStatus.filter((z) =>
+    z.reset_status === "pending" || z.reset_status === "in_progress" || z.reset_status === "overdue"
+  ).length;
 
   const currentPhase = getCurrentPhase();
   const minutesUntilNext = getMinutesUntilNextPhase(currentPhase);
@@ -435,6 +439,7 @@ export async function GET(request: NextRequest) {
       sessions_today: sessionsTodayWithLocation.length,
       newbie_attendance_today: totalNewbieAttendance,
       zones_overdue: zonesOverdueCount,
+      zones_route_reset_today: zonesRouteResetTodayCount,
       tasks_pending: tasksPending,
       tasks_completed: tasksCompleted,
       tasks_overdue: tasksOverdue,

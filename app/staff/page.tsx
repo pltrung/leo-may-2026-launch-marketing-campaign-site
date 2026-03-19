@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
 import { getGymToday, getGymDateFromISO } from "@/lib/gymTimezone";
+import { isStaffEssentialTaskDuringRouteReset } from "@/lib/staffRouteResetTaskFilter";
 import OperationalShell from "@/components/operational/OperationalShell";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { useRouteSetterAuth } from "@/components/route-setter/RouteSetterAuthContext";
@@ -383,11 +384,7 @@ export default function StaffPage() {
   const currentBlock = getCurrentBlock();
   const rawActiveTasks = currentBlock === "closed" ? [] : currentBlock === "pre_open" ? preOpenTasks : currentBlock === "closing" ? closingTasks : duringTasks;
   const isRouteResetDay = zones.some((z) => z.status === "overdue" || (z.next_reset_at && getGymDateFromISO(z.next_reset_at) === today));
-  const isEssentialTask = (title: string): boolean => {
-    const lower = title.toLowerCase();
-    return /anchor|crash|rental|shoe|front desk|pos|bathroom|safety|check bathroom/i.test(lower);
-  };
-  const activeTasks = isRouteResetDay ? rawActiveTasks.filter((t) => isEssentialTask(t.title)) : rawActiveTasks;
+  const activeTasks = isRouteResetDay ? rawActiveTasks.filter((t) => isStaffEssentialTaskDuringRouteReset(t.title)) : rawActiveTasks;
   const overdueTasksList = [...preOpenTasks, ...duringTasks, ...closingTasks].filter((t) => t.status === "overdue");
   // Show upcoming tasks as part of the active checklist (matches admin view of "pending" before start_time)
   const activePending = activeTasks.filter((t) => t.status === "pending" || t.status === "upcoming");
@@ -557,11 +554,11 @@ export default function StaffPage() {
                   </div>
                 </>
               )}
-              {overdueTasksList.filter((t) => !isRouteResetDay || isEssentialTask(t.title)).length > 0 && (
+              {overdueTasksList.filter((t) => !isRouteResetDay || isStaffEssentialTaskDuringRouteReset(t.title)).length > 0 && (
                 <div className="rounded-lg bg-red-900/30 border border-red-700 p-2">
                   <p className="text-xs font-semibold text-red-200 uppercase tracking-wider mb-1">⚠ {m.overdueTasks}</p>
                   <ul className="space-y-1">
-                    {overdueTasksList.filter((t) => !isRouteResetDay || isEssentialTask(t.title)).map((t) => (
+                    {overdueTasksList.filter((t) => !isRouteResetDay || isStaffEssentialTaskDuringRouteReset(t.title)).map((t) => (
                       <li key={t.id} className="flex justify-between items-center gap-2 text-sm">
                         <span className="text-slate-200">{t.title} — {(m.overdueByMinutes as string).replace("{n}", String(minutesOverdue(t)))}</span>
                         <button type="button" disabled={completingTaskId === t.id} onClick={() => handleCompleteTask(t.id)} className="shrink-0 px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-500 disabled:opacity-50">{completingTaskId === t.id ? "…" : m.complete}</button>
@@ -648,6 +645,9 @@ export default function StaffPage() {
                       | "completed"
                       | "overdue";
 
+                    const imAssigned = Boolean(myStaffId && setters.some((s) => s.staff_id === myStaffId));
+                    const canMarkThisZoneReset = imAssigned && status !== "completed";
+
                     const statusPill =
                       status === "completed"
                         ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
@@ -684,14 +684,22 @@ export default function StaffPage() {
                               {routeAgeDays === null ? "—" : `${routeAgeDays} days`}
                             </span>
                           </div>
-                          <button
-                            type="button"
-                            disabled={resettingZoneId === z.id || status === "completed"}
-                            onClick={() => handleZoneReset(z.id)}
-                            className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-100 text-sm hover:bg-slate-600 disabled:opacity-50"
-                          >
-                            {resettingZoneId === z.id ? "…" : m.markResetComplete}
-                          </button>
+                          {status === "completed" ? (
+                            <span className="text-xs text-slate-500 shrink-0">{m.routeStatusCompleted}</span>
+                          ) : canMarkThisZoneReset ? (
+                            <button
+                              type="button"
+                              disabled={resettingZoneId === z.id}
+                              onClick={() => handleZoneReset(z.id)}
+                              className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-100 text-sm hover:bg-slate-600 disabled:opacity-50 shrink-0"
+                            >
+                              {resettingZoneId === z.id ? "…" : m.markResetComplete}
+                            </button>
+                          ) : (
+                            <p className="text-xs text-slate-500 max-w-[min(100%,240px)] text-right shrink-0">
+                              {m.markResetAssignFirst}
+                            </p>
+                          )}
                         </div>
 
                         <div>
@@ -760,7 +768,7 @@ export default function StaffPage() {
                     <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{m.routeSettingTasks}</h3>
                     <p className="text-slate-400 text-sm mb-1">{locale === "vi" ? "Ưu tiên các công việc set tường. Chỉ hiển thị vận hành thiết yếu ở mục Active tasks." : "Route setting is the main focus. Essential operations only in Active tasks above."}</p>
                     <ul className="space-y-0.5 text-sm text-slate-300">
-                      {[...preOpenTasks, ...duringTasks, ...closingTasks].filter((t) => isEssentialTask(t.title)).map((t) => (
+                      {[...preOpenTasks, ...duringTasks, ...closingTasks].filter((t) => isStaffEssentialTaskDuringRouteReset(t.title)).map((t) => (
                         <li key={t.id} className={t.status === "completed" ? "line-through text-slate-500" : ""}>{t.title} {t.status === "completed" ? "✓" : ""}</li>
                       ))}
                     </ul>

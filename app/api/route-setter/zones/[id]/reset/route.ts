@@ -24,6 +24,19 @@ export async function POST(
     .single();
   if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
 
+  const { data: assignment } = await supabase
+    .from("route_reset_assignments")
+    .select("zone_id")
+    .eq("zone_id", id)
+    .eq("staff_id", staff.id)
+    .maybeSingle();
+  if (!assignment) {
+    return NextResponse.json(
+      { error: "Only staff assigned to this zone can mark the route reset complete" },
+      { status: 403 }
+    );
+  }
+
   const { data: zone, error: fetchErr } = await supabase
     .from("route_zones")
     .select("id, reset_frequency_days")
