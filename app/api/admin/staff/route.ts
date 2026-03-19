@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getUnifiedAdminOrStaffFromRequest, canAccessOperations } from "@/lib/unifiedAdminAuth";
 import { getGymToday, getGymStartOfDay, getGymEndOfDay, getGymDateFromISO, parseGymDateTime } from "@/lib/gymTimezone";
+import { mergeStaffTasksWithTodayLogs } from "@/lib/staffTaskToday";
 
 const STAFF_REQUIRED_DEFAULT = 3;
 const GYM_TZ = "America/Los_Angeles";
@@ -157,7 +158,6 @@ export async function GET(request: NextRequest) {
     zonesRes,
     tasksRes,
     taskLogsRes,
-    resetTrackerRes,
     zoneSettersRes,
     routeSetterListRes,
     staffCountRes,
@@ -195,7 +195,6 @@ export async function GET(request: NextRequest) {
       .select("id, task_id, staff_id, date, completed_at, staff_tasks(title), staff_profiles(display_name, email)")
       .eq("date", today)
       .order("completed_at", { ascending: true }),
-    supabase.from("staff_daily_reset").select("last_reset_date").maybeSingle(),
     supabase
       .from("route_reset_assignments")
       .select("zone_id, staff_id, assigned_at, staff_profiles(display_name, email)")
@@ -211,8 +210,10 @@ export async function GET(request: NextRequest) {
   const sessionsNext2h = sessionsNext2hRes.data ?? [];
   const sessionsToday = sessionsTodayRes.data ?? [];
   const zones = zonesRes.data ?? [];
-  let tasks = tasksRes.data ?? [];
+  const rawTasks = tasksRes.data ?? [];
   const taskLogs = taskLogsRes.data ?? [];
+  /** Per-gym-day truth: task_logs for today — not staff_tasks row (stale after midnight if daily reset failed). */
+  let tasks = mergeStaffTasksWithTodayLogs(rawTasks, taskLogs);
   const zoneSetterRows = (zoneSettersRes.data ?? []) as {
     zone_id: string;
     staff_id?: string | null;
@@ -222,19 +223,6 @@ export async function GET(request: NextRequest) {
       | { display_name?: string | null; email?: string | null }[]
       | null;
   }[];
-
-  // When the gym date rolls over (midnight), reset staff_tasks so alerts/overview show a fresh day.
-  // Only advance last_reset_date after the tasks update succeeds, so we don't mark "reset done" if it failed.
-  const lastResetDate = resetTrackerRes.data?.last_reset_date ?? null;
-  if (!lastResetDate || today > lastResetDate) {
-    const { error: tasksUpdateError } = await supabase
-      .from("staff_tasks")
-      .update({ status: "pending", completed_at: null, completed_by: null });
-    if (!tasksUpdateError) {
-      await supabase.from("staff_daily_reset").upsert({ id: 1, last_reset_date: today }, { onConflict: "id" });
-      tasks = tasks.map((t) => ({ ...t, status: "pending", completed_at: null, completed_by: null }));
-    }
-  }
 
   const staffIn = attendance.filter((a) => a.status === "IN");
   const staffOut = attendance.filter((a) => a.status === "NOT_IN");

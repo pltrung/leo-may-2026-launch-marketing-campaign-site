@@ -45,18 +45,6 @@ export async function GET(request: NextRequest) {
     .single();
   if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
 
-  // Use same daily reset as admin: staff_daily_reset so tasks reset once per gym day for everyone.
-  const { data: resetRow } = await supabase.from("staff_daily_reset").select("last_reset_date").maybeSingle();
-  const lastResetDate = resetRow?.last_reset_date ?? null;
-  if (!lastResetDate || today > lastResetDate) {
-    const { error: tasksUpdateError } = await supabase
-      .from("staff_tasks")
-      .update({ status: "pending", completed_at: null, completed_by: null });
-    if (!tasksUpdateError) {
-      await supabase.from("staff_daily_reset").upsert({ id: 1, last_reset_date: today }, { onConflict: "id" });
-    }
-  }
-
   const { data: tasks, error } = await supabase
     .from("staff_tasks")
     .select("id, title, description, block, start_time, due_time, status, completed_at, completed_by")
@@ -73,9 +61,14 @@ export async function GET(request: NextRequest) {
     .order("completed_at", { ascending: false });
 
   const completersByTaskId: Record<string, string[]> = {};
+  const latestCompletedAtByTask: Record<string, string> = {};
   const teamCompletions: { staff_name: string; task_title: string; completed_at: string }[] = [];
   for (const log of logs ?? []) {
     const taskId = log.task_id as string;
+    const at = log.completed_at as string;
+    if (!latestCompletedAtByTask[taskId] || at > latestCompletedAtByTask[taskId]) {
+      latestCompletedAtByTask[taskId] = at;
+    }
     const p = Array.isArray(log.staff_profiles) ? log.staff_profiles[0] : log.staff_profiles;
     const name = (p as { display_name?: string; email?: string })?.display_name || (p as { display_name?: string; email?: string })?.email || "Staff";
     if (!completersByTaskId[taskId]) completersByTaskId[taskId] = [];
@@ -89,7 +82,7 @@ export async function GET(request: NextRequest) {
 
   const withStatus = (tasks ?? []).map((t) => {
     const completers = completersByTaskId[t.id as string] ?? [];
-    const hasCompletion = t.completed_at || completers.length > 0;
+    const hasCompletion = completers.length > 0;
     let computed: TaskStatus;
     if (hasCompletion) {
       computed = "completed";
@@ -114,8 +107,8 @@ export async function GET(request: NextRequest) {
       start_time: t.start_time as string | null,
       due_time: t.due_time as string | null,
       status: computed,
-      completed_at: t.completed_at as string | null,
-      completed_by_name: t.completed_by ? staff.display_name ?? "Staff" : null,
+      completed_at: latestCompletedAtByTask[t.id as string] ?? null,
+      completed_by_name: hasCompletion ? completers[0] ?? staff.display_name ?? "Staff" : null,
       completers,
     };
   });

@@ -43,11 +43,9 @@ export async function GET(request: NextRequest) {
   const startOfToday = getGymStartOfDay(today);
   const endOfToday = getGymEndOfDay(today);
 
-  const [tasksRes, checkinsRes, invRes] = await Promise.all([
-    supabase
-      .from("staff_tasks")
-      .select("id, title, block, status")
-      .eq("block", "pre_open"),
+  const [tasksRes, logsRes, checkinsRes, invRes] = await Promise.all([
+    supabase.from("staff_tasks").select("id, title, block").eq("block", "pre_open"),
+    supabase.from("task_logs").select("task_id").eq("date", today),
     supabase
       .from("gym_checkins")
       .select("id", { count: "exact", head: true })
@@ -57,7 +55,8 @@ export async function GET(request: NextRequest) {
     supabase.from("inventory").select("variant_id, quantity"),
   ]);
 
-  const tasks = (tasksRes.data ?? []) as { id: string; title: string; block: string; status: string }[];
+  const preOpenTasks = (tasksRes.data ?? []) as { id: string; title: string; block: string }[];
+  const doneToday = new Set((logsRes.data ?? []).map((r: { task_id: string }) => r.task_id));
   const checkinsToday = typeof checkinsRes.count === "number" ? checkinsRes.count : 0;
   const invRows = (invRes.data ?? []) as { variant_id: string; quantity: number }[];
 
@@ -70,14 +69,14 @@ export async function GET(request: NextRequest) {
   const inventoryNeedRestock = variantIds.filter((id) => (qtyByVariant[id] ?? 0) <= RESTOCK_THRESHOLD).length;
 
   const phase = getCurrentPhase();
-  const safetyTasks = tasks.filter((t) =>
+  const safetyTasks = preOpenTasks.filter((t) =>
     SAFETY_TASK_TITLES.some((title) => (t.title ?? "").trim().toLowerCase() === title.toLowerCase())
   );
   const gymReady =
     phase === "closed"
       ? false
       : phase === "pre_open"
-      ? safetyTasks.length >= 3 && safetyTasks.every((t) => t.status === "completed")
+      ? safetyTasks.length >= 3 && safetyTasks.every((t) => doneToday.has(t.id))
       : phase === "gym_open" || phase === "closing";
 
   return NextResponse.json({

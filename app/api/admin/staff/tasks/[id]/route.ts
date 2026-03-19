@@ -72,6 +72,7 @@ export async function PATCH(
       if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
     }
   } else {
+    await supabase.from("task_logs").delete().eq("task_id", id).eq("date", today);
     const { error: updateErr } = await supabase
       .from("staff_tasks")
       .update({ status: "pending", completed_at: null, completed_by: null, updated_at: nowIso })

@@ -1,9 +1,10 @@
--- Pending bank transfers: unique code in VietQR memo; SePay webhook matches amount + code → auto-fulfill
+-- Pending bank transfers: SePay webhook matches amount + payment_code → auto-fulfill
+-- No FKs: runs even if migrations are applied out of order (member_profiles / membership_plans from earlier migrations).
 CREATE TABLE IF NOT EXISTS vietqr_pending_orders (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   payment_code text NOT NULL,
-  member_id uuid NOT NULL REFERENCES member_profiles(id) ON DELETE CASCADE,
-  plan_id text NOT NULL REFERENCES membership_plans(id),
+  member_id uuid NOT NULL,
+  plan_id text NOT NULL,
   amount_vnd int NOT NULL,
   memo_qr text NOT NULL,
   expires_at timestamptz NOT NULL,
