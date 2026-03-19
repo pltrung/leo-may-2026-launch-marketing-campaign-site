@@ -14,6 +14,33 @@ export type CampaignSegmentId =
   | "birthday_this_week"
   | "first_visit_not_welcomed";
 
+/** Group segments for CEO analytics: Lifecycle, Retention, Upsell/loyalty */
+export const SEGMENT_GROUPS: {
+  id: "lifecycle" | "retention" | "upsell";
+  nameEn: string;
+  nameVi: string;
+  segmentIds: CampaignSegmentId[];
+}[] = [
+  {
+    id: "lifecycle",
+    nameEn: "Lifecycle",
+    nameVi: "Vòng đời",
+    segmentIds: ["first_visit_not_welcomed", "new_members_recent", "near_conversion_users"],
+  },
+  {
+    id: "retention",
+    nameEn: "Retention",
+    nameVi: "Giữ chân",
+    segmentIds: ["inactive_members_30d", "dropped_active_users", "first_time_no_return"],
+  },
+  {
+    id: "upsell",
+    nameEn: "Upsell & loyalty",
+    nameVi: "Nâng cấp & trung thành",
+    segmentIds: ["visit_pass_users", "highly_active_users", "birthday_this_week"],
+  },
+];
+
 export interface CampaignSegmentDefinition {
   id: CampaignSegmentId;
   nameEn: string;

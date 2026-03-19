@@ -10,41 +10,35 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { nextMonthMembers, runwayFromFirstMonth } from "@/lib/forecast";
 import type { AnalyticsData } from "./AnalyticsCharts";
+import MetricInfo from "@/components/admin/analytics/MetricInfo";
+import { METRIC_BASIS_BADGE, METRIC_TOOLTIPS } from "@/lib/admin/analytics/metricDefinitions";
+import { getHorizonSuffix, getForecastSuffix, type TimeHorizon } from "@/lib/admin/analytics/periodUtils";
+import { buildAnalyticsAlerts, type AnalyticsAlert } from "@/lib/admin/analytics/alerts";
+import { formatRunway } from "@/lib/admin/analytics/metricCalculators";
+import type { FinanceMetricsPayload } from "@/lib/admin/analytics/metricCalculators";
 
 type AdminFetch = (url: string, options?: RequestInit) => Promise<Response>;
 
-function fmtVnd(n: number) {
-  return `${(n ?? 0).toLocaleString("vi-VN")} VND`;
-}
-
-function Section({
-  title,
-  subtitle,
-  children,
+function KpiTile({
+  label,
+  value,
+  sub,
+  info,
 }: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+  sub?: string;
+  info?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-      <div className="border-b border-slate-100 bg-slate-50/80 px-4 py-3">
-        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-        {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
+      <div className="flex items-start justify-between gap-1">
+        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{label}</p>
+        {info}
       </div>
-      <div className="p-4">{children}</div>
-    </div>
-  );
-}
-
-function MiniKpi({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
-  return (
-    <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 min-w-0">
-      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{label}</p>
-      <p className="text-base font-bold text-slate-900 mt-0.5 break-words">{value}</p>
-      {hint && <p className="text-[10px] text-slate-500 mt-0.5">{hint}</p>}
+      <p className="mt-1 text-xl font-bold text-slate-900 break-words">{value}</p>
+      {sub && <p className="text-[11px] text-slate-500 mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -52,439 +46,364 @@ function MiniKpi({ label, value, hint }: { label: string; value: React.ReactNode
 export default function ExecutiveSummary({
   data,
   locale,
+  horizon = "mtd",
   adminFetch,
+  onOpenTab,
+  onAlertsCount,
 }: {
   data: AnalyticsData;
   locale: string;
+  horizon?: TimeHorizon;
   adminFetch?: AdminFetch;
+  onOpenTab?: (tab: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance") => void;
+  onAlertsCount?: (n: number) => void;
 }) {
   const isVi = locale === "vi";
   const t = (en: string, vi: string) => (isVi ? vi : en);
+  const loc = isVi ? "vi" : "en";
 
-  const [finance, setFinance] = useState<{
-    revenue_mtd: number;
-    monthly_costs: number;
-    profit: number;
-    runway_months: number | null;
-    config?: { current_cash: number };
-  } | null>(null);
-  const [forecastExtra, setForecastExtra] = useState<{
-    m1Profit: number;
-    nextMembers: number;
-    runwayInfinite: boolean;
-    runwayMo: number | null;
-  } | null>(null);
-  const [onboardingSum, setOnboardingSum] = useState<{
-    total_staff: number;
-    certified_count?: number;
-    avg_ai?: number | null;
-  } | null>(null);
-  const [campaignLogs, setCampaignLogs] = useState<
-    { segment: string; recipient_count: number; sent_at: string; redemption_count?: number }[]
-  >([]);
-  const [extrasLoading, setExtrasLoading] = useState(false);
-  const [extrasErr, setExtrasErr] = useState(false);
+  const [finance, setFinance] = useState<FinanceMetricsPayload | null>(null);
+  const [financeLoading, setFinanceLoading] = useState(false);
+  const [financeErr, setFinanceErr] = useState(false);
 
-  const loadExtras = useCallback(async () => {
+  const ceo = data.ceo_snapshot;
+  const retentionCohort = data.retention_cohort;
+
+  const loadFinance = useCallback(async () => {
     if (!adminFetch) return;
-    setExtrasLoading(true);
-    setExtrasErr(false);
+    setFinanceLoading(true);
+    setFinanceErr(false);
     const f = data.filters;
     const financeParams = new URLSearchParams();
-    if (f?.period) {
-      financeParams.set("period", f.period);
-      if (f.period === "custom" && f.since && f.until) {
-        financeParams.set("from", f.since.slice(0, 10));
-        financeParams.set("to", f.until.slice(0, 10));
-      }
+    financeParams.set("horizon", horizon);
+    if (f?.period === "custom" && f.since && f.until) {
+      financeParams.set("from", f.since.slice(0, 10));
+      financeParams.set("to", f.until.slice(0, 10));
     }
-    const financeUrl = `/api/admin/finance${financeParams.toString() ? `?${financeParams.toString()}` : ""}`;
+    const financeUrl = `/api/admin/finance?${financeParams.toString()}`;
     try {
-      const [finRes, fcRes, onbRes, logRes] = await Promise.all([
-        adminFetch(financeUrl),
-        adminFetch("/api/admin/forecast"),
-        adminFetch("/api/admin/onboarding/analytics"),
-        adminFetch("/api/admin/campaigns/logs?limit=5"),
-      ]);
+      const finRes = await adminFetch(financeUrl);
       if (finRes.ok) {
         const j = await finRes.json();
         setFinance({
           revenue_mtd: j.revenue_mtd ?? 0,
+          refunds_mtd: j.refunds_mtd ?? 0,
+          cash_sales_mtd: j.cash_sales_mtd ?? j.revenue_mtd ?? 0,
+          cash_out_mtd: j.cash_out_mtd ?? null,
+          net_cash_flow_mtd: j.net_cash_flow_mtd ?? null,
+          eom_net_cash_flow_forecast: j.eom_net_cash_flow_forecast ?? null,
           monthly_costs: j.monthly_costs ?? 0,
           profit: j.profit ?? 0,
+          payroll_total: j.payroll_total ?? 0,
+          rent_amount: j.rent_amount ?? 0,
+          expenses_mtd: j.expenses_mtd ?? 0,
           runway_months: j.runway_months ?? null,
+          runway_display: j.runway_display,
           config: j.config,
+          payroll_record: j.payroll_record,
         });
-      } else setFinance(null);
-
-      if (fcRes.ok) {
-        const d = await fcRes.json();
-        const c = d.config ?? {};
-        const cm = d.current_members ?? 0;
-        const mc = d.monthly_costs ?? 0;
-        const rr = Number(c.retention_rate) || 0.92;
-        const nm = Number(c.new_members_per_month) || 0;
-        const amp = Number(c.avg_member_price) || 0;
-        const cash = Number(c.current_cash) || 0;
-        const rw = runwayFromFirstMonth(cash, cm, rr, nm, amp, mc);
-        const m1Members = nextMonthMembers(cm, rr, nm);
-        const m1Rev = m1Members * amp;
-        setForecastExtra({
-          m1Profit: m1Rev - mc,
-          nextMembers: m1Members,
-          runwayInfinite: rw.infinite,
-          runwayMo: rw.months,
-        });
-      } else setForecastExtra(null);
-
-      if (onbRes.ok) {
-        const j = await onbRes.json();
-        const s = j.summary ?? {};
-        setOnboardingSum({
-          total_staff: s.total_staff ?? 0,
-          certified_count: s.certified_count,
-          avg_ai: s.avg_ai_score_overall ?? null,
-        });
-      } else setOnboardingSum(null);
-
-      if (logRes.ok) {
-        const j = await logRes.json();
-        setCampaignLogs((j.logs ?? []).slice(0, 5));
-      } else setCampaignLogs([]);
+        setEomForecastVal(typeof j.eom_net_cash_flow_forecast === "number" ? j.eom_net_cash_flow_forecast : null);
+      } else {
+        setFinance(null);
+        setEomForecastVal(null);
+      }
     } catch {
-      setExtrasErr(true);
+      setFinanceErr(true);
+      setFinance(null);
+      setEomForecastVal(null);
     } finally {
-      setExtrasLoading(false);
+      setFinanceLoading(false);
     }
-  }, [adminFetch, data.filters]);
+  }, [adminFetch, data.filters, horizon]);
 
   useEffect(() => {
-    loadExtras();
-  }, [loadExtras]);
+    loadFinance();
+  }, [loadFinance]);
 
-  const f = data.filters;
-  const periodLabel = useMemo(() => {
-    if (!f) return "";
-    if (f.period === "custom" && f.since && f.until) {
-      return `${f.since.slice(0, 10)} → ${f.until.slice(0, 10)}`;
-    }
-    const map: Record<string, string> = isVi
-      ? { day: "Hôm nay", week: "Tuần này", month: "Tháng này", quarter: "Quý này", custom: "Tùy chọn" }
-      : { day: "Today", week: "This week", month: "This month", quarter: "This quarter", custom: "Custom" };
-    return map[f.period] ?? f.period;
-  }, [f, isVi]);
+  const alerts = useMemo(() => {
+    return buildAnalyticsAlerts(finance, data as never, loc);
+  }, [finance, data, loc]);
 
-  const o: NonNullable<AnalyticsData["overview"]> = {
-    total_revenue: 0,
-    total_members: 0,
-    active_members: 0,
-    total_visits: 0,
-    ...data.overview,
-  };
-  const r: NonNullable<AnalyticsData["revenue"]> = {
-    total: 0,
-    by_category: {},
-    over_time: [],
-    arpu: 0,
-    revenue_per_visit: 0,
-    ...data.revenue,
-  };
-  const m: NonNullable<AnalyticsData["members"]> = {
-    total: 0,
-    active: 0,
-    inactive: 0,
-    new_over_time: [],
-    churn_rate: 0,
-    avg_visits_per_member: 0,
-    ...data.members,
-  };
-  const ret: NonNullable<AnalyticsData["retention"]> = {
-    day1: 0,
-    day7: 0,
-    day30: 0,
-    newbie_purchased_pct: 0,
-    newbie_return_7_pct: 0,
-    newbie_return_30_pct: 0,
-    ...data.retention,
-  };
-  const beh: NonNullable<AnalyticsData["behavior"]> = {
-    dau: [],
-    wau: 0,
-    mau: 0,
-    peak_hours: [],
-    ...data.behavior,
-  };
-  const fun: NonNullable<AnalyticsData["funnel"]> = {
-    first_visit_to_purchase: 0,
-    newbie_to_return: 0,
-    return_to_membership: 0,
-    ...data.funnel,
-  };
-  const op: NonNullable<AnalyticsData["operations"]> = {
-    tasks_completed: 0,
-    tasks_overdue: 0,
-    completion_rate: 0,
-    route_resets_overdue: 0,
-    coaching_completed: 0,
-    coaching_missed: 0,
-    ...data.operations,
-  };
-  const staffList = data.staff ?? [];
-  const staffAgg = useMemo(() => {
-    let sales = 0;
-    let comm = 0;
-    let tasks = 0;
-    for (const s of staffList) {
-      sales += s.sales ?? 0;
-      comm += s.commission ?? 0;
-      tasks += s.tasks_completed ?? 0;
-    }
-    return { count: staffList.length, sales, comm, tasks };
-  }, [staffList]);
+  useEffect(() => {
+    onAlertsCount?.(alerts.length);
+  }, [alerts.length, onAlertsCount]);
 
+  const o = { total_revenue: 0, total_members: 0, active_members: 0, total_visits: 0, ...data.overview };
+  const r = { total: 0, over_time: [] as { date: string; total: number }[], ...data.revenue };
+  const m = { ...data.members, member_health: data.members?.member_health };
   const mh = {
     active: 0,
     at_risk: 0,
     inactive: 0,
     expiring_soon: 0,
-    ...m.member_health,
+    ...m?.member_health,
+  };
+  const op = { tasks_overdue: 0, route_resets_overdue: 0, coaching_missed: 0, ...data.operations };
+
+  const criticalOpen =
+    (finance?.payroll_record?.status !== "paid" && (finance?.payroll_total ?? 0) > 0 ? 1 : 0) +
+    (op.tasks_overdue ?? 0) +
+    (op.route_resets_overdue ?? 0) +
+    (op.coaching_missed ?? 0);
+
+  const [eomForecastVal, setEomForecastVal] = useState<number | null>(null);
+
+  const cashSales = finance?.cash_sales_mtd ?? finance?.revenue_mtd ?? null;
+  const netCash = finance?.net_cash_flow_mtd ?? null;
+  const cashBank = finance?.config?.current_cash ?? null;
+
+  const actionQueue: { en: string; vi: string; tab?: Parameters<NonNullable<typeof onOpenTab>>[0] }[] = [];
+  if ((finance?.payroll_record?.status !== "paid" && (finance?.payroll_total ?? 0) > 0) ?? false) {
+    actionQueue.push({
+      en: `Approve / mark payroll paid (${(finance?.payroll_total ?? 0).toLocaleString("vi-VN")} VND est.)`,
+      vi: `Duyệt / đánh dấu đã trả lương (${(finance?.payroll_total ?? 0).toLocaleString("vi-VN")} VND ước tính)`,
+      tab: "finance",
+    });
+  }
+  if ((mh.expiring_soon ?? 0) > 0) {
+    actionQueue.push({
+      en: `Reach out to ${mh.expiring_soon} member(s) expiring within 7 days`,
+      vi: `Liên hệ ${mh.expiring_soon} TV hết hạn trong 7 ngày`,
+      tab: "revenue_members",
+    });
+  }
+  if ((mh.at_risk ?? 0) > 0) {
+    actionQueue.push({
+      en: `${mh.at_risk} at-risk members (7–14d no visit)`,
+      vi: `${mh.at_risk} TV rủi ro (7–14 ngày không tới)`,
+      tab: "engagement",
+    });
+  }
+  if ((op.tasks_overdue ?? 0) > 0) {
+    actionQueue.push({
+      en: `${op.tasks_overdue} overdue staff tasks`,
+      vi: `${op.tasks_overdue} nhiệm vụ quá hạn`,
+      tab: "ops_team",
+    });
+  }
+
+  const openAlert = (a: AnalyticsAlert) => {
+    if (a.navigateTab && onOpenTab) onOpenTab(a.navigateTab);
   };
 
   return (
     <div className="space-y-6 text-slate-900">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <p className="text-xs font-semibold text-teal-800 uppercase tracking-wider">
-            {t("Executive summary", "Tóm tắt điều hành")}
-          </p>
-          <p className="text-sm text-slate-600 mt-1">
-            {t("Holistic snapshot across finance, members, ops, and team.", "Toàn cảnh tài chính, thành viên, vận hành và đội ngũ.")}{" "}
-            <span className="font-medium text-slate-800">{periodLabel}</span>
-            {f?.member_type && f.member_type !== "all" && (
-              <span className="text-slate-500">
-                {" · "}
-                {f.member_type}
-              </span>
-            )}
+          <p className="text-xs font-semibold text-teal-800 uppercase tracking-wider">{t("Executive", "Điều hành")}</p>
+          <p className="text-sm text-slate-600 mt-1 max-w-2xl">
+            {t("CEO snapshot: cash, members, and exceptions. Same formulas as Finance where noted.", "Tóm tắt CEO: tiền, thành viên và ngoại lệ. Cùng công thức với Tài chính khi có ghi chú.")}
           </p>
         </div>
         {adminFetch && (
           <button
             type="button"
-            onClick={() => loadExtras()}
-            disabled={extrasLoading}
+            onClick={() => loadFinance()}
+            disabled={financeLoading}
             className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 shrink-0"
           >
-            {extrasLoading ? t("Refreshing…", "Đang làm mới…") : t("Refresh finance & extras", "Làm mới tài chính")}
+            {financeLoading ? t("Refreshing…", "Đang làm mới…") : t("Refresh", "Làm mới")}
           </button>
         )}
       </div>
-      {extrasErr && (
+
+      {financeErr && (
         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          {t("Some finance / training / email data could not be loaded.", "Không tải được một phần tài chính / đào tạo / email.")}
+          {t("Finance summary could not be loaded.", "Không tải được phần tài chính.")}
         </p>
       )}
 
-      {/* Financial health — period-aware labels (day/week/month/quarter/custom) */}
-      <Section
-        title={t("Financial health", "Sức khỏe tài chính")}
-        subtitle={t("Selected period (books) + membership forecast", "Kỳ đã chọn (sổ sách) + dự báo thành viên")}
-      >
+      {/* Alerts strip */}
+      <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 p-3">
+        <p className="text-xs font-semibold text-amber-900 uppercase tracking-wide mb-2">{t("Open alerts", "Cảnh báo")}</p>
+        {alerts.length === 0 ? (
+          <p className="text-sm text-slate-600">{t("No urgent items from current data.", "Không có mục khẩn từ dữ liệu hiện tại.")}</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {alerts.slice(0, 6).map((a) => (
+              <li key={a.id}>
+                <button
+                  type="button"
+                  onClick={() => openAlert(a)}
+                  className={`text-left w-full text-sm rounded-lg px-2 py-1.5 hover:bg-white/80 border border-transparent hover:border-amber-200 ${
+                    a.severity === "critical" ? "text-rose-800 font-medium" : a.severity === "warning" ? "text-amber-900" : "text-slate-800"
+                  }`}
+                >
+                  <span className="mr-1 text-xs opacity-70">{a.severity === "critical" ? "●" : a.severity === "warning" ? "◆" : "○"}</span>
+                  {isVi ? a.titleVi : a.titleEn}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* 8 KPI cards */}
+      <div>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{t("Top KPIs", "Chỉ số chính")}</p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <MiniKpi
-            label={isVi ? `Lợi nhuận (${periodLabel})` : `Profit (${periodLabel})`}
-            value={finance != null ? fmtVnd(finance.profit) : extrasLoading ? "…" : "—"}
-            hint={t("Revenue − costs for selected period", "Doanh thu − chi phí trong kỳ đã chọn")}
+          <KpiTile
+            label={t("Cash in bank", "Quỹ tiền mặt")}
+            value={cashBank != null && Number.isFinite(cashBank) ? `${Math.round(cashBank).toLocaleString("vi-VN")} VND` : "—"}
+            info={<MetricInfo label={t("Cash in bank", "Quỹ tiền mặt")}>{isVi ? METRIC_TOOLTIPS.cashInBank.vi : METRIC_TOOLTIPS.cashInBank.en}</MetricInfo>}
           />
-          <MiniKpi
-            label={isVi ? `Doanh thu (${periodLabel})` : `Revenue (${periodLabel})`}
-            value={finance != null ? fmtVnd(finance.revenue_mtd) : extrasLoading ? "…" : fmtVnd(r.total ?? o.total_revenue ?? 0)}
+          <KpiTile
+            label={t(`Cash sales ${getHorizonSuffix(horizon)}`, `Bán thu tiền ${getHorizonSuffix(horizon)}`)}
+            value={cashSales != null ? `${Math.round(cashSales).toLocaleString("vi-VN")} VND` : financeLoading ? "…" : "—"}
+            info={<MetricInfo label={t("Cash sales", "Bán thu tiền")}>{isVi ? METRIC_TOOLTIPS.cashSalesMtd.vi : METRIC_TOOLTIPS.cashSalesMtd.en}</MetricInfo>}
           />
-          <MiniKpi
-            label={isVi ? `Chi phí (${periodLabel})` : `Costs (${periodLabel})`}
-            value={finance != null ? fmtVnd(finance.monthly_costs) : extrasLoading ? "…" : "—"}
+          <KpiTile
+            label={t(`Net cash flow ${getHorizonSuffix(horizon)}`, `Dòng tiền ròng ${getHorizonSuffix(horizon)}`)}
+            value={netCash != null ? `${Math.round(netCash).toLocaleString("vi-VN")} VND` : financeLoading ? "…" : "—"}
+            sub={t("Cash in − partial cash out (see Finance)", "Tiền vào − tiền ra (xem Tài chính)")}
+            info={<MetricInfo label={t("Net cash flow", "Dòng tiền ròng")}>{isVi ? METRIC_TOOLTIPS.netCashFlowMtd.vi : METRIC_TOOLTIPS.netCashFlowMtd.en}</MetricInfo>}
           />
-          <MiniKpi
-            label={t("Runway (cash ÷ burn)", "Đường băng (quỹ)")}
+          <KpiTile
+            label={t(`${getForecastSuffix(horizon)} net cash flow forecast`, `Dự báo dòng tiền ${getForecastSuffix(horizon)}`)}
             value={
-              finance?.runway_months != null
-                ? `${finance.runway_months} ${t("mo", "tháng")}`
-                : extrasLoading
+              eomForecastVal != null
+                ? `${eomForecastVal.toLocaleString("vi-VN")} VND`
+                : financeLoading
                   ? "…"
                   : "—"
             }
-            hint={t("From Finance cash & full-month costs", "Từ quỹ & chi phí tháng (Tài chính)")}
+            sub={t("Cash basis extrapolation (not operating profit)", "Nội suy theo tiền (không phải lợi nhuận P&L)")}
           />
-        </div>
-        {forecastExtra && (
-          <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 lg:grid-cols-3 gap-3">
-            <MiniKpi
-              label={t("Forecast — M1 profit", "Dự báo — lãi T1")}
-              value={fmtVnd(forecastExtra.m1Profit)}
-            />
-            <MiniKpi label={t("Forecast — next month members", "Dự báo — TV tháng tới")} value={forecastExtra.nextMembers} />
-            <MiniKpi
-              label={t("Forecast — runway (M1 net)", "Dự báo — đường băng")}
-              value={
-                forecastExtra.runwayInfinite
-                  ? t("∞", "∞")
-                  : forecastExtra.runwayMo != null
-                    ? `${forecastExtra.runwayMo.toFixed(1)} ${t("mo", "tháng")}`
-                    : "—"
-              }
-            />
-          </div>
-        )}
-      </Section>
-
-      {/* Revenue & visits */}
-      <Section
-        title={t("Revenue & visits", "Doanh thu & lượt vào")}
-        subtitle={t("Period totals (same filters as other tabs)", "Tổng trong kỳ (cùng bộ lọc các tab khác)")}
-      >
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <MiniKpi label={t("Total revenue", "Tổng doanh thu")} value={fmtVnd(r.total ?? o.total_revenue ?? 0)} />
-          <MiniKpi label={t("ARPU", "Doanh thu/TV")} value={fmtVnd(r.arpu ?? 0)} />
-          <MiniKpi label={t("Revenue / visit", "Doanh thu/lượt")} value={fmtVnd(r.revenue_per_visit ?? 0)} />
-          <MiniKpi label={t("Total visits", "Tổng lượt vào")} value={o.total_visits ?? 0} />
-        </div>
-        {r.over_time && r.over_time.length > 0 && (
-          <div className="mt-4 h-[220px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={r.over_time}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                <Tooltip
-                  formatter={(v: unknown) => [typeof v === "number" ? v.toLocaleString("vi-VN") : String(v ?? 0), t("Revenue", "Doanh thu")]}
-                />
-                <Line type="monotone" dataKey="total" stroke="#0f766e" strokeWidth={2} dot={{ r: 2 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </Section>
-
-      {/* Members */}
-      <Section
-        title={t("Members", "Thành viên")}
-        subtitle={t("Base, activity in period, health", "Cơ sở, hoạt động trong kỳ, sức khỏe")}
-      >
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-          <MiniKpi label={t("Total (filtered)", "Tổng (đã lọc)")} value={m.total ?? o.total_members ?? 0} />
-          <MiniKpi label={t("Active in period", "Hoạt động trong kỳ")} value={m.active ?? o.active_members ?? 0} />
-          <MiniKpi label={t("Churn rate", "Tỷ lệ rời bỏ")} value={`${m.churn_rate ?? 0}%`} />
-          <MiniKpi label={t("Avg visits / member", "Lượt/TV TB")} value={m.avg_visits_per_member ?? 0} />
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <MiniKpi label={t("Health: active", "SK: đang tốt")} value={mh.active ?? 0} />
-          <MiniKpi label={t("Health: at risk", "SK: rủi ro")} value={mh.at_risk ?? 0} />
-          <MiniKpi label={t("Health: expiring soon", "SK: sắp hết hạn")} value={mh.expiring_soon ?? 0} />
-          <MiniKpi label={t("Health: inactive", "SK: không HĐ")} value={mh.inactive ?? 0} />
-        </div>
-      </Section>
-
-      {/* Retention & engagement */}
-      <Section title={t("Retention & engagement", "Giữ chân & tương tác")}>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          <MiniKpi label={t("Return D1", "Quay lại D1")} value={`${ret.day1 ?? 0}%`} />
-          <MiniKpi label={t("Return D7", "Quay lại D7")} value={`${ret.day7 ?? 0}%`} />
-          <MiniKpi label={t("Return D30", "Quay lại D30")} value={`${ret.day30 ?? 0}%`} />
-          <MiniKpi label={t("MAU", "MAU")} value={beh.mau ?? 0} />
-          <MiniKpi label={t("WAU", "WAU")} value={beh.wau ?? 0} />
-          <MiniKpi
-            label={t("Newbie → membership", "Newbie → gói")}
-            value={`${m.newbie_conversion_funnel?.converted_to_membership_pct ?? 0}%`}
+          <KpiTile
+            label={t(`Active members ${getHorizonSuffix(horizon)}`, `TV hoạt động ${getHorizonSuffix(horizon)}`)}
+            value={o.active_members ?? 0}
+            sub={t("Visits in period · filters apply", "Lượt trong kỳ · có lọc")}
+            info={<MetricInfo label={t("Active members", "TV hoạt động")}>{isVi ? METRIC_TOOLTIPS.activeMembers.vi : METRIC_TOOLTIPS.activeMembers.en}</MetricInfo>}
           />
+          <KpiTile
+            label={t(`New members ${getHorizonSuffix(horizon)}`, `TV mới ${getHorizonSuffix(horizon)}`)}
+            value={ceo?.new_members_mtd ?? "—"}
+          />
+          <KpiTile label={t("Expiring in 7 days", "Hết hạn 7 ngày")} value={ceo?.expiring_7d_all ?? mh.expiring_soon ?? 0} />
+          <KpiTile label={t("Open operational actions", "Việc cần xử lý")} value={criticalOpen} sub={t("Payroll if pending + ops counters", "Lương chưa trả + vận hành")} />
         </div>
-      </Section>
-
-      {/* Funnel */}
-      <Section title={t("Funnel (conversion)", "Phễu (chuyển đổi)")}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <MiniKpi label={t("First visit → purchase", "Lần đầu → mua")} value={`${fun.first_visit_to_purchase ?? 0}%`} />
-          <MiniKpi label={t("Newbie → return", "Newbie → quay lại")} value={`${fun.newbie_to_return ?? 0}%`} />
-          <MiniKpi label={t("Return → membership", "Quay lại → gói")} value={`${fun.return_to_membership ?? 0}%`} />
-        </div>
-      </Section>
-
-      {/* Operations */}
-      <Section title={t("Operations", "Vận hành")}>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <MiniKpi label={t("Tasks done", "NV xong")} value={op.tasks_completed ?? 0} />
-          <MiniKpi label={t("Tasks overdue", "NV quá hạn")} value={op.tasks_overdue ?? 0} />
-          <MiniKpi label={t("Task completion %", "Hoàn thành NV %")} value={`${op.completion_rate ?? 0}%`} />
-          <MiniKpi label={t("Route resets overdue", "Reset tường quá hạn")} value={op.route_resets_overdue ?? 0} />
-          <MiniKpi label={t("Coaching completed", "Coaching xong")} value={op.coaching_completed ?? 0} />
-          <MiniKpi label={t("Coaching unassigned", "Coaching chưa giao")} value={op.coaching_missed ?? 0} />
-        </div>
-      </Section>
-
-      {/* Staff performance */}
-      <Section title={t("Staff (period)", "Nhân sự (kỳ)")}>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <MiniKpi label={t("Headcount in report", "Số người trong báo cáo")} value={staffAgg.count} />
-          <MiniKpi label={t("Total POS sales", "Tổng DS POS")} value={fmtVnd(staffAgg.sales)} />
-          <MiniKpi label={t("Total variable pay", "Tổng trả biến đổi")} value={fmtVnd(staffAgg.comm)} />
-          <MiniKpi label={t("Tasks completed (sum)", "NV hoàn thành")} value={staffAgg.tasks} />
-        </div>
-      </Section>
-
-      {/* Email + Training row */}
-      <div className="grid lg:grid-cols-2 gap-4">
-        <Section title={t("Recent email campaigns", "Chiến dịch email gần đây")}>
-          {campaignLogs.length === 0 ? (
-            <p className="text-sm text-slate-500">
-              {extrasLoading ? t("Loading…", "Đang tải…") : t("No recent sends.", "Chưa có lần gửi gần đây.")}
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 text-left text-slate-600">
-                    <th className="py-2 pr-2">{t("Segment", "Phân khúc")}</th>
-                    <th className="py-2 pr-2 text-right">{t("Sent", "Gửi")}</th>
-                    <th className="py-2 pr-2 text-right">{t("Redeem", "Đổi mã")}</th>
-                    <th className="py-2">{t("Date", "Ngày")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {campaignLogs.map((log, i) => (
-                    <tr key={i} className="border-b border-slate-100">
-                      <td className="py-2 pr-2 font-medium text-slate-800 truncate max-w-[140px]">{log.segment}</td>
-                      <td className="py-2 pr-2 text-right tabular-nums text-slate-900 font-medium">{log.recipient_count}</td>
-                      <td className="py-2 pr-2 text-right tabular-nums text-slate-900 font-medium">{log.redemption_count ?? "—"}</td>
-                      <td className="py-2 text-slate-600 whitespace-nowrap">
-                        {log.sent_at ? new Date(log.sent_at).toLocaleDateString(isVi ? "vi-VN" : "en-US") : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Section>
-
-        <Section title={t("Staff training (onboarding)", "Đào tạo nhân sự")}>
-          {onboardingSum == null && extrasLoading ? (
-            <p className="text-sm text-slate-500">{t("Loading…", "Đang tải…")}</p>
-          ) : onboardingSum && onboardingSum.total_staff > 0 ? (
-            <div className="grid grid-cols-2 gap-3">
-              <MiniKpi label={t("Staff in program", "Nhân sự trong chương trình")} value={onboardingSum.total_staff} />
-              <MiniKpi
-                label={t("Certified", "Đã chứng nhận")}
-                value={onboardingSum.certified_count ?? "—"}
-              />
-              <MiniKpi
-                label={t("Avg AI score", "Điểm AI TB")}
-                value={onboardingSum.avg_ai != null ? onboardingSum.avg_ai : "—"}
-              />
-            </div>
-          ) : (
-            <p className="text-sm text-slate-500">{t("No onboarding data or restricted.", "Không có dữ liệu hoặc hạn chế quyền.")}</p>
-          )}
-        </Section>
       </div>
+
+      {/* Money + member + ops */}
+      <div className="grid lg:grid-cols-2 gap-4">
+        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+          <div className="border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+            <h3 className="text-sm font-semibold text-slate-900">{t("Money (cash view)", "Tiền (theo dòng tiền)")}</h3>
+            <p className="text-xs text-slate-500">
+              {horizon === "wtd" && t("Daily cash sales this week.", "Doanh thu theo ngày tuần này.")}
+              {horizon === "mtd" && t("Daily cash sales this month.", "Doanh thu theo ngày tháng này.")}
+              {horizon === "qtd" && t("Daily cash sales this quarter.", "Doanh thu theo ngày quý này.")}
+              {horizon === "ytd" && t("Daily cash sales this year.", "Doanh thu theo ngày năm nay.")}
+              {!["wtd", "mtd", "qtd", "ytd"].includes(horizon) && t("Daily cash sales in period (from analytics payments+POS, matched to Finance totals when refreshed).", "Doanh thu theo ngày trong kỳ (thống kê; khớp Tài chính khi làm mới).")}
+            </p>
+          </div>
+          <div className="p-4 space-y-3">
+            {r.over_time && r.over_time.length > 0 ? (
+              <div className="h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={r.over_time}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(v: unknown) => [typeof v === "number" ? v.toLocaleString("vi-VN") : String(v ?? 0), t("Cash sales", "Thu tiền")]} />
+                    <Line type="monotone" dataKey="total" stroke="#0f766e" strokeWidth={2} dot={{ r: 2 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">{t("No trend data in this period.", "Không có dữ liệu xu hướng trong kỳ này.")}</p>
+            )}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-2">
+                <p className="text-[10px] font-semibold text-slate-500 uppercase">{t("Cash out (MTD, partial)", "Tiền ra (MTD, một phần)")}</p>
+                <p className="text-sm font-bold text-slate-900">
+                  {finance?.cash_out_mtd != null ? `${Math.round(finance.cash_out_mtd).toLocaleString("vi-VN")} VND` : "—"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-2">
+                <p className="text-[10px] font-semibold text-slate-500 uppercase">{t("Payroll due", "Lương đến hạn")}</p>
+                <p className="text-sm font-bold text-slate-900">
+                  {finance?.payroll_record?.status !== "paid" && finance?.payroll_total != null
+                    ? `${Math.round(finance.payroll_total).toLocaleString("vi-VN")} VND`
+                    : t("Paid", "Đã trả")}
+                </p>
+              </div>
+              <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-2">
+                <p className="text-[10px] font-semibold text-slate-500 uppercase">{t("Bills due (7d)", "Hóa đơn 7 ngày")}</p>
+                <p className="text-sm font-bold text-slate-900">—</p>
+                <p className="text-[10px] text-slate-400">{t("Not tracked yet", "Chưa theo dõi")}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+          <div className="border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+            <h3 className="text-sm font-semibold text-slate-900">{t("Members & health", "Thành viên & sức khỏe")}</h3>
+          </div>
+          <div className="p-4 grid grid-cols-2 gap-2">
+            <div className="rounded-lg border border-slate-100 p-2">
+              <p className="text-[10px] text-slate-500 uppercase font-semibold">{t("Current paying members", "TV đang trả phí")}</p>
+              <p className="text-lg font-bold text-slate-900">{ceo?.current_paying_members ?? "—"}</p>
+            </div>
+            <div className="rounded-lg border border-slate-100 p-2">
+              <p className="text-[10px] text-slate-500 uppercase font-semibold">{t("Renewals (MTD)", "Gia hạn (MTD)")}</p>
+              <p className="text-lg font-bold text-slate-900">{ceo?.renewals_mtd ?? "—"}</p>
+            </div>
+            <div className="rounded-lg border border-slate-100 p-2">
+              <p className="text-[10px] text-slate-500 uppercase font-semibold">{t("At-risk members", "TV rủi ro")}</p>
+              <p className="text-lg font-bold text-slate-900">{mh.at_risk ?? 0}</p>
+            </div>
+            <div className="rounded-lg border border-slate-100 p-2">
+              <p className="text-[10px] text-slate-500 uppercase font-semibold">{t("Inactive (30d)", "Không tới 30 ngày")}</p>
+              <p className="text-lg font-bold text-slate-900">{mh.inactive ?? 0}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h3 className="text-sm font-semibold text-slate-900 mb-2">{t("Operations today", "Vận hành hôm nay")}</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KpiTile label={t("Check-ins today", "Check-in hôm nay")} value={ceo?.checkins_today ?? "—"} />
+          <KpiTile label={t("Newbie class sessions today", "Lớp Newbie hôm nay")} value={ceo?.newbie_class_sessions_today ?? "—"} />
+          <KpiTile
+            label={t("Staff on shift", "Nhân sự đang làm")}
+            value={(ceo as { staff_on_shift_today?: number })?.staff_on_shift_today ?? "—"}
+            sub={t("Checked in today", "Đã check-in hôm nay")}
+          />
+          <KpiTile
+            label={t("Issues unresolved today", "Việc chưa xử lý hôm nay")}
+            value={(op.tasks_overdue ?? 0) + (op.route_resets_overdue ?? 0) + (op.coaching_missed ?? 0)}
+            sub={t("Tasks + resets + coaching", "Nhiệm vụ + reset + coaching")}
+          />
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h3 className="text-sm font-semibold text-slate-900 mb-2">{t("CEO action queue", "Việc ưu tiên")}</h3>
+        {actionQueue.length === 0 ? (
+          <p className="text-sm text-slate-500">{t("No queued actions from current thresholds.", "Chưa có việc từ ngưỡng hiện tại.")}</p>
+        ) : (
+          <ul className="space-y-2">
+            {actionQueue.slice(0, 8).map((item, i) => (
+              <li key={i}>
+                {item.tab ? (
+                  <button type="button" onClick={() => onOpenTab?.(item.tab!)} className="text-left text-sm text-teal-800 hover:underline w-full">
+                    {isVi ? item.vi : item.en}
+                  </button>
+                ) : (
+                  <span className="text-sm text-slate-800">{isVi ? item.vi : item.en}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <p className="text-[11px] text-slate-500">
+        {t(METRIC_BASIS_BADGE.mixed.hintEn, METRIC_BASIS_BADGE.mixed.hintVi)}
+      </p>
     </div>
   );
 }

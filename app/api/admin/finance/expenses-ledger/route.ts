@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   let q = supabase
     .from("expenses")
     .select(
-      "id, expense_date, category, item_name, quantity, cost, notes, reorder_request_id, created_at, created_by_staff_id"
+      "id, expense_date, category, item_name, quantity, cost, notes, reorder_request_id, created_at, created_by_staff_id, status, paid_at"
     )
     .order("expense_date", { ascending: false })
     .order("created_at", { ascending: false })

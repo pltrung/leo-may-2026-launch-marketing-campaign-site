@@ -13,7 +13,9 @@ import {
   getGymEndOfDay,
   getGymMonthBoundaries,
   getGymStartOfDay,
+  getGymDateFromISO,
 } from "@/lib/gymTimezone";
+import { getPeriodRange, type TimeHorizon } from "@/lib/admin/analytics/periodUtils";
 
 /** Parse period + optional from/to into since/until ISO and date strings. Same logic as analytics. */
 function parseFinanceRange(
@@ -141,10 +143,14 @@ export async function GET(req: NextRequest) {
   }
 
   const url = new URL(req.url);
+  const horizonParam = url.searchParams.get("horizon") as TimeHorizon | null;
   const periodParam = url.searchParams.get("period");
   const fromParam = url.searchParams.get("from");
   const toParam = url.searchParams.get("to");
-  const useRange = Boolean(periodParam || (fromParam && toParam));
+
+  const useCustomRange = periodParam === "custom" && fromParam && toParam && /^\d{4}-\d{2}-\d{2}$/.test(fromParam) && /^\d{4}-\d{2}-\d{2}$/.test(toParam);
+  const useHorizon = horizonParam && ["wtd", "mtd", "qtd", "ytd"].includes(horizonParam);
+  const useLegacyRange = (periodParam || (fromParam && toParam)) && !useCustomRange && !useHorizon;
 
   const supabase = createServerClient();
   const today = getGymToday();
@@ -152,14 +158,41 @@ export async function GET(req: NextRequest) {
   const monthStartDate = monthStartIso.slice(0, 10);
   const monthKey = today.slice(0, 7);
 
-  const { sinceIso, untilIso, sinceDate, untilDate } = useRange
-    ? parseFinanceRange(periodParam, fromParam, toParam)
-    : {
-        sinceIso: monthStartIso,
-        untilIso: getGymEndOfDay(today),
-        sinceDate: monthStartDate,
-        untilDate: today,
-      };
+  let sinceIso: string;
+  let untilIso: string;
+  let sinceDate: string;
+  let untilDate: string;
+  let periodHorizon: TimeHorizon | null = null;
+
+  if (useCustomRange) {
+    const parsed = parseFinanceRange(periodParam, fromParam, toParam);
+    sinceIso = parsed.sinceIso;
+    untilIso = parsed.untilIso;
+    sinceDate = parsed.sinceDate;
+    untilDate = parsed.untilDate;
+  } else if (useHorizon) {
+    const range = getPeriodRange(horizonParam!);
+    sinceIso = range.since;
+    untilIso = range.until;
+    sinceDate = range.sinceDate;
+    untilDate = range.untilDate;
+    periodHorizon = horizonParam;
+  } else if (useLegacyRange) {
+    const parsed = parseFinanceRange(periodParam, fromParam, toParam);
+    sinceIso = parsed.sinceIso;
+    untilIso = parsed.untilIso;
+    sinceDate = parsed.sinceDate;
+    untilDate = parsed.untilDate;
+    if (periodParam === "week") periodHorizon = "wtd";
+    else if (periodParam === "month") periodHorizon = "mtd";
+    else if (periodParam === "quarter") periodHorizon = "qtd";
+  } else {
+    sinceIso = monthStartIso;
+    untilIso = getGymEndOfDay(today);
+    sinceDate = monthStartDate;
+    untilDate = today;
+    periodHorizon = "mtd";
+  }
 
   try {
     const { data: configRows } = await supabase.from("finance_config").select("*").limit(1);
@@ -186,6 +219,18 @@ export async function GET(req: NextRequest) {
     let revenueMtd = 0;
     for (const p of paymentRows ?? []) revenueMtd += Number((p as { amount: number }).amount) || 0;
     for (const r of posRowsMtd ?? []) revenueMtd += Number((r as { total: number }).total) || 0;
+
+    const { data: adjustmentRows } = await supabase
+      .from("payment_adjustments")
+      .select("amount_vnd")
+      .gte("created_at", sinceIso)
+      .lte("created_at", untilIso);
+    let refundsMtd = 0;
+    for (const a of adjustmentRows ?? []) {
+      const v = Number((a as { amount_vnd: number }).amount_vnd);
+      if (v < 0) refundsMtd += Math.abs(v);
+    }
+    const cashSalesMtd = Math.max(0, revenueMtd - refundsMtd);
 
     const { data: posStaffRows } = await supabase
       .from("pos_transactions")
@@ -229,12 +274,22 @@ export async function GET(req: NextRequest) {
     const { data: expenseRows } = await supabase
       .from("expenses")
       .select(
-        "id, expense_date, category, item_name, quantity, cost, notes, reorder_request_id, created_at, created_by_staff_id"
+        "id, expense_date, category, item_name, quantity, cost, notes, reorder_request_id, created_at, created_by_staff_id, status, paid_at"
       )
       .gte("expense_date", sinceDate)
       .lte("expense_date", untilDate)
       .order("expense_date", { ascending: false })
       .order("created_at", { ascending: false });
+
+    const { data: pendingExpenseRows } = await supabase
+      .from("expenses")
+      .select("cost")
+      .eq("status", "pending");
+
+    let unpaidExpensesSum = 0;
+    for (const e of pendingExpenseRows ?? []) {
+      unpaidExpensesSum += Number((e as { cost: number }).cost) || 0;
+    }
 
     let expensesMtd = 0;
     for (const e of expenseRows ?? []) {
@@ -258,7 +313,7 @@ export async function GET(req: NextRequest) {
     const dayOfMonth = parseInt(today.slice(8, 10), 10) || 1;
     const daysElapsed = Math.min(Math.max(1, dayOfMonth), daysInMonth);
     let expensesForRunway = expensesMtd;
-    if (useRange && (sinceDate !== monthStartDate || untilDate !== today)) {
+    if (sinceDate !== monthStartDate || untilDate !== today) {
       const { data: monthExpRows } = await supabase
         .from("expenses")
         .select("cost")
@@ -269,8 +324,12 @@ export async function GET(req: NextRequest) {
     const expensesExtrapolated =
       daysElapsed > 0 ? (expensesForRunway * daysInMonth) / daysElapsed : expensesForRunway;
     const fullMonthlyCosts = Math.round(fixedFullMonth + expensesExtrapolated);
-    const runwayMonths =
-      fullMonthlyCosts > 0 ? Math.round((cash / fullMonthlyCosts) * 10) / 10 : null;
+    const runwayDisplayEarly: "months" | "cash_positive" =
+      fullMonthlyCosts <= 0 ? "cash_positive" : "months";
+    const runwayMonthsCalc =
+      runwayDisplayEarly === "months" && fullMonthlyCosts > 0
+        ? Math.round((cash / fullMonthlyCosts) * 10) / 10
+        : null;
 
     const { data: prRow } = await supabase
       .from("payroll_records")
@@ -426,8 +485,84 @@ export async function GET(req: NextRequest) {
       nameByStaff[s.id] = s.display_name || s.email;
     }
 
+    const payrollPaidNow = (prFinal as { status?: string })?.status === "paid";
+    const payrollPaidAt = (prFinal as { paid_at?: string | null })?.paid_at ?? null;
+    const cashOutMtd = Math.round(expensesMtd + (payrollPaidNow ? payrollTotal : 0));
+
+    // Cash in vs out over time for chart
+    const cashInByDate = new Map<string, number>();
+    for (const p of paymentRows ?? []) {
+      const d = getGymDateFromISO((p as { created_at: string }).created_at);
+      cashInByDate.set(d, (cashInByDate.get(d) ?? 0) + Number((p as { amount: number }).amount) || 0);
+    }
+    for (const r of posRowsMtd ?? []) {
+      const d = getGymDateFromISO((r as { created_at: string }).created_at);
+      cashInByDate.set(d, (cashInByDate.get(d) ?? 0) + Number((r as { total: number }).total) || 0);
+    }
+    const cashOutByDate = new Map<string, number>();
+    for (const e of expenseRows ?? []) {
+      const exp = e as { expense_date: string; cost: number };
+      const d = exp.expense_date;
+      cashOutByDate.set(d, (cashOutByDate.get(d) ?? 0) + Number(exp.cost) || 0);
+    }
+    if (payrollPaidNow && payrollPaidAt && payrollTotal > 0) {
+      const d = getGymDateFromISO(payrollPaidAt).slice(0, 10);
+      if (d >= sinceDate && d <= untilDate) {
+        cashOutByDate.set(d, (cashOutByDate.get(d) ?? 0) + payrollTotal);
+      }
+    }
+    const allDates = new Set([...Array.from(cashInByDate.keys()), ...Array.from(cashOutByDate.keys())]);
+    const cash_in_out_over_time = Array.from(allDates)
+      .sort()
+      .map((date) => ({
+        date,
+        cash_in: Math.round(cashInByDate.get(date) ?? 0),
+        cash_out: Math.round(cashOutByDate.get(date) ?? 0),
+        net: Math.round((cashInByDate.get(date) ?? 0) - (cashOutByDate.get(date) ?? 0)),
+      }));
+    const netCashFlowMtd = Math.round(cashSalesMtd - cashOutMtd);
+    const dayOfMonthForForecast = parseInt(today.slice(8, 10), 10) || 1;
+    const eomNetCashFlowForecast =
+      dayOfMonthForForecast > 0 && daysInMonth > 0
+        ? Math.round((cashSalesMtd / dayOfMonthForForecast) * daysInMonth - fullMonthlyCosts)
+        : null;
+
+    const in30Date = new Date(today);
+    in30Date.setDate(in30Date.getDate() + 30);
+    const in30Str = in30Date.toISOString().slice(0, 10);
+    const { data: expNext30 } = await supabase
+      .from("expenses")
+      .select("cost")
+      .gte("expense_date", today)
+      .lte("expense_date", in30Str);
+    let forecastCashOut30d = (expNext30 ?? []).reduce((s, e) => s + (Number((e as { cost: number }).cost) || 0), 0);
+    if (!payrollPaidNow && payrollDueStr >= today && payrollDueStr <= in30Str) {
+      forecastCashOut30d += payrollTotal;
+    }
+    const rentDueDate = new Date(rentDueStr + "T12:00:00Z");
+    const todayDate = new Date(today + "T12:00:00Z");
+    const in30DateObj = new Date(in30Str + "T12:00:00Z");
+    if (rentAmount > 0 && rentDueDate >= todayDate && rentDueDate <= in30DateObj) {
+      forecastCashOut30d += rentAmount;
+    }
+
     return NextResponse.json({
       month_key: monthKey,
+      metric_basis: "mixed" as const,
+      recognized_revenue_reliable: false as const,
+      canonical: {
+        cash_sales_mtd: cashSalesMtd,
+        refunds_mtd: refundsMtd,
+        cash_out_mtd: cashOutMtd,
+        cash_out_note:
+          "Includes recorded expenses and payroll when marked paid; rent is not modeled as a cash out event yet.",
+        net_cash_flow_mtw: netCashFlowMtd,
+        payroll_accrued_mtd: payrollTotal,
+        rent_accrued_mtd: rentAmount,
+        opex_accrued_mtd: expensesMtd,
+        operating_costs_mtd: Math.round(payrollTotal + rentAmount + expensesMtd),
+      },
+      eom_net_cash_flow_forecast: eomNetCashFlowForecast,
       config: {
         rent_amount: rentAmount,
         rent_due_day: rentDueDay,
@@ -435,6 +570,10 @@ export async function GET(req: NextRequest) {
         current_cash: cash,
       },
       revenue_mtd: revenueMtd,
+      refunds_mtd: refundsMtd,
+      cash_sales_mtd: cashSalesMtd,
+      cash_out_mtd: cashOutMtd,
+      net_cash_flow_mtd: netCashFlowMtd,
       payroll_total: payrollTotal,
       payroll_lines: payrollLines,
       rent_amount: rentAmount,
@@ -448,7 +587,8 @@ export async function GET(req: NextRequest) {
       })),
       monthly_costs: monthlyCosts,
       profit,
-      runway_months: runwayMonths,
+      runway_months: runwayMonthsCalc,
+      runway_display: runwayDisplayEarly,
       fixed_costs: [
         {
           category: "Rent",
@@ -466,9 +606,12 @@ export async function GET(req: NextRequest) {
         },
       ],
       payroll_record: prFinal ?? { month_key: monthKey, total_amount: payrollTotal, status: "pending" },
+      unpaid_expenses_sum: Math.round(unpaidExpensesSum),
+      forecast_cash_out_30d: Math.round(forecastCashOut30d),
       pending_reorders,
       snapshots: snapshotRows ?? [],
       months_history,
+      cash_in_out_over_time,
     });
   } catch (e) {
     console.error("finance GET", e);

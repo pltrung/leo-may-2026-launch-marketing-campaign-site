@@ -1,12 +1,33 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
 import ForecastPanel from "@/components/admin/ForecastPanel";
+import { formatRunway } from "@/lib/admin/analytics/metricCalculators";
+import { getHorizonSuffix } from "@/lib/admin/analytics/periodUtils";
+import { buildAnalyticsAlerts } from "@/lib/admin/analytics/alerts";
 
 type FinanceData = {
   month_key: string;
   config: { rent_amount: number; rent_due_day: number; payroll_day: number; current_cash: number };
   revenue_mtd: number;
+  refunds_mtd?: number;
+  cash_sales_mtd?: number;
+  cash_out_mtd?: number;
+  net_cash_flow_mtd?: number;
+  eom_net_cash_flow_forecast?: number | null;
+  runway_display?: "months" | "cash_positive" | "unknown";
+  recognized_revenue_reliable?: boolean;
+  metric_basis?: string;
   payroll_total: number;
   payroll_lines: {
     staff_id: string;
@@ -30,6 +51,8 @@ type FinanceData = {
   runway_months: number | null;
   fixed_costs: { category: string; item: string; amount: number; due_date: string; status: string }[];
   payroll_record: { month_key: string; total_amount: number; status: string; paid_at?: string | null };
+  unpaid_expenses_sum?: number;
+  forecast_cash_out_30d?: number;
   pending_reorders: {
     id: string;
     variant_id: string;
@@ -40,6 +63,7 @@ type FinanceData = {
     created_at: string;
   }[];
   snapshots: Record<string, unknown>[];
+  cash_in_out_over_time?: { date: string; cash_in: number; cash_out: number; net: number }[];
   months_history: {
     month_key: string;
     revenue: number;
@@ -58,9 +82,11 @@ function fmt(n: number) {
 export default function FinanceTab({
   adminFetch,
   locale,
+  horizon = "mtd",
 }: {
   adminFetch: (url: string, init?: RequestInit) => Promise<Response>;
   locale: "en" | "vi";
+  horizon?: "wtd" | "mtd" | "qtd" | "ytd";
 }) {
   const isVi = locale === "vi";
   const t = (en: string, vi: string) => (isVi ? vi : en);
@@ -105,7 +131,9 @@ export default function FinanceTab({
     setLoading(true);
     setErr(null);
     try {
-      const res = await adminFetch("/api/admin/finance");
+      const params = new URLSearchParams();
+      params.set("horizon", horizon);
+      const res = await adminFetch(`/api/admin/finance?${params.toString()}`);
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || "Failed");
       setData(j);
@@ -116,7 +144,7 @@ export default function FinanceTab({
     } finally {
       setLoading(false);
     }
-  }, [adminFetch]);
+  }, [adminFetch, horizon]);
 
   useEffect(() => {
     load();
@@ -226,6 +254,15 @@ export default function FinanceTab({
     load();
   };
 
+  const markExpensePaid = async (expenseId: string, paid: boolean) => {
+    const res = await adminFetch(`/api/admin/finance/expense-paid?id=${encodeURIComponent(expenseId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paid }),
+    });
+    if (res.ok) load();
+  };
+
   const saveStaffComp = async () => {
     if (!staffEdit) return;
     const body: Record<string, unknown> = {
@@ -315,6 +352,78 @@ export default function FinanceTab({
         <>
       {err && <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">{err}</p>}
 
+      {/* Due soon / obligations (glance) */}
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3">
+          {t("Due soon & obligations", "Sắp đến hạn & nghĩa vụ")}
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 text-sm">
+          <div className="rounded-lg border border-white bg-white p-3 shadow-sm">
+            <p className="text-[10px] text-slate-500 uppercase font-semibold">{t("Cash in bank", "Quỹ tiền mặt")}</p>
+            <p className="font-bold text-slate-900 mt-1">{fmt(data.config.current_cash)}</p>
+          </div>
+          <div className="rounded-lg border border-white bg-white p-3 shadow-sm">
+            <p className="text-[10px] text-slate-500 uppercase font-semibold">{t("Unpaid expenses", "Chi phí chưa trả")}</p>
+            <p className="font-bold text-slate-900 mt-1">{data.unpaid_expenses_sum != null ? fmt(data.unpaid_expenses_sum) : "—"}</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">{t("Pending status", "Trạng thái chờ")}</p>
+          </div>
+          <div className="rounded-lg border border-white bg-white p-3 shadow-sm">
+            <p className="text-[10px] text-slate-500 uppercase font-semibold">{t("Forecast cash out (30d)", "Dự kiến tiền ra (30 ngày)")}</p>
+            <p className="font-bold text-slate-900 mt-1">{data.forecast_cash_out_30d != null ? fmt(data.forecast_cash_out_30d) : "—"}</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">{t("Expenses + payroll + rent", "Chi phí + lương + thuê")}</p>
+          </div>
+          <div className="rounded-lg border border-amber-100 bg-amber-50/60 p-3 shadow-sm">
+            <p className="text-[10px] text-amber-900 uppercase font-semibold">{t("Payroll due", "Lương đến hạn")}</p>
+            <p className="font-bold text-amber-950 mt-1">{fmt(data.payroll_total)}</p>
+            <p className="text-[10px] text-amber-800">{data.payroll_record.status === "paid" ? t("Paid", "Đã trả") : t("Pending", "Chờ trả")}</p>
+          </div>
+          <div className="rounded-lg border border-white bg-white p-3 shadow-sm">
+            <p className="text-[10px] text-slate-500 uppercase font-semibold">{t("Rent due", "Tiền thuê")}</p>
+            <p className="font-bold text-slate-900 mt-1">{fmt(data.rent_amount)}</p>
+            <p className="text-[10px] text-slate-500">{data.fixed_costs.find((x) => x.category === "Rent")?.due_date ?? "—"}</p>
+          </div>
+          <div className="rounded-lg border border-white bg-white p-3 shadow-sm">
+            <p className="text-[10px] text-slate-500 uppercase font-semibold">{t(`Recorded expenses ${getHorizonSuffix(horizon)}`, `Chi phí đã ghi ${getHorizonSuffix(horizon)}`)}</p>
+            <p className="font-bold text-slate-900 mt-1">{fmt(data.expenses_mtd)}</p>
+            <p className="text-[10px] text-slate-400">{t("Not same as “paid”", "Không = đã trả")}</p>
+          </div>
+          <div className="rounded-lg border border-sky-100 bg-sky-50/60 p-3 shadow-sm">
+            <p className="text-[10px] text-sky-900 uppercase font-semibold">{t("Runway", "Đường băng")}</p>
+            <p className="font-bold text-sky-950 mt-1">
+              {formatRunway(
+                {
+                  runway_months: data.runway_months,
+                  runway_display: data.runway_display,
+                  config: data.config,
+                },
+                t
+              )}
+            </p>
+          </div>
+        </div>
+        {(() => {
+          const finAlerts = buildAnalyticsAlerts(
+            {
+              payroll_total: data.payroll_total,
+              payroll_record: data.payroll_record,
+              config: data.config,
+            },
+            null,
+            locale
+          );
+          if (finAlerts.length === 0) return null;
+          return (
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs text-amber-900">
+              <span className="font-semibold">{t("Open alerts:", "Cảnh báo:")}</span>{" "}
+              {finAlerts
+                .slice(0, 4)
+                .map((a) => (isVi ? a.titleVi : a.titleEn))
+                .join(" · ")}
+            </div>
+          );
+        })()}
+      </div>
+
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -332,27 +441,100 @@ export default function FinanceTab({
         </button>
       </div>
 
-      {/* A — Summary */}
+      {/* A — Cash-oriented summary (aligned with Executive) */}
+      <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4 text-sm text-indigo-950 mb-2">
+        <p className="font-semibold text-indigo-900">{t("Cash view (primary)", "Theo dòng tiền (chính)")}</p>
+        <p className="text-xs text-indigo-800/90 mt-1">
+          {t(
+            "“Operating profit” from recognized revenue is not enabled yet — profit below is revenue minus prorated accrued costs for the selected period.",
+            "P&L ghi nhận doanh thu chưa bật — lợi nhuận bên dưới là doanh thu trừ chi phí dồn tích (theo tỷ lệ kỳ)."
+          )}
+        </p>
+      </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {[
-          { label: t("Revenue (MTD)", "Doanh thu (tháng)"), value: fmt(data.revenue_mtd), cls: "border-emerald-200 bg-emerald-50/60" },
-          { label: t("Costs (MTD)", "Chi phí (tháng)"), value: fmt(data.monthly_costs), cls: "border-amber-200 bg-amber-50/60" },
-          { label: t("Profit", "Lợi nhuận"), value: fmt(data.profit), cls: "border-slate-200 bg-slate-50" },
           {
-            label: t("Runway", "Thời gian còn quỹ"),
-            value:
-              data.runway_months != null
-                ? `${data.runway_months} ${t("mo", "tháng")}`
-                : t("—", "—"),
+            label: t(`Cash sales ${getHorizonSuffix(horizon)}`, `Bán thu tiền ${getHorizonSuffix(horizon)}`),
+            value: fmt(data.cash_sales_mtd ?? data.revenue_mtd),
+            sub:
+              (data.refunds_mtd ?? 0) > 0
+                ? t(`incl. net of refunds (${fmt(data.refunds_mtd ?? 0)} ref.)`, `đã trừ hoàn (${fmt(data.refunds_mtd ?? 0)})`)
+                : undefined,
+            cls: "border-emerald-200 bg-emerald-50/60",
+          },
+          {
+            label: t(`Net cash flow ${getHorizonSuffix(horizon)}`, `Dòng tiền ròng ${getHorizonSuffix(horizon)}`),
+            value: data.net_cash_flow_mtd != null ? fmt(data.net_cash_flow_mtd) : "—",
+            cls: "border-teal-200 bg-teal-50/50",
+          },
+          {
+            label: t(`Costs ${getHorizonSuffix(horizon)} (accrued mix)`, `Chi phí ${getHorizonSuffix(horizon)} (dồn tích)`),
+            value: fmt(data.monthly_costs),
+            cls: "border-amber-200 bg-amber-50/60",
+          },
+          {
+            label: t("Period surplus (approx.)", "Chênh lệch kỳ (ước tính)"),
+            value: fmt(data.profit),
+            sub: t("Not operating P&L", "Không phải P&L ghi nhận"),
+            cls: "border-slate-200 bg-slate-50",
+          },
+          {
+            label: t("Runway", "Đường băng"),
+            value: formatRunway(
+              {
+                runway_months: data.runway_months,
+                runway_display: data.runway_display,
+                config: data.config,
+              },
+              t
+            ),
             cls: "border-sky-200 bg-sky-50/60",
           },
         ].map((c) => (
           <div key={c.label} className={`rounded-xl border p-4 ${c.cls}`}>
             <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">{c.label}</p>
             <p className="text-lg font-bold text-slate-900 mt-1 break-words">{c.value}</p>
+            {"sub" in c && c.sub ? <p className="text-[11px] text-slate-500 mt-0.5">{c.sub}</p> : null}
           </div>
         ))}
       </div>
+
+      {/* Cash view chart: in vs out */}
+      {data.cash_in_out_over_time && data.cash_in_out_over_time.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 md:p-6">
+          <p className="text-sm font-semibold text-slate-800 mb-3">
+            {t(`Cash in vs out ${getHorizonSuffix(horizon)}`, `Tiền vào vs ra ${getHorizonSuffix(horizon)}`)}
+          </p>
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.cash_in_out_over_time} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                <Tooltip
+                  formatter={(v: unknown) => [typeof v === "number" ? (v as number).toLocaleString("vi-VN") + " VND" : String(v ?? 0), ""]}
+                  labelFormatter={(l) => t("Date", "Ngày") + ": " + l}
+                />
+                <Legend />
+                <Bar dataKey="cash_in" name={t("Cash in", "Tiền vào")} fill="#0f766e" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="cash_out" name={t("Cash out", "Tiền ra")} fill="#b91c1c" radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {data.recognized_revenue_reliable === false && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+          <p className="font-semibold text-slate-900">{t("Operating / accrual P&L", "P&L dồn tích")}</p>
+          <p className="text-xs text-slate-600 mt-1">
+            {t(
+              "Operating / accrual view with true revenue recognition is not fully supported yet. This tab prioritizes cash sales and recorded obligations.",
+              "Chế độ P&L ghi nhận doanh thu đầy đủ chưa hỗ trợ. Tab này ưu tiên tiền vào và nghĩa vụ đã ghi."
+            )}
+          </p>
+        </div>
+      )}
 
       {/* B — Fixed costs */}
       <div className="rounded-xl border border-slate-200 bg-white p-4 md:p-6 overflow-hidden">
@@ -419,7 +601,7 @@ export default function FinanceTab({
                 <th className="text-left py-3 px-4 font-semibold text-slate-700">{t("Staff", "Nhân sự")}</th>
                 <th className="text-left py-3 px-4 font-semibold text-slate-700">{t("Type", "Loại")}</th>
                 <th className="text-right py-3 px-4 font-semibold text-slate-700">{t("Base", "Cố định")}</th>
-                <th className="text-right py-3 px-4 font-semibold text-slate-700">{t("Sales MTD", "DS POS")}</th>
+                <th className="text-right py-3 px-4 font-semibold text-slate-700">{t(`Sales ${getHorizonSuffix(horizon)}`, `DS ${getHorizonSuffix(horizon)}`)}</th>
                 <th className="text-right py-3 px-4 font-semibold text-slate-700">{t("Variable", "Biến đổi")}</th>
                 <th className="text-right py-3 px-4 font-semibold text-slate-700">{t("Total", "Tổng")}</th>
                 <th className="py-3 px-4" />
@@ -525,7 +707,7 @@ export default function FinanceTab({
       {/* C — Expenses */}
       <div className="rounded-xl border border-slate-200 bg-white p-4 md:p-6 overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-          <p className="text-sm font-semibold text-slate-800">{t("Expenses (MTD)", "Chi phí (tháng này)")}</p>
+          <p className="text-sm font-semibold text-slate-800">{t(`Expenses ${getHorizonSuffix(horizon)}`, `Chi phí ${getHorizonSuffix(horizon)}`)}</p>
           <button
             type="button"
             onClick={() => setExpenseOpen(true)}
@@ -543,27 +725,61 @@ export default function FinanceTab({
                 <th className="text-left py-3 px-4 font-semibold text-slate-700">{t("Item", "Mục")}</th>
                 <th className="text-right py-3 px-4 font-semibold text-slate-700">{t("Qty", "SL")}</th>
                 <th className="text-right py-3 px-4 font-semibold text-slate-700">{t("Cost", "Chi phí")}</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">{t("Status", "Trạng thái")}</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">{t("Paid at", "Ngày trả")}</th>
                 <th className="text-left py-3 px-4 font-semibold text-slate-700">{t("By", "Bởi")}</th>
+                <th className="py-3 px-4" />
               </tr>
             </thead>
             <tbody>
               {data.expenses_list.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-6 text-center text-slate-500">
+                  <td colSpan={9} className="py-6 text-center text-slate-500">
                     {t("No expenses this month.", "Chưa có chi phí tháng này.")}
                   </td>
                 </tr>
               ) : (
-                data.expenses_list.map((e) => (
-                  <tr key={String(e.id)} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="py-2 px-4 text-slate-800">{String(e.expense_date)}</td>
-                    <td className="py-2 px-4 text-slate-700">{String(e.category)}</td>
-                    <td className="py-2 px-4 text-slate-900 font-medium">{String(e.item_name)}</td>
-                    <td className="py-2 px-4 text-right text-slate-700">{String(e.quantity)}</td>
-                    <td className="py-2 px-4 text-right font-medium text-slate-900">{fmt(Number(e.cost))}</td>
-                    <td className="py-2 px-4 text-slate-600 text-xs">{String(e.created_by_name ?? "—")}</td>
-                  </tr>
-                ))
+                data.expenses_list.map((e) => {
+                  const status = (e.status as string) || "pending";
+                  const paidAt = e.paid_at as string | null | undefined;
+                  return (
+                    <tr key={String(e.id)} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="py-2 px-4 text-slate-800">{String(e.expense_date)}</td>
+                      <td className="py-2 px-4 text-slate-700">{String(e.category)}</td>
+                      <td className="py-2 px-4 text-slate-900 font-medium">{String(e.item_name)}</td>
+                      <td className="py-2 px-4 text-right text-slate-700">{String(e.quantity)}</td>
+                      <td className="py-2 px-4 text-right font-medium text-slate-900">{fmt(Number(e.cost))}</td>
+                      <td className="py-2 px-4">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status === "paid" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                          {status === "paid" ? t("Paid", "Đã trả") : t("Pending", "Chờ trả")}
+                        </span>
+                      </td>
+                      <td className="py-2 px-4 text-slate-600 text-xs">
+                        {paidAt ? new Date(paidAt).toLocaleString(locale === "vi" ? "vi-VN" : "en-US", { dateStyle: "short", timeStyle: "short" }) : "—"}
+                      </td>
+                      <td className="py-2 px-4 text-slate-600 text-xs">{String(e.created_by_name ?? "—")}</td>
+                      <td className="py-2 px-4">
+                        {status === "paid" ? (
+                          <button
+                            type="button"
+                            onClick={() => markExpensePaid(String(e.id), false)}
+                            className="text-xs px-2 py-1 rounded border border-slate-300 text-slate-600 hover:bg-slate-100"
+                          >
+                            {t("Undo", "Hoàn tác")}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => markExpensePaid(String(e.id), true)}
+                            className="text-xs px-2 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-500"
+                          >
+                            {t("Mark paid", "Đã trả")}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -626,19 +842,31 @@ export default function FinanceTab({
                     <th className="text-left py-2 px-2">{t("Cat.", "Loại")}</th>
                     <th className="text-left py-2 px-2">{t("Item", "Mục")}</th>
                     <th className="text-right py-2 px-2">{t("Cost", "Tiền")}</th>
+                    <th className="text-left py-2 px-2">{t("Status", "TT")}</th>
+                    <th className="text-left py-2 px-2">{t("Paid at", "Ngày trả")}</th>
                     <th className="text-left py-2 px-2">{t("By", "Người ghi")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {ledger.map((e) => (
+                  {ledger.map((e) => {
+                    const st = (e.status as string) || "pending";
+                    const pa = e.paid_at as string | null | undefined;
+                    return (
                     <tr key={String(e.id)} className="border-b border-slate-100">
                       <td className="py-1.5 px-2">{String(e.expense_date)}</td>
                       <td className="py-1.5 px-2">{String(e.category)}</td>
                       <td className="py-1.5 px-2">{String(e.item_name)}</td>
                       <td className="py-1.5 px-2 text-right">{fmt(Number(e.cost))}</td>
+                      <td className="py-1.5 px-2">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${st === "paid" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                          {st === "paid" ? t("Paid", "Đã trả") : t("Pending", "Chờ")}
+                        </span>
+                      </td>
+                      <td className="py-1.5 px-2 text-slate-600">{pa ? new Date(pa).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US") : "—"}</td>
                       <td className="py-1.5 px-2">{String(e.created_by_name ?? "—")}</td>
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
             </div>

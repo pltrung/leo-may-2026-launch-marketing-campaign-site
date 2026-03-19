@@ -8,6 +8,7 @@ import { getMessages } from "@/lib/messages";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import type { Locale } from "@/lib/i18n";
 import { formatInGymTZ, getGymToday, getGymDateFromISO, getCurrentPhase } from "@/lib/gymTimezone";
+import { getPeriodRange } from "@/lib/admin/analytics/periodUtils";
 import { formatVndCompact } from "@/lib/formatVndCompact";
 import { getStaffTaskTitle } from "@/lib/staffTaskTitles";
 import { parseCccdPipeDelimited } from "@/lib/vnEidQr";
@@ -327,6 +328,7 @@ export default function AdminPage() {
     "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance"
   >("overview");
   const [analyticsPeriod, setAnalyticsPeriod] = useState<"day" | "week" | "month" | "quarter" | "custom">("month");
+  const [analyticsTimeHorizon, setAnalyticsTimeHorizon] = useState<"wtd" | "mtd" | "qtd" | "ytd">("mtd");
   const [analyticsFrom, setAnalyticsFrom] = useState("");
   const [analyticsTo, setAnalyticsTo] = useState("");
   const [analyticsMemberType, setAnalyticsMemberType] = useState<"all" | "member" | "newbie" | "casual">("all");
@@ -356,6 +358,8 @@ export default function AdminPage() {
     staff?: { staff_id: string; display_name: string; email: string; role: string; sales: number; commission: number; tasks_completed: number; attendance_days: number }[];
   } | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsFetchedAt, setAnalyticsFetchedAt] = useState<string | null>(null);
+  const [executiveAlertsCount, setExecutiveAlertsCount] = useState(0);
   const [onboardingAnalytics, setOnboardingAnalytics] = useState<{
     byStaff: {
       staff_name: string;
@@ -759,6 +763,7 @@ export default function AdminPage() {
     if (adminArea !== "analytics" || !canAccessAnalytics) return;
     setAnalyticsLoading(true);
     const params = new URLSearchParams();
+    params.set("horizon", analyticsTimeHorizon);
     params.set("period", analyticsPeriod === "custom" ? "month" : analyticsPeriod);
     if (analyticsPeriod === "custom" && analyticsFrom && analyticsTo) {
       params.set("from", analyticsFrom);
@@ -769,9 +774,17 @@ export default function AdminPage() {
     params.set("activity_level", analyticsActivityLevel);
     adminFetch(`/api/admin/analytics?${params.toString()}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { setAnalyticsData(d); setAnalyticsLoading(false); })
-      .catch(() => { setAnalyticsData(null); setAnalyticsLoading(false); });
-  }, [adminArea, canAccessAnalytics, analyticsPeriod, analyticsFrom, analyticsTo, analyticsMemberType, analyticsActivity, analyticsActivityLevel, adminFetch]);
+      .then((d) => {
+        setAnalyticsData(d);
+        setAnalyticsFetchedAt(d?.fetched_at ?? new Date().toISOString());
+        setAnalyticsLoading(false);
+      })
+      .catch(() => {
+        setAnalyticsData(null);
+        setAnalyticsFetchedAt(null);
+        setAnalyticsLoading(false);
+      });
+  }, [adminArea, canAccessAnalytics, analyticsTimeHorizon, analyticsPeriod, analyticsFrom, analyticsTo, analyticsMemberType, analyticsActivity, analyticsActivityLevel, adminFetch]);
 
   useEffect(() => {
     if (adminArea !== "analytics" || analyticsTab !== "ops_team" || !canAccessAnalytics) return;
@@ -4999,10 +5012,20 @@ export default function AdminPage() {
               <h2 className="text-lg font-semibold text-slate-900">{locale === "vi" ? "Phân tích & Báo cáo" : "Analytics & Reporting"}</h2>
               <p className="text-sm text-slate-600 mt-1">{locale === "vi" ? "Tab đầu là tóm tắt điều hành; các tab sau chi tiết từng mảng (doanh thu, thành viên, email, v.v.)." : "First tab is the executive summary; other tabs drill into each area (revenue, members, email, etc.)."}</p>
 
-              {/* Global filters (hidden on Finance — forecast lives there as second tab) */}
-              {analyticsTab !== "finance" && (
+              {/* Global filters — time horizon applies to all tabs including Finance */}
               <div className="mt-4 flex flex-wrap gap-3 items-center rounded-xl border border-slate-200 bg-slate-50 p-3" data-tour="analytics-filters">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{locale === "vi" ? "Bộ lọc" : "Filters"}</span>
+                <select
+                  value={analyticsTimeHorizon}
+                  onChange={(e) => setAnalyticsTimeHorizon(e.target.value as "wtd" | "mtd" | "qtd" | "ytd")}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 font-medium"
+                  title={locale === "vi" ? "Chọn khoảng thời gian (WTD/Tuần, MTD/Tháng, QTD/Quý, YTD/Năm)" : "Select time horizon (WTD/MTD/QTD/YTD)"}
+                >
+                  <option value="wtd">{locale === "vi" ? "Từ đầu tuần (WTD)" : "Week to date (WTD)"}</option>
+                  <option value="mtd">{locale === "vi" ? "Từ đầu tháng (MTD)" : "Month to date (MTD)"}</option>
+                  <option value="qtd">{locale === "vi" ? "Từ đầu quý (QTD)" : "Quarter to date (QTD)"}</option>
+                  <option value="ytd">{locale === "vi" ? "Từ đầu năm (YTD)" : "Year to date (YTD)"}</option>
+                </select>
                 <select
                   value={analyticsPeriod}
                   onChange={(e) => setAnalyticsPeriod(e.target.value as "day" | "week" | "month" | "quarter" | "custom")}
@@ -5052,7 +5075,6 @@ export default function AdminPage() {
                   <option value="inactive">{locale === "vi" ? "Không hoạt động" : "Inactive"}</option>
                 </select>
               </div>
-              )}
 
               {/* Analytics sub-tabs */}
               <nav className="mt-4 flex gap-1 p-1 border-b border-slate-200 overflow-x-auto" aria-label="Analytics tabs">
@@ -5076,16 +5098,68 @@ export default function AdminPage() {
                 ))}
               </nav>
 
+              <div className="sticky top-0 z-10 mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-slate-200 bg-slate-50/95 backdrop-blur-sm px-3 py-2 text-xs text-slate-700">
+                <span>
+                  <span className="font-semibold text-slate-500 uppercase tracking-wide mr-1">
+                    {locale === "vi" ? "Cập nhật" : "Last refreshed"}:
+                  </span>
+                  {analyticsTab === "finance"
+                    ? "—"
+                    : analyticsFetchedAt
+                      ? new Date(analyticsFetchedAt).toLocaleString(locale === "vi" ? "vi-VN" : "en-US", {
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        })
+                      : analyticsLoading
+                        ? "…"
+                        : "—"}
+                </span>
+                <span
+                  className="rounded-md border border-slate-200 bg-white px-2 py-0.5 font-medium text-slate-800"
+                  title={(() => {
+                    const r = getPeriodRange(analyticsTimeHorizon);
+                    return `${r.sinceDate} – ${r.untilDate}`;
+                  })()}
+                >
+                  {analyticsTimeHorizon.toUpperCase()}: {(() => {
+                    const r = getPeriodRange(analyticsTimeHorizon);
+                    return `${r.sinceDate} – ${r.untilDate}`;
+                  })()}
+                </span>
+                <span
+                  className="rounded-md border border-slate-200 bg-white px-2 py-0.5 font-medium text-slate-800"
+                  title={
+                    locale === "vi"
+                      ? "Một số chỉ tiêu theo tiền mặt, một số theo dồn tích ước tính — xem từng tab."
+                      : "Some KPIs are cash-based, others accrual-style estimates — see each tab."
+                  }
+                >
+                  {locale === "vi" ? "Cơ sở: hỗn hợp" : "Basis: mixed"}
+                </span>
+                {analyticsTab !== "finance" && (
+                  <span>
+                    <span className="font-semibold text-slate-500 uppercase tracking-wide mr-1">
+                      {locale === "vi" ? "Cảnh báo mở" : "Open alerts"}:
+                    </span>
+                    {analyticsTab === "overview" ? executiveAlertsCount : "—"}
+                    <span className="text-slate-400 ml-1">({locale === "vi" ? "tab Điều hành" : "Executive tab"})</span>
+                  </span>
+                )}
+              </div>
+
               <div className="mt-6 min-w-0 max-w-full">
                 {analyticsTab === "finance" ? (
-                  <FinanceTab adminFetch={adminFetch} locale={locale} />
+                  <FinanceTab adminFetch={adminFetch} locale={locale} horizon={analyticsTimeHorizon} />
                 ) : (
                   <AnalyticsCharts
                     data={analyticsData}
                     tab={analyticsTab}
                     locale={locale}
+                    horizon={analyticsTimeHorizon}
                     loading={analyticsLoading}
                     adminFetch={canAccessAnalytics ? adminFetch : undefined}
+                    onOpenAnalyticsTab={setAnalyticsTab}
+                    onExecutiveAlertsCount={setExecutiveAlertsCount}
                     onboardingExtra={
                       analyticsTab === "ops_team" ? (
                         onboardingAnalyticsLoading ? (

@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { renderBody } from "@/lib/campaignSegments";
 import { MARKETING_AUDIENCES } from "@/lib/marketingAudienceQueries";
+import { SEGMENT_GROUPS, type CampaignSegmentId } from "@/lib/campaignSegments";
 import {
   LineChart,
   Line,
@@ -15,10 +16,26 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import ExecutiveSummary from "@/components/admin/ExecutiveSummary";
+import { getHorizonSuffix } from "@/lib/admin/analytics/periodUtils";
 export type AdminFetch = (url: string, options?: RequestInit) => Promise<Response>;
 
 export type AnalyticsData = {
-  filters?: { period: string; since: string; until: string; member_type: string; activity: string };
+  fetched_at?: string;
+  ceo_snapshot?: {
+    checkins_today: number;
+    newbie_class_sessions_today: number;
+    current_paying_members: number;
+    renewals_mtd: number;
+    new_members_mtd: number;
+    expiring_7d_all: number;
+    expiring_30d_all: number;
+  };
+  retention_cohort?: {
+    d1: { pct: number; numerator: number; denominator: number };
+    d7: { pct: number; numerator: number; denominator: number };
+    d30: { pct: number; numerator: number; denominator: number };
+  };
+  filters?: { period: string; since: string; until: string; period_horizon?: "wtd" | "mtd" | "qtd" | "ytd" | null; member_type: string; activity: string };
   overview?: { total_revenue: number; total_members: number; active_members: number; total_visits: number };
   revenue?: {
     total: number;
@@ -43,6 +60,7 @@ export type AnalyticsData = {
       at_risk: number;
       inactive: number;
       expiring_soon: number;
+      expiring_30_days?: number;
       by_plan: Record<string, { active: number; at_risk: number; inactive: number; expiring_soon: number }>;
     };
     newbie_conversion_funnel?: {
@@ -130,17 +148,25 @@ export default function AnalyticsCharts({
   data,
   tab,
   locale,
+  horizon = "mtd",
   loading,
   adminFetch,
   onboardingExtra,
+  onOpenAnalyticsTab,
+  onExecutiveAlertsCount,
 }: {
   data: AnalyticsData | null;
   tab: string;
   locale: string;
+  horizon?: "wtd" | "mtd" | "qtd" | "ytd";
   loading: boolean;
   adminFetch?: AdminFetch;
   /** Shown under Ops & people — staff onboarding training table */
   onboardingExtra?: React.ReactNode;
+  onOpenAnalyticsTab?: (
+    t: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance"
+  ) => void;
+  onExecutiveAlertsCount?: (n: number) => void;
 }) {
   const isVi = locale === "vi";
   const t = (en: string, vi: string) => (isVi ? vi : en);
@@ -168,6 +194,7 @@ export default function AnalyticsCharts({
   const [campaignSuccess, setCampaignSuccess] = useState<number | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [campaignLogs, setCampaignLogs] = useState<{ id: string; segment: string; subject: string; recipient_count: number; sent_at: string; status: string; promo_code?: string | null; redemption_count?: number }[]>([]);
+  const [showEmptySegments, setShowEmptySegments] = useState(false);
 
   const fetchCampaignLogs = useCallback(() => {
     if (!adminFetch) return;
@@ -334,34 +361,98 @@ export default function AnalyticsCharts({
             <button
               type="button"
               onClick={openCreateCampaign}
-              className="mb-4 w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 border border-slate-800 shadow-sm"
+              className="mb-6 w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 border border-slate-800 shadow-sm"
             >
               {t("Create a new campaign", "Tạo chiến dịch mới")}
             </button>
-            <p className="text-xs text-teal-700/90 mb-4 font-medium">{t("Pre-built segments", "Nhóm có sẵn")}</p>
-            {campaignSegmentsLoading ? (
-              <p className="text-sm text-slate-500">{t("Loading segments…", "Đang tải nhóm…")}</p>
-            ) : (
-              <ul className="space-y-3">
-                {campaignSegments.map((seg) => (
-                  <li key={seg.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-lg bg-white border border-teal-100">
-                    <div>
-                      <span className="font-medium text-slate-900">{isVi ? seg.nameVi : seg.nameEn}</span>
-                      <span className="ml-2 text-slate-600">({seg.count})</span>
-                      <p className="text-xs text-slate-500 mt-0.5">{isVi ? seg.descriptionVi : seg.descriptionEn}</p>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={seg.count === 0}
-                      onClick={() => openCampaignModal(seg)}
-                      className="shrink-0 px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+
+            {/* Campaign segments — grouped: Lifecycle, Retention, Upsell */}
+            <section className="mb-6">
+              <h3 className="text-xs font-bold text-teal-800 uppercase tracking-wider mb-2">
+                {t("Campaign segments", "Nhóm chiến dịch")}
+              </h3>
+              <p className="text-xs text-teal-700/90 mb-2">{t("Targeted cohorts with pre-built templates, grouped by focus.", "Đối tượng có mẫu sẵn, nhóm theo mục tiêu.")}</p>
+              <label className="flex items-center gap-2 text-xs text-teal-900 mb-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showEmptySegments}
+                  onChange={(e) => setShowEmptySegments(e.target.checked)}
+                />
+                {t("Show empty segments (0 recipients)", "Hiện nhóm rỗng (0 người nhận)")}
+              </label>
+              {campaignSegmentsLoading ? (
+                <p className="text-sm text-slate-500">{t("Loading segments…", "Đang tải nhóm…")}</p>
+              ) : (
+                <div className="space-y-6">
+                  {SEGMENT_GROUPS.map((grp) => {
+                    const segs = campaignSegments.filter((s) => grp.segmentIds.includes(s.id as CampaignSegmentId));
+                    const visible = showEmptySegments ? segs : segs.filter((s) => s.count > 0);
+                    if (visible.length === 0) return null;
+                    return (
+                      <div key={grp.id} className="rounded-lg border border-teal-200 bg-teal-50/30 p-3">
+                        <h4 className="text-xs font-semibold text-teal-900 uppercase tracking-wide mb-2">
+                          {isVi ? grp.nameVi : grp.nameEn}
+                        </h4>
+                        <ul className="space-y-2">
+                          {visible.map((seg) => (
+                            <li key={seg.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2 rounded-lg bg-white border border-teal-100">
+                              <div>
+                                <span className="font-medium text-slate-900">{isVi ? seg.nameVi : seg.nameEn}</span>
+                                <span className="ml-2 text-slate-600">({seg.count})</span>
+                                <p className="text-xs text-slate-500 mt-0.5">{isVi ? seg.descriptionVi : seg.descriptionEn}</p>
+                              </div>
+                              <button
+                                type="button"
+                                disabled={seg.count === 0}
+                                onClick={() => openCampaignModal(seg)}
+                                className="shrink-0 px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {isVi ? seg.ctaVi : seg.ctaEn}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* Audiences — keyed by MarketingAudienceId */}
+            <section>
+              <h3 className="text-xs font-bold text-teal-800 uppercase tracking-wider mb-2">
+                {t("Audiences", "Đối tượng rộng")}
+              </h3>
+              <p className="text-xs text-teal-700/90 mb-3">{t("Broad audiences for custom campaigns (used in Create campaign above).", "Đối tượng rộng cho chiến dịch tùy chỉnh.")}</p>
+              {campaignSegmentsLoading ? (
+                <p className="text-sm text-slate-500">{t("Loading…", "Đang tải…")}</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {marketingAudiences.map((a) => (
+                    <div
+                      key={a.id}
+                      className="p-3 rounded-lg bg-white/80 border border-teal-100 flex flex-col gap-1"
                     >
-                      {isVi ? seg.ctaVi : seg.ctaEn}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+                      <span className="font-medium text-slate-900">{isVi ? a.nameVi : a.nameEn}</span>
+                      <span className="text-sm text-teal-600">{a.count} {t("recipients", "người nhận")}</span>
+                      <p className="text-xs text-slate-500 line-clamp-2">{isVi ? a.descriptionVi : a.descriptionEn}</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCreateAudienceId(a.id);
+                          setCreateCampaignOpen(true);
+                        }}
+                        className="mt-1 text-xs text-teal-600 hover:text-teal-800 font-medium self-start"
+                      >
+                        {t("Use for campaign →", "Dùng cho chiến dịch →")}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
             {campaignLogs.length > 0 && (
               <div className="mt-6 pt-4 border-t border-teal-200">
                 <p className="text-sm font-semibold text-teal-900 mb-2">{t("Recent sends", "Đã gửi gần đây")}</p>
@@ -561,13 +652,29 @@ export default function AnalyticsCharts({
   }
 
   if (tab === "overview" && data) {
-    return <ExecutiveSummary data={data} locale={locale} adminFetch={adminFetch} />;
+    return (
+      <ExecutiveSummary
+        data={data}
+        locale={locale}
+        horizon={horizon}
+        adminFetch={adminFetch}
+        onOpenTab={onOpenAnalyticsTab}
+        onAlertsCount={onExecutiveAlertsCount}
+      />
+    );
   }
 
   if (tab === "revenue_members") {
     const r: Partial<NonNullable<AnalyticsData["revenue"]>> = data?.revenue ?? {};
     const byCat = r.by_category ?? {};
     const catEntries = Object.entries(byCat).filter(([, v]) => v > 0);
+    const cashTotal = r.total ?? 0;
+    const membershipMtd = byCat.membership ?? 0;
+    const passMtd = (byCat.day_pass ?? 0) + (byCat.visit_pass ?? 0);
+    const classMtd = byCat.newbie ?? 0;
+    const merchMtd = (byCat.merch ?? 0) + (byCat.rental ?? 0);
+    const payingMembers = data?.ceo_snapshot?.current_paying_members ?? 0;
+    const aovContext = payingMembers > 0 ? Math.round(cashTotal / payingMembers) : 0;
     const m: Partial<NonNullable<AnalyticsData["members"]>> = data?.members ?? {};
     const isViMem = locale === "vi";
     const newOverTime = m.new_over_time ?? [];
@@ -588,11 +695,27 @@ export default function AnalyticsCharts({
           <h2 className="text-lg font-semibold text-slate-900 mb-1">{t("Revenue", "Doanh thu")}</h2>
           <p className="text-xs text-slate-500 mb-4">{t("Income and trends for the selected period.", "Thu nhập và xu hướng trong kỳ đã chọn.")}</p>
           <div className="space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <KpiCard label={t("Total revenue", "Tổng doanh thu")} value={`${(r.total ?? 0).toLocaleString("vi-VN")} VND`} />
-              <KpiCard label={t("ARPU", "Doanh thu / người")} value={`${(r.arpu ?? 0).toLocaleString("vi-VN")} VND`} />
-              <KpiCard label={t("Revenue per visit", "Doanh thu / lượt")} value={`${(r.revenue_per_visit ?? 0).toLocaleString("vi-VN")} VND`} />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <KpiCard
+                label={t(`Cash sales ${getHorizonSuffix(horizon)}`, `Bán thu tiền ${getHorizonSuffix(horizon)}`)}
+                value={`${cashTotal.toLocaleString("vi-VN")} VND`}
+                sub={t("Same basis as Finance tab", "Cùng cơ sở với Tài chính")}
+              />
+              <KpiCard label={t(`Membership sales ${getHorizonSuffix(horizon)}`, `Bán gói ${getHorizonSuffix(horizon)}`)} value={`${membershipMtd.toLocaleString("vi-VN")} VND`} />
+              <KpiCard label={t(`Day / visit passes ${getHorizonSuffix(horizon)}`, `Vé ngày / lượt ${getHorizonSuffix(horizon)}`)} value={`${passMtd.toLocaleString("vi-VN")} VND`} />
+              <KpiCard
+                label={t(`Class / newbie ${getHorizonSuffix(horizon)}`, `Lớp / newbie ${getHorizonSuffix(horizon)}`)}
+                value={`${classMtd.toLocaleString("vi-VN")} VND`}
+              />
+              <KpiCard label={t(`Merch & retail ${getHorizonSuffix(horizon)}`, `Bán lẻ ${getHorizonSuffix(horizon)}`)} value={`${merchMtd.toLocaleString("vi-VN")} VND`} />
+              <KpiCard label={t(`Renewals ${getHorizonSuffix(horizon)}`, `Gia hạn ${getHorizonSuffix(horizon)}`)} value={data?.ceo_snapshot?.renewals_mtd ?? "—"} />
             </div>
+            <p className="text-[11px] text-slate-500 mt-2">
+              {t("Secondary:", "Phụ:")}{" "}
+              {t("Approx. cash ÷ paying members", "Ước tiền ÷ TV trả phí")}{" "}
+              {aovContext > 0 ? `≈ ${aovContext.toLocaleString("vi-VN")} VND — ` : ""}
+              {t("distorted by prepayments; not primary KPI.", "lệch khi trả trước; không phải KPI chính.")}
+            </p>
             {catEntries.length > 0 && (
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <p className="text-sm font-semibold text-slate-700 mb-3">{t("Revenue by category", "Doanh thu theo danh mục")}</p>
@@ -628,12 +751,42 @@ export default function AnalyticsCharts({
           <h2 className="text-lg font-semibold text-slate-900 mb-1">{t("Members", "Thành viên")}</h2>
           <p className="text-xs text-slate-500 mb-4">{t("Base size, plans, health, and growth.", "Quy mô, gói, sức khỏe cơ sở và tăng trưởng.")}</p>
           <div className="space-y-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <KpiCard label={t("Total members", "Tổng thành viên")} value={m.total ?? 0} />
-              <KpiCard label={t("Active (in period)", "Hoạt động (trong kỳ)")} value={m.active ?? 0} />
-              <KpiCard label={t("Churn rate", "Tỷ lệ rời bỏ")} value={`${m.churn_rate ?? 0}%`} />
-              <KpiCard label={t("Avg visits per member", "TB lượt / thành viên")} value={m.avg_visits_per_member ?? 0} />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <KpiCard
+                label={t("Current paying members", "TV đang trả phí")}
+                value={data?.ceo_snapshot?.current_paying_members ?? "—"}
+                sub={t("All active memberships (snapshot)", "Tất cả gói còn hạn")}
+              />
+              <KpiCard label={t(`Active members ${getHorizonSuffix(horizon)}`, `TV hoạt động ${getHorizonSuffix(horizon)}`)} value={m.active ?? 0} />
+              <KpiCard label={t(`New members ${getHorizonSuffix(horizon)}`, `TV mới ${getHorizonSuffix(horizon)}`)} value={data?.ceo_snapshot?.new_members_mtd ?? "—"} />
+              <KpiCard label={t("Expiring in 7 days", "Hết hạn 7 ngày")} value={data?.ceo_snapshot?.expiring_7d_all ?? "—"} />
+              <KpiCard label={t("Expiring in 14 days", "Hết hạn 14 ngày")} value={(data?.ceo_snapshot as { expiring_14d_all?: number })?.expiring_14d_all ?? "—"} />
+              <KpiCard label={t("Expiring in 30 days", "Hết hạn 30 ngày")} value={data?.ceo_snapshot?.expiring_30d_all ?? "—"} />
+              <KpiCard
+                label={t("Visits / active member", "Lượt / TV hoạt động")}
+                value={
+                  (m.active ?? 0) > 0 ? ((data?.overview?.total_visits ?? 0) / (m.active ?? 1)).toFixed(2) : "—"
+                }
+              />
             </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-sm font-semibold text-slate-800 mb-3">{t("Expiry & renewal pipeline", "Hết hạn & gia hạn")}</p>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <KpiCard label={t("Expiring ≤7d", "Hết hạn ≤7 ngày")} value={data?.ceo_snapshot?.expiring_7d_all ?? "—"} />
+                <KpiCard label={t("Expiring 8–14d", "Hết hạn 8–14 ngày")} value={(data?.ceo_snapshot as { expiring_14d_all?: number })?.expiring_14d_all ?? "—"} />
+                <KpiCard
+                  label={t("Expiring 15–30d", "Hết hạn 15–30 ngày")}
+                  value={Math.max(0, (data?.ceo_snapshot?.expiring_30d_all ?? 0) - ((data?.ceo_snapshot as { expiring_14d_all?: number })?.expiring_14d_all ?? 0) - (data?.ceo_snapshot?.expiring_7d_all ?? 0))}
+                />
+                <KpiCard label={t("Renewed already", "Đã gia hạn")} value={data?.ceo_snapshot?.renewals_mtd ?? "—"} sub={getHorizonSuffix(horizon)} />
+                <KpiCard label={t("Not renewed yet", "Chưa gia hạn")} value="—" sub={t("Expired; not tracked", "Đã hết hạn; chưa theo dõi")} />
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-2">
+              {t("Filtered cohort (filters above):", "Có lọc:")} {m.total ?? 0}{" "}
+              {t("members in segment", "TV trong phân đoạn")}; {t("churn", "rời bỏ")}{" "}
+              {m.churn_rate ?? 0}%
+            </p>
             {dist && (
               <div className="rounded-xl border border-slate-200 bg-white p-4 md:p-6">
                 <p className="text-sm font-semibold text-slate-800 mb-4">{t("Membership distribution", "Phân bố gói thành viên")}</p>
@@ -760,28 +913,63 @@ export default function AnalyticsCharts({
 
   if (tab === "engagement") {
     const r: Partial<NonNullable<AnalyticsData["retention"]>> = data?.retention ?? {};
+    const rc = data?.retention_cohort;
     const b: Partial<NonNullable<AnalyticsData["behavior"]>> = data?.behavior ?? {};
     const f: Partial<NonNullable<AnalyticsData["funnel"]>> = data?.funnel ?? {};
+    const mh = data?.members?.member_health;
+    const actionInsights = data?.members?.action_insights ?? [];
     const dau = b.dau ?? [];
     const peak = b.peak_hours ?? [];
     const peakData = peak.map(({ hour, count }) => ({ hour: `${hour}:00`, count }));
+    const act = data?.overview?.active_members ?? 0;
+    const visits = data?.overview?.total_visits ?? 0;
+    const vph = act > 0 ? (visits / act).toFixed(2) : "—";
     return (
       <div className="space-y-14">
         <section>
           <h2 className="text-lg font-semibold text-slate-900 mb-1">{t("Retention", "Giữ chân")}</h2>
-          <p className="text-xs text-slate-500 mb-4">{t("Cohort return rates and newbie follow-through.", "Tỷ lệ quay lại và chuyển đổi sau Newbie.")}</p>
+          <p className="text-xs text-slate-500 mb-4">
+            {t(
+              "Cohort retention: eligible = first visit ≥ N days before period end; returned = another visit within N days (distinct users).",
+              "Cohort: đủ điều kiện = lần đầu ≥ N ngày trước cuối kỳ; quay lại = có lượt trong N ngày sau lần đầu."
+            )}
+          </p>
           <div className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <KpiCard label={t("Day 1 retention", "Giữ chân ngày 1")} value={`${r.day1 ?? 0}%`} />
-              <KpiCard label={t("Day 7 retention", "Giữ chân ngày 7")} value={`${r.day7 ?? 0}%`} />
-              <KpiCard label={t("Day 30 retention", "Giữ chân ngày 30")} value={`${r.day30 ?? 0}%`} />
+              <KpiCard
+                label={t("D1 retention", "Giữ chân D1")}
+                value={`${rc?.d1?.pct ?? r.day1 ?? 0}%`}
+                sub={rc ? `${rc.d1.numerator} / ${rc.d1.denominator}` : undefined}
+              />
+              <KpiCard
+                label={t("D7 retention", "Giữ chân D7")}
+                value={`${rc?.d7?.pct ?? r.day7 ?? 0}%`}
+                sub={rc ? `${rc.d7.numerator} / ${rc.d7.denominator}` : undefined}
+              />
+              <KpiCard
+                label={t("D30 retention", "Giữ chân D30")}
+                value={`${rc?.d30?.pct ?? r.day30 ?? 0}%`}
+                sub={rc ? `${rc.d30.numerator} / ${rc.d30.denominator}` : undefined}
+              />
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-4">
               <p className="text-sm font-semibold text-slate-700 mb-3">{t("Newbie class conversion", "Chuyển đổi lớp Newbie")}</p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <KpiCard label={t("% purchased newbie class", "% mua lớp Newbie")} value={`${r.newbie_purchased_pct ?? 0}%`} />
-                <KpiCard label={t("% returned within 7 days", "% quay lại trong 7 ngày")} value={`${r.newbie_return_7_pct ?? 0}%`} />
-                <KpiCard label={t("% returned within 30 days", "% quay lại trong 30 ngày")} value={`${r.newbie_return_30_pct ?? 0}%`} />
+                <KpiCard
+                  label={t("% purchased newbie class", "% mua lớp Newbie")}
+                  value={`${Math.min(100, Math.max(0, r.newbie_purchased_pct ?? 0))}%`}
+                  sub={(r as { newbie_purchased_num?: number; newbie_purchased_den?: number }).newbie_purchased_den != null ? `${(r as { newbie_purchased_num?: number }).newbie_purchased_num ?? 0} / ${(r as { newbie_purchased_den?: number }).newbie_purchased_den}` : undefined}
+                />
+                <KpiCard
+                  label={t("% returned within 7 days", "% quay lại trong 7 ngày")}
+                  value={`${Math.min(100, Math.max(0, r.newbie_return_7_pct ?? 0))}%`}
+                  sub={(r as { newbie_return_7_den?: number }).newbie_return_7_den != null ? `${(r as { newbie_return_7_num?: number }).newbie_return_7_num ?? 0} / ${(r as { newbie_return_7_den?: number }).newbie_return_7_den}` : undefined}
+                />
+                <KpiCard
+                  label={t("% returned within 30 days", "% quay lại trong 30 ngày")}
+                  value={`${Math.min(100, Math.max(0, r.newbie_return_30_pct ?? 0))}%`}
+                  sub={(r as { newbie_return_30_den?: number }).newbie_return_30_den != null ? `${(r as { newbie_return_30_num?: number }).newbie_return_30_num ?? 0} / ${(r as { newbie_return_30_den?: number }).newbie_return_30_den}` : undefined}
+                />
               </div>
             </div>
           </div>
@@ -790,9 +978,16 @@ export default function AnalyticsCharts({
           <h2 className="text-lg font-semibold text-slate-900 mb-1">{t("Visit patterns", "Mẫu đến phòng")}</h2>
           <p className="text-xs text-slate-500 mb-4">{t("When members show up.", "Thời điểm thành viên tới.")}</p>
           <div className="space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <KpiCard label={t("WAU", "Tuần hoạt động")} value={b.wau ?? 0} />
               <KpiCard label={t("MAU", "Tháng hoạt động")} value={b.mau ?? 0} />
+              <KpiCard label={t("Avg days between visits", "TB ngày giữa các lượt")} value={(b as { avg_days_between_visits?: number | null })?.avg_days_between_visits ?? "—"} />
+              <KpiCard label={t("Avg visits / active member", "TB lượt / TV HĐ")} value={vph} />
+              <KpiCard
+                label={t("Visit load (period)", "Tải lượt (kỳ)")}
+                value={visits}
+                sub={t("total visits in filters", "tổng lượt theo lọc")}
+              />
             </div>
             {dau.length > 0 && (
               <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -825,6 +1020,43 @@ export default function AnalyticsCharts({
           </div>
         </section>
         <section className="pt-6 border-t border-slate-200">
+          <h2 className="text-lg font-semibold text-slate-900 mb-1">{t("Follow-up queue", "Hàng chờ theo dõi")}</h2>
+          <p className="text-xs text-slate-500 mb-3">{t("Action insights: members needing outreach with recommended actions.", "Thành viên cần liên hệ với hành động đề xuất.")}</p>
+          {actionInsights.length > 0 ? (
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-100 border-b border-slate-200">
+                    <th className="text-left py-2 px-3 font-semibold text-slate-700">{t("Segment", "Phân đoạn")}</th>
+                    <th className="text-right py-2 px-3 font-semibold text-slate-700">{t("Count", "Số lượng")}</th>
+                    <th className="text-left py-2 px-3 font-semibold text-slate-700">{t("Recommended action", "Hành động đề xuất")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {actionInsights.map((ins, i) => (
+                    <tr key={ins.type + String(i)} className="border-b border-slate-100 last:border-0">
+                      <td className="py-2 px-3 text-slate-900">{locale === "vi" ? ins.label_vi : ins.label_en}</td>
+                      <td className="py-2 px-3 text-right font-semibold tabular-nums text-slate-900">{ins.count}</td>
+                      <td className="py-2 px-3 text-slate-600">{locale === "vi" ? ins.recommendation_vi : ins.recommendation_en}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500 py-4">{t("No action items — all segments healthy.", "Không có việc cần làm — các phân đoạn đều ổn.")}</p>
+          )}
+        </section>
+        <section className="pt-6 border-t border-slate-200">
+          <h2 className="text-lg font-semibold text-slate-900 mb-1">{t("Risk & inactivity", "Rủi ro & không tới")}</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <KpiCard label={t("At-risk (7–14d)", "Rủi ro 7–14 ngày")} value={mh?.at_risk ?? 0} />
+            <KpiCard label={t("Inactive (30+ days)", "Không tới 30+ ngày")} value={mh?.inactive ?? 0} />
+            <KpiCard label={t("Expiring ≤7d (segment)", "Hết hạn ≤7 ngày")} value={mh?.expiring_soon ?? 0} />
+            <KpiCard label={t("Expiring ≤30d (segment)", "Hết hạn ≤30 ngày")} value={mh?.expiring_30_days ?? 0} />
+          </div>
+        </section>
+        <section className="pt-6 border-t border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900 mb-1">{t("Conversion funnel", "Phễu chuyển đổi")}</h2>
           <p className="text-xs text-slate-500 mb-4">{t("From first visit to membership.", "Từ lần đầu đến gói thành viên.")}</p>
           <div className="rounded-xl border border-slate-200 bg-white p-6">
@@ -832,10 +1064,18 @@ export default function AnalyticsCharts({
               <KpiCard
                 label={t("First visit → Purchase", "Lần đầu → Mua")}
                 value={`${f.first_visit_to_purchase ?? 0}%`}
-                sub={t("Conversion rate", "Tỷ lệ chuyển đổi")}
+                sub={t("Distinct visitors with ≥1 payment · capped 100%", "TV có thanh toán · tối đa 100%")}
               />
-              <KpiCard label={t("Newbie class → Return visit", "Lớp Newbie → Quay lại")} value={`${f.newbie_to_return ?? 0}%`} />
-              <KpiCard label={t("Return visit → Membership", "Quay lại → Gói thành viên")} value={`${f.return_to_membership ?? 0}%`} />
+              <KpiCard
+                label={t("Newbie class → Return visit", "Lớp Newbie → Quay lại")}
+                value={`${f.newbie_to_return ?? 0}%`}
+                sub={t("Among newbie buyers", "Trong nhóm mua newbie")}
+              />
+              <KpiCard
+                label={t("Return visit → Membership", "Quay lại → Gói thành viên")}
+                value={`${f.return_to_membership ?? 0}%`}
+                sub={t("Active in period / visit-based; capped 100%", "Trong kỳ; tối đa 100%")}
+              />
             </div>
           </div>
         </section>

@@ -1,7 +1,8 @@
 /**
  * GET /api/admin/analytics
  * Admin-only. Returns aggregated analytics for the dashboard.
- * Query: period=day|week|month|quarter, from=YYYY-MM-DD, to=YYYY-MM-DD (optional custom),
+ * Query: horizon=wtd|mtd|qtd|ytd (CEO time horizon, preferred),
+ *        period=day|week|month|quarter, from=YYYY-MM-DD, to=YYYY-MM-DD (optional custom),
  *        member_type=all|member|newbie|casual, activity=all|active|inactive
  */
 import { NextRequest, NextResponse } from "next/server";
@@ -16,6 +17,7 @@ import {
   getGymEndOfDay,
   getGymDateFromISO,
 } from "@/lib/gymTimezone";
+import { getPeriodRange, type TimeHorizon } from "@/lib/admin/analytics/periodUtils";
 
 function parseDateRange(
   period: string,
@@ -61,6 +63,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const url = new URL(req.url);
+  const horizonParam = url.searchParams.get("horizon") as TimeHorizon | null;
   const period = url.searchParams.get("period") ?? "month";
   const fromParam = url.searchParams.get("from");
   const toParam = url.searchParams.get("to");
@@ -68,7 +71,32 @@ export async function GET(req: NextRequest) {
   const activity = url.searchParams.get("activity") ?? "all";
   const activityLevel = url.searchParams.get("activity_level") ?? "all";
 
-  const { since, until, label } = parseDateRange(period, fromParam, toParam);
+  let since: string;
+  let until: string;
+  let label: string;
+  let periodHorizon: TimeHorizon | null = null;
+
+  if (period === "custom" && fromParam && toParam && /^\d{4}-\d{2}-\d{2}$/.test(fromParam) && /^\d{4}-\d{2}-\d{2}$/.test(toParam)) {
+    const parsed = parseDateRange(period, fromParam, toParam);
+    since = parsed.since;
+    until = parsed.until;
+    label = parsed.label;
+  } else if (horizonParam && ["wtd", "mtd", "qtd", "ytd"].includes(horizonParam)) {
+    const range = getPeriodRange(horizonParam);
+    since = range.since;
+    until = range.until;
+    label = range.label;
+    periodHorizon = horizonParam;
+  } else {
+    const parsed = parseDateRange(period, fromParam, toParam);
+    since = parsed.since;
+    until = parsed.until;
+    label = parsed.label;
+    if (period === "week") periodHorizon = "wtd";
+    else if (period === "month") periodHorizon = "mtd";
+    else if (period === "quarter") periodHorizon = "qtd";
+    else if (period === "day") periodHorizon = null;
+  }
   const supabase = createServerClient();
 
   try {
@@ -79,7 +107,22 @@ export async function GET(req: NextRequest) {
       const ids = (allMembers ?? []).map((r: { id: string }) => r.id);
       if (ids.length === 0) {
         return NextResponse.json({
-          filters: { period: label, since, until, member_type: memberType, activity, activity_level: activityLevel },
+          filters: { period: label, since, until, period_horizon: periodHorizon, period_since: since, period_until: until, member_type: memberType, activity, activity_level: activityLevel },
+          fetched_at: new Date().toISOString(),
+          retention_cohort: {
+            d1: { pct: 0, numerator: 0, denominator: 0 },
+            d7: { pct: 0, numerator: 0, denominator: 0 },
+            d30: { pct: 0, numerator: 0, denominator: 0 },
+          },
+          ceo_snapshot: {
+            checkins_today: 0,
+            newbie_class_sessions_today: 0,
+            current_paying_members: 0,
+            renewals_mtd: 0,
+            new_members_mtd: 0,
+            expiring_7d_all: 0,
+            expiring_30d_all: 0,
+          },
           overview: { total_revenue: 0, total_members: 0, active_members: 0, total_visits: 0 },
           revenue: { total: 0, by_category: {}, over_time: [], arpu: 0, revenue_per_visit: 0 },
           members: {
@@ -90,7 +133,7 @@ export async function GET(req: NextRequest) {
             churn_rate: 0,
             avg_visits_per_member: 0,
             membership_distribution: { by_plan: { "30_day": { count: 0, pct: 0, active_count: 0 }, "180_day": { count: 0, pct: 0, active_count: 0 }, "365_day": { count: 0, pct: 0, active_count: 0 }, visit_pass: { count: 0, pct: 0, active_count: 0 }, day_pass: { count: 0, pct: 0, active_count: 0 } }, trend: [] },
-            member_health: { active: 0, at_risk: 0, inactive: 0, expiring_soon: 0, by_plan: {} },
+            member_health: { active: 0, at_risk: 0, inactive: 0, expiring_soon: 0, expiring_30_days: 0, by_plan: {} },
             newbie_conversion_funnel: { purchased_count: 0, return_7_days_pct: 0, return_30_days_pct: 0, converted_to_membership_pct: 0 },
             activity_segmentation: { highly_active: 0, moderate: 0, low_activity: 0, inactive: 0 },
             action_insights: [],
@@ -344,6 +387,7 @@ export async function GET(req: NextRequest) {
     for (const k of planLabels) healthByPlan[k] = { active: 0, at_risk: 0, inactive: 0, expiring_soon: 0 };
 
     let expiringSoonTotal = 0;
+    let expiring30Total = 0;
     let activeHealth = 0, atRiskHealth = 0, inactiveHealth = 0;
 
     for (const m of filteredMembers as { id: string; membership_expires_at?: string | null }[]) {
@@ -361,6 +405,7 @@ export async function GET(req: NextRequest) {
       const expiresInDays = expiresAt ? (expiresAt - Date.now()) / (24 * 60 * 60 * 1000) : null;
       const isExpiringSoon = expiresInDays != null && expiresInDays >= 0 && expiresInDays <= 7;
       if (isExpiringSoon) expiringSoonTotal++;
+      if (expiresInDays != null && expiresInDays >= 0 && expiresInDays <= 30) expiring30Total++;
       if (lastVisitDaysAgo <= 7) { activeHealth++; if (latest && planLabels.includes(planToDisplayCategory(latest.plan_id) as typeof planLabels[number])) healthByPlan[planToDisplayCategory(latest.plan_id) as typeof planLabels[number]].active++; }
       else if (lastVisitDaysAgo <= 14) { atRiskHealth++; if (latest && planLabels.includes(planToDisplayCategory(latest.plan_id) as typeof planLabels[number])) healthByPlan[planToDisplayCategory(latest.plan_id) as typeof planLabels[number]].at_risk++; }
       else if (lastVisitDaysAgo > 30) { inactiveHealth++; if (latest && planLabels.includes(planToDisplayCategory(latest.plan_id) as typeof planLabels[number])) healthByPlan[planToDisplayCategory(latest.plan_id) as typeof planLabels[number]].inactive++; }
@@ -431,37 +476,46 @@ export async function GET(req: NextRequest) {
     if (visitPassCount > 0) actionInsights.push({ type: "visit_pass", label_en: "Visit pass users", label_vi: "Người dùng gói lượt", count: visitPassCount, recommendation_en: "Recommend upgrade to 30-day or 365-day membership.", recommendation_vi: "Đề xuất nâng cấp lên gói 30 ngày hoặc 365 ngày." });
     if (highlyActive > 0) actionInsights.push({ type: "highly_active", label_en: "Highly active (3+ visits/week)", label_vi: "Rất tích cực (3+ lượt/tuần)", count: highlyActive, recommendation_en: "Recommend annual plan for better value.", recommendation_vi: "Đề xuất gói năm để tiết kiệm hơn." });
 
-    // ---- RETENTION (simplified) ----
-    const { data: firstCheckins } = await supabase
+    // ---- RETENTION: cohort-based (all visits up to period end; eligible = first visit ≥ N days before end) ----
+    const { data: allVisitCheckins } = await supabase
       .from("gym_checkins")
       .select("member_id, timestamp")
       .eq("counts_as_visit", true);
-    const firstByMember = new Map<string, string>();
-    for (const c of (firstCheckins ?? []) as { member_id: string; timestamp: string }[]) {
-      const existing = firstByMember.get(c.member_id);
-      if (!existing || c.timestamp < existing) firstByMember.set(c.member_id, c.timestamp);
+    const timesByMember = new Map<string, number[]>();
+    for (const c of (allVisitCheckins ?? []) as { member_id: string; timestamp: string }[]) {
+      if (!timesByMember.has(c.member_id)) timesByMember.set(c.member_id, []);
+      timesByMember.get(c.member_id)!.push(new Date(c.timestamp).getTime());
     }
+    Array.from(timesByMember.values()).forEach((arr: number[]) => arr.sort((a, b) => a - b));
+    const endMs = new Date(until).getTime();
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const cohortRetention = (daysWindow: number): { num: number; den: number; pct: number } => {
+      let num = 0;
+      let den = 0;
+      Array.from(timesByMember.values()).forEach((times: number[]) => {
+        if (times.length === 0) return;
+        const first = times[0];
+        if (endMs - first < daysWindow * DAY_MS) return;
+        den++;
+        const returned = times.some((t: number, i: number) => i > 0 && t > first && t - first <= daysWindow * DAY_MS);
+        if (returned) num++;
+      });
+      const pct = den > 0 ? Math.min(100, Math.round(((num / den) * 100 + Number.EPSILON) * 10) / 10) : 0;
+      return { num, den, pct };
+    };
+    const cohortD1 = cohortRetention(1);
+    const cohortD7 = cohortRetention(7);
+    const cohortD30 = cohortRetention(30);
+    const day1Retention = cohortD1.pct;
+    const day7Retention = cohortD7.pct;
+    const day30Retention = cohortD30.pct;
+
+    const firstByMember = new Map<string, string>();
+    Array.from(timesByMember.entries()).forEach(([mid, tms]: [string, number[]]) => {
+      if (tms.length) firstByMember.set(mid, new Date(tms[0]).toISOString());
+    });
     const firstVisitCount = firstByMember.size;
     const { data: paidAfterFirst } = await supabase.from("payments").select("member_id, created_at").eq("status", "success");
-    // Unique members who returned (at least one check-in in window), not total check-in count
-    const day1ReturnMembers = new Set<string>();
-    const day7ReturnMembers = new Set<string>();
-    const day30ReturnMembers = new Set<string>();
-    Array.from(firstByMember.entries()).forEach(([mid, firstTs]) => {
-      const first = new Date(firstTs).getTime();
-      const checkinTimes = (checkins as { member_id: string; timestamp: string }[])
-        .filter((c) => c.member_id === mid && new Date(c.timestamp).getTime() > first)
-        .map((c) => new Date(c.timestamp).getTime());
-      for (const t of checkinTimes) {
-        const days = (t - first) / (24 * 60 * 60 * 1000);
-        if (days >= 1 && days < 2) day1ReturnMembers.add(mid);
-        if (days >= 1 && days <= 7) day7ReturnMembers.add(mid);
-        if (days >= 1 && days <= 30) day30ReturnMembers.add(mid);
-      }
-    });
-    const day1Retention = firstVisitCount > 0 ? (day1ReturnMembers.size / firstVisitCount) * 100 : 0;
-    const day7Retention = firstVisitCount > 0 ? (day7ReturnMembers.size / firstVisitCount) * 100 : 0;
-    const day30Retention = firstVisitCount > 0 ? (day30ReturnMembers.size / firstVisitCount) * 100 : 0;
 
     const { data: newbiePayments } = await supabase
       .from("payments")
@@ -470,7 +524,10 @@ export async function GET(req: NextRequest) {
       .eq("status", "success");
     const newbiePurchased = new Set((newbiePayments ?? []).map((p: { member_id: string }) => p.member_id));
     const totalWithFirstVisit = firstByMember.size;
-    const newbiePurchasedPct = totalWithFirstVisit > 0 ? (newbiePurchased.size / totalWithFirstVisit) * 100 : 0;
+    const newbiePurchasedPct =
+      totalWithFirstVisit > 0
+        ? Math.min(100, Math.round(((newbiePurchased.size / totalWithFirstVisit) * 100 + Number.EPSILON) * 10) / 10)
+        : 0;
     let newbieReturn7 = 0,
       newbieReturn30 = 0;
     Array.from(newbiePurchased).forEach((mid) => {
@@ -486,8 +543,10 @@ export async function GET(req: NextRequest) {
       if (days <= 7) newbieReturn7++;
       if (days <= 30) newbieReturn30++;
     });
-    const newbieReturn7Pct = newbiePurchased.size > 0 ? (newbieReturn7 / newbiePurchased.size) * 100 : 0;
-    const newbieReturn30Pct = newbiePurchased.size > 0 ? (newbieReturn30 / newbiePurchased.size) * 100 : 0;
+    const newbieReturn7PctRaw = newbiePurchased.size > 0 ? (newbieReturn7 / newbiePurchased.size) * 100 : 0;
+    const newbieReturn30PctRaw = newbiePurchased.size > 0 ? (newbieReturn30 / newbiePurchased.size) * 100 : 0;
+    const newbieReturn7Pct = Math.min(100, Math.max(0, Math.round((newbieReturn7PctRaw + Number.EPSILON) * 10) / 10));
+    const newbieReturn30Pct = Math.min(100, Math.max(0, Math.round((newbieReturn30PctRaw + Number.EPSILON) * 10) / 10));
 
     // ---- BEHAVIOR: DAU / WAU / MAU, peak hours ----
     const dauByDay = new Map<string, number>();
@@ -500,6 +559,18 @@ export async function GET(req: NextRequest) {
       .map(([date, count]) => ({ date, count }));
     const wauSet = new Set(checkins.map((c: { member_id: string }) => c.member_id));
     const mauSet = wauSet;
+
+    let avgDaysBetweenVisits: number | null = null;
+    const gaps: number[] = [];
+    for (const times of Array.from(timesByMember.values())) {
+      if (times.length < 2) continue;
+      for (let i = 1; i < times.length; i++) {
+        gaps.push((times[i] - times[i - 1]) / DAY_MS);
+      }
+    }
+    if (gaps.length > 0) {
+      avgDaysBetweenVisits = Math.round((gaps.reduce((a, b) => a + b, 0) / gaps.length) * 10) / 10;
+    }
     const peakByHour = new Map<number, number>();
     for (const c of checkins as { timestamp: string }[]) {
       const h = new Date(c.timestamp).getHours();
@@ -512,22 +583,24 @@ export async function GET(req: NextRequest) {
 
     // ---- FUNNEL (simplified): % of first-time visitors who ever purchased (numerator only among those with first visit, so <= 100%)
     const paidMemberIds = new Set(((paidAfterFirst ?? []) as { member_id: string }[]).map((p) => p.member_id));
-    const firstVisitToPurchase =
+    const firstVisitToPurchaseRaw =
       firstVisitCount > 0
         ? (Array.from(firstByMember.keys()).filter((mid) => paidMemberIds.has(mid)).length / firstVisitCount) * 100
         : 0;
+    const firstVisitToPurchase = Math.min(100, Math.round((firstVisitToPurchaseRaw + Number.EPSILON) * 10) / 10);
     const newbieToReturn = newbiePurchased.size > 0 ? newbieReturn7Pct : 0;
-    const returnToMembership =
+    const returnToMembershipRaw =
       uniqueVisitors.size > 0
         ? (filteredMembers.filter((m: { id: string }) => {
             const plans = (payments as { member_id: string; plan_id: string }[]).filter((p) => p.member_id === m.id);
             return plans.some((p) =>
-              ["month_pass", "year_pass", "explorer_month", "explorer_year"].includes(p.plan_id)
+              ["month_pass", "year_pass", "explorer_month", "explorer_year", "half_year_pass", "until_end_of_year"].includes(p.plan_id)
             );
           }).length /
           uniqueVisitors.size) *
           100
         : 0;
+    const returnToMembership = Math.min(100, Math.round((returnToMembershipRaw + Number.EPSILON) * 10) / 10);
 
     // ---- OPERATIONS: tasks, route resets, coaching ----
     const { data: taskRows } = await supabase
@@ -616,9 +689,104 @@ export async function GET(req: NextRequest) {
     const arpu = uniqueMembersRevenue.size > 0 ? totalRevenue / uniqueMembersRevenue.size : 0;
     const revenuePerVisit = totalVisits > 0 ? totalRevenue / totalVisits : 0;
 
+    const membershipPlanIds = new Set([
+      "month_pass",
+      "half_year_pass",
+      "year_pass",
+      "explorer_month",
+      "explorer_year",
+      "until_end_of_year",
+    ]);
+    const memPays = paymentsWithPlan.filter((p) => membershipPlanIds.has(p.plan_id));
+    const sinceMs = new Date(since).getTime();
+    const untilMs = new Date(until).getTime();
+    const firstMemPayTime = new Map<string, number>();
+    for (const p of [...memPays].sort((a, b) => a.created_at.localeCompare(b.created_at))) {
+      const tm = new Date(p.created_at).getTime();
+      if (!firstMemPayTime.has(p.member_id)) firstMemPayTime.set(p.member_id, tm);
+    }
+    let newMembersMtd = 0;
+    Array.from(firstMemPayTime.values()).forEach((t: number) => {
+      if (t >= sinceMs && t <= untilMs) newMembersMtd++;
+    });
+    const renewalMembers = new Set<string>();
+    for (const p of memPays) {
+      const tm = new Date(p.created_at).getTime();
+      if (tm < sinceMs || tm > untilMs) continue;
+      const first = firstMemPayTime.get(p.member_id);
+      if (first != null && first < sinceMs) renewalMembers.add(p.member_id);
+    }
+    const renewalsMtd = renewalMembers.size;
+
+    const nowIso = new Date().toISOString();
+    const in7Iso = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const in14Iso = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    const in30Iso = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { count: currentPayingMembers } = await supabase
+      .from("member_profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("membership_status", "active")
+      .gt("membership_expires_at", nowIso);
+    const { data: exp7Ids } = await supabase
+      .from("member_profiles")
+      .select("id")
+      .eq("membership_status", "active")
+      .gte("membership_expires_at", nowIso)
+      .lte("membership_expires_at", in7Iso);
+    const { data: exp14Ids } = await supabase
+      .from("member_profiles")
+      .select("id")
+      .eq("membership_status", "active")
+      .gt("membership_expires_at", in7Iso)
+      .lte("membership_expires_at", in14Iso);
+    const { data: exp30Ids } = await supabase
+      .from("member_profiles")
+      .select("id")
+      .eq("membership_status", "active")
+      .gte("membership_expires_at", nowIso)
+      .lte("membership_expires_at", in30Iso);
+
+    const todayGym = getGymToday();
+    const { count: checkinsToday } = await supabase
+      .from("gym_checkins")
+      .select("id", { count: "exact", head: true })
+      .eq("counts_as_visit", true)
+      .gte("timestamp", getGymStartOfDay(todayGym))
+      .lte("timestamp", getGymEndOfDay(todayGym));
+
+    const { data: newbieSessionsToday } = await supabase
+      .from("coaching_sessions")
+      .select("id")
+      .eq("session_type", "beginner")
+      .gte("start_time", getGymStartOfDay(todayGym))
+      .lte("start_time", getGymEndOfDay(todayGym));
+
+    const { count: staffOnShiftToday } = await supabase
+      .from("staff_attendance")
+      .select("id", { count: "exact", head: true })
+      .eq("date", todayGym)
+      .eq("status", "IN");
+
     return NextResponse.json(
       {
-        filters: { period: label, since, until, member_type: memberType, activity, activity_level: activityLevel },
+        filters: { period: label, since, until, period_horizon: periodHorizon, period_since: since, period_until: until, member_type: memberType, activity, activity_level: activityLevel },
+        fetched_at: new Date().toISOString(),
+        retention_cohort: {
+          d1: { pct: cohortD1.pct, numerator: cohortD1.num, denominator: cohortD1.den },
+          d7: { pct: cohortD7.pct, numerator: cohortD7.num, denominator: cohortD7.den },
+          d30: { pct: cohortD30.pct, numerator: cohortD30.num, denominator: cohortD30.den },
+        },
+        ceo_snapshot: {
+          checkins_today: checkinsToday ?? 0,
+          newbie_class_sessions_today: (newbieSessionsToday ?? []).length,
+          staff_on_shift_today: staffOnShiftToday ?? 0,
+          current_paying_members: currentPayingMembers ?? 0,
+          renewals_mtd: renewalsMtd,
+          new_members_mtd: newMembersMtd,
+          expiring_7d_all: (exp7Ids ?? []).length,
+          expiring_14d_all: (exp14Ids ?? []).length,
+          expiring_30d_all: (exp30Ids ?? []).length,
+        },
         overview: {
           total_revenue: totalRevenue,
           total_members: totalMembers,
@@ -648,6 +816,7 @@ export async function GET(req: NextRequest) {
             at_risk: atRiskHealth,
             inactive: inactiveHealth,
             expiring_soon: expiringSoonTotal,
+            expiring_30_days: expiring30Total,
             by_plan: healthByPlan,
           },
           newbie_conversion_funnel: {
@@ -664,13 +833,20 @@ export async function GET(req: NextRequest) {
           day7: Math.round(day7Retention * 10) / 10,
           day30: Math.round(day30Retention * 10) / 10,
           newbie_purchased_pct: Math.round(newbiePurchasedPct * 10) / 10,
-          newbie_return_7_pct: Math.round(newbieReturn7Pct * 10) / 10,
-          newbie_return_30_pct: Math.round(newbieReturn30Pct * 10) / 10,
+          newbie_purchased_num: newbiePurchased.size,
+          newbie_purchased_den: totalWithFirstVisit,
+          newbie_return_7_pct: newbieReturn7Pct,
+          newbie_return_7_num: newbieReturn7,
+          newbie_return_7_den: newbiePurchased.size,
+          newbie_return_30_pct: newbieReturn30Pct,
+          newbie_return_30_num: newbieReturn30,
+          newbie_return_30_den: newbiePurchased.size,
         },
         behavior: {
           dau: dauArray,
           wau: wauSet.size,
           mau: mauSet.size,
+          avg_days_between_visits: avgDaysBetweenVisits,
           visits_per_user: totalMembers > 0 ? Array.from(uniqueVisitors).map((id) => ({ member_id: id, visits: checkins.filter((c: { member_id: string }) => c.member_id === id).length })) : [],
           peak_hours: peakHours,
         },
