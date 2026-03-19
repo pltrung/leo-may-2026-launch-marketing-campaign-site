@@ -27,6 +27,8 @@ export default function GymOperationsHub({
   const [eInv, setEInv] = useState("");
   const [birthdaySendMode, setBirthdaySendMode] = useState<"manual" | "campaign">("manual");
   const [firstVisitSendMode, setFirstVisitSendMode] = useState<"manual" | "campaign">("manual");
+  const [allowSelfCheckinToday, setAllowSelfCheckinToday] = useState(false);
+  const [allowSelfCheckinDate, setAllowSelfCheckinDate] = useState("");
 
   const [adjMemberId, setAdjMemberId] = useState("");
   const [adjAmount, setAdjAmount] = useState("");
@@ -57,6 +59,8 @@ export default function GymOperationsHub({
       setEInv(String(d.settings.e_invoice_workflow_note ?? ""));
       setBirthdaySendMode(d.settings.birthday_send_mode === "campaign" ? "campaign" : "manual");
       setFirstVisitSendMode(d.settings.first_visit_send_mode === "campaign" ? "campaign" : "manual");
+      setAllowSelfCheckinToday(Boolean(d.settings.allow_self_checkin_today));
+      setAllowSelfCheckinDate(String(d.settings.allow_self_checkin_date ?? ""));
     }
   }, [adminFetch]);
 
@@ -121,6 +125,8 @@ export default function GymOperationsHub({
         e_invoice_workflow_note: eInv || null,
         birthday_send_mode: birthdaySendMode,
         first_visit_send_mode: firstVisitSendMode,
+        allow_self_checkin_today: allowSelfCheckinToday,
+        allow_self_checkin_date: allowSelfCheckinToday ? allowSelfCheckinDate : null,
       }),
     });
     const d = await res.json().catch(() => ({}));
@@ -320,6 +326,40 @@ export default function GymOperationsHub({
                 <option value="campaign">{vi ? "Campaign (Analytics → segment 'Lần đầu chưa chào mừng')" : "Campaign (Analytics → segment 'First visit not welcomed')"}</option>
               </select>
             </label>
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 space-y-2">
+              <p className="text-xs text-amber-200 font-medium">
+                {vi ? "Khẩn cấp check-in" : "Emergency check-in"}
+              </p>
+              <p className="text-xs text-slate-300">
+                {vi
+                  ? "Chỉ bật khi QR/quầy gặp sự cố. Staff/frontdesk có thể tự check-in trong ngày đã chọn."
+                  : "Enable only when QR/front desk check-in fails. Staff/frontdesk can self check-in for the selected day."}
+              </p>
+              <label className="inline-flex items-center gap-2 text-slate-200 text-xs">
+                <input
+                  type="checkbox"
+                  checked={allowSelfCheckinToday}
+                  onChange={(e) => {
+                    const next = e.target.checked;
+                    setAllowSelfCheckinToday(next);
+                    if (next && !allowSelfCheckinDate) {
+                      setAllowSelfCheckinDate(new Date().toISOString().slice(0, 10));
+                    }
+                  }}
+                />
+                {vi ? "Cho phép tự check-in" : "Allow self check-in"}
+              </label>
+              <label className="block text-slate-300 text-xs">
+                {vi ? "Ngày áp dụng" : "Effective date"}
+                <input
+                  type="date"
+                  value={allowSelfCheckinDate}
+                  onChange={(e) => setAllowSelfCheckinDate(e.target.value)}
+                  disabled={!allowSelfCheckinToday}
+                  className="mt-1 w-full px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-white disabled:opacity-50"
+                />
+              </label>
+            </div>
           </div>
           <button type="button" onClick={saveSettings} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-500">
             {vi ? "Lưu cài đặt" : "Save settings"}

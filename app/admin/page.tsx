@@ -383,6 +383,7 @@ export default function AdminPage() {
   const [shiftCheckInAttendance, setShiftCheckInAttendance] = useState<{ date: string; status: string } | null>(null);
   const [shiftCheckInQrToken, setShiftCheckInQrToken] = useState<string | null>(null);
   const [shiftCheckInLoading, setShiftCheckInLoading] = useState(false);
+  const [shiftSelfCheckinEnabledToday, setShiftSelfCheckinEnabledToday] = useState(false);
   const [adminQrModalVariant, setAdminQrModalVariant] = useState<"shift" | "staff" | null>(null);
   // Derived for data-loading: when in Front Desk we need member/sales data when on those tabs; Operations/Management drive inventory and staff ops
   const isInventoryActive = adminArea === "management" && managementTab === "inventory";
@@ -427,6 +428,7 @@ export default function AdminPage() {
     timeline?: { id: string; completed_at: string; task_title: string; staff_name: string }[];
     staffTaskPerformance?: { staff_id: string; display_name: string; tasks_completed: number; completion_rate_pct: number }[];
     route_setters?: { id: string; display_name?: string | null; email?: string | null }[];
+    operational_settings?: { allow_self_checkin_today?: boolean; allow_self_checkin_date?: string | null };
     summary: { staff_in_today: number; staff_out_today: number; staff_total?: number; sessions_today: number; newbie_attendance_today?: number; zones_overdue: number; zones_route_reset_today?: number; tasks_pending: number; tasks_completed?: number; tasks_overdue?: number; tasks_total?: number; pre_open_completed?: number; pre_open_total?: number; closing_overdue?: number; unassigned_sessions?: number; staff_required?: number };
   } | null>(null);
 
@@ -808,8 +810,14 @@ export default function AdminPage() {
     }
     adminFetch("/api/admin/staff/my-attendance")
       .then((r) => r.json())
-      .then((d) => setShiftCheckInAttendance(d.attendance ?? null))
-      .catch(() => setShiftCheckInAttendance(null));
+      .then((d) => {
+        setShiftCheckInAttendance(d.attendance ?? null);
+        setShiftSelfCheckinEnabledToday(Boolean(d.self_checkin_enabled_today));
+      })
+      .catch(() => {
+        setShiftCheckInAttendance(null);
+        setShiftSelfCheckinEnabledToday(false);
+      });
   }, [staffId, adminFetch]);
 
   // QR token for shift check-in when not checked in today (Front Desk tab or Staff tab)
@@ -843,7 +851,12 @@ export default function AdminPage() {
     if (!staffId) return;
     const supabase = getSupabaseBrowserClient();
     const channel = supabase.channel(`admin-frontdesk-attendance-${staffId}`).on("postgres_changes", { event: "*", schema: "public", table: "staff_attendance", filter: `staff_id=eq.${staffId}` }, () => {
-      adminFetch("/api/admin/staff/my-attendance").then((r) => r.json()).then((d) => setShiftCheckInAttendance(d.attendance ?? null));
+      adminFetch("/api/admin/staff/my-attendance")
+        .then((r) => r.json())
+        .then((d) => {
+          setShiftCheckInAttendance(d.attendance ?? null);
+          setShiftSelfCheckinEnabledToday(Boolean(d.self_checkin_enabled_today));
+        });
     }).subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [staffId, adminFetch]);
@@ -1747,6 +1760,13 @@ export default function AdminPage() {
                 )}
                 <p className="text-slate-300 text-sm mb-4">{staffMsg.checkInAtFrontDesk}</p>
                 <p className="text-slate-400 text-xs mb-4">{staffMsg.checkInAtFrontDeskHint}</p>
+                {shiftSelfCheckinEnabledToday && (
+                  <p className="text-amber-300 text-xs mb-2">
+                    {locale === "vi"
+                      ? "Khẩn cấp: Tự check-in đang bật cho hôm nay."
+                      : "Emergency mode: Self check-in is enabled for today."}
+                  </p>
+                )}
                 <div className="flex flex-col items-center gap-4">
                   {shiftCheckInQrToken ? (
                     <button type="button" onClick={() => shiftCheckInQrToken && setAdminQrModalVariant("shift")} className="rounded-xl bg-white p-3 inline-block hover:ring-2 ring-emerald-400 focus:outline-none focus:ring-2 ring-emerald-400" title={locale === "vi" ? "Phóng to mã QR" : "Tap QR to enlarge"}>
@@ -1758,7 +1778,36 @@ export default function AdminPage() {
                     </div>
                   )}
                   <p className="text-slate-500 text-xs">{locale === "vi" ? "Chạm để phóng to" : "Tap QR to enlarge"}</p>
-                  <button type="button" disabled={shiftCheckInLoading} onClick={async () => { setShiftCheckInLoading(true); try { await adminFetch("/api/admin/staff/my-attendance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "NOT_IN" }) }); const r = await adminFetch("/api/admin/staff/my-attendance"); const d = await r.json(); setShiftCheckInAttendance(d.attendance ?? null); } finally { setShiftCheckInLoading(false); } }} className="w-full max-w-xs py-2.5 rounded-lg font-medium bg-slate-600 text-slate-200 hover:bg-slate-500 disabled:opacity-50">
+                  {shiftSelfCheckinEnabledToday && (
+                    <button
+                      type="button"
+                      disabled={shiftCheckInLoading}
+                      onClick={async () => {
+                        setShiftCheckInLoading(true);
+                        try {
+                          const res = await adminFetch("/api/admin/staff/my-attendance", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ status: "IN" }),
+                          });
+                          if (!res.ok) {
+                            const body = await res.json().catch(() => ({}));
+                            window.alert((body as { error?: string }).error ?? `Error ${res.status}`);
+                          }
+                          const r = await adminFetch("/api/admin/staff/my-attendance");
+                          const d = await r.json();
+                          setShiftCheckInAttendance(d.attendance ?? null);
+                          setShiftSelfCheckinEnabledToday(Boolean(d.self_checkin_enabled_today));
+                        } finally {
+                          setShiftCheckInLoading(false);
+                        }
+                      }}
+                      className="w-full max-w-xs py-2.5 rounded-lg font-medium bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50"
+                    >
+                      {locale === "vi" ? "Tự check-in (khẩn cấp)" : "Self check-in (emergency)"}
+                    </button>
+                  )}
+                  <button type="button" disabled={shiftCheckInLoading} onClick={async () => { setShiftCheckInLoading(true); try { await adminFetch("/api/admin/staff/my-attendance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "NOT_IN" }) }); const r = await adminFetch("/api/admin/staff/my-attendance"); const d = await r.json(); setShiftCheckInAttendance(d.attendance ?? null); setShiftSelfCheckinEnabledToday(Boolean(d.self_checkin_enabled_today)); } finally { setShiftCheckInLoading(false); } }} className="w-full max-w-xs py-2.5 rounded-lg font-medium bg-slate-600 text-slate-200 hover:bg-slate-500 disabled:opacity-50">
                     {staffMsg.notWorkingToday}
                   </button>
                 </div>

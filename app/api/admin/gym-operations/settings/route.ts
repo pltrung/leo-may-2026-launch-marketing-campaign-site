@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { requireAdmin } from "@/lib/gymOperationsAdminAuth";
 import { defaultOperationalSettings, fetchGymOperationalSettings } from "@/lib/gymOperationalSettings";
+import { getGymToday } from "@/lib/gymTimezone";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAdmin(req);
@@ -31,6 +32,16 @@ export async function PATCH(req: NextRequest) {
     body.birthday_send_mode === "campaign" ? "campaign" : (body.birthday_send_mode === "manual" ? "manual" : current.birthday_send_mode);
   const firstVisitSendMode =
     body.first_visit_send_mode === "campaign" ? "campaign" : (body.first_visit_send_mode === "manual" ? "manual" : current.first_visit_send_mode);
+  const allowSelfCheckinToday =
+    typeof body.allow_self_checkin_today === "boolean"
+      ? body.allow_self_checkin_today
+      : current.allow_self_checkin_today;
+  const allowSelfCheckinDate =
+    allowSelfCheckinToday
+      ? (typeof body.allow_self_checkin_date === "string" && body.allow_self_checkin_date.trim()
+          ? body.allow_self_checkin_date.trim()
+          : current.allow_self_checkin_date ?? getGymToday())
+      : null;
 
   const patch = {
     id: 1,
@@ -49,6 +60,8 @@ export async function PATCH(req: NextRequest) {
         : current.e_invoice_workflow_note,
     birthday_send_mode: birthdaySendMode,
     first_visit_send_mode: firstVisitSendMode,
+    allow_self_checkin_today: allowSelfCheckinToday,
+    allow_self_checkin_date: allowSelfCheckinDate,
     updated_at: new Date().toISOString(),
   };
 

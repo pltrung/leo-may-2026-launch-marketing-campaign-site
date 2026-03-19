@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getUnifiedAdminOrStaffFromRequest } from "@/lib/unifiedAdminAuth";
 import { getGymToday, getGymStartOfDay, getGymEndOfDay } from "@/lib/gymTimezone";
+import { fetchGymOperationalSettings } from "@/lib/gymOperationalSettings";
 
 /**
  * GET /api/admin/staff/my-attendance
@@ -20,6 +21,9 @@ export async function GET(request: NextRequest) {
   if (!staffId) return NextResponse.json({ attendance: null });
 
   const today = getGymToday();
+  const settings = await fetchGymOperationalSettings(supabase);
+  const selfCheckinEnabledToday =
+    settings.allow_self_checkin_today === true && settings.allow_self_checkin_date === today;
   const { data: record } = await supabase
     .from("staff_attendance")
     .select("id, date, status, created_at")
@@ -27,7 +31,10 @@ export async function GET(request: NextRequest) {
     .eq("date", today)
     .maybeSingle();
 
-  return NextResponse.json({ attendance: record ?? null });
+  return NextResponse.json({
+    attendance: record ?? null,
+    self_checkin_enabled_today: selfCheckinEnabledToday,
+  });
 }
 
 /**
@@ -56,6 +63,17 @@ export async function POST(request: NextRequest) {
   if (!staffId) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
 
   const today = getGymToday();
+  if (status === "IN" && unified.role !== "admin") {
+    const settings = await fetchGymOperationalSettings(supabase);
+    const selfCheckinEnabledToday =
+      settings.allow_self_checkin_today === true && settings.allow_self_checkin_date === today;
+    if (!selfCheckinEnabledToday) {
+      return NextResponse.json(
+        { error: "Self check-in is disabled today. Please use front-desk QR scan." },
+        { status: 403 }
+      );
+    }
+  }
   const { error } = await supabase
     .from("staff_attendance")
     .upsert(

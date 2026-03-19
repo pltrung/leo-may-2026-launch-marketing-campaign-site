@@ -17,6 +17,8 @@ export interface GymOperationalSettingsRow {
   updated_at: string;
   birthday_send_mode: SendMode;
   first_visit_send_mode: SendMode;
+  allow_self_checkin_today: boolean;
+  allow_self_checkin_date: string | null;
 }
 
 export function defaultOperationalSettings(): GymOperationalSettingsRow {
@@ -32,6 +34,8 @@ export function defaultOperationalSettings(): GymOperationalSettingsRow {
     updated_at: new Date().toISOString(),
     birthday_send_mode: "manual",
     first_visit_send_mode: "manual",
+    allow_self_checkin_today: false,
+    allow_self_checkin_date: null,
   };
 }
 
@@ -63,6 +67,8 @@ export async function fetchGymOperationalSettings(
     updated_at: (row.updated_at as string) ?? new Date().toISOString(),
     birthday_send_mode: sendMode(row.birthday_send_mode),
     first_visit_send_mode: sendMode(row.first_visit_send_mode),
+    allow_self_checkin_today: Boolean(row.allow_self_checkin_today),
+    allow_self_checkin_date: (row.allow_self_checkin_date as string) ?? null,
   };
 }
 
