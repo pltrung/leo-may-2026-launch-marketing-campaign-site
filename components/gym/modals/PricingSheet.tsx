@@ -8,6 +8,8 @@ import {
   DAY_PASS_BASELINE_PER_VISIT_VND,
   visitPackVisitCount,
   visitPackVsDayPassBaseline,
+  dayPassVsMultiDayBaseline,
+  isMultiDayPass,
 } from "@/lib/visitPackDayPassBaseline";
 
 interface Plan {
@@ -155,12 +157,15 @@ function getPlanDescription(plan: Plan, isVi: boolean): string {
   return isVi ? vi ?? "" : en ?? "";
 }
 
-function PlanCard({ plan, benefitsLabel, isVi, description }: { plan: Plan; benefitsLabel: string; isVi: boolean; description: string }) {
+function PlanCard({ plan, benefitsLabel, isVi, description, dayPassPriceVnd }: { plan: Plan; benefitsLabel: string; isVi: boolean; description: string; dayPassPriceVnd?: number }) {
   const s = styleForPlan(plan.id);
   const badge = planBadgeText(plan.id, isVi);
   const displayName = isVi ? PLAN_NAME_VI[plan.id] ?? plan.name : plan.name;
   const visitCount = visitPackVisitCount(plan.id, plan.duration_visits);
-  const vsDay = visitCount > 0 ? visitPackVsDayPassBaseline(plan.price_vnd, visitCount) : null;
+  const vsDayVisit = visitCount > 0 ? visitPackVsDayPassBaseline(plan.price_vnd, visitCount) : null;
+  const durationDays = plan.duration_days ?? 0;
+  const vsDayMulti = dayPassPriceVnd != null && isMultiDayPass(durationDays) ? dayPassVsMultiDayBaseline(plan.price_vnd, durationDays, dayPassPriceVnd) : null;
+  const vsDay = vsDayVisit ?? vsDayMulti;
   const lines = description
     ? description
         .split(/[•\n]/)
@@ -186,18 +191,12 @@ function PlanCard({ plan, benefitsLabel, isVi, description }: { plan: Plan; bene
           <p className="text-[10px] font-medium uppercase tracking-wider text-white/35">VND</p>
           {vsDay && vsDay.discountPct > 0 && (
             <p className="mt-1 max-w-[9.5rem] text-right text-[10px] leading-snug text-amber-300/95">
-              {isVi ? (
-                <>
-                  <span className="text-white/40 line-through">{formatVnd(vsDay.listAtDayRateVnd)}</span>
-                  <br />
-                  ~{vsDay.discountPct}% so với {visitCount} vé ngày (390k)
-                </>
+              <span className="text-white/40 line-through">{formatVnd(vsDay.listAtDayRateVnd)}</span>
+              <br />
+              {vsDayVisit ? (
+                isVi ? <>~{vsDay.discountPct}% so với {visitCount} vé ngày (390k)</> : <>~{vsDay.discountPct}% off vs. {visitCount}× day (390k)</>
               ) : (
-                <>
-                  <span className="text-white/40 line-through">{formatVnd(vsDay.listAtDayRateVnd)}</span>
-                  <br />
-                  ~{vsDay.discountPct}% off vs. {visitCount}× day (390k)
-                </>
+                isVi ? <>~{vsDay.discountPct}% so với {durationDays} vé ngày</> : <>~{vsDay.discountPct}% off vs. {durationDays}× day pass</>
               )}
             </p>
           )}
@@ -288,6 +287,24 @@ export default function PricingSheet({ open, onClose }: PricingSheetProps) {
         )}
 
         <div className="flex flex-col gap-3 min-h-[120px]" role="tabpanel">
+          {tab === "day" && dayPlans.length > 0 && (() => {
+            const dayPassPrice = plans.find((p) => p.id === "day_pass")?.price_vnd ?? DAY_PASS_BASELINE_PER_VISIT_VND;
+            return (
+              <p className="rounded-xl border border-sky-400/15 bg-sky-950/20 px-3 py-2 text-[11px] leading-relaxed text-white/55">
+                {locale === "vi" ? (
+                  <>
+                    Vé 30/180/365 ngày giảm so với mua vé 1 ngày × số ngày (vé 1 ngày:{" "}
+                    <span className="text-white/75">{formatVnd(dayPassPrice)}</span> VND).
+                  </>
+                ) : (
+                  <>
+                    30/180/365 day passes are discounted vs. 1 day pass × same days (1 day:{" "}
+                    <span className="text-white/75">{formatVnd(dayPassPrice)}</span> VND).
+                  </>
+                )}
+              </p>
+            );
+          })()}
           {tab === "visit" && activeList.length > 0 && (
             <p className="rounded-xl border border-violet-400/15 bg-violet-950/20 px-3 py-2 text-[11px] leading-relaxed text-white/55">
               {locale === "vi" ? (
@@ -307,15 +324,19 @@ export default function PricingSheet({ open, onClose }: PricingSheetProps) {
           {activeList.length === 0 && plans.length > 0 && (
             <p className="py-8 text-center text-sm text-white/45">{m.comingSoon}</p>
           )}
-          {activeList.map((p) => (
-            <PlanCard
-              key={p.id}
-              plan={p}
-              benefitsLabel={m.benefits}
-              isVi={locale === "vi"}
-              description={getPlanDescription(p, locale === "vi")}
-            />
-          ))}
+          {activeList.map((p) => {
+            const dayPassPriceVnd = tab === "day" ? (plans.find((x) => x.id === "day_pass")?.price_vnd ?? DAY_PASS_BASELINE_PER_VISIT_VND) : undefined;
+            return (
+              <PlanCard
+                key={p.id}
+                plan={p}
+                benefitsLabel={m.benefits}
+                isVi={locale === "vi"}
+                description={getPlanDescription(p, locale === "vi")}
+                dayPassPriceVnd={dayPassPriceVnd}
+              />
+            );
+          })}
         </div>
 
         {plans.length === 0 && <p className="py-10 text-center text-sm text-white/50">{m.comingSoon}</p>}

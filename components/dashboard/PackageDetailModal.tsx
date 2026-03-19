@@ -5,6 +5,8 @@ import {
   DAY_PASS_BASELINE_PER_VISIT_VND,
   visitPackVisitCount,
   visitPackVsDayPassBaseline,
+  dayPassVsMultiDayBaseline,
+  isMultiDayPass,
 } from "@/lib/visitPackDayPassBaseline";
 
 export interface Plan {
@@ -59,6 +61,8 @@ interface PackageDetailModalProps {
   /** When set (e.g. newbie graduate sale), show as payable price vs list plan.price_vnd */
   effectivePriceVnd?: number | null;
   saleEndsAt?: string | null;
+  /** Day pass price for "vs N× day pass" comparison on 30/180/365 plans */
+  dayPassPriceVnd?: number | null;
 }
 
 export default function PackageDetailModal({
@@ -71,6 +75,7 @@ export default function PackageDetailModal({
   currentExpiry,
   effectivePriceVnd,
   saleEndsAt,
+  dayPassPriceVnd,
 }: PackageDetailModalProps) {
   if (!open || !plan) return null;
 
@@ -92,7 +97,11 @@ export default function PackageDetailModal({
   const visitCount = visitPackVisitCount(plan.id, plan.duration_visits);
   const payVnd =
     effectivePriceVnd != null && effectivePriceVnd < plan.price_vnd ? effectivePriceVnd : plan.price_vnd;
-  const vsDay = visitCount > 0 ? visitPackVsDayPassBaseline(payVnd, visitCount) : null;
+  const vsDayVisit = visitCount > 0 ? visitPackVsDayPassBaseline(payVnd, visitCount) : null;
+  const dayPassPrice = dayPassPriceVnd ?? DAY_PASS_BASELINE_PER_VISIT_VND;
+  const durationDays = plan.duration_days ?? 0;
+  const vsDayMulti = isMultiDayPass(durationDays) ? dayPassVsMultiDayBaseline(payVnd, durationDays, dayPassPrice) : null;
+  const vsDay = vsDayVisit ?? vsDayMulti;
 
   return (
     <div
@@ -146,20 +155,30 @@ export default function PackageDetailModal({
             <div className="mb-4 rounded-xl border border-amber-400/25 bg-amber-500/10 px-3 py-2.5">
               <p className="text-xs text-white/45 line-through">
                 {vsDay.listAtDayRateVnd.toLocaleString("vi-VN")} VND
-                {isVi
-                  ? ` · ${visitCount}× vé ngày (${DAY_PASS_BASELINE_PER_VISIT_VND.toLocaleString("vi-VN")}đ/lượt)`
-                  : ` · ${visitCount}× day pass (${DAY_PASS_BASELINE_PER_VISIT_VND.toLocaleString("vi-VN")} VND each)`}
+                {vsDayVisit
+                  ? isVi
+                    ? ` · ${visitCount}× vé ngày (${DAY_PASS_BASELINE_PER_VISIT_VND.toLocaleString("vi-VN")}đ/lượt)`
+                    : ` · ${visitCount}× day pass (${DAY_PASS_BASELINE_PER_VISIT_VND.toLocaleString("vi-VN")} VND each)`
+                  : isVi
+                    ? ` · ${durationDays} vé ngày`
+                    : ` · ${durationDays}× day pass`}
               </p>
               <p className="mt-1 text-sm font-semibold text-amber-200/95">
-                {isVi
-                  ? `Tiết kiệm ~${vsDay.discountPct}% so với mua lẻ vé ngày`
-                  : `~${vsDay.discountPct}% off vs. buying ${visitCount} separate day passes`}
+                {vsDayVisit
+                  ? isVi
+                    ? `Tiết kiệm ~${vsDay.discountPct}% so với mua lẻ vé ngày`
+                    : `~${vsDay.discountPct}% off vs. buying ${visitCount} separate day passes`
+                  : isVi
+                    ? `Tiết kiệm ~${vsDay.discountPct}% so với ${durationDays} vé ngày`
+                    : `~${vsDay.discountPct}% off vs. ${durationDays}× day pass`}
               </p>
-              <p className="mt-0.5 text-[11px] text-white/50">
-                {isVi
-                  ? `≈ ${vsDay.perVisitEffectiveVnd.toLocaleString("vi-VN")}đ / lượt trong gói`
-                  : `≈ ${vsDay.perVisitEffectiveVnd.toLocaleString("vi-VN")} VND per visit in this pack`}
-              </p>
+              {vsDayVisit && (
+                <p className="mt-0.5 text-[11px] text-white/50">
+                  {isVi
+                    ? `≈ ${vsDayVisit.perVisitEffectiveVnd.toLocaleString("vi-VN")}đ / lượt trong gói`
+                    : `≈ ${vsDayVisit.perVisitEffectiveVnd.toLocaleString("vi-VN")} VND per visit in this pack`}
+                </p>
+              )}
             </div>
           )}
           <p className="text-sm text-white/60 mb-4">

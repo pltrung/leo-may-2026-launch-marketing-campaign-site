@@ -29,3 +29,26 @@ export function visitPackVsDayPassBaseline(priceVnd: number, visits: number): {
   const perVisitEffectiveVnd = Math.round(priceVnd / visits);
   return { listAtDayRateVnd, discountPct, perVisitEffectiveVnd };
 }
+
+/** Duration days that we show "vs N× day pass" for (30, 180, 365). */
+const MULTI_DAY_DURATIONS = [30, 180, 365];
+
+export function isMultiDayPass(durationDays?: number | null): boolean {
+  return durationDays != null && MULTI_DAY_DURATIONS.includes(durationDays);
+}
+
+/**
+ * Savings for 30/180/365 day pass vs buying (1 day pass × N).
+ * Use dayPassPriceVnd from plan "day_pass" or DAY_PASS_BASELINE_PER_VISIT_VND.
+ */
+export function dayPassVsMultiDayBaseline(
+  priceVnd: number,
+  durationDays: number,
+  dayPassPriceVnd: number
+): { listAtDayRateVnd: number; discountPct: number } | null {
+  if (!isMultiDayPass(durationDays) || dayPassPriceVnd <= 0 || priceVnd <= 0) return null;
+  const listAtDayRateVnd = durationDays * dayPassPriceVnd;
+  if (priceVnd >= listAtDayRateVnd) return null;
+  const discountPct = Math.max(1, Math.min(99, Math.round((1 - priceVnd / listAtDayRateVnd) * 100)));
+  return { listAtDayRateVnd, discountPct };
+}

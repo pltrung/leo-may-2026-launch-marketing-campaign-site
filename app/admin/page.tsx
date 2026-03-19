@@ -384,7 +384,7 @@ export default function AdminPage() {
       reset_frequency_days?: number;
       overdue?: boolean;
       route_age_days?: number | null;
-      reset_status?: "pending" | "in_progress" | "completed" | "overdue";
+      reset_status?: "pending" | "in_progress" | "completed" | "overdue" | "not_started";
       assigned_setters?: { staff_id: string; name: string }[];
     }[];
     tasks: StaffTaskRow[];

@@ -21,7 +21,7 @@ import { getMessages } from "@/lib/messages";
 import { getGymDateFromISO, getGymToday } from "@/lib/gymTimezone";
 import { roundSalePriceVnd } from "@/lib/newbieGraduateSale";
 import { memberIdentityComplete } from "@/lib/memberIdentity";
-import { visitPackVisitCount, visitPackVsDayPassBaseline } from "@/lib/visitPackDayPassBaseline";
+import { visitPackVisitCount, visitPackVsDayPassBaseline, dayPassVsMultiDayBaseline, isMultiDayPass, DAY_PASS_BASELINE_PER_VISIT_VND } from "@/lib/visitPackDayPassBaseline";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -1755,6 +1755,22 @@ export default function DashboardPage() {
                     )}
                   </p>
                 )}
+                {passFilter === "day" &&
+                  filtered.some((p) => isMultiDayPass(p.duration_days)) && (
+                  <p className="text-[11px] leading-snug text-white/55 mb-3 px-0.5">
+                    {isVi ? (
+                      <>
+                        Vé 30/180/365 ngày giảm so với mua vé 1 ngày × số ngày (
+                        <span className="text-white/70">vé 1 ngày: {plans.find((x) => x.id === "day_pass")?.price_vnd?.toLocaleString("vi-VN") ?? "390.000"}đ</span>).
+                      </>
+                    ) : (
+                      <>
+                        30/180/365 day passes save vs. 1 day pass × same days (
+                        <span className="text-white/70">1 day: {(plans.find((x) => x.id === "day_pass")?.price_vnd ?? DAY_PASS_BASELINE_PER_VISIT_VND).toLocaleString("vi-VN")} VND</span>).
+                      </>
+                    )}
+                  </p>
+                )}
                 <div
                   data-passes-carousel
                   className="flex gap-3 overflow-x-auto overflow-y-hidden pb-2 mb-4 scroll-smooth snap-x snap-mandatory touch-pan-x"
@@ -1767,6 +1783,10 @@ export default function DashboardPage() {
                     const pr = getPlanPricing(p);
                     const vCount = visitPackVisitCount(p.id, p.duration_visits);
                     const vsPack = vCount > 0 ? visitPackVsDayPassBaseline(pr.pay, vCount) : null;
+                    const dayPassPriceVnd = plans.find((x) => x.id === "day_pass")?.price_vnd ?? DAY_PASS_BASELINE_PER_VISIT_VND;
+                    const durationDays = p.duration_days ?? 0;
+                    const vsDayMulti = isMultiDayPass(durationDays) ? dayPassVsMultiDayBaseline(pr.pay, durationDays, dayPassPriceVnd) : null;
+                    const savings = vsPack ?? vsDayMulti;
                     return (
                       <button
                         key={p.id}
@@ -1809,12 +1829,19 @@ export default function DashboardPage() {
                               {pr.pay.toLocaleString("vi-VN")} VND
                             </p>
                           )}
-                          {vsPack && vsPack.discountPct > 0 && (
-                            <p className="text-[10px] font-semibold text-amber-300/95 mt-1.5 leading-tight">
-                              {isVi
-                                ? `~${vsPack.discountPct}% so với ${vCount} vé ngày`
-                                : `~${vsPack.discountPct}% off vs. ${vCount} day passes`}
-                            </p>
+                          {savings && savings.discountPct > 0 && (
+                            <>
+                              <p className="text-white/45 text-[10px] line-through mt-1.5">
+                                {savings.listAtDayRateVnd.toLocaleString("vi-VN")} VND
+                              </p>
+                              <p className="text-[10px] font-semibold text-amber-300/95 mt-0.5 leading-tight">
+                                {vsPack ? (
+                                  isVi ? `~${savings.discountPct}% so với ${vCount} vé ngày` : `~${savings.discountPct}% off vs. ${vCount} day passes`
+                                ) : (
+                                  isVi ? `~${savings.discountPct}% so với ${durationDays} vé ngày` : `~${savings.discountPct}% off vs. ${durationDays}× day pass`
+                                )}
+                              </p>
+                            </>
                           )}
                         </div>
                       </button>
@@ -2393,6 +2420,7 @@ export default function DashboardPage() {
             ? graduateSale?.ends_at ?? null
             : null
         }
+        dayPassPriceVnd={plans.find((x) => x.id === "day_pass")?.price_vnd ?? undefined}
       />
       <EventDetailModal
         open={eventModalOpen}
