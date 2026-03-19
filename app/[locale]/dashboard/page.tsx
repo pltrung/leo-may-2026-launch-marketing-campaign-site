@@ -176,6 +176,11 @@ export default function DashboardPage() {
   const wakeLockRef = useRef<any | null>(null);
   const visitPassBarMaxRef = useRef<number>(0);
   const [gymOccupancy, setGymOccupancy] = useState<number | null>(null);
+  const [gymOccMeta, setGymOccMeta] = useState<{
+    maxCapacity: number;
+    isBusy: boolean;
+    isAtCapacity: boolean;
+  } | null>(null);
   const [leaderboard, setLeaderboard] = useState<{
     top: { rank: number; full_name: string; instagram_handle?: string | null; profile_photo_url?: string | null; visits: number }[];
     currentUser: { rank: number | null; visits: number; full_name: string };
@@ -334,7 +339,14 @@ export default function DashboardPage() {
     fetch("/api/occupancy")
       .then((r) => r.json())
       .then((data) => {
-        if (!cancelled && typeof data.count === "number") setGymOccupancy(data.count);
+        if (!cancelled && typeof data.count === "number") {
+          setGymOccupancy(data.count);
+          setGymOccMeta({
+            maxCapacity: typeof data.maxCapacity === "number" ? data.maxCapacity : 30,
+            isBusy: !!data.isBusy,
+            isAtCapacity: !!data.isAtCapacity,
+          });
+        }
       })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -988,19 +1000,28 @@ export default function DashboardPage() {
   // Real occupancy from API
   let gymStatusEmoji = "🟢";
   let gymStatusLabel = isVi ? "Vắng" : "Light";
+  const maxCap = gymOccMeta?.maxCapacity ?? 30;
   let gymStatusDetail =
     gymOccupancy != null
-      ? `${gymOccupancy} ${isVi ? "người đang leo" : "climbers inside"}`
+      ? `${gymOccupancy} / ${maxCap} ${isVi ? "người (ước lượng)" : "climbers (estimate)"}`
       : isVi
       ? "Đang tải dữ liệu phòng gym…"
       : "Loading gym status…";
   if (gymOccupancy != null) {
-    if (gymOccupancy >= 25 && gymOccupancy < 50) {
-      gymStatusEmoji = "🟡";
-      gymStatusLabel = isVi ? "Vừa phải" : "Moderate";
-    } else if (gymOccupancy >= 50) {
+    if (gymOccMeta?.isAtCapacity) {
       gymStatusEmoji = "🔴";
+      gymStatusLabel = isVi ? "Đầy (ước lượng)" : "Full (estimate)";
+    } else if (gymOccMeta?.isBusy) {
+      gymStatusEmoji = "🟡";
       gymStatusLabel = isVi ? "Đông" : "Busy";
+    } else if (!gymOccMeta) {
+      if (gymOccupancy >= 25 && gymOccupancy < 50) {
+        gymStatusEmoji = "🟡";
+        gymStatusLabel = isVi ? "Vừa phải" : "Moderate";
+      } else if (gymOccupancy >= 50) {
+        gymStatusEmoji = "🔴";
+        gymStatusLabel = isVi ? "Đông" : "Busy";
+      }
     }
   }
 
@@ -1277,6 +1298,15 @@ export default function DashboardPage() {
                       })}
                     </span>
                   )}
+                  {member.first_visit_welcomed_at && (
+                    <span className="block mt-1 text-emerald-300/90 text-[12px]">
+                      {isVi ? "Leo Mây đã chào mừng bạn lần đầu • " : "Welcomed on your first visit • "}
+                      {new Date(member.first_visit_welcomed_at).toLocaleDateString(isVi ? "vi-VN" : "en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+                  )}
                 </p>
               </div>
             </button>
@@ -1490,6 +1520,13 @@ export default function DashboardPage() {
               <p className="mt-4 text-[13px] text-white/50">
                 {isVi ? "Số người đã check-in trong 2 giờ gần nhất." : "Members who checked in within the last 2 hours."}
               </p>
+              {gymOccMeta?.isAtCapacity && (
+                <p className="mt-2 text-[12px] text-amber-200/95 font-medium">
+                  {isVi
+                    ? "Phòng có thể đông — nên kiểm tra trước khi tới."
+                    : "The gym may be at capacity — consider calling ahead."}
+                </p>
+              )}
             </div>
           </section>
 
@@ -2398,6 +2435,12 @@ export default function DashboardPage() {
           gender: member.gender,
           address: member.address,
           id_verified_from_cccd: member.id_verified_from_cccd,
+          is_minor: member.is_minor,
+          guardian_name: member.guardian_name,
+          guardian_phone: member.guardian_phone,
+          zalo_user_id: member.zalo_user_id,
+          prefer_zalo_notifications: member.prefer_zalo_notifications,
+          prefer_sms_notifications: member.prefer_sms_notifications,
         }}
         accessToken={accessToken}
         onSaved={() => refresh({ backgroundMemberFetch: true })}

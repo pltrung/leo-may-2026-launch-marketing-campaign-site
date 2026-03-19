@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 
+export const dynamic = "force-dynamic";
+
 const PLAN_ORDER = [
   "newbie_class",
   "day_pass",

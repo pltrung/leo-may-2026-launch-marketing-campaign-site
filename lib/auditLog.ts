@@ -14,7 +14,10 @@ export type AuditActionType =
   | "inventory_stock_out"
   | "route_reset_complete"
   | "staff_task_complete"
-  | "staff_checkin";
+  | "staff_checkin"
+  | "payment_adjustment"
+  | "facility_incident"
+  | "shift_close";
 
 export interface AuditLogEntry {
   adminAuthId?: string | null;

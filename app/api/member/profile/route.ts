@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const supabase = createServerClient();
     const { data: member, error } = await supabase
       .from("member_profiles")
-      .select("id, profile_photo_url, id_number, date_of_birth, full_name, display_name, email, phone, instagram_handle, gender, address, id_verified_from_cccd")
+      .select("id, profile_photo_url, id_number, date_of_birth, full_name, display_name, email, phone, instagram_handle, gender, address, id_verified_from_cccd, is_minor, guardian_name, guardian_phone, zalo_user_id, prefer_zalo_notifications, prefer_sms_notifications")
       .eq("auth_id", user.id)
       .maybeSingle();
 
@@ -48,6 +48,12 @@ export async function GET(req: NextRequest) {
         gender: member.gender ?? null,
         address: member.address ?? null,
         id_verified_from_cccd: member.id_verified_from_cccd ?? false,
+        is_minor: member.is_minor ?? false,
+        guardian_name: member.guardian_name ?? null,
+        guardian_phone: member.guardian_phone ?? null,
+        zalo_user_id: member.zalo_user_id ?? null,
+        prefer_zalo_notifications: member.prefer_zalo_notifications ?? false,
+        prefer_sms_notifications: member.prefer_sms_notifications ?? false,
       },
     });
   } catch (e) {

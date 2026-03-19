@@ -21,6 +21,12 @@ interface ProfileModalProps {
     date_of_birth?: string | null;
     address?: string | null;
     id_verified_from_cccd?: boolean;
+    is_minor?: boolean;
+    guardian_name?: string | null;
+    guardian_phone?: string | null;
+    zalo_user_id?: string | null;
+    prefer_zalo_notifications?: boolean;
+    prefer_sms_notifications?: boolean;
   };
   accessToken: string | null;
   onSaved: () => void;
@@ -64,6 +70,14 @@ export default function ProfileModal({
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [eidScannerOpen, setEidScannerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isMinor, setIsMinor] = useState(!!member.is_minor);
+  const [guardianName, setGuardianName] = useState(member.guardian_name ?? "");
+  const [guardianPhone, setGuardianPhone] = useState(member.guardian_phone ?? "");
+  const [zaloUserId, setZaloUserId] = useState(member.zalo_user_id ?? "");
+  const [preferZalo, setPreferZalo] = useState(!!member.prefer_zalo_notifications);
+  const [preferSms, setPreferSms] = useState(!!member.prefer_sms_notifications);
+  const [extrasLoading, setExtrasLoading] = useState(false);
+  const [extrasMsg, setExtrasMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -85,8 +99,34 @@ export default function ProfileModal({
       setPasswordError(null);
       setPasswordSuccess(false);
       setEidScannerOpen(false);
+      setIsMinor(!!member.is_minor);
+      setGuardianName(member.guardian_name ?? "");
+      setGuardianPhone(member.guardian_phone ?? "");
+      setZaloUserId(member.zalo_user_id ?? "");
+      setPreferZalo(!!member.prefer_zalo_notifications);
+      setPreferSms(!!member.prefer_sms_notifications);
+      setExtrasMsg(null);
     }
-  }, [open, member.full_name, member.display_name, member.email, member.phone, member.instagram_handle, member.gender, member.id_number, member.date_of_birth, member.address, member.profile_photo_url, member.id_verified_from_cccd]);
+  }, [
+    open,
+    member.full_name,
+    member.display_name,
+    member.email,
+    member.phone,
+    member.instagram_handle,
+    member.gender,
+    member.id_number,
+    member.date_of_birth,
+    member.address,
+    member.profile_photo_url,
+    member.id_verified_from_cccd,
+    member.is_minor,
+    member.guardian_name,
+    member.guardian_phone,
+    member.zalo_user_id,
+    member.prefer_zalo_notifications,
+    member.prefer_sms_notifications,
+  ]);
 
   const lockedFromCccd = Boolean(member.id_verified_from_cccd);
 
@@ -508,6 +548,90 @@ export default function ProfileModal({
                 className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-70 disabled:cursor-not-allowed"
               />
             </label>
+          </div>
+
+          {/* Minors + Zalo/SMS prefs (separate API — no CCCD gate) */}
+          <div className="border-t border-white/10 pt-4 mb-4 space-y-3">
+            <p className="text-xs text-white/70 font-medium">
+              {isVi ? "Trẻ em / Zalo / SMS (tùy chọn)" : "Minors / Zalo / SMS (optional)"}
+            </p>
+            <p className="text-[11px] text-white/45">
+              {isVi
+                ? "Gym có thể liên hệ qua Zalo/SMS khi bạn bật. Trẻ em: điền người giám hộ."
+                : "Enable if you want desk campaigns via Zalo/SMS. Minors: add guardian contact."}
+            </p>
+            <label className="flex items-center gap-2 text-sm text-white/80">
+              <input type="checkbox" checked={isMinor} onChange={(e) => setIsMinor(e.target.checked)} className="rounded" />
+              {isVi ? "Thành viên dưới 18 tuổi" : "Member is under 18"}
+            </label>
+            {isMinor && (
+              <>
+                <input
+                  value={guardianName}
+                  onChange={(e) => setGuardianName(e.target.value)}
+                  placeholder={isVi ? "Tên người giám hộ" : "Guardian name"}
+                  className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm placeholder-white/40"
+                />
+                <input
+                  value={guardianPhone}
+                  onChange={(e) => setGuardianPhone(e.target.value)}
+                  placeholder={isVi ? "SĐT người giám hộ" : "Guardian phone"}
+                  className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm placeholder-white/40"
+                />
+              </>
+            )}
+            <input
+              value={zaloUserId}
+              onChange={(e) => setZaloUserId(e.target.value)}
+              placeholder={isVi ? "Zalo (ID / số điện thoại Zalo)" : "Zalo ID / phone on Zalo"}
+              className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm placeholder-white/40"
+            />
+            <label className="flex items-center gap-2 text-sm text-white/80">
+              <input type="checkbox" checked={preferZalo} onChange={(e) => setPreferZalo(e.target.checked)} className="rounded" />
+              {isVi ? "Nhận thông báo qua Zalo (khi gym gửi)" : "OK to reach me on Zalo"}
+            </label>
+            <label className="flex items-center gap-2 text-sm text-white/80">
+              <input type="checkbox" checked={preferSms} onChange={(e) => setPreferSms(e.target.checked)} className="rounded" />
+              {isVi ? "Nhận SMS" : "OK to receive SMS"}
+            </label>
+            <button
+              type="button"
+              disabled={extrasLoading || !accessToken}
+              onClick={async () => {
+                if (!accessToken) return;
+                setExtrasLoading(true);
+                setExtrasMsg(null);
+                try {
+                  const res = await fetch("/api/member/profile-extras", {
+                    method: "PATCH",
+                    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      is_minor: isMinor,
+                      guardian_name: guardianName.trim() || null,
+                      guardian_phone: guardianPhone.trim() || null,
+                      zalo_user_id: zaloUserId.trim() || null,
+                      prefer_zalo_notifications: preferZalo,
+                      prefer_sms_notifications: preferSms,
+                    }),
+                  });
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok) {
+                    setExtrasMsg((data as { error?: string }).error ?? "Error");
+                    return;
+                  }
+                  setExtrasMsg(isVi ? "Đã lưu." : "Saved.");
+                  onSaved();
+                } catch {
+                  setExtrasMsg(isVi ? "Lỗi." : "Failed.");
+                } finally {
+                  setExtrasLoading(false);
+                }
+              }}
+              className="px-4 py-2 rounded-lg bg-sky-600/90 text-white text-sm font-medium hover:bg-sky-500 disabled:opacity-50"
+            >
+              {extrasLoading ? "…" : isVi ? "Lưu Zalo / SMS / giám hộ" : "Save Zalo / SMS / guardian"}
+            </button>
+            {extrasMsg && <p className="text-xs text-emerald-300">{extrasMsg}</p>}
           </div>
 
           {/* Password change */}

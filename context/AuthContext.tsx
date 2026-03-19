@@ -39,6 +39,13 @@ export interface MemberProfile {
   /** Stored tier (5 or 10); use merchandise_discount_effective at POS eligibility */
   merchandise_discount_percent?: number;
   merchandise_discount_effective?: number;
+  first_visit_welcomed_at?: string | null;
+  is_minor?: boolean;
+  guardian_name?: string | null;
+  guardian_phone?: string | null;
+  zalo_user_id?: string | null;
+  prefer_zalo_notifications?: boolean;
+  prefer_sms_notifications?: boolean;
 }
 
 type AuthValue = {

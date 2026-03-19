@@ -21,6 +21,10 @@ const FinanceTab = dynamic(() => import("@/components/admin/FinanceTab"), { ssr:
 import { GuidedTour, TOUR_STEPS_FRONTDESK, TOUR_STEPS_STAFF, TOUR_STEPS_ADMIN, ADMIN_TOUR_STEP_IDS_ADMIN_TOOLS } from "@/components/admin/GuidedTour";
 import OnboardingAnalyticsTable from "@/components/admin/OnboardingAnalyticsTable";
 
+const GymOperationsHub = dynamic(() => import("@/components/admin/gymOps/GymOperationsHub"), { ssr: false });
+const FacilityOperationsPanel = dynamic(() => import("@/components/admin/gymOps/FacilityOperationsPanel"), { ssr: false });
+const FrontDeskOpsExtras = dynamic(() => import("@/components/admin/gymOps/FrontDeskOpsExtras"), { ssr: false });
+
 const ADMIN_LOCALE_KEY = "admin-locale";
 /** Used for "Busy" status when occupancy exceeds this share of capacity. */
 const GYM_CAPACITY = 30;
@@ -103,6 +107,10 @@ interface AdminMember {
   merchandise_discount_percent?: number;
   merchandise_discount_effective?: number;
   friend_guest_codes?: { code: string; used: boolean; expired: boolean }[];
+  first_visit_welcomed_at?: string | null;
+  is_minor?: boolean;
+  guardian_name?: string | null;
+  guardian_phone?: string | null;
 }
 
 interface NameSearchResult {
@@ -185,6 +193,12 @@ export default function AdminPage() {
   const [newMemberPhone, setNewMemberPhone] = useState("");
   const [newMemberType, setNewMemberType] = useState<MembershipType>("Founder Member");
   const [gymOccupancy, setGymOccupancy] = useState(0);
+  const [occupancyMeta, setOccupancyMeta] = useState<{
+    maxCapacity: number;
+    isBusy: boolean;
+    isAtCapacity: boolean;
+    busyThresholdCount: number;
+  } | null>(null);
   const [nameResults, setNameResults] = useState<NameSearchResult[]>([]);
   const [paymentReceived, setPaymentReceived] = useState(false);
   const lastPaymentCountRef = React.useRef<number | null>(null);
@@ -206,7 +220,7 @@ export default function AdminPage() {
   const [frontDeskTab, setFrontDeskTab] = useState<"checkin" | "member">("checkin");
   const [memberProfileSubTab, setMemberProfileSubTab] = useState<"summary" | "membership" | "sales" | "history">("summary");
   const [managementTab, setManagementTab] = useState<"inventory" | "admin_tools">("inventory");
-  const [staffModalTab, setStaffModalTab] = useState<"overview" | "tasks" | "attendance" | "coaching" | "routes">("overview");
+  const [staffModalTab, setStaffModalTab] = useState<"overview" | "tasks" | "attendance" | "coaching" | "routes" | "facility">("overview");
   const [operationsTaskPhase, setOperationsTaskPhase] = useState<"pre_open" | "during_hours" | "closing">("pre_open");
   const [staffResetLoading, setStaffResetLoading] = useState(false);
   const [resetAttendanceWarningOpen, setResetAttendanceWarningOpen] = useState(false);
@@ -462,9 +476,9 @@ export default function AdminPage() {
     return () => clearInterval(id);
   }, [foundMember?.id, foundMember?.newbie_graduate_sale?.ends_at]);
 
-  // Staff commission summary (My Sales Today / My Commission)
+  // Staff commission summary (My Sales Today / My Commission) — not for CEO admin role
   useEffect(() => {
-    if (!staffId) {
+    if (!staffId || role === "admin") {
       setStaffSalesSummary(null);
       return;
     }
@@ -472,7 +486,7 @@ export default function AdminPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => (d && typeof d.sales_today === "number" && typeof d.commission_today === "number" ? setStaffSalesSummary({ sales_today: d.sales_today, commission_today: d.commission_today }) : setStaffSalesSummary(null)))
       .catch(() => setStaffSalesSummary(null));
-  }, [staffId, adminFetch]);
+  }, [staffId, adminFetch, role]);
 
   // When role loads, set initial area to first allowed (staff → Staff tab, admin/frontdesk → Front Desk). Then ensure current area stays allowed.
   useEffect(() => {
@@ -500,6 +514,7 @@ export default function AdminPage() {
     }
     if (adminArea === "front_desk" && meFetched && !canDoCheckIn && frontDeskTab === "checkin") setFrontDeskTab("member");
     if (!canDoMembershipModify && !canCollectMembershipPayment && memberProfileSubTab === "membership") setMemberProfileSubTab("summary");
+    if (role === "admin" && memberProfileSubTab === "sales") setMemberProfileSubTab("summary");
     if (adminArea === "management" && !canAccessAdminTools && managementTab !== "inventory") setManagementTab("inventory");
   }, [role, canAccessFrontDeskFull, canAccessFrontDeskLimited, canAccessOperations, canAccessManagement, canAccessAnalytics, adminArea, canDoCheckIn, frontDeskTab, canDoMembershipModify, canCollectMembershipPayment, memberProfileSubTab, canAccessAdminTools, managementTab, meFetched]);
 
@@ -827,6 +842,12 @@ export default function AdminPage() {
         const data = await res.json();
         if (!cancelled && typeof data.count === "number") {
           setGymOccupancy(data.count);
+          setOccupancyMeta({
+            maxCapacity: typeof data.maxCapacity === "number" ? data.maxCapacity : 30,
+            isBusy: !!data.isBusy,
+            isAtCapacity: !!data.isAtCapacity,
+            busyThresholdCount: typeof data.busyThresholdCount === "number" ? data.busyThresholdCount : 21,
+          });
         }
       } catch {
         // ignore
@@ -1320,7 +1341,7 @@ export default function AdminPage() {
           .then((r) => r.json())
           .then((d) => setMemberPurchases(d.purchases ?? []))
           .catch(() => {});
-        if (staffId) {
+        if (staffId && role !== "admin") {
           adminFetch("/api/admin/me/sales-summary").then((r) => (r.ok ? r.json() : null)).then((d) => d && typeof d.sales_today === "number" && setStaffSalesSummary({ sales_today: d.sales_today, commission_today: d.commission_today ?? 0 }));
         }
       } else {
@@ -1331,7 +1352,7 @@ export default function AdminPage() {
     } finally {
       setPosCheckoutLoading(false);
     }
-  }, [foundMember, posCart, staffId, adminFetch, locale, m]);
+  }, [foundMember, posCart, staffId, role, adminFetch, locale, m]);
 
   const handlePosCheckoutVietqr = useCallback(async () => {
     if (!foundMember || posCart.length === 0) return;
@@ -1384,7 +1405,7 @@ export default function AdminPage() {
             .then((d) => setMemberPurchases(d.purchases ?? []))
             .catch(() => {});
         }
-        if (staffId) {
+        if (staffId && role !== "admin") {
           adminFetch("/api/admin/me/sales-summary").then((r) => (r.ok ? r.json() : null)).then((d) => d && typeof d.sales_today === "number" && setStaffSalesSummary({ sales_today: d.sales_today, commission_today: d.commission_today ?? 0 }));
         }
       } else {
@@ -1395,7 +1416,7 @@ export default function AdminPage() {
     } finally {
       setPosConfirmLoading(false);
     }
-  }, [posPendingTransactionId, foundMember, staffId, adminFetch, locale, m]);
+  }, [posPendingTransactionId, foundMember, staffId, role, adminFetch, locale, m]);
 
   const handlePaymentPlanChange = useCallback(
     (planId: string) => {
@@ -1694,7 +1715,9 @@ export default function AdminPage() {
 
   // Gym status pill: only computed when rendering main dashboard (after all early returns).
   const currentPhase = phase?.current_phase ?? "gym_open";
-  const isBusy = currentPhase === "gym_open" && gymOccupancy > GYM_CAPACITY * BUSY_THRESHOLD;
+  const isBusy =
+    currentPhase === "gym_open" &&
+    (occupancyMeta?.isBusy ?? gymOccupancy > GYM_CAPACITY * BUSY_THRESHOLD);
   const gymPill = (() => {
     if (currentPhase === "pre_open") return { dot: "⚪", labelEn: "Pre-open", labelVi: "Pre-open", bg: "bg-slate-600/30 border-slate-500/50", text: "text-slate-200" };
     if (currentPhase === "closing" || currentPhase === "closed") return { dot: "🔴", labelEn: "Closed", labelVi: "Đóng cửa", bg: "bg-red-900/30 border-red-500/50", text: "text-red-200" };
@@ -1703,7 +1726,10 @@ export default function AdminPage() {
   })();
   const showOccupancy = currentPhase !== "closing" && currentPhase !== "closed";
   const gymPillLabel = locale === "vi" ? gymPill.labelVi : gymPill.labelEn;
-  const gymPillText = showOccupancy ? `${gymPillLabel} • ${gymOccupancy} ${locale === "vi" ? "trong" : "inside"}` : gymPillLabel;
+  const maxCap = occupancyMeta?.maxCapacity ?? GYM_CAPACITY;
+  const gymPillText = showOccupancy
+    ? `${gymPillLabel} • ${gymOccupancy}/${maxCap} ${locale === "vi" ? "trong" : "inside"}`
+    : gymPillLabel;
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-900 text-slate-50">
@@ -1769,8 +1795,8 @@ export default function AdminPage() {
 
       <main className="flex-1 min-h-0">
         <div className="max-w-[1100px] mx-auto px-3 py-3 md:px-4 md:py-6 space-y-2 md:space-y-4">
-          {/* Sales + commission (single place): frontdesk/admin always; staff only when shift IN. VND compact + full on hover. */}
-          {staffId != null && staffSalesSummary != null && (() => {
+          {/* Sales + commission: frontdesk; staff when shift IN. Hidden for CEO (admin role). */}
+          {role !== "admin" && staffId != null && staffSalesSummary != null && (() => {
             const today = getGymToday();
             const hasShiftToday = shiftCheckInAttendance != null && shiftCheckInAttendance.date === today;
             const isShiftIn = hasShiftToday && shiftCheckInAttendance!.status === "IN";
@@ -2040,9 +2066,36 @@ export default function AdminPage() {
               </div>
               <div className="rounded-xl md:rounded-2xl bg-slate-900/95 border border-slate-700 p-3 md:p-6">
                 <h3 className="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">{m.gymOccupancy}</h3>
-                <p className="text-2xl md:text-3xl font-bold text-white">{gymOccupancy}</p>
+                <p className="text-2xl md:text-3xl font-bold text-white">
+                  {gymOccupancy}
+                  {occupancyMeta ? (
+                    <span className="text-lg font-semibold text-slate-400"> / {occupancyMeta.maxCapacity}</span>
+                  ) : null}
+                </p>
                 <p className="text-xs md:text-sm text-slate-400 mt-0.5">{m.climbersInsideLast2h}</p>
+                {occupancyMeta?.isAtCapacity && (
+                  <p className="mt-2 text-xs font-semibold text-red-300 rounded-lg bg-red-950/40 border border-red-500/40 px-2 py-1.5">
+                    {locale === "vi"
+                      ? "Đã đạt sức chứa ước lượng — xem xét giới hạn vào cửa."
+                      : "At estimated capacity — consider holding the door / wait list."}
+                  </p>
+                )}
+                {occupancyMeta && !occupancyMeta.isAtCapacity && occupancyMeta.isBusy && (
+                  <p className="mt-2 text-xs text-amber-200/90">
+                    {locale === "vi" ? "Đang khá đông (theo ngưỡng admin)." : "Busy vs. admin threshold."}
+                  </p>
+                )}
               </div>
+
+              <FrontDeskOpsExtras
+                adminFetch={adminFetch}
+                locale={locale}
+                gymDateYmd={getGymToday()}
+                onOpenWalkInMemberForm={() => {
+                  setShowNewMemberForm(true);
+                  setFrontDeskTab("member");
+                }}
+              />
               <div className="rounded-xl md:rounded-2xl bg-white border border-slate-200 p-3 md:p-6">
                 <h3 className="text-xs md:text-sm font-semibold text-slate-900 mb-2 md:mb-3">{m.recentCheckins} (7 {m.day}s)</h3>
                 {!checkinsData && <p className="text-sm text-slate-500">{m.loading}</p>}
@@ -2263,7 +2316,7 @@ export default function AdminPage() {
               {/* Sub-tabs (staff: membership = collect pass payment only) */}
               <nav className="flex gap-1 p-1 rounded-xl bg-slate-800/80 border border-slate-700 overflow-x-auto" aria-label="Member sections">
                 {(["summary", "membership", "sales", "history"] as const)
-                  .filter((tab) => tab !== "membership" || canDoMembershipModify || canCollectMembershipPayment)
+                  .filter((tab) => (tab !== "sales" || role !== "admin") && (tab !== "membership" || canDoMembershipModify || canCollectMembershipPayment))
                   .map((tab) => (
                   <button
                     key={tab}
@@ -2304,6 +2357,37 @@ export default function AdminPage() {
                         )}
                       </div>
                       <div><p className="text-slate-400">{m.internalId}</p><p className="font-mono text-[11px] text-slate-300 break-all">{foundMember.id}</p></div>
+                      {foundMember.is_minor && (
+                        <div className="col-span-2 rounded-lg border border-amber-500/40 bg-amber-950/20 px-3 py-2 text-xs text-amber-100">
+                          {locale === "vi" ? "Thành viên nhỏ tuổi" : "Minor"} ·{" "}
+                          {foundMember.guardian_name || "—"} · {foundMember.guardian_phone || "—"}
+                        </div>
+                      )}
+                      <div className="col-span-2 flex flex-wrap items-center gap-2">
+                        <p className="text-slate-400 text-xs w-full">
+                          {locale === "vi" ? "Chào mừng lần đầu (dashboard)" : "First visit welcome (dashboard)"}
+                        </p>
+                        {foundMember.first_visit_welcomed_at ? (
+                          <p className="text-emerald-300 text-xs">
+                            ✓ {new Date(foundMember.first_visit_welcomed_at).toLocaleString(locale === "vi" ? "vi-VN" : "en-US")}
+                          </p>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const res = await adminFetch("/api/admin/gym-operations/first-visit-welcome", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ member_id: foundMember.id }),
+                              });
+                              if (res.ok) await loadMemberById(foundMember.id);
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-500"
+                          >
+                            {locale === "vi" ? "Đánh dấu đã chào mừng" : "Mark welcomed"}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_16px_40px_rgba(15,23,42,0.7)] p-4 md:p-5">
@@ -2624,7 +2708,7 @@ export default function AdminPage() {
               </div>
               )}
 
-              {memberProfileSubTab === "sales" && (
+              {memberProfileSubTab === "sales" && role !== "admin" && (
               <div className="rounded-2xl bg-white/95 border border-slate-200 shadow-[0_10px_32px_rgba(15,23,42,0.08)] p-4 md:p-5" data-tour="pos-scan-barcode">
                 <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">{m.frontDeskSales}</h3>
                 <div className="space-y-3">
@@ -3225,6 +3309,8 @@ export default function AdminPage() {
               </div>
             </div>
 
+            <GymOperationsHub adminFetch={adminFetch} locale={locale} />
+
             {auditLogVisible && (
               <div className="rounded-2xl bg-slate-800/90 border border-slate-700 p-4 md:p-5">
                 <h4 className="text-xs font-semibold text-slate-300 uppercase mb-3">{m.auditLogTitle}</h4>
@@ -3281,7 +3367,7 @@ export default function AdminPage() {
               <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/80">
                 {/* Staff Operations tabs */}
                 <div className="flex gap-1 p-2 border-b bg-slate-100 flex-wrap">
-                  {(["overview", "tasks", "attendance", "coaching", "routes"] as const).map((tab) => (
+                  {(["overview", "tasks", "attendance", "coaching", "routes", "facility"] as const).map((tab) => (
                     <button
                       key={tab}
                       type="button"
@@ -3301,14 +3387,18 @@ export default function AdminPage() {
                         ? m.staffTabAttendance
                         : tab === "coaching"
                         ? m.staffTabCoaching
-                        : m.staffTabRoutes}
+                        : tab === "routes"
+                        ? m.staffTabRoutes
+                        : locale === "vi"
+                        ? "An toàn & CS"
+                        : "Safety & facility"}
                     </button>
                   ))}
                 </div>
 
                 {/* Staff Operations content */}
                 <div className="max-h-[70vh] overflow-y-auto p-4 space-y-4 bg-white">
-                  {!staffOpsData && staffModalTab !== "attendance" && (
+                  {!staffOpsData && staffModalTab !== "attendance" && staffModalTab !== "facility" && (
                     <p className="text-sm text-slate-500">{m.loading}</p>
                   )}
 
@@ -4008,6 +4098,10 @@ export default function AdminPage() {
                         </tbody>
                       </table>
                     </div>
+                  )}
+
+                  {staffModalTab === "facility" && (
+                    <FacilityOperationsPanel adminFetch={adminFetch} locale={locale} />
                   )}
                 </div>
               </div>
