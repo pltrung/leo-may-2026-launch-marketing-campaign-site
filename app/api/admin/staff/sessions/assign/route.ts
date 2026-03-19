@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   }
   const sessionIds =
     Array.isArray(body.session_ids) && body.session_ids.length > 0
-      ? [...new Set(body.session_ids.filter((id): id is string => typeof id === "string" && id.length > 0))]
+      ? Array.from(new Set(body.session_ids.filter((id): id is string => typeof id === "string" && id.length > 0)))
       : body.session_id
         ? [body.session_id]
         : [];

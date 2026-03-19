@@ -1,24 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { computeNewExpiry } from "@/lib/membershipExtension";
 import { verifyVnPaySecureHash } from "@/lib/vnpay";
-import { amountsMatchVnd, effectivePriceForPlan } from "@/lib/newbieGraduateSale";
-import { applyDayPassPurchaseBenefits } from "@/lib/membershipBenefits";
+import { fulfillMembershipGatewayPayment } from "@/lib/fulfillGatewayMembership";
 
 const VNPAY_HASH_SECRET = process.env.VNPAY_HASH_SECRET ?? "";
+
+function mapFulfillToVnpay(
+  out: Awaited<ReturnType<typeof fulfillMembershipGatewayPayment>>
+): { RspCode: string; Message: string } {
+  if (out.ok) return { RspCode: "00", Message: "Confirm Success" };
+  switch (out.kind) {
+    case "duplicate":
+      return { RspCode: "02", Message: "Order already confirmed" };
+    case "member_not_found":
+      return { RspCode: "01", Message: "Order not found" };
+    case "invalid_plan":
+    case "amount_mismatch":
+    case "business_rule":
+      return { RspCode: "04", Message: "Invalid order" };
+    default:
+      return { RspCode: "99", Message: "Unknown error" };
+  }
+}
 
 /**
  * GET /api/vnpay-ipn
  * VNPay IPN (Instant Payment Notification) - VNPay sends GET request when payment completes.
- * Must validate vnp_SecureHash and return JSON response per VNPay spec.
  */
 export async function GET(req: NextRequest) {
   if (!VNPAY_HASH_SECRET) {
     return NextResponse.json({ RspCode: "99", Message: "Config error" });
   }
 
-  const url = req.url;
-  const u = new URL(url);
+  const u = new URL(req.url);
   const params: Record<string, string> = {};
   u.searchParams.forEach((value, key) => {
     params[key] = value;
@@ -43,132 +57,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ RspCode: "04", Message: "Invalid order info" });
   }
 
-  const validPlans = [
-    "day_pass",
-    "month_pass",
-    "half_year_pass",
-    "year_pass",
-    "newbie_class",
-    "visit_5",
-    "visit_10",
-    "visit_20",
-  ];
-  if (!validPlans.includes(planId)) {
-    return NextResponse.json({ RspCode: "04", Message: "Invalid plan" });
-  }
-
-  const supabase = createServerClient();
-
-  const { data: memberRow, error: memberErr } = await supabase
-    .from("member_profiles")
-    .select("id, member_code, membership_expires_at, visits_remaining")
-    .eq("id", memberId)
-    .maybeSingle();
-
-  if (memberErr || !memberRow) {
-    return NextResponse.json({ RspCode: "01", Message: "Order not found" });
-  }
-
-  if (txnRef) {
-    const { data: existing } = await supabase
-      .from("payments")
-      .select("id")
-      .eq("gateway_transaction_id", txnRef)
-      .maybeSingle();
-    if (existing) {
-      return NextResponse.json({ RspCode: "02", Message: "Order already confirmed" });
-    }
-  }
-
-  const now = new Date();
-  const { data: plan, error: planErr } = await supabase
-    .from("membership_plans")
-    .select("id, duration_days, duration_visits, price_vnd")
-    .eq("id", planId)
-    .maybeSingle();
-  if (planErr || !plan) {
-    return NextResponse.json({ RspCode: "04", Message: "Plan not found" });
-  }
-  const listPriceVnd = plan.price_vnd as number;
-  const { chargeVnd } = await effectivePriceForPlan(supabase, memberRow.id, planId, listPriceVnd, now);
-  const amountVnd = chargeVnd;
   const vnpAmountRaw = parseInt(params.vnp_Amount ?? "0", 10);
   const paidVnd = vnpAmountRaw / 100;
-  if (!amountsMatchVnd(paidVnd, amountVnd)) {
-    return NextResponse.json({ RspCode: "04", Message: "Amount mismatch" });
-  }
-  const durationVisits = (plan.duration_visits as number | null) ?? 0;
-  const durationDays = (plan.duration_days ?? 0);
-  const isVisitPass = durationVisits > 0;
-  const currentVisits = (memberRow.visits_remaining as number) ?? 0;
-  const hasActiveVisitPass = currentVisits > 0;
-  const expiresAt = memberRow.membership_expires_at ? new Date(memberRow.membership_expires_at as string) : null;
-  const hasActiveDayPass = expiresAt && expiresAt.getTime() > Date.now();
-  if (hasActiveVisitPass && !isVisitPass) {
-    return NextResponse.json({ RspCode: "04", Message: "Active visit pass: cannot buy day pass" });
-  }
-  if (hasActiveDayPass && !hasActiveVisitPass && isVisitPass) {
-    return NextResponse.json({ RspCode: "04", Message: "Active day pass: visit pass only when inactive" });
-  }
-  const currentExpiry = memberRow.membership_expires_at
-    ? new Date(memberRow.membership_expires_at as string)
-    : null;
-  const newExpiry = isVisitPass ? currentExpiry : computeNewExpiry(currentExpiry, durationDays, now);
-  const newVisits = isVisitPass ? currentVisits + durationVisits : currentVisits;
 
-  const memo = (memberRow.member_code as string | null) ?? memberRow.id;
-
-  const insertPayload: Record<string, unknown> = {
-    member_id: memberRow.id,
-    plan_id: planId,
-    amount: amountVnd,
+  const supabase = createServerClient();
+  const out = await fulfillMembershipGatewayPayment(supabase, {
+    memberId,
+    planId,
+    paidAmountVnd: paidVnd,
+    gatewayTransactionId: txnRef || null,
     method: "vnpay",
-    status: "success",
-    memo,
-  };
-  if (txnRef) insertPayload.gateway_transaction_id = txnRef;
+  });
 
-  const { data: insertedPay, error: payErr } = await supabase
-    .from("payments")
-    .insert(insertPayload)
-    .select("id")
-    .single();
-  if (payErr) {
-    if (payErr.code === "23505") {
-      return NextResponse.json({ RspCode: "02", Message: "Order already confirmed" });
-    }
-    console.error("vnpay ipn insert error", payErr);
-    return NextResponse.json({ RspCode: "99", Message: "Unknown error" });
-  }
-  const vnpayPaymentId = insertedPay?.id ?? null;
-
-  const updatePayload: Record<string, unknown> = { updated_at: now.toISOString() };
-  if (isVisitPass) {
-    updatePayload.visits_remaining = newVisits;
-    updatePayload.membership_status = "active";
-  } else {
-    updatePayload.membership_expires_at = newExpiry!.toISOString();
-    updatePayload.membership_status = "active";
-  }
-  const { error: updateErr } = await supabase
-    .from("member_profiles")
-    .update(updatePayload)
-    .eq("id", memberRow.id);
-
-  if (updateErr) {
-    console.error("vnpay ipn member update error", updateErr);
-    return NextResponse.json({ RspCode: "99", Message: "Unknown error" });
-  }
-
-  if (!isVisitPass && planId !== "newbie_class") {
-    await applyDayPassPurchaseBenefits(
-      supabase,
-      memberRow.id,
-      planId,
-      newExpiry!,
-      vnpayPaymentId
-    );
-  }
-
-  return NextResponse.json({ RspCode: "00", Message: "Confirm Success" });
+  return NextResponse.json(mapFulfillToVnpay(out));
 }

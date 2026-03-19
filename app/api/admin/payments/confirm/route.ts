@@ -69,6 +69,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Member has active day pass. Visit passes can only be purchased when inactive." }, { status: 400 });
     }
 
+    if (method === "vietqr") {
+      const since = new Date(Date.now() - 25 * 60 * 1000).toISOString();
+      const { data: autoBank } = await supabase
+        .from("payments")
+        .select("id")
+        .eq("member_id", memberId)
+        .eq("plan_id", planId)
+        .eq("method", "vietqr_auto")
+        .gte("created_at", since)
+        .maybeSingle();
+      if (autoBank) {
+        return NextResponse.json(
+          {
+            error:
+              "Bank transfer for this plan was already recorded automatically. Refresh the member profile.",
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     const currentExpiry = memberRow.membership_expires_at
       ? new Date(memberRow.membership_expires_at as string)
       : null;

@@ -224,6 +224,8 @@ export default function DashboardPage() {
   const [renewNewExpiry, setRenewNewExpiry] = useState<string | null>(null);
   const [renewVisitsAdded, setRenewVisitsAdded] = useState<number | null>(null);
   const [renewError, setRenewError] = useState<string | null>(null);
+  const [renewBankTransferCode, setRenewBankTransferCode] = useState<string | null>(null);
+  const [renewBankTransferAuto, setRenewBankTransferAuto] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   /** null = hidden; first = first check-in today; repeat = already had check-in today (matches admin "welcome back") */
   const [checkInToast, setCheckInToast] = useState<null | "first" | "repeat">(null);
@@ -766,6 +768,8 @@ export default function DashboardPage() {
       setRenewPlanName(plan.name);
       setRenewPrice(plan.price_vnd);
       setRenewQrUrl(null);
+      setRenewBankTransferCode(null);
+      setRenewBankTransferAuto(false);
       setRenewCurrentExpiry(null);
       setRenewNewExpiry(null);
       setRenewError(null);
@@ -781,6 +785,8 @@ export default function DashboardPage() {
             setRenewCurrentExpiry(d.current_expiry ?? null);
             setRenewNewExpiry(d.new_expiry ?? null);
             setRenewVisitsAdded(d.visits_added ?? null);
+            setRenewBankTransferCode(typeof d.transfer_code === "string" ? d.transfer_code : null);
+            setRenewBankTransferAuto(!!d.bank_transfer_auto);
             setRenewError(null);
             setIsVietQrModalOpen(true);
           } else {
@@ -2470,7 +2476,13 @@ export default function DashboardPage() {
       />
       <PaymentModal
         open={isVietQrModalOpen}
-        onClose={() => { setIsVietQrModalOpen(false); setRenewQrUrl(null); setRenewError(null); }}
+        onClose={() => {
+          setIsVietQrModalOpen(false);
+          setRenewQrUrl(null);
+          setRenewError(null);
+          setRenewBankTransferCode(null);
+          setRenewBankTransferAuto(false);
+        }}
         planName={renewPlanName}
         priceVnd={renewPrice}
         qrUrl={renewQrUrl}
@@ -2481,6 +2493,11 @@ export default function DashboardPage() {
         onPayWithVnpay={handlePayWithVnpay}
         vnpayLoading={vnpayLoading}
         isVi={isVi}
+        planId={renewPlanId}
+        accessToken={accessToken}
+        locale={locale}
+        bankTransferCode={renewBankTransferCode}
+        bankTransferAuto={renewBankTransferAuto}
       />
 
       {/* QR FULLSCREEN MODAL */}

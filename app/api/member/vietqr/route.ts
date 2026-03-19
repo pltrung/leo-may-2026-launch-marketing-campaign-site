@@ -4,6 +4,8 @@ import { createServerClient } from "@/lib/supabaseServer";
 import { getVietQRUrl } from "@/lib/vietqr";
 import { computeNewExpiry } from "@/lib/membershipExtension";
 import { effectivePriceForPlan } from "@/lib/newbieGraduateSale";
+import { isSepayWebhookConfigured } from "@/lib/sepayWebhook";
+import { insertVietqrPendingOrder } from "@/lib/vietqrPendingOrder";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -80,17 +82,32 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Visit passes can only be purchased when you have no active membership." }, { status: 400 });
     }
     const memberCode = (member.member_code as string | null) ?? `LM-${String(member.id).slice(0, 8).toUpperCase()}`;
-    let memo: string;
+    let memoHuman: string;
     if (isVisitPass) {
-      memo = `${memberCode} ${planName}`.replace(/\s+/g, " ").trim();
+      memoHuman = `${memberCode} ${planName}`.replace(/\s+/g, " ").trim();
     } else {
       const now = new Date();
       const currentExpiry = member.membership_expires_at ? new Date(member.membership_expires_at as string) : null;
       const newExpiry = computeNewExpiry(currentExpiry, (plan.duration_days as number) ?? 0, now);
       const dateStr = newExpiry.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
-      memo = `${memberCode} ${planName} ${dateStr}`.replace(/\s+/g, " ").trim();
+      memoHuman = `${memberCode} ${planName} ${dateStr}`.replace(/\s+/g, " ").trim();
     }
-    const qrUrl = getVietQRUrl(priceVnd, memo);
+
+    let memoQr = memoHuman;
+    let bankTransferAuto = false;
+    if (isSepayWebhookConfigured()) {
+      const pending = await insertVietqrPendingOrder(supabase, {
+        memberId: member.id as string,
+        planId,
+        amountVnd: priceVnd,
+      });
+      if (pending) {
+        memoQr = pending.memoQr;
+        bankTransferAuto = true;
+      }
+    }
+
+    const qrUrl = getVietQRUrl(priceVnd, memoQr);
     const now = new Date();
     const currentExpiry = member.membership_expires_at ? new Date(member.membership_expires_at as string) : null;
     const newExpiry = isVisitPass ? null : computeNewExpiry(currentExpiry, (plan.duration_days as number) ?? 0, now);
@@ -102,7 +119,10 @@ export async function GET(req: NextRequest) {
       newbie_graduate_sale: saleActive
         ? { discount_percent: 50, ends_at: saleEndsAt }
         : undefined,
-      memo,
+      memo: memoQr,
+      memo_human: memoHuman,
+      transfer_code: bankTransferAuto ? memoQr : null,
+      bank_transfer_auto: bankTransferAuto,
       current_expiry: member.membership_expires_at ?? null,
       new_expiry: newExpiry?.toISOString() ?? null,
       visits_added: isVisitPass ? durationVisits : undefined,

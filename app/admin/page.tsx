@@ -159,9 +159,17 @@ export default function AdminPage() {
   const [plans, setPlans] = useState<{ id: string; name: string; duration_days: number; duration_visits?: number | null; price_vnd: number; pass_type?: "newbie" | "day" | "visit"; description?: string | null }[]>([]);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentQrFullscreen, setPaymentQrFullscreen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"vietqr" | "cash">("vietqr");
+  const [paymentMethod, setPaymentMethod] = useState<"vietqr" | "cash" | "momo" | "zalopay">("vietqr");
+  const [paymentGates, setPaymentGates] = useState({ momo: false, zalopay: false });
+  const [paymentMomoUrl, setPaymentMomoUrl] = useState<string | null>(null);
+  const [paymentZaloPayload, setPaymentZaloPayload] = useState<string | null>(null);
+  const [paymentZaloOrderUrl, setPaymentZaloOrderUrl] = useState<string | null>(null);
+  const [paymentGwLoading, setPaymentGwLoading] = useState(false);
+  const [paymentGwErr, setPaymentGwErr] = useState<string | null>(null);
   const [paymentPlanId, setPaymentPlanId] = useState<string>("month_pass");
   const [paymentQrUrl, setPaymentQrUrl] = useState<string | null>(null);
+  const [paymentBankTransferCode, setPaymentBankTransferCode] = useState<string | null>(null);
+  const [paymentBankTransferAuto, setPaymentBankTransferAuto] = useState(false);
   const [paymentPlanName, setPaymentPlanName] = useState("");
   const [paymentPrice, setPaymentPrice] = useState(0);
   const [paymentListPriceVnd, setPaymentListPriceVnd] = useState<number | null>(null);
@@ -1262,6 +1270,8 @@ export default function AdminPage() {
     setPaymentPlanId(defaultPlan);
     setPaymentMethod("vietqr");
     setPaymentQrUrl(null);
+    setPaymentBankTransferCode(null);
+    setPaymentBankTransferAuto(false);
     setPaymentPlanName("");
     setPaymentPrice(0);
     setPaymentListPriceVnd(null);
@@ -1272,6 +1282,8 @@ export default function AdminPage() {
       .then((r) => r.json())
       .then((d) => {
         setPaymentQrUrl(d.url ?? null);
+        setPaymentBankTransferCode(typeof d.transfer_code === "string" ? d.transfer_code : null);
+        setPaymentBankTransferAuto(!!d.bank_transfer_auto);
         setPaymentPlanName(d.plan_name ?? "");
         setPaymentPrice(d.price_vnd ?? 0);
         setPaymentListPriceVnd(typeof d.list_price_vnd === "number" ? d.list_price_vnd : null);
@@ -1387,6 +1399,12 @@ export default function AdminPage() {
       if (!foundMember) return;
       setPaymentPlanId(planId);
       setPaymentQrUrl(null);
+      setPaymentBankTransferCode(null);
+      setPaymentBankTransferAuto(false);
+      setPaymentMomoUrl(null);
+      setPaymentZaloPayload(null);
+      setPaymentZaloOrderUrl(null);
+      setPaymentGwErr(null);
       setPaymentCurrentExpiry(null);
       setPaymentNewExpiry(null);
       setPaymentVisitsAdded(null);
@@ -1394,6 +1412,8 @@ export default function AdminPage() {
         .then((r) => r.json())
         .then((d) => {
           setPaymentQrUrl(d.url ?? null);
+          setPaymentBankTransferCode(typeof d.transfer_code === "string" ? d.transfer_code : null);
+          setPaymentBankTransferAuto(!!d.bank_transfer_auto);
           setPaymentPlanName(d.plan_name ?? "");
           setPaymentPrice(d.price_vnd ?? 0);
           setPaymentListPriceVnd(typeof d.list_price_vnd === "number" ? d.list_price_vnd : null);
@@ -1403,11 +1423,63 @@ export default function AdminPage() {
         })
         .catch(() => setPaymentQrUrl(null));
     },
-    [foundMember]
+    [foundMember, adminFetch]
   );
+
+  useEffect(() => {
+    if (!paymentModalOpen) return;
+    fetch("/api/payment-gates")
+      .then((r) => r.json())
+      .then((d) => setPaymentGates({ momo: !!d.momo, zalopay: !!d.zalopay }))
+      .catch(() => setPaymentGates({ momo: false, zalopay: false }));
+  }, [paymentModalOpen]);
+
+  useEffect(() => {
+    if (!paymentModalOpen || !foundMember || !paymentPlanId) return;
+    if (paymentMethod !== "momo" && paymentMethod !== "zalopay") return;
+    let cancelled = false;
+    setPaymentGwLoading(true);
+    setPaymentGwErr(null);
+    setPaymentMomoUrl(null);
+    setPaymentZaloPayload(null);
+    setPaymentZaloOrderUrl(null);
+    const returnUrl =
+      typeof window !== "undefined" ? `${window.location.origin}/admin` : "";
+    const path =
+      paymentMethod === "momo"
+        ? `/api/admin/momo?plan_id=${encodeURIComponent(paymentPlanId)}&member_id=${encodeURIComponent(foundMember.id)}&return_url=${encodeURIComponent(returnUrl)}`
+        : `/api/admin/zalopay?plan_id=${encodeURIComponent(paymentPlanId)}&member_id=${encodeURIComponent(foundMember.id)}&return_url=${encodeURIComponent(returnUrl)}`;
+    adminFetch(path)
+      .then(async (r) => {
+        const d = await r.json();
+        if (cancelled) return;
+        if (!r.ok) throw new Error(typeof d.error === "string" ? d.error : "Gateway error");
+        if (paymentMethod === "momo") {
+          const url = (d.qr_code_url as string) || (d.deeplink as string) || (d.pay_url as string);
+          setPaymentMomoUrl(url || null);
+          if (!url) setPaymentGwErr("MoMo did not return a payment URL.");
+        } else {
+          const qc = d.qr_code as string | undefined;
+          const ou = d.order_url as string | undefined;
+          setPaymentZaloPayload(qc || ou || null);
+          setPaymentZaloOrderUrl(ou || null);
+          if (!qc && !ou) setPaymentGwErr("ZaloPay did not return QR or payment URL.");
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) setPaymentGwErr((e as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setPaymentGwLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [paymentModalOpen, foundMember?.id, paymentPlanId, paymentMethod, adminFetch]);
 
   const handleConfirmPayment = useCallback(async () => {
     if (!foundMember) return;
+    if (paymentMethod === "momo" || paymentMethod === "zalopay") return;
     setActionLoading("confirm");
     setActionError(null);
     try {
@@ -1417,7 +1489,7 @@ export default function AdminPage() {
         body: JSON.stringify({
           member_id: foundMember.id,
           plan_id: paymentPlanId,
-          method: paymentMethod,
+          method: paymentMethod === "cash" ? "cash" : "vietqr",
           amount_vnd: paymentPrice,
         }),
       });
@@ -1444,7 +1516,7 @@ export default function AdminPage() {
     } finally {
       setActionLoading(null);
     }
-  }, [foundMember, paymentPlanId, paymentPlanName, paymentPrice, paymentMethod, m]);
+  }, [foundMember, paymentPlanId, paymentPlanName, paymentPrice, paymentMethod, m, adminFetch]);
 
   const handleUpgrade = useCallback(() => {
     if (!foundMember) return;
@@ -4589,11 +4661,11 @@ export default function AdminPage() {
             </div>
             <div className="space-y-2">
               <label className="block text-xs font-medium text-slate-600">Payment method</label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => setPaymentMethod("vietqr")}
-                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border ${
+                  className={`flex-1 min-w-[100px] px-3 py-2 rounded-lg text-sm font-medium border ${
                     paymentMethod === "vietqr" ? "bg-slate-900 text-white border-slate-900" : "border-slate-200 text-slate-700 hover:bg-slate-50"
                   }`}
                 >
@@ -4602,12 +4674,34 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={() => setPaymentMethod("cash")}
-                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border ${
+                  className={`flex-1 min-w-[100px] px-3 py-2 rounded-lg text-sm font-medium border ${
                     paymentMethod === "cash" ? "bg-slate-900 text-white border-slate-900" : "border-slate-200 text-slate-700 hover:bg-slate-50"
                   }`}
                 >
                   Cash
                 </button>
+                {paymentGates.momo && (
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("momo")}
+                    className={`flex-1 min-w-[100px] px-3 py-2 rounded-lg text-sm font-medium border ${
+                      paymentMethod === "momo" ? "bg-pink-600 text-white border-pink-600" : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    MoMo
+                  </button>
+                )}
+                {paymentGates.zalopay && (
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("zalopay")}
+                    className={`flex-1 min-w-[100px] px-3 py-2 rounded-lg text-sm font-medium border ${
+                      paymentMethod === "zalopay" ? "bg-blue-600 text-white border-blue-600" : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    ZaloPay
+                  </button>
+                )}
               </div>
             </div>
             {paymentPlanName && (
@@ -4660,6 +4754,16 @@ export default function AdminPage() {
                     </>
                   )}
                 </div>
+                {paymentMethod === "vietqr" && paymentBankTransferAuto && paymentBankTransferCode && (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50/90 px-3 py-2 text-xs text-slate-800">
+                    <p className="font-semibold text-emerald-800 mb-1">Auto-activation (SePay)</p>
+                    <p className="text-slate-600 mb-1">Customer must put this in transfer description:</p>
+                    <p className="font-mono font-bold text-center text-sm py-1 bg-white rounded border border-emerald-100">
+                      {paymentBankTransferCode}
+                    </p>
+                    <p className="text-slate-500 mt-1">Exact amount required. No desk confirm needed when SePay webhook fires.</p>
+                  </div>
+                )}
                 {paymentMethod === "vietqr" && paymentQrUrl && (
                   <div className="flex flex-col items-center py-2 gap-1">
                     <button
@@ -4675,8 +4779,61 @@ export default function AdminPage() {
                 {paymentMethod === "cash" && (
                   <p className="text-sm text-slate-600 py-2">Collect {paymentPrice.toLocaleString("vi-VN")} VND in cash. Confirm when received.</p>
                 )}
-                {paymentMethod === "vietqr" && (
+                {paymentMethod === "vietqr" && !paymentBankTransferAuto && (
                   <p className="text-xs text-slate-500">Customer scans with banking app, MoMo, or ZaloPay. Confirm after payment received.</p>
+                )}
+                {paymentMethod === "vietqr" && paymentBankTransferAuto && (
+                  <p className="text-xs text-slate-500">Or use MoMo/ZaloPay tabs for wallet-native QR.</p>
+                )}
+                {paymentMethod === "momo" && (
+                  <div className="flex flex-col items-center py-2 gap-2">
+                    {paymentGwLoading && <p className="text-sm text-slate-500">Loading MoMo…</p>}
+                    {paymentGwErr && <p className="text-sm text-amber-700 text-center">{paymentGwErr}</p>}
+                    {!paymentGwLoading && paymentMomoUrl && (
+                      <>
+                        <div className="rounded-xl border border-slate-200 bg-white p-3">
+                          <QRCodeSVG value={paymentMomoUrl} size={200} level="M" includeMargin />
+                        </div>
+                        <p className="text-xs text-slate-600 text-center">
+                          Member pays in MoMo. Membership updates automatically via MoMo IPN — refresh member profile to verify.
+                        </p>
+                        <a
+                          href={paymentMomoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-pink-700 underline"
+                        >
+                          Open MoMo / browser link
+                        </a>
+                      </>
+                    )}
+                  </div>
+                )}
+                {paymentMethod === "zalopay" && (
+                  <div className="flex flex-col items-center py-2 gap-2">
+                    {paymentGwLoading && <p className="text-sm text-slate-500">Loading ZaloPay…</p>}
+                    {paymentGwErr && <p className="text-sm text-amber-700 text-center">{paymentGwErr}</p>}
+                    {!paymentGwLoading && paymentZaloPayload && (
+                      <>
+                        <div className="rounded-xl border border-slate-200 bg-white p-3">
+                          <QRCodeSVG value={paymentZaloPayload} size={200} level="M" includeMargin />
+                        </div>
+                        <p className="text-xs text-slate-600 text-center">
+                          ZaloPay / bank scan. Membership updates automatically when ZaloPay callback succeeds.
+                        </p>
+                        {paymentZaloOrderUrl && (
+                          <a
+                            href={paymentZaloOrderUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-700 underline"
+                          >
+                            Open ZaloPay gateway
+                          </a>
+                        )}
+                      </>
+                    )}
+                  </div>
                 )}
               </>
             )}
@@ -4688,14 +4845,24 @@ export default function AdminPage() {
               >
                 Cancel
               </button>
-              <button
-                type="button"
-                onClick={handleConfirmPayment}
-                disabled={(!paymentPlanName || (paymentMethod === "vietqr" && !paymentQrUrl)) || actionLoading === "confirm"}
-                className="flex-1 px-4 py-2 rounded-full text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60"
-              >
-                {actionLoading === "confirm" ? "Confirming..." : "Confirm Payment"}
-              </button>
+              {paymentMethod === "momo" || paymentMethod === "zalopay" ? (
+                <button
+                  type="button"
+                  onClick={() => setPaymentModalOpen(false)}
+                  className="flex-1 px-4 py-2 rounded-full text-sm font-medium bg-slate-800 text-white hover:bg-slate-700"
+                >
+                  Done
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleConfirmPayment}
+                  disabled={(!paymentPlanName || (paymentMethod === "vietqr" && !paymentQrUrl)) || actionLoading === "confirm"}
+                  className="flex-1 px-4 py-2 rounded-full text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60"
+                >
+                  {actionLoading === "confirm" ? "Confirming..." : "Confirm Payment"}
+                </button>
+              )}
             </div>
           </div>
         </div>
