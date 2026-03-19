@@ -17,11 +17,14 @@ type StaffRow = {
   id: string;
   monthly_salary: number | null;
   commission_rate: number | null;
+  compensation_type: string | null;
+  hourly_rate_vnd: number | null;
 };
 
 function payrollForPeriod(
   staffList: StaffRow[],
-  posRows: { staff_id: string | null; total: number; commission_amount: number | null }[]
+  posRows: { staff_id: string | null; total: number; commission_amount: number | null }[],
+  checkInsByStaff: Record<string, number>
 ): number {
   let total = 0;
   for (const s of staffList) {
@@ -30,8 +33,13 @@ function payrollForPeriod(
     const actualComm = pos.reduce((sum, p) => sum + (Number(p.commission_amount) || 0), 0);
     const rate = Number(s.commission_rate) || 0;
     const variable = rate > 0 ? Math.round(salesMtd * rate) : actualComm;
-    const salary = Number(s.monthly_salary) || 0;
-    total += salary + variable;
+    const isHourly = (s.compensation_type || "monthly") === "hourly";
+    const checkIns = checkInsByStaff[s.id] ?? 0;
+    const hourlyRate = Number(s.hourly_rate_vnd) || 0;
+    const basePay = isHourly
+      ? Math.round(checkIns * hourlyRate)
+      : Number(s.monthly_salary) || 0;
+    total += basePay + variable;
   }
   return total;
 }
@@ -85,14 +93,25 @@ export async function GET(req: NextRequest) {
 
     const { data: staffListRaw } = await supabase
       .from("staff_profiles")
-      .select("id, monthly_salary, commission_rate");
+      .select("id, monthly_salary, commission_rate, compensation_type, hourly_rate_vnd");
     const staffList = (staffListRaw ?? []) as StaffRow[];
     const posStaff = (posRowsMtd ?? []) as {
       staff_id: string | null;
       total: number;
       commission_amount: number | null;
     }[];
-    const payrollMtd = payrollForPeriod(staffList, posStaff);
+    const { data: attendanceRows } = await supabase
+      .from("staff_attendance")
+      .select("staff_id")
+      .gte("date", monthStartDate)
+      .lte("date", today)
+      .eq("status", "IN");
+    const checkInsByStaff: Record<string, number> = {};
+    for (const row of attendanceRows ?? []) {
+      const sid = (row as { staff_id: string }).staff_id;
+      checkInsByStaff[sid] = (checkInsByStaff[sid] ?? 0) + 1;
+    }
+    const payrollMtd = payrollForPeriod(staffList, posStaff, checkInsByStaff);
 
     const { data: expenseRows } = await supabase
       .from("expenses")
@@ -104,7 +123,12 @@ export async function GET(req: NextRequest) {
       expensesMtd += Number((e as { cost: number }).cost) || 0;
     }
 
-    const sumSalaries = staffList.reduce((s, x) => s + (Number(x.monthly_salary) || 0), 0);
+    const sumSalaries = staffList.reduce((s, x) => {
+      const isHourly = (x.compensation_type || "monthly") === "hourly";
+      const checkIns = checkInsByStaff[x.id] ?? 0;
+      const hourlyRate = Number(x.hourly_rate_vnd) || 0;
+      return s + (isHourly ? Math.round(checkIns * hourlyRate) : (Number(x.monthly_salary) || 0));
+    }, 0);
     const variableMtd = Math.max(0, payrollMtd - sumSalaries);
     const monthly_costs = Math.round(rentAmount + sumSalaries + variableMtd * extrap + expensesMtd * extrap);
 

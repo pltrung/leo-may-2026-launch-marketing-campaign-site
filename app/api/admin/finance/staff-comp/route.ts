@@ -8,7 +8,13 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { staff_id?: string; monthly_salary?: number; commission_rate?: number };
+  let body: {
+    staff_id?: string;
+    monthly_salary?: number;
+    commission_rate?: number;
+    compensation_type?: "hourly" | "monthly";
+    hourly_rate_vnd?: number;
+  };
   try {
     body = await req.json();
   } catch {
@@ -23,8 +29,14 @@ export async function PATCH(req: NextRequest) {
     const r = Number(body.commission_rate);
     patch.commission_rate = Math.min(1, Math.max(0, r));
   }
+  if (body.compensation_type === "hourly" || body.compensation_type === "monthly") {
+    patch.compensation_type = body.compensation_type;
+  }
+  if (body.hourly_rate_vnd != null) patch.hourly_rate_vnd = Math.max(0, Number(body.hourly_rate_vnd));
   if (Object.keys(patch).length === 0) {
-    return NextResponse.json({ error: "monthly_salary or commission_rate required" }, { status: 400 });
+    return NextResponse.json({
+      error: "monthly_salary, commission_rate, compensation_type, or hourly_rate_vnd required",
+    }, { status: 400 });
   }
 
   const supabase = createServerClient();

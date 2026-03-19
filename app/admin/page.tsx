@@ -225,7 +225,7 @@ export default function AdminPage() {
   const [frontDeskTab, setFrontDeskTab] = useState<"checkin" | "member">("checkin");
   const [memberProfileSubTab, setMemberProfileSubTab] = useState<"summary" | "membership" | "sales" | "history" | "refunds" | "incidents">("summary");
   const [managementTab, setManagementTab] = useState<"inventory" | "admin_tools">("inventory");
-  const [adminToolsTab, setAdminToolsTab] = useState<"general" | "emergency_checkin">("general");
+  const [adminToolsTab, setAdminToolsTab] = useState<"general" | "operations_compliance" | "emergency_checkin">("general");
   const [staffModalTab, setStaffModalTab] = useState<"overview" | "tasks" | "attendance" | "coaching" | "routes" | "facility">("overview");
   const [operationsTaskPhase, setOperationsTaskPhase] = useState<"pre_open" | "during_hours" | "closing">("pre_open");
   const [staffResetLoading, setStaffResetLoading] = useState(false);
@@ -3823,6 +3823,13 @@ export default function AdminPage() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setAdminToolsTab("operations_compliance")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium ${adminToolsTab === "operations_compliance" ? "bg-slate-900 text-white" : "text-slate-300 hover:bg-slate-600"}`}
+                >
+                  {locale === "vi" ? "Hoạt động & Tuân thủ" : "Operations & Compliance"}
+                </button>
+                <button
+                  type="button"
                   onClick={() => setAdminToolsTab("emergency_checkin")}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium ${adminToolsTab === "emergency_checkin" ? "bg-amber-700 text-white" : "text-amber-200 hover:bg-amber-700/50"}`}
                 >
@@ -3925,7 +3932,7 @@ export default function AdminPage() {
               )}
             </div>
 
-            {adminToolsTab === "general" && <GymOperationsHub adminFetch={adminFetch} locale={locale} />}
+            {adminToolsTab === "operations_compliance" && <GymOperationsHub adminFetch={adminFetch} locale={locale} />}
 
             {adminToolsTab === "general" && auditLogVisible && (
               <div className="rounded-2xl bg-slate-800/90 border border-slate-700 p-4 md:p-5">

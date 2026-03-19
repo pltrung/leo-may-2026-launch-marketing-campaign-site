@@ -59,17 +59,24 @@ type StaffRow = {
   role: string;
   monthly_salary: number | null;
   commission_rate: number | null;
+  compensation_type: string | null;
+  hourly_rate_vnd: number | null;
 };
 
 function payrollForPeriod(
   staffList: StaffRow[],
-  posRows: { staff_id: string | null; total: number; commission_amount: number | null }[]
+  posRows: { staff_id: string | null; total: number; commission_amount: number | null }[],
+  checkInsByStaff: Record<string, number>
 ): {
   lines: {
     staff_id: string;
     name: string;
     role: string;
-    monthly_salary: number;
+    compensation_type: "hourly" | "monthly";
+    base_pay: number;
+    monthly_salary: number; // kept for backward compat; = base_pay
+    check_ins: number;
+    hourly_rate_vnd: number | null;
     sales_mtd: number;
     variable_pay: number;
     variable_source: "rate" | "commission";
@@ -82,7 +89,11 @@ function payrollForPeriod(
     staff_id: string;
     name: string;
     role: string;
+    compensation_type: "hourly" | "monthly";
+    base_pay: number;
     monthly_salary: number;
+    check_ins: number;
+    hourly_rate_vnd: number | null;
     sales_mtd: number;
     variable_pay: number;
     variable_source: "rate" | "commission";
@@ -96,14 +107,23 @@ function payrollForPeriod(
     const actualComm = pos.reduce((sum, p) => sum + (Number(p.commission_amount) || 0), 0);
     const rate = Number(s.commission_rate) || 0;
     const variable = rate > 0 ? Math.round(salesMtd * rate) : actualComm;
-    const salary = Number(s.monthly_salary) || 0;
-    const lineTotal = salary + variable;
+    const isHourly = (s.compensation_type || "monthly") === "hourly";
+    const checkIns = checkInsByStaff[s.id] ?? 0;
+    const hourlyRate = Number(s.hourly_rate_vnd) || 0;
+    const basePay = isHourly
+      ? Math.round(checkIns * hourlyRate)
+      : Number(s.monthly_salary) || 0;
+    const lineTotal = basePay + variable;
     payrollTotal += lineTotal;
     lines.push({
       staff_id: s.id,
       name: s.display_name || s.email,
       role: s.role,
-      monthly_salary: salary,
+      compensation_type: isHourly ? "hourly" : "monthly",
+      base_pay: basePay,
+      monthly_salary: basePay,
+      check_ins: checkIns,
+      hourly_rate_vnd: isHourly ? hourlyRate : null,
       sales_mtd: salesMtd,
       variable_pay: variable,
       variable_source: rate > 0 ? "rate" : "commission",
@@ -176,7 +196,7 @@ export async function GET(req: NextRequest) {
 
     const { data: staffListRaw } = await supabase
       .from("staff_profiles")
-      .select("id, display_name, email, role, monthly_salary, commission_rate");
+      .select("id, display_name, email, role, monthly_salary, commission_rate, compensation_type, hourly_rate_vnd");
 
     const staffList = (staffListRaw ?? []) as StaffRow[];
     const posStaff = (posStaffRows ?? []) as {
@@ -185,7 +205,24 @@ export async function GET(req: NextRequest) {
       commission_amount: number | null;
     }[];
 
-    const { lines: payrollLines, total: payrollTotal } = payrollForPeriod(staffList, posStaff);
+    // Staff check-ins (status=IN) per staff for period — 1 check-in per day
+    const { data: attendanceRows } = await supabase
+      .from("staff_attendance")
+      .select("staff_id")
+      .gte("date", sinceDate)
+      .lte("date", untilDate)
+      .eq("status", "IN");
+    const checkInsByStaff: Record<string, number> = {};
+    for (const row of attendanceRows ?? []) {
+      const sid = (row as { staff_id: string }).staff_id;
+      checkInsByStaff[sid] = (checkInsByStaff[sid] ?? 0) + 1;
+    }
+
+    const { lines: payrollLines, total: payrollTotal } = payrollForPeriod(
+      staffList,
+      posStaff,
+      checkInsByStaff
+    );
 
     const rentAmount = Number(config.rent_amount) || 0;
 
@@ -354,9 +391,22 @@ export async function GET(req: NextRequest) {
         .lte("created_at", untilM)
         .eq("payment_status", "success");
 
+      const { data: attM } = await supabase
+        .from("staff_attendance")
+        .select("staff_id")
+        .gte("date", start)
+        .lte("date", end)
+        .eq("status", "IN");
+      const checkInsM: Record<string, number> = {};
+      for (const row of attM ?? []) {
+        const sid = (row as { staff_id: string }).staff_id;
+        checkInsM[sid] = (checkInsM[sid] ?? 0) + 1;
+      }
+
       const { total: payM } = payrollForPeriod(
         staffList,
-        (posStaffM ?? []) as { staff_id: string | null; total: number; commission_amount: number | null }[]
+        (posStaffM ?? []) as { staff_id: string | null; total: number; commission_amount: number | null }[],
+        checkInsM
       );
 
       const costs = payM + rentAmount + expSum;

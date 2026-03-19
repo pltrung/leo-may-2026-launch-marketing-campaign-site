@@ -12,7 +12,10 @@ type FinanceData = {
     staff_id: string;
     name: string;
     role: string;
+    compensation_type?: "hourly" | "monthly";
     monthly_salary: number;
+    check_ins?: number;
+    hourly_rate_vnd?: number | null;
     sales_mtd: number;
     variable_pay: number;
     variable_source: string;
@@ -88,7 +91,13 @@ export default function FinanceTab({
   const [ledger, setLedger] = useState<Record<string, unknown>[]>([]);
   const [ledgerLoading, setLedgerLoading] = useState(false);
 
-  const [staffEdit, setStaffEdit] = useState<{ id: string; salary: string; rate: string } | null>(null);
+  const [staffEdit, setStaffEdit] = useState<{
+    id: string;
+    salary: string;
+    rate: string;
+    compensation_type: "hourly" | "monthly";
+    hourly_rate: string;
+  } | null>(null);
   const [snapNote, setSnapNote] = useState("");
   const [financeView, setFinanceView] = useState<"books" | "forecast">("books");
 
@@ -219,14 +228,20 @@ export default function FinanceTab({
 
   const saveStaffComp = async () => {
     if (!staffEdit) return;
+    const body: Record<string, unknown> = {
+      staff_id: staffEdit.id,
+      commission_rate: Number(staffEdit.rate) || 0,
+      compensation_type: staffEdit.compensation_type,
+    };
+    if (staffEdit.compensation_type === "monthly") {
+      body.monthly_salary = Number(staffEdit.salary.replace(/,/g, "")) || 0;
+    } else {
+      body.hourly_rate_vnd = Number(staffEdit.hourly_rate.replace(/,/g, "")) || 0;
+    }
     const res = await adminFetch("/api/admin/finance/staff-comp", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        staff_id: staffEdit.id,
-        monthly_salary: Number(staffEdit.salary.replace(/,/g, "")) || 0,
-        commission_rate: Number(staffEdit.rate) || 0,
-      }),
+      body: JSON.stringify(body),
     });
     if (res.ok) {
       setStaffEdit(null);
@@ -402,7 +417,8 @@ export default function FinanceTab({
             <thead>
               <tr className="bg-slate-100 border-b border-slate-200">
                 <th className="text-left py-3 px-4 font-semibold text-slate-700">{t("Staff", "Nhân sự")}</th>
-                <th className="text-right py-3 px-4 font-semibold text-slate-700">{t("Base / mo", "Lương cố định")}</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">{t("Type", "Loại")}</th>
+                <th className="text-right py-3 px-4 font-semibold text-slate-700">{t("Base", "Cố định")}</th>
                 <th className="text-right py-3 px-4 font-semibold text-slate-700">{t("Sales MTD", "DS POS")}</th>
                 <th className="text-right py-3 px-4 font-semibold text-slate-700">{t("Variable", "Biến đổi")}</th>
                 <th className="text-right py-3 px-4 font-semibold text-slate-700">{t("Total", "Tổng")}</th>
@@ -410,13 +426,25 @@ export default function FinanceTab({
               </tr>
             </thead>
             <tbody>
-              {data.payroll_lines.map((s) => (
+              {data.payroll_lines.map((s) => {
+                const isHourly = s.compensation_type === "hourly";
+                const checkIns = s.check_ins ?? 0;
+                return (
                 <tr key={s.staff_id} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="py-3 px-4">
                     <span className="font-medium text-slate-900">{s.name}</span>
                     <span className="text-slate-500 text-xs ml-2">{s.role}</span>
                   </td>
-                  <td className="py-3 px-4 text-right text-slate-900">{fmt(s.monthly_salary)}</td>
+                  <td className="py-3 px-4 text-slate-600 text-xs">
+                    {isHourly
+                      ? `${t("Hourly", "Theo ca")} (${checkIns} ${t("check-ins", "ca")})`
+                      : t("Monthly", "Tháng")}
+                  </td>
+                  <td className="py-3 px-4 text-right text-slate-900">
+                    {isHourly && checkIns > 0 && s.hourly_rate_vnd != null
+                      ? `${checkIns} × ${fmt(s.hourly_rate_vnd)} = ${fmt(s.monthly_salary)}`
+                      : fmt(s.monthly_salary)}
+                  </td>
                   <td className="py-3 px-4 text-right text-slate-700">{fmt(s.sales_mtd)}</td>
                   <td className="py-3 px-4 text-right text-slate-700">
                     {fmt(s.variable_pay)}
@@ -426,36 +454,34 @@ export default function FinanceTab({
                   <td className="py-3 px-4">
                     <button
                       type="button"
-                      onClick={() =>
+                      onClick={() => {
+                        const line = data.payroll_lines.find((x) => x.staff_id === s.staff_id)!;
+                        const rate = line.variable_source === "rate" && s.sales_mtd > 0
+                          ? (line.variable_pay / s.sales_mtd).toFixed(4)
+                          : "0";
                         setStaffEdit({
                           id: s.staff_id,
                           salary: String(s.monthly_salary),
-                          rate: String(
-                            data.payroll_lines.find((x) => x.staff_id === s.staff_id)
-                              ? (() => {
-                                  const line = data.payroll_lines.find((x) => x.staff_id === s.staff_id)!;
-                                  return line.variable_source === "rate" && s.sales_mtd > 0
-                                    ? (line.variable_pay / s.sales_mtd).toFixed(4)
-                                    : "0";
-                                })()
-                              : "0"
-                          ),
-                        })
-                      }
+                          rate,
+                          compensation_type: (s.compensation_type === "hourly" ? "hourly" : "monthly") as "hourly" | "monthly",
+                          hourly_rate: s.hourly_rate_vnd != null ? String(s.hourly_rate_vnd) : "0",
+                        });
+                      }}
                       className="text-xs text-sky-600 hover:underline"
                     >
-                      {t("Edit base / rate", "Sửa lương / tỷ lệ")}
+                      {t("Edit comp", "Sửa đãi ngộ")}
                     </button>
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>
         <p className="text-xs text-slate-500 mt-2">
           {t(
-            "Variable pay = commission_rate × POS sales when rate is set; else summed POS commission.",
-            "Phần biến đổi = tỷ lệ × doanh số POS nếu có tỷ lệ; không thì cộng hoa hồng POS thực tế."
+            "Base: monthly = fixed salary; hourly = check-ins × rate (1 check-in/day). Variable = commission_rate × POS sales or summed commission.",
+            "Cố định: tháng = lương cố định; theo ca = số ca × đơn giá (1 ca/ngày). Biến đổi = tỷ lệ × DS POS hoặc HH thực tế."
           )}
         </p>
       </div>
@@ -739,8 +765,38 @@ export default function FinanceTab({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setStaffEdit(null)}>
           <div className="bg-white rounded-xl border max-w-sm w-full p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold">{t("Staff compensation", "Đãi ngộ")}</h3>
-            <label className="text-xs">{t("Monthly salary (VND)", "Lương tháng")}</label>
-            <input value={staffEdit.salary} onChange={(e) => setStaffEdit({ ...staffEdit, salary: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" />
+            <div>
+              <label className="text-xs block mb-1">{t("Compensation type", "Loại lương")}</label>
+              <div className="flex gap-2">
+                <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                  <input
+                    type="radio"
+                    checked={staffEdit.compensation_type === "monthly"}
+                    onChange={() => setStaffEdit({ ...staffEdit, compensation_type: "monthly" })}
+                  />
+                  {t("Monthly", "Tháng")}
+                </label>
+                <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                  <input
+                    type="radio"
+                    checked={staffEdit.compensation_type === "hourly"}
+                    onChange={() => setStaffEdit({ ...staffEdit, compensation_type: "hourly" })}
+                  />
+                  {t("Hourly (per check-in)", "Theo ca (mỗi check-in)")}
+                </label>
+              </div>
+            </div>
+            {staffEdit.compensation_type === "monthly" ? (
+              <>
+                <label className="text-xs">{t("Monthly salary (VND)", "Lương tháng")}</label>
+                <input value={staffEdit.salary} onChange={(e) => setStaffEdit({ ...staffEdit, salary: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" />
+              </>
+            ) : (
+              <>
+                <label className="text-xs">{t("Pay per check-in (VND)", "Trả mỗi ca")}</label>
+                <input value={staffEdit.hourly_rate} onChange={(e) => setStaffEdit({ ...staffEdit, hourly_rate: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" />
+              </>
+            )}
             <label className="text-xs">{t("Commission rate (0–1, e.g. 0.05 = 5%)", "Tỷ lệ HH (0–1)")}</label>
             <input value={staffEdit.rate} onChange={(e) => setStaffEdit({ ...staffEdit, rate: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" />
             <div className="flex justify-end gap-2">
