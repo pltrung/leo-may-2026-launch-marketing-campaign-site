@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import type { Locale } from "@/lib/i18n";
+import { REFUND_REASONS, type RefundReasonValue } from "@/lib/refundReasons";
 
 type HubSection = "settings" | "refunds" | "corporate" | "birthday" | "roster";
 
@@ -24,10 +25,12 @@ export default function GymOperationsHub({
   const [zalo, setZalo] = useState("");
   const [taxId, setTaxId] = useState("");
   const [eInv, setEInv] = useState("");
+  const [birthdaySendMode, setBirthdaySendMode] = useState<"manual" | "campaign">("manual");
+  const [firstVisitSendMode, setFirstVisitSendMode] = useState<"manual" | "campaign">("manual");
 
   const [adjMemberId, setAdjMemberId] = useState("");
   const [adjAmount, setAdjAmount] = useState("");
-  const [adjReason, setAdjReason] = useState("");
+  const [adjReason, setAdjReason] = useState<RefundReasonValue>("other");
   const [adjustments, setAdjustments] = useState<unknown[]>([]);
 
   const [corp, setCorp] = useState<unknown[]>([]);
@@ -52,6 +55,8 @@ export default function GymOperationsHub({
       setZalo(String(d.settings.zalo_oa_url ?? ""));
       setTaxId(String(d.settings.business_tax_id ?? ""));
       setEInv(String(d.settings.e_invoice_workflow_note ?? ""));
+      setBirthdaySendMode(d.settings.birthday_send_mode === "campaign" ? "campaign" : "manual");
+      setFirstVisitSendMode(d.settings.first_visit_send_mode === "campaign" ? "campaign" : "manual");
     }
   }, [adminFetch]);
 
@@ -114,6 +119,8 @@ export default function GymOperationsHub({
         zalo_oa_url: zalo || null,
         business_tax_id: taxId || null,
         e_invoice_workflow_note: eInv || null,
+        birthday_send_mode: birthdaySendMode,
+        first_visit_send_mode: firstVisitSendMode,
       }),
     });
     const d = await res.json().catch(() => ({}));
@@ -133,7 +140,7 @@ export default function GymOperationsHub({
       body: JSON.stringify({
         member_id: adjMemberId.trim(),
         amount_vnd: parseInt(adjAmount, 10),
-        reason: adjReason.trim(),
+        reason: adjReason,
       }),
     });
     const d = await res.json().catch(() => ({}));
@@ -142,7 +149,7 @@ export default function GymOperationsHub({
       return;
     }
     setAdjAmount("");
-    setAdjReason("");
+    setAdjReason("other");
     loadAdjustments();
     setMsg(vi ? "Đã ghi nhận." : "Recorded.");
     setTimeout(() => setMsg(null), 2500);
@@ -297,6 +304,23 @@ export default function GymOperationsHub({
               placeholder={vi ? "Ví dụ: Xuất qua phần mềm X, ký số…" : "e.g. Issue via software X, signing…"}
             />
           </label>
+          <div className="space-y-2 pt-2 border-t border-slate-600">
+            <p className="text-xs text-slate-400">{vi ? "Sinh nhật & chào mừng lần đầu: gửi thủ công tại tab bên dưới hoặc dùng campaign trong Analytics." : "Birthday & first-visit: send manually in tab below or use Analytics campaigns."}</p>
+            <label className="block text-slate-300">
+              {vi ? "Sinh nhật" : "Birthday"}
+              <select value={birthdaySendMode} onChange={(e) => setBirthdaySendMode(e.target.value as "manual" | "campaign")} className="mt-1 block w-full px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-white text-xs">
+                <option value="manual">{vi ? "Thủ công (đánh dấu ở tab Sinh nhật)" : "Manual (mark sent in Birthday tab)"}</option>
+                <option value="campaign">{vi ? "Campaign (Analytics → segment 'Sinh nhật trong tuần')" : "Campaign (Analytics → segment 'Birthday this week')"}</option>
+              </select>
+            </label>
+            <label className="block text-slate-300">
+              {vi ? "Chào mừng lần đầu" : "First visit welcome"}
+              <select value={firstVisitSendMode} onChange={(e) => setFirstVisitSendMode(e.target.value as "manual" | "campaign")} className="mt-1 block w-full px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-white text-xs">
+                <option value="manual">{vi ? "Thủ công (đánh dấu ở tab)" : "Manual (mark in tab)"}</option>
+                <option value="campaign">{vi ? "Campaign (Analytics → segment 'Lần đầu chưa chào mừng')" : "Campaign (Analytics → segment 'First visit not welcomed')"}</option>
+              </select>
+            </label>
+          </div>
           <button type="button" onClick={saveSettings} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-500">
             {vi ? "Lưu cài đặt" : "Save settings"}
           </button>
@@ -318,17 +342,16 @@ export default function GymOperationsHub({
               className="px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-white text-xs"
             />
             <input
-              placeholder={vi ? "Số tiền VND (- hoàn)" : "Amount VND (- refund)"}
+              placeholder={vi ? "Số tiền VND (- hoàn → credit)" : "Amount VND (- refund → credit)"}
               value={adjAmount}
               onChange={(e) => setAdjAmount(e.target.value)}
               className="px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-white text-xs"
             />
-            <input
-              placeholder={vi ? "Lý do" : "Reason"}
-              value={adjReason}
-              onChange={(e) => setAdjReason(e.target.value)}
-              className="px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-white text-xs"
-            />
+            <select value={adjReason} onChange={(e) => setAdjReason(e.target.value as RefundReasonValue)} className="px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-white text-xs w-full">
+              {REFUND_REASONS.map((r) => (
+                <option key={r.value} value={r.value}>{vi ? r.labelVi : r.labelEn}</option>
+              ))}
+            </select>
           </div>
           <button type="button" onClick={addAdjustment} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-medium">
             {vi ? "Ghi nhận" : "Record"}

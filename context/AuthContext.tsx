@@ -46,6 +46,7 @@ export interface MemberProfile {
   zalo_user_id?: string | null;
   prefer_zalo_notifications?: boolean;
   prefer_sms_notifications?: boolean;
+  credit_balance_vnd?: number;
 }
 
 type AuthValue = {

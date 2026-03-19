@@ -3,6 +3,12 @@
 import React, { useEffect, useState } from "react";
 import type { Locale } from "@/lib/i18n";
 
+/**
+ * Walk-in / desk day pass SOP + end-of-shift cash/POS panels.
+ * Set to `true` when you want them back on the Front Desk check-in view.
+ */
+const SHOW_WALK_IN_AND_SHIFT_CLOSE = false;
+
 export default function FrontDeskOpsExtras({
   adminFetch,
   locale,
@@ -31,6 +37,7 @@ export default function FrontDeskOpsExtras({
   };
 
   useEffect(() => {
+    if (!SHOW_WALK_IN_AND_SHIFT_CLOSE) return;
     loadRecent();
   }, []);
 
@@ -61,6 +68,10 @@ export default function FrontDeskOpsExtras({
     loadRecent();
     setTimeout(() => setMsg(null), 4000);
   };
+
+  if (!SHOW_WALK_IN_AND_SHIFT_CLOSE) {
+    return null;
+  }
 
   return (
     <div className="grid md:grid-cols-2 gap-3">

@@ -11,6 +11,7 @@ import { formatInGymTZ, getGymToday, getGymDateFromISO, getCurrentPhase } from "
 import { formatVndCompact } from "@/lib/formatVndCompact";
 import { getStaffTaskTitle } from "@/lib/staffTaskTitles";
 import { parseCccdPipeDelimited } from "@/lib/vnEidQr";
+import { REFUND_REASONS, getRefundReasonLabel, type RefundReasonValue } from "@/lib/refundReasons";
 
 const QrScannerModal = dynamic(() => import("@/components/admin/QrScannerModal"), { ssr: false });
 const BarcodeScannerModal = dynamic(() => import("@/components/admin/BarcodeScannerModal"), { ssr: false });
@@ -111,6 +112,7 @@ interface AdminMember {
   is_minor?: boolean;
   guardian_name?: string | null;
   guardian_phone?: string | null;
+  credit_balance_vnd?: number;
 }
 
 interface NameSearchResult {
@@ -218,7 +220,7 @@ export default function AdminPage() {
   const [profileModalVerifiedFromCccd, setProfileModalVerifiedFromCccd] = useState(false);
   const [profileAttendanceStats, setProfileAttendanceStats] = useState<{ checkins_this_month: number; on_time_count: number; on_time_100: boolean } | null>(null);
   const [frontDeskTab, setFrontDeskTab] = useState<"checkin" | "member">("checkin");
-  const [memberProfileSubTab, setMemberProfileSubTab] = useState<"summary" | "membership" | "sales" | "history">("summary");
+  const [memberProfileSubTab, setMemberProfileSubTab] = useState<"summary" | "membership" | "sales" | "history" | "refunds" | "incidents">("summary");
   const [managementTab, setManagementTab] = useState<"inventory" | "admin_tools">("inventory");
   const [staffModalTab, setStaffModalTab] = useState<"overview" | "tasks" | "attendance" | "coaching" | "routes" | "facility">("overview");
   const [operationsTaskPhase, setOperationsTaskPhase] = useState<"pre_open" | "during_hours" | "closing">("pre_open");
@@ -228,6 +230,16 @@ export default function AdminPage() {
   const [auditLogEntries, setAuditLogEntries] = useState<{ id: string; action_type: string; entity_id: string | null; created_at: string; actor: { display_name: string | null; email: string | null } | null }[] | null>(null);
   const [auditLogLoading, setAuditLogLoading] = useState(false);
   const [auditLogVisible, setAuditLogVisible] = useState(false);
+  const [memberAdjustments, setMemberAdjustments] = useState<{ id: string; amount_vnd: number; reason: string; created_at: string }[]>([]);
+  const [memberIncidents, setMemberIncidents] = useState<{ id: string; severity: string; title: string; description: string; status: string; created_at: string; resolved_at?: string | null }[]>([]);
+  const [memberOpsHistoryLoading, setMemberOpsHistoryLoading] = useState(false);
+  const [refundFormAmount, setRefundFormAmount] = useState("");
+  const [refundFormReason, setRefundFormReason] = useState<RefundReasonValue>("other");
+  const [refundFormSubmitting, setRefundFormSubmitting] = useState(false);
+  const [incidentFormTitle, setIncidentFormTitle] = useState("");
+  const [incidentFormDescription, setIncidentFormDescription] = useState("");
+  const [incidentFormSeverity, setIncidentFormSeverity] = useState<"low" | "medium" | "high" | "critical">("medium");
+  const [incidentFormSubmitting, setIncidentFormSubmitting] = useState(false);
   const [monthlyAttendanceData, setMonthlyAttendanceData] = useState<{
     label: string;
     staff: { staff_id: string; display_name: string | null; email: string | null; in_days: number }[];
@@ -239,6 +251,7 @@ export default function AdminPage() {
   const [waiverModalOpen, setWaiverModalOpen] = useState(false);
   const [scannerModalOpen, setScannerModalOpen] = useState(false);
   const [posCart, setPosCart] = useState<{ sku: string; name: string; quantity: number; price: number; variant_id?: string; image?: string | null }[]>([]);
+  const [posCreditToApply, setPosCreditToApply] = useState(0);
   const [posSkuInput, setPosSkuInput] = useState("");
   const [posBarcodeScannerOpen, setPosBarcodeScannerOpen] = useState(false);
   const [posLookupResult, setPosLookupResult] = useState<{ found: boolean; product?: { name: string; image?: string | null }; variant?: { id: string; sku: string; price: number; size?: string | null }; stock_quantity?: number } | null>(null);
@@ -469,6 +482,40 @@ export default function AdminPage() {
       .catch(() => setMemberPurchases([]));
   }, [foundMember?.id, adminFetch]);
 
+  // Prefetch refunds + incidents for this member whenever they are loaded (Refunds/Incidents tabs show history below the form)
+  useEffect(() => {
+    if (!foundMember?.id) {
+      setMemberAdjustments([]);
+      setMemberIncidents([]);
+      setMemberOpsHistoryLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setMemberOpsHistoryLoading(true);
+    const mid = foundMember.id;
+    Promise.all([
+      adminFetch(`/api/admin/gym-operations/payment-adjustments?member_id=${encodeURIComponent(mid)}`).then((r) => r.json()),
+      adminFetch(`/api/admin/gym-operations/incidents?member_id=${encodeURIComponent(mid)}`).then((r) => r.json()),
+    ])
+      .then(([adj, inc]) => {
+        if (cancelled) return;
+        setMemberAdjustments(adj.adjustments ?? []);
+        setMemberIncidents(inc.incidents ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMemberAdjustments([]);
+          setMemberIncidents([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setMemberOpsHistoryLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [foundMember?.id, adminFetch]);
+
   useEffect(() => {
     const ends = foundMember?.newbie_graduate_sale?.ends_at;
     if (!ends || new Date(ends).getTime() <= Date.now()) return;
@@ -579,6 +626,20 @@ export default function AdminPage() {
       setSearchError(m.unableToLoadMember);
     }
   }, [adminFetch, m, foundMember?.id]);
+
+  const refetchMemberOpsHistory = useCallback(
+    async (memberId: string) => {
+      const [adjRes, incRes] = await Promise.all([
+        adminFetch(`/api/admin/gym-operations/payment-adjustments?member_id=${encodeURIComponent(memberId)}`),
+        adminFetch(`/api/admin/gym-operations/incidents?member_id=${encodeURIComponent(memberId)}`),
+      ]);
+      const adj = await adjRes.json().catch(() => ({}));
+      const inc = await incRes.json().catch(() => ({}));
+      setMemberAdjustments(adj.adjustments ?? []);
+      setMemberIncidents(inc.incidents ?? []);
+    },
+    [adminFetch]
+  );
 
   // Fetch and poll recent payments when member found; detect new payment for auto webhook
   useEffect(() => {
@@ -1330,13 +1391,16 @@ export default function AdminPage() {
           member_id: foundMember.id,
           items: posCart.map((i) => ({ sku: i.sku, name: i.name, quantity: i.quantity, price: i.price, variant_id: i.variant_id })),
           payment_method: "cash",
+          credit_to_apply_vnd: posCreditToApply > 0 ? posCreditToApply : 0,
         }),
       });
       const data = await res.json();
       if (res.ok && data.ok) {
         setPosCart([]);
+        setPosCreditToApply(0);
         setPosPaymentModalOpen(false);
         setActionMessage(m.cashPaymentRecorded);
+        loadMemberById(foundMember.id);
         adminFetch(`/api/admin/members/purchases?member_id=${encodeURIComponent(foundMember.id)}`)
           .then((r) => r.json())
           .then((d) => setMemberPurchases(d.purchases ?? []))
@@ -1352,7 +1416,7 @@ export default function AdminPage() {
     } finally {
       setPosCheckoutLoading(false);
     }
-  }, [foundMember, posCart, staffId, role, adminFetch, locale, m]);
+  }, [foundMember, posCart, posCreditToApply, staffId, role, adminFetch, loadMemberById, locale, m]);
 
   const handlePosCheckoutVietqr = useCallback(async () => {
     if (!foundMember || posCart.length === 0) return;
@@ -1366,6 +1430,7 @@ export default function AdminPage() {
           member_id: foundMember.id,
           items: posCart.map((i) => ({ sku: i.sku, name: i.name, quantity: i.quantity, price: i.price, variant_id: i.variant_id })),
           payment_method: "vietqr",
+          credit_to_apply_vnd: posCreditToApply > 0 ? posCreditToApply : 0,
         }),
       });
       const data = await res.json();
@@ -1380,7 +1445,7 @@ export default function AdminPage() {
     } finally {
       setPosCheckoutLoading(false);
     }
-  }, [foundMember, posCart, adminFetch, m]);
+  }, [foundMember, posCart, posCreditToApply, adminFetch, m]);
 
   const handlePosConfirmPayment = useCallback(async () => {
     if (!posPendingTransactionId) return;
@@ -2315,7 +2380,7 @@ export default function AdminPage() {
 
               {/* Sub-tabs (staff: membership = collect pass payment only) */}
               <nav className="flex gap-1 p-1 rounded-xl bg-slate-800/80 border border-slate-700 overflow-x-auto" aria-label="Member sections">
-                {(["summary", "membership", "sales", "history"] as const)
+                {(["summary", "membership", "sales", "history", "refunds", "incidents"] as const)
                   .filter((tab) => (tab !== "sales" || role !== "admin") && (tab !== "membership" || canDoMembershipModify || canCollectMembershipPayment))
                   .map((tab) => (
                   <button
@@ -2324,7 +2389,7 @@ export default function AdminPage() {
                     onClick={() => setMemberProfileSubTab(tab)}
                     className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap shrink-0 ${memberProfileSubTab === tab ? "bg-amber-500 text-slate-900" : "text-slate-300 hover:bg-slate-700 hover:text-white"}`}
                   >
-                    {tab === "summary" ? m.memberTabSummary : tab === "membership" ? m.memberTabMembership : tab === "sales" ? m.memberTabSales : m.memberTabHistory}
+                    {tab === "summary" ? m.memberTabSummary : tab === "membership" ? m.memberTabMembership : tab === "sales" ? m.memberTabSales : tab === "history" ? m.memberTabHistory : tab === "refunds" ? m.memberTabRefunds : m.memberTabIncidents}
                   </button>
                 ))}
               </nav>
@@ -2412,6 +2477,14 @@ export default function AdminPage() {
                         <p className="text-slate-300 mb-1">{m.visitsRemaining}</p>
                         <p className="text-xl font-semibold text-emerald-300">
                           {foundMember.visits_remaining} {m.visitsLabel}
+                        </p>
+                      </div>
+                    )}
+                    {(foundMember.credit_balance_vnd ?? 0) > 0 && (
+                      <div className="col-span-2 rounded-xl bg-teal-500/20 border border-teal-400/50 px-3 py-3">
+                        <p className="text-slate-300 mb-1">{locale === "vi" ? "Số dư tín dụng (hoàn tiền)" : "Credit balance (refunds)"}</p>
+                        <p className="text-xl font-semibold text-teal-300">
+                          {(foundMember.credit_balance_vnd ?? 0).toLocaleString("vi-VN")} VND
                         </p>
                       </div>
                     )}
@@ -2601,6 +2674,146 @@ export default function AdminPage() {
                         ))}
                     </ul>
                   )}
+                </div>
+              )}
+
+              {memberProfileSubTab === "refunds" && (
+                <div className="rounded-2xl bg-slate-800/90 border border-slate-700 p-4 md:p-5 space-y-6">
+                  <div>
+                    <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-3">{locale === "vi" ? "Ghi nhận hoàn tiền (thành credit)" : "Record refund (as account credit)"}</h3>
+                    <div className="flex flex-wrap gap-3 items-end">
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">{locale === "vi" ? "Số tiền (VND)" : "Amount (VND)"}</label>
+                        <input type="number" min={1} value={refundFormAmount} onChange={(e) => setRefundFormAmount(e.target.value)} className="w-32 px-2 py-1.5 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm" placeholder="0" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">{locale === "vi" ? "Lý do" : "Reason"}</label>
+                        <select value={refundFormReason} onChange={(e) => setRefundFormReason(e.target.value as RefundReasonValue)} className="px-2 py-1.5 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm min-w-[160px]">
+                          {REFUND_REASONS.map((r) => (
+                            <option key={r.value} value={r.value}>{locale === "vi" ? r.labelVi : r.labelEn}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!refundFormAmount.trim() || refundFormSubmitting}
+                        onClick={async () => {
+                          const amt = Math.abs(parseInt(refundFormAmount, 10) || 0);
+                          if (!amt) return;
+                          setRefundFormSubmitting(true);
+                          const res = await adminFetch("/api/admin/gym-operations/payment-adjustments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ member_id: foundMember.id, amount_vnd: -amt, reason: refundFormReason }) });
+                          setRefundFormSubmitting(false);
+                          if (res.ok) {
+                            setRefundFormAmount("");
+                            await loadMemberById(foundMember.id);
+                            await refetchMemberOpsHistory(foundMember.id);
+                          }
+                        }}
+                        className="px-4 py-2 rounded-lg bg-amber-600 text-slate-900 text-sm font-medium hover:bg-amber-500 disabled:opacity-50"
+                      >
+                        {refundFormSubmitting ? (locale === "vi" ? "Đang lưu…" : "Saving…") : (locale === "vi" ? "Hoàn tiền → Credit" : "Refund → Credit")}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="border-t border-slate-600 pt-5">
+                    <h3 className="text-sm font-semibold text-slate-100 mb-1">
+                      {locale === "vi" ? "Lịch sử hoàn tiền / điều chỉnh của thành viên này" : "This member’s refund & adjustment history"}
+                    </h3>
+                    <p className="text-xs text-slate-500 mb-3">
+                      {locale === "vi" ? "Tất cả ghi nhận cho thành viên đang mở (mới nhất trước)." : "All records for this member (newest first)."}
+                    </p>
+                    {memberOpsHistoryLoading ? (
+                      <p className="text-xs text-slate-400">{locale === "vi" ? "Đang tải lịch sử…" : "Loading history…"}</p>
+                    ) : memberAdjustments.length === 0 ? (
+                      <p className="text-xs text-slate-400">{locale === "vi" ? "Chưa có hoàn tiền hay điều chỉnh nào." : "No refunds or adjustments yet."}</p>
+                    ) : (
+                      <ul className="space-y-2 text-sm text-slate-200 max-h-64 overflow-y-auto pr-1 border border-slate-700/80 rounded-lg p-3 bg-slate-900/40">
+                        {memberAdjustments.map((a) => (
+                          <li key={a.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 pb-2 border-b border-slate-700/60 last:border-0 last:pb-0">
+                            <span className="text-slate-300">
+                              <span className="text-slate-500 text-xs block sm:inline sm:mr-2">{new Date(a.created_at).toLocaleString(locale === "vi" ? "vi-VN" : "en-US")}</span>
+                              {getRefundReasonLabel(a.reason, locale)}
+                            </span>
+                            <span className={`font-medium shrink-0 ${a.amount_vnd < 0 ? "text-emerald-300" : "text-amber-200"}`}>
+                              {a.amount_vnd >= 0 ? "+" : ""}{a.amount_vnd.toLocaleString("vi-VN")} VND
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {memberProfileSubTab === "incidents" && (
+                <div className="rounded-2xl bg-slate-800/90 border border-slate-700 p-4 md:p-5 space-y-6">
+                  <div>
+                    <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-300 uppercase mb-3">{locale === "vi" ? "Báo cáo sự cố (chấn thương, v.v.)" : "Report incident (injury, etc.)"}</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">{locale === "vi" ? "Tiêu đề" : "Title"}</label>
+                        <input type="text" value={incidentFormTitle} onChange={(e) => setIncidentFormTitle(e.target.value)} className="w-full px-2 py-1.5 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm" placeholder={locale === "vi" ? "Ví dụ: Trượt chân, bong gân" : "e.g. Slip, sprain"} />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">{locale === "vi" ? "Mô tả" : "Description"}</label>
+                        <textarea value={incidentFormDescription} onChange={(e) => setIncidentFormDescription(e.target.value)} rows={2} className="w-full px-2 py-1.5 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm" placeholder={locale === "vi" ? "Chi tiết ngắn gọn" : "Brief details"} />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">{locale === "vi" ? "Mức độ" : "Severity"}</label>
+                        <select value={incidentFormSeverity} onChange={(e) => setIncidentFormSeverity(e.target.value as "low" | "medium" | "high" | "critical")} className="px-2 py-1.5 rounded-lg border border-slate-600 bg-slate-800 text-slate-100 text-sm">
+                          {(["low", "medium", "high", "critical"] as const).map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!incidentFormTitle.trim() || !incidentFormDescription.trim() || incidentFormSubmitting}
+                        onClick={async () => {
+                          setIncidentFormSubmitting(true);
+                          const res = await adminFetch("/api/admin/gym-operations/incidents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ member_id: foundMember.id, title: incidentFormTitle.trim(), description: incidentFormDescription.trim(), severity: incidentFormSeverity }) });
+                          setIncidentFormSubmitting(false);
+                          if (res.ok) {
+                            setIncidentFormTitle("");
+                            setIncidentFormDescription("");
+                            await refetchMemberOpsHistory(foundMember.id);
+                          }
+                        }}
+                        className="px-4 py-2 rounded-lg bg-amber-600 text-slate-900 text-sm font-medium hover:bg-amber-500 disabled:opacity-50"
+                      >
+                        {incidentFormSubmitting ? (locale === "vi" ? "Đang lưu…" : "Saving…") : (locale === "vi" ? "Gửi báo cáo" : "Submit report")}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="border-t border-slate-600 pt-5">
+                    <h3 className="text-sm font-semibold text-slate-100 mb-1">
+                      {locale === "vi" ? "Lịch sử sự cố của thành viên này" : "This member’s incident history"}
+                    </h3>
+                    <p className="text-xs text-slate-500 mb-3">
+                      {locale === "vi" ? "Mọi sự cố đã gắn với thành viên (mới nhất trước)." : "All incidents linked to this member (newest first)."}
+                    </p>
+                    {memberOpsHistoryLoading ? (
+                      <p className="text-xs text-slate-400">{locale === "vi" ? "Đang tải lịch sử…" : "Loading history…"}</p>
+                    ) : memberIncidents.length === 0 ? (
+                      <p className="text-xs text-slate-400">{locale === "vi" ? "Chưa có sự cố nào được ghi nhận." : "No incidents recorded yet."}</p>
+                    ) : (
+                      <ul className="space-y-3 text-sm text-slate-200 max-h-64 overflow-y-auto pr-1 border border-slate-700/80 rounded-lg p-3 bg-slate-900/40">
+                        {memberIncidents.map((i) => (
+                          <li key={i.id} className="flex flex-col gap-1 pb-3 border-b border-slate-700/60 last:border-0 last:pb-0">
+                            <div className="flex justify-between items-start gap-2">
+                              <span className="font-medium text-slate-100">{i.title}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded shrink-0 ${i.status === "closed" ? "bg-slate-600 text-slate-300" : "bg-amber-500/20 text-amber-200"}`}>{i.status}</span>
+                            </div>
+                            <p className="text-xs text-slate-400">{i.description}</p>
+                            <p className="text-xs text-slate-500">
+                              {new Date(i.created_at).toLocaleString(locale === "vi" ? "vi-VN" : "en-US")} · {locale === "vi" ? "Mức độ" : "Severity"}: {i.severity}
+                              {i.resolved_at ? ` · ${locale === "vi" ? "Đóng" : "Closed"} ${new Date(i.resolved_at).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US")}` : ""}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -4693,6 +4906,16 @@ export default function AdminPage() {
               <p className="font-semibold text-slate-900">
                 {m.total}: {posCartTotalDue.toLocaleString("vi-VN")} VND
               </p>
+              {(foundMember?.credit_balance_vnd ?? 0) > 0 && (
+                <div className="pt-2 border-t border-slate-200 space-y-1">
+                  <p className="text-slate-600">{locale === "vi" ? "Số dư credit" : "Credit balance"}: {(foundMember?.credit_balance_vnd ?? 0).toLocaleString("vi-VN")} VND</p>
+                  <div className="flex items-center gap-2">
+                    <input type="number" min={0} max={Math.min(foundMember?.credit_balance_vnd ?? 0, posCartTotalDue)} value={posCreditToApply || ""} onChange={(e) => setPosCreditToApply(Math.max(0, parseInt(e.target.value, 10) || 0))} placeholder="0" className="w-24 px-2 py-1 rounded border border-slate-300 text-sm" />
+                    <button type="button" onClick={() => setPosCreditToApply(Math.min(foundMember?.credit_balance_vnd ?? 0, posCartTotalDue))} className="text-xs font-medium text-teal-600 hover:underline">{locale === "vi" ? "Dùng tối đa" : "Use max"}</button>
+                  </div>
+                  {posCreditToApply > 0 && <p className="text-teal-700 font-medium">{locale === "vi" ? "Còn thanh toán" : "Amount due"}: {Math.max(0, posCartTotalDue - posCreditToApply).toLocaleString("vi-VN")} VND</p>}
+                </div>
+              )}
             </div>
             {!posQrUrl ? (
               <div className="flex flex-col gap-2">
@@ -4735,6 +4958,7 @@ export default function AdminPage() {
                 setPosPaymentModalOpen(false);
                 setPosQrUrl(null);
                 setPosPendingTransactionId(null);
+                setPosCreditToApply(0);
               }}
               className="w-full px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-700 hover:bg-slate-50"
             >

@@ -10,7 +10,9 @@ export type CampaignSegmentId =
   | "first_time_no_return"
   | "near_conversion_users"
   | "dropped_active_users"
-  | "new_members_recent";
+  | "new_members_recent"
+  | "birthday_this_week"
+  | "first_visit_not_welcomed";
 
 export interface CampaignSegmentDefinition {
   id: CampaignSegmentId;
@@ -162,6 +164,41 @@ If you have any questions or want tips on what to try next, we're always here to
 See you again soon,
 Leo Mây Team`,
   },
+  {
+    id: "birthday_this_week",
+    nameEn: "Birthday this week",
+    nameVi: "Sinh nhật trong tuần",
+    descriptionEn: "Birthday (month/day) in the next 7 days",
+    descriptionVi: "Sinh nhật (tháng/ngày) trong 7 ngày tới",
+    ctaEn: "Send birthday email",
+    ctaVi: "Gửi email sinh nhật",
+    subject: "Happy birthday from Leo Mây 🎂",
+    body: `Hey [Name],
+
+Happy birthday from the whole team at Leo Mây.
+
+We hope you have a great day — and we'd love to see you on the wall soon.
+
+Leo Mây Team`,
+  },
+  {
+    id: "first_visit_not_welcomed",
+    nameEn: "First visit (not yet welcomed)",
+    nameVi: "Lần đầu (chưa chào mừng)",
+    descriptionEn: "Has at least one check-in, first_visit_welcomed_at is empty",
+    descriptionVi: "Đã check-in ít nhất 1 lần, chưa đánh dấu chào mừng lần đầu",
+    ctaEn: "Send first-visit welcome",
+    ctaVi: "Gửi chào mừng lần đầu",
+    subject: "Thanks for visiting Leo Mây",
+    body: `Hey [Name],
+
+Thanks for coming to Leo Mây — we hope you had a great first session.
+
+If you have any questions or want to plan your next visit, we're here to help.
+
+See you on the wall,
+Leo Mây Team`,
+  },
 ];
 
 /**
@@ -216,6 +253,18 @@ export const CAMPAIGN_SEGMENT_REWARDS: Record<CampaignSegmentId, CampaignSegment
     amount: 1,
     labelEn: "1 free visit (welcome — come again soon)",
     labelVi: "1 lượt miễn phí (chào mừng — hẹn gặp lại bạn)",
+  },
+  birthday_this_week: {
+    type: "visits",
+    amount: 1,
+    labelEn: "1 free visit (birthday treat)",
+    labelVi: "1 lượt miễn phí (quà sinh nhật)",
+  },
+  first_visit_not_welcomed: {
+    type: "visits",
+    amount: 1,
+    labelEn: "1 free visit (thanks for visiting)",
+    labelVi: "1 lượt miễn phí (cảm ơn đã ghé)",
   },
 };
 

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { requireAdminOrStaff } from "@/lib/gymOperationsAdminAuth";
+import { requireAdminOrStaff, requireDeskStaff } from "@/lib/gymOperationsAdminAuth";
 import { insertAdminAuditLog } from "@/lib/auditLog";
 
 const SEVERITIES = ["low", "medium", "high", "critical"] as const;
 
+/** GET: with member_id = list for one member (front desk); without = full list (admin/staff). */
 export async function GET(req: NextRequest) {
-  const auth = await requireAdminOrStaff(req);
+  const memberId = req.nextUrl.searchParams.get("member_id")?.trim() || null;
+  const auth = memberId ? await requireDeskStaff(req) : await requireAdminOrStaff(req);
   if ("res" in auth) return auth.res;
   const supabase = createServerClient();
   const status = req.nextUrl.searchParams.get("status");
@@ -14,17 +16,16 @@ export async function GET(req: NextRequest) {
     .from("facility_incidents")
     .select("id, severity, title, description, member_id, status, reported_by_staff_id, created_at, resolved_at")
     .order("created_at", { ascending: false })
-    .limit(80);
-  if (status === "open" || status === "closed") {
-    q = q.eq("status", status);
-  }
+    .limit(memberId ? 50 : 80);
+  if (memberId) q = q.eq("member_id", memberId);
+  if (status === "open" || status === "closed") q = q.eq("status", status);
   const { data, error } = await q;
   if (error) return NextResponse.json({ error: "Failed to load" }, { status: 500 });
   return NextResponse.json({ incidents: data ?? [] });
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAdminOrStaff(req);
+  const auth = await requireDeskStaff(req);
   if ("res" in auth) return auth.res;
   const body = await req.json().catch(() => ({}));
   const title = typeof body.title === "string" ? body.title.trim() : "";

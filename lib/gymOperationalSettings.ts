@@ -3,6 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export const DEFAULT_MAX_OCCUPANCY = 30;
 export const DEFAULT_BUSY_THRESHOLD_PCT = 70;
 
+export type SendMode = "manual" | "campaign";
+
 export interface GymOperationalSettingsRow {
   id: number;
   max_occupancy: number;
@@ -13,6 +15,8 @@ export interface GymOperationalSettingsRow {
   business_tax_id: string | null;
   e_invoice_workflow_note: string | null;
   updated_at: string;
+  birthday_send_mode: SendMode;
+  first_visit_send_mode: SendMode;
 }
 
 export function defaultOperationalSettings(): GymOperationalSettingsRow {
@@ -26,6 +30,8 @@ export function defaultOperationalSettings(): GymOperationalSettingsRow {
     business_tax_id: null,
     e_invoice_workflow_note: null,
     updated_at: new Date().toISOString(),
+    birthday_send_mode: "manual",
+    first_visit_send_mode: "manual",
   };
 }
 
@@ -43,6 +49,7 @@ export async function fetchGymOperationalSettings(
   }
 
   const row = data as Record<string, unknown>;
+  const sendMode = (v: unknown) => (v === "campaign" ? "campaign" : "manual");
   return {
     id: 1,
     max_occupancy: typeof row.max_occupancy === "number" ? row.max_occupancy : DEFAULT_MAX_OCCUPANCY,
@@ -54,6 +61,8 @@ export async function fetchGymOperationalSettings(
     business_tax_id: (row.business_tax_id as string) ?? null,
     e_invoice_workflow_note: (row.e_invoice_workflow_note as string) ?? null,
     updated_at: (row.updated_at as string) ?? new Date().toISOString(),
+    birthday_send_mode: sendMode(row.birthday_send_mode),
+    first_visit_send_mode: sendMode(row.first_visit_send_mode),
   };
 }
 

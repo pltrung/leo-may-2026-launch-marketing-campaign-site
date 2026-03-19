@@ -4,6 +4,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CampaignSegmentId } from "./campaignSegments";
+import { filterUpcomingBirthdays } from "./birthdayQueueGym";
 
 export interface SegmentRecipient {
   id: string;
@@ -34,8 +35,8 @@ export async function getSegmentRecipients(
 
   const { data: profiles } = await supabase
     .from("member_profiles")
-    .select("id, email, full_name, display_name, created_at, membership_expires_at, visits_remaining");
-  const allProfiles = (profiles ?? []) as (SegmentRecipient & { created_at: string })[];
+    .select("id, email, full_name, display_name, created_at, membership_expires_at, visits_remaining, date_of_birth, first_visit_welcomed_at");
+  const allProfiles = (profiles ?? []) as (SegmentRecipient & { created_at: string; date_of_birth?: string | null; first_visit_welcomed_at?: string | null })[];
   const byId = new Map(allProfiles.map((p) => [p.id, p]));
 
   function hasCurrentAccess(p: SegmentRecipient): boolean {
@@ -144,6 +145,25 @@ export async function getSegmentRecipients(
       memberIds = allProfiles.filter((p) => {
         if (hasCurrentAccess(p)) return false;
         return p.created_at >= threeDaysAgo;
+      }).map((p) => p.id);
+      break;
+    }
+    case "birthday_this_week": {
+      const withDob = allProfiles.filter((p) => p.date_of_birth) as { id: string; full_name: string | null; date_of_birth: string }[];
+      const upcoming = filterUpcomingBirthdays(
+        withDob.map((p) => ({ id: p.id, full_name: p.full_name, phone: null, date_of_birth: p.date_of_birth, birthday_message_sent_year: null })),
+        7
+      );
+      memberIds = upcoming.map((u) => u.id);
+      break;
+    }
+    case "first_visit_not_welcomed": {
+      const withCheckin = new Set<string>();
+      for (const c of allCheckins) withCheckin.add(c.member_id);
+      memberIds = allProfiles.filter((p) => {
+        if (!withCheckin.has(p.id)) return false;
+        if (p.first_visit_welcomed_at) return false;
+        return true;
       }).map((p) => p.id);
       break;
     }

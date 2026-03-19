@@ -27,6 +27,11 @@ export async function PATCH(req: NextRequest) {
       ? Math.floor(body.busy_threshold_pct)
       : current.busy_threshold_pct;
 
+  const birthdaySendMode =
+    body.birthday_send_mode === "campaign" ? "campaign" : (body.birthday_send_mode === "manual" ? "manual" : current.birthday_send_mode);
+  const firstVisitSendMode =
+    body.first_visit_send_mode === "campaign" ? "campaign" : (body.first_visit_send_mode === "manual" ? "manual" : current.first_visit_send_mode);
+
   const patch = {
     id: 1,
     max_occupancy: maxOccupancy,
@@ -42,6 +47,8 @@ export async function PATCH(req: NextRequest) {
       typeof body.e_invoice_workflow_note === "string"
         ? body.e_invoice_workflow_note.trim() || null
         : current.e_invoice_workflow_note,
+    birthday_send_mode: birthdaySendMode,
+    first_visit_send_mode: firstVisitSendMode,
     updated_at: new Date().toISOString(),
   };
 

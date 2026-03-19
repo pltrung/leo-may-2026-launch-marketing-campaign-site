@@ -23,13 +23,14 @@ export async function POST(req: NextRequest) {
     const memberId = typeof body.member_id === "string" ? body.member_id.trim() : "";
     const paymentMethod = body.payment_method === "cash" ? "cash" : "vietqr";
     const items = Array.isArray(body.items) ? (body.items as CartItem[]) : [];
+    const creditToApplyVnd = typeof body.credit_to_apply_vnd === "number" ? Math.max(0, Math.round(body.credit_to_apply_vnd)) : 0;
     if (!memberId || items.length === 0) {
       return NextResponse.json({ error: "member_id and items required" }, { status: 400 });
     }
 
     const { data: member } = await supabase
       .from("member_profiles")
-      .select("id, merchandise_discount_percent, membership_expires_at, visits_remaining")
+      .select("id, merchandise_discount_percent, membership_expires_at, visits_remaining, credit_balance_vnd")
       .eq("id", memberId)
       .maybeSingle();
     if (!member) return NextResponse.json({ error: "Member not found" }, { status: 404 });
@@ -82,6 +83,9 @@ export async function POST(req: NextRequest) {
     });
     const discountVnd = merchPct > 0 ? Math.round((subtotalBeforeDiscount * merchPct) / 100) : 0;
     total = Math.max(0, subtotalBeforeDiscount - discountVnd);
+    const creditBalance = (member.credit_balance_vnd as number) ?? 0;
+    const creditApply = Math.min(creditToApplyVnd, creditBalance, total);
+    total = Math.max(0, total - creditApply);
 
     const status = paymentMethod === "cash" ? "success" : "pending";
     const memo = paymentMethod === "vietqr" ? `LM_PURCHASE:${lineItems.map((i) => i.sku).join(",")}` : null;
@@ -103,10 +107,21 @@ export async function POST(req: NextRequest) {
         commission_amount: commissionAmount,
         subtotal_before_discount_vnd: subtotalBeforeDiscount,
         member_merch_discount_percent: merchPct > 0 ? merchPct : null,
+        credit_applied_vnd: creditApply > 0 ? creditApply : 0,
       })
       .select("id")
       .single();
     if (txErr || !tx) return NextResponse.json({ error: txErr?.message ?? "Failed to create transaction" }, { status: 500 });
+
+    if (creditApply > 0) {
+      await supabase
+        .from("member_profiles")
+        .update({
+          credit_balance_vnd: Math.max(0, creditBalance - creditApply),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", memberId);
+    }
 
     for (const it of lineItems) {
       await supabase.from("transaction_items").insert({
@@ -141,6 +156,7 @@ export async function POST(req: NextRequest) {
         subtotal_before_discount_vnd: subtotalBeforeDiscount,
         member_merch_discount_percent: merchPct > 0 ? merchPct : null,
         discount_vnd: discountVnd,
+        credit_applied_vnd: creditApply,
         total,
       });
     }
@@ -155,6 +171,7 @@ export async function POST(req: NextRequest) {
       subtotal_before_discount_vnd: subtotalBeforeDiscount,
       member_merch_discount_percent: merchPct > 0 ? merchPct : null,
       discount_vnd: discountVnd,
+      credit_applied_vnd: creditApply,
     });
   } catch (e) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
