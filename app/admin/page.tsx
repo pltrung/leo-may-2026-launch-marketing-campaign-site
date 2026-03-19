@@ -1831,6 +1831,15 @@ export default function AdminPage() {
             )}
           </section>
         </main>
+        <QrScannerModal
+          open={scannerModalOpen}
+          onClose={() => setScannerModalOpen(false)}
+          onScanned={handleQrScanned}
+          onError={(msg) => {
+            setActionError(msg);
+            setScannerModalOpen(false);
+          }}
+        />
       </div>
     );
   }
