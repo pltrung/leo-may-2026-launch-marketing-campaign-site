@@ -4475,8 +4475,7 @@ export default function AdminPage() {
                           {(staffOpsData.zones ?? []).map((z: { id: string; name: string; next_reset_at: string | null; assigned_setters?: { staff_id: string; name: string }[]; reset_status?: string }) => {
                             const setters = (z.assigned_setters ?? []);
                             const status = z.reset_status ?? "not_started";
-                            const canMarkReset =
-                              role === "admin" || (staffId != null && setters.some((s) => s.staff_id === staffId));
+                            const canMarkReset = staffId != null && setters.some((s) => s.staff_id === staffId);
                             const statusLabel = status === "completed" ? staffMsg.routeStatusCompleted : status === "overdue" ? staffMsg.overdue : status === "in_progress" ? staffMsg.routeStatusInProgress : status === "pending" ? staffMsg.resetProgressPending : staffMsg.routeStatusNotStarted;
                             const statusBg = status === "completed" ? "bg-emerald-900/40 text-emerald-200" : status === "overdue" ? "bg-red-900/40 text-red-200" : status === "in_progress" || status === "pending" ? "bg-amber-900/40 text-amber-200" : "bg-slate-700/50 text-slate-400";
                             return (
@@ -4510,8 +4509,7 @@ export default function AdminPage() {
                                   </button>
                                 )}
                                 {(status === "in_progress" || status === "pending" || status === "overdue") &&
-                                  !canMarkReset &&
-                                  role !== "admin" && (
+                                  !canMarkReset && (
                                   <p className="text-xs text-slate-500">{staffMsg.markResetAssignFirst}</p>
                                 )}
                               </div>
