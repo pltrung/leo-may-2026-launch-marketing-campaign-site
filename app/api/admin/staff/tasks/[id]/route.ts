@@ -45,7 +45,9 @@ export async function PATCH(
     .eq("id", id)
     .single();
   if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
-  if (task.assigned_to && task.assigned_to !== staff.id) {
+  // Only staff should be restricted by `assigned_to`.
+  // Admin can mark overdue tasks complete from the Operations control board.
+  if (unified.role === "staff" && task.assigned_to && task.assigned_to !== staff.id) {
     return NextResponse.json({ error: "Not assigned to you" }, { status: 403 });
   }
 
