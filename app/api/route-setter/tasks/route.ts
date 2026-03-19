@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
   const { data: tasks, error } = await supabase
     .from("staff_tasks")
-    .select("id, title, description, block, start_time, due_time, status, completed_at, completed_by")
+    .select("id, title, description, block, start_time, due_time, status, completed_at, completed_by, priority, estimated_duration_minutes, guidance")
     .order("start_time", { ascending: true })
     .order("created_at", { ascending: true });
 
@@ -110,6 +110,9 @@ export async function GET(request: NextRequest) {
       completed_at: latestCompletedAtByTask[t.id as string] ?? null,
       completed_by_name: hasCompletion ? completers[0] ?? staff.display_name ?? "Staff" : null,
       completers,
+      priority: (t.priority as "high" | "medium" | "low") ?? "medium",
+      estimated_duration_minutes: (t.estimated_duration_minutes as number | null) ?? null,
+      guidance: (t.guidance as string | null) ?? null,
     };
   });
 

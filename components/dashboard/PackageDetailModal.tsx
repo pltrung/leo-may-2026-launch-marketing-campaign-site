@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { formatVnd } from "@/lib/formatVndCompact";
 import {
   DAY_PASS_BASELINE_PER_VISIT_VND,
   visitPackVisitCount,
@@ -133,10 +134,10 @@ export default function PackageDetailModal({
             {effectivePriceVnd != null && effectivePriceVnd < plan.price_vnd ? (
               <>
                 <p className="text-lg text-white/50 line-through">
-                  {plan.price_vnd.toLocaleString("vi-VN")} VND
+                  {formatVnd(plan.price_vnd)}
                 </p>
                 <p className="text-2xl font-bold text-emerald-400">
-                  {effectivePriceVnd.toLocaleString("vi-VN")} VND
+                  {formatVnd(effectivePriceVnd)}
                 </p>
                 <p className="text-xs text-amber-300/90 mt-1">
                   {isVi ? "Ưu đãi 50% sau lớp Newbie" : "50% off — Newbie graduate offer"}
@@ -147,18 +148,18 @@ export default function PackageDetailModal({
               </>
             ) : (
               <p className="text-2xl font-bold text-emerald-400">
-                {plan.price_vnd.toLocaleString("vi-VN")} VND
+                {formatVnd(plan.price_vnd)}
               </p>
             )}
           </div>
           {vsDay && vsDay.discountPct > 0 && (
             <div className="mb-4 rounded-xl border border-amber-400/25 bg-amber-500/10 px-3 py-2.5">
               <p className="text-xs text-white/45 line-through">
-                {vsDay.listAtDayRateVnd.toLocaleString("vi-VN")} VND
+                {formatVnd(vsDay.listAtDayRateVnd)}
                 {vsDayVisit
                   ? isVi
-                    ? ` · ${visitCount}× vé ngày (${DAY_PASS_BASELINE_PER_VISIT_VND.toLocaleString("vi-VN")}đ/lượt)`
-                    : ` · ${visitCount}× day pass (${DAY_PASS_BASELINE_PER_VISIT_VND.toLocaleString("vi-VN")} VND each)`
+                    ? ` · ${visitCount}× vé ngày (${formatVnd(DAY_PASS_BASELINE_PER_VISIT_VND)}/lượt)`
+                    : ` · ${visitCount}× day pass (${formatVnd(DAY_PASS_BASELINE_PER_VISIT_VND)} each)`
                   : isVi
                     ? ` · ${durationDays} vé ngày`
                     : ` · ${durationDays}× day pass`}
@@ -175,8 +176,8 @@ export default function PackageDetailModal({
               {vsDayVisit && (
                 <p className="mt-0.5 text-[11px] text-white/50">
                   {isVi
-                    ? `≈ ${vsDayVisit.perVisitEffectiveVnd.toLocaleString("vi-VN")}đ / lượt trong gói`
-                    : `≈ ${vsDayVisit.perVisitEffectiveVnd.toLocaleString("vi-VN")} VND per visit in this pack`}
+                    ? `≈ ${formatVnd(vsDayVisit.perVisitEffectiveVnd)} / lượt trong gói`
+                    : `≈ ${formatVnd(vsDayVisit.perVisitEffectiveVnd)} per visit in this pack`}
                 </p>
               )}
             </div>

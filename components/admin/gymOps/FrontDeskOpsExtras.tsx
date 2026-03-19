@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import type { Locale } from "@/lib/i18n";
+import { formatVnd } from "@/lib/formatVndCompact";
 
 /**
  * Walk-in / desk day pass SOP + end-of-shift cash/POS panels.
@@ -129,7 +130,7 @@ export default function FrontDeskOpsExtras({
         <ul className="mt-2 text-[10px] text-slate-500 space-y-0.5 max-h-20 overflow-y-auto">
           {recent.map((c) => (
             <li key={c.id}>
-              {c.gym_date} · {c.cash_counted_vnd.toLocaleString()} VND
+              {c.gym_date} · {formatVnd(c.cash_counted_vnd)}
             </li>
           ))}
         </ul>

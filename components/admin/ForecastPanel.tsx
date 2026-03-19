@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { formatVnd } from "@/lib/formatVndCompact";
 import {
   forecastMonths,
   nextMonthMembers,
@@ -187,7 +188,7 @@ export default function ForecastPanel({
           />
           <KpiCard
             label={t("Monthly profit (M1)", "Lãi tháng 1")}
-            value={`${month1Profit.toLocaleString("vi-VN")} VND`}
+            value={formatVnd(month1Profit)}
             sub={t("Next month P&L", "P&L tháng tới")}
           />
           <KpiCard
@@ -207,7 +208,7 @@ export default function ForecastPanel({
             {t("Current members", "TV hiện tại")}: <strong>{currentMembers}</strong>
             {" · "}
             {t("Monthly costs", "Chi phí / tháng")}:{" "}
-            <strong>{monthlyCosts.toLocaleString("vi-VN")} VND</strong>
+            <strong>{formatVnd(monthlyCosts)}</strong>
           </span>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto">
@@ -235,7 +236,7 @@ export default function ForecastPanel({
                   <td className="py-3 px-4 font-medium text-slate-900">{r.monthLabel}</td>
                   <td className="py-3 px-4 text-right text-slate-800">{r.members}</td>
                   <td className="py-3 px-4 text-right text-slate-800">
-                    {r.revenue.toLocaleString("vi-VN")}
+                    {formatVnd(r.revenue)}
                   </td>
                   <td className="py-3 px-4 text-right text-slate-600">{r.costs.toLocaleString("vi-VN")}</td>
                   <td
@@ -243,7 +244,7 @@ export default function ForecastPanel({
                       r.profit >= 0 ? "text-emerald-700" : "text-rose-700"
                     }`}
                   >
-                    {r.profit.toLocaleString("vi-VN")}
+                    {formatVnd(r.profit)}
                   </td>
                 </tr>
               ))}
@@ -308,7 +309,7 @@ export default function ForecastPanel({
                 className="mt-1 text-xs text-teal-600 hover:underline"
                 onClick={() => setAvgMemberPrice(suggestedAvg)}
               >
-                {t(`Use suggested (${suggestedAvg.toLocaleString("vi-VN")})`, `Dùng gợi ý (${suggestedAvg.toLocaleString("vi-VN")})`)}
+                {t(`Use suggested (${formatVnd(suggestedAvg)})`, `Dùng gợi ý (${formatVnd(suggestedAvg)})`)}
               </button>
             )}
           </label>
@@ -347,7 +348,7 @@ export default function ForecastPanel({
         {lastMonthRevenue > 0 && (
           <p className="text-xs text-slate-500">
             {t("Last full month revenue", "Doanh thu tháng trước")}:{" "}
-            {lastMonthRevenue.toLocaleString("vi-VN")} VND
+            {formatVnd(lastMonthRevenue)}
           </p>
         )}
       </div>

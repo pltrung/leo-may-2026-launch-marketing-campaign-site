@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
       .order("next_reset_at", { ascending: true, nullsFirst: false }),
     supabase
       .from("staff_tasks")
-      .select("id, title, description, block, start_time, due_time, status, completed_at, completed_by, completer:staff_profiles!completed_by(display_name, email)")
+      .select("id, title, description, block, start_time, due_time, status, completed_at, completed_by, priority, estimated_duration_minutes, guidance, completer:staff_profiles!completed_by(display_name, email)")
       .order("start_time", { ascending: true, nullsFirst: true }),
     supabase
       .from("task_logs")

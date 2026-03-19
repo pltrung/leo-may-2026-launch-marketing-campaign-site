@@ -14,6 +14,7 @@ import type { AnalyticsData } from "./AnalyticsCharts";
 import MetricInfo from "@/components/admin/analytics/MetricInfo";
 import { METRIC_BASIS_BADGE, METRIC_TOOLTIPS } from "@/lib/admin/analytics/metricDefinitions";
 import { getHorizonSuffix, getForecastSuffix, type TimeHorizon } from "@/lib/admin/analytics/periodUtils";
+import { formatVnd, formatVndAxis } from "@/lib/formatVndCompact";
 import { buildAnalyticsAlerts, type AnalyticsAlert } from "@/lib/admin/analytics/alerts";
 import { formatRunway } from "@/lib/admin/analytics/metricCalculators";
 import type { FinanceMetricsPayload } from "@/lib/admin/analytics/metricCalculators";
@@ -155,8 +156,8 @@ export default function ExecutiveSummary({
   const actionQueue: { en: string; vi: string; tab?: Parameters<NonNullable<typeof onOpenTab>>[0] }[] = [];
   if ((finance?.payroll_record?.status !== "paid" && (finance?.payroll_total ?? 0) > 0) ?? false) {
     actionQueue.push({
-      en: `Approve / mark payroll paid (${(finance?.payroll_total ?? 0).toLocaleString("vi-VN")} VND est.)`,
-      vi: `Duyệt / đánh dấu đã trả lương (${(finance?.payroll_total ?? 0).toLocaleString("vi-VN")} VND ước tính)`,
+      en: `Approve / mark payroll paid (${formatVnd(finance?.payroll_total ?? 0)} est.)`,
+      vi: `Duyệt / đánh dấu đã trả lương (${formatVnd(finance?.payroll_total ?? 0)} ước tính)`,
       tab: "finance",
     });
   }
@@ -244,17 +245,17 @@ export default function ExecutiveSummary({
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <KpiTile
             label={t("Cash in bank", "Quỹ tiền mặt")}
-            value={cashBank != null && Number.isFinite(cashBank) ? `${Math.round(cashBank).toLocaleString("vi-VN")} VND` : "—"}
+            value={cashBank != null && Number.isFinite(cashBank) ? formatVnd(cashBank) : "—"}
             info={<MetricInfo label={t("Cash in bank", "Quỹ tiền mặt")}>{isVi ? METRIC_TOOLTIPS.cashInBank.vi : METRIC_TOOLTIPS.cashInBank.en}</MetricInfo>}
           />
           <KpiTile
             label={t(`Cash sales ${getHorizonSuffix(horizon)}`, `Bán thu tiền ${getHorizonSuffix(horizon)}`)}
-            value={cashSales != null ? `${Math.round(cashSales).toLocaleString("vi-VN")} VND` : financeLoading ? "…" : "—"}
+            value={cashSales != null ? formatVnd(cashSales) : financeLoading ? "…" : "—"}
             info={<MetricInfo label={t("Cash sales", "Bán thu tiền")}>{isVi ? METRIC_TOOLTIPS.cashSalesMtd.vi : METRIC_TOOLTIPS.cashSalesMtd.en}</MetricInfo>}
           />
           <KpiTile
             label={t(`Net cash flow ${getHorizonSuffix(horizon)}`, `Dòng tiền ròng ${getHorizonSuffix(horizon)}`)}
-            value={netCash != null ? `${Math.round(netCash).toLocaleString("vi-VN")} VND` : financeLoading ? "…" : "—"}
+            value={netCash != null ? formatVnd(netCash) : financeLoading ? "…" : "—"}
             sub={t("Cash in − partial cash out (see Finance)", "Tiền vào − tiền ra (xem Tài chính)")}
             info={<MetricInfo label={t("Net cash flow", "Dòng tiền ròng")}>{isVi ? METRIC_TOOLTIPS.netCashFlowMtd.vi : METRIC_TOOLTIPS.netCashFlowMtd.en}</MetricInfo>}
           />
@@ -262,7 +263,7 @@ export default function ExecutiveSummary({
             label={t(`${getForecastSuffix(horizon)} net cash flow forecast`, `Dự báo dòng tiền ${getForecastSuffix(horizon)}`)}
             value={
               eomForecastVal != null
-                ? `${eomForecastVal.toLocaleString("vi-VN")} VND`
+                ? formatVnd(eomForecastVal)
                 : financeLoading
                   ? "…"
                   : "—"
@@ -304,8 +305,8 @@ export default function ExecutiveSummary({
                   <LineChart data={r.over_time}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                    <Tooltip formatter={(v: unknown) => [typeof v === "number" ? v.toLocaleString("vi-VN") : String(v ?? 0), t("Cash sales", "Thu tiền")]} />
+                    <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatVndAxis(v)} />
+                    <Tooltip formatter={(v: unknown) => [typeof v === "number" ? formatVnd(v) : String(v ?? 0), t("Cash sales", "Thu tiền")]} />
                     <Line type="monotone" dataKey="total" stroke="#0f766e" strokeWidth={2} dot={{ r: 2 }} />
                   </LineChart>
                 </ResponsiveContainer>
@@ -317,14 +318,14 @@ export default function ExecutiveSummary({
               <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-2">
                 <p className="text-[10px] font-semibold text-slate-500 uppercase">{t("Cash out (MTD, partial)", "Tiền ra (MTD, một phần)")}</p>
                 <p className="text-sm font-bold text-slate-900">
-                  {finance?.cash_out_mtd != null ? `${Math.round(finance.cash_out_mtd).toLocaleString("vi-VN")} VND` : "—"}
+                  {finance?.cash_out_mtd != null ? formatVnd(finance.cash_out_mtd) : "—"}
                 </p>
               </div>
               <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-2">
                 <p className="text-[10px] font-semibold text-slate-500 uppercase">{t("Payroll due", "Lương đến hạn")}</p>
                 <p className="text-sm font-bold text-slate-900">
                   {finance?.payroll_record?.status !== "paid" && finance?.payroll_total != null
-                    ? `${Math.round(finance.payroll_total).toLocaleString("vi-VN")} VND`
+                    ? formatVnd(finance.payroll_total)
                     : t("Paid", "Đã trả")}
                 </p>
               </div>

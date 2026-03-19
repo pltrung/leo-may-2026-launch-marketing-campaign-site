@@ -487,7 +487,26 @@ export async function GET(req: NextRequest) {
 
     const payrollPaidNow = (prFinal as { status?: string })?.status === "paid";
     const payrollPaidAt = (prFinal as { paid_at?: string | null })?.paid_at ?? null;
-    const cashOutMtd = Math.round(expensesMtd + (payrollPaidNow ? payrollTotal : 0));
+
+    // Cash out = only PAID expenses (when cash actually leaves) + payroll when paid
+    // Query expenses paid during the period (paid_at in range)
+    const { data: paidExpenseRows } = await supabase
+      .from("expenses")
+      .select("cost, paid_at")
+      .eq("status", "paid")
+      .not("paid_at", "is", null)
+      .gte("paid_at", sinceIso)
+      .lte("paid_at", untilIso);
+    let paidExpensesMtd = 0;
+    const cashOutByDate = new Map<string, number>();
+    for (const e of paidExpenseRows ?? []) {
+      const exp = e as { cost: number; paid_at: string };
+      const cost = Number(exp.cost) || 0;
+      paidExpensesMtd += cost;
+      const d = getGymDateFromISO(exp.paid_at).slice(0, 10);
+      cashOutByDate.set(d, (cashOutByDate.get(d) ?? 0) + cost);
+    }
+    const cashOutMtd = Math.round(paidExpensesMtd + (payrollPaidNow ? payrollTotal : 0));
 
     // Cash in vs out over time for chart
     const cashInByDate = new Map<string, number>();
@@ -498,12 +517,6 @@ export async function GET(req: NextRequest) {
     for (const r of posRowsMtd ?? []) {
       const d = getGymDateFromISO((r as { created_at: string }).created_at);
       cashInByDate.set(d, (cashInByDate.get(d) ?? 0) + Number((r as { total: number }).total) || 0);
-    }
-    const cashOutByDate = new Map<string, number>();
-    for (const e of expenseRows ?? []) {
-      const exp = e as { expense_date: string; cost: number };
-      const d = exp.expense_date;
-      cashOutByDate.set(d, (cashOutByDate.get(d) ?? 0) + Number(exp.cost) || 0);
     }
     if (payrollPaidNow && payrollPaidAt && payrollTotal > 0) {
       const d = getGymDateFromISO(payrollPaidAt).slice(0, 10);

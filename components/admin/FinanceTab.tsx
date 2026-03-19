@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import ForecastPanel from "@/components/admin/ForecastPanel";
 import { formatRunway } from "@/lib/admin/analytics/metricCalculators";
+import { formatVnd, formatVndAxis } from "@/lib/formatVndCompact";
 import { getHorizonSuffix } from "@/lib/admin/analytics/periodUtils";
 import { buildAnalyticsAlerts } from "@/lib/admin/analytics/alerts";
 
@@ -75,9 +76,6 @@ type FinanceData = {
   }[];
 };
 
-function fmt(n: number) {
-  return (n ?? 0).toLocaleString("vi-VN") + " VND";
-}
 
 export default function FinanceTab({
   adminFetch,
@@ -150,15 +148,23 @@ export default function FinanceTab({
     load();
   }, [load]);
 
-  useEffect(() => {
+  const loadLedger = useCallback(async () => {
     if (!auditMonth) return;
     setLedgerLoading(true);
-    adminFetch(`/api/admin/finance/expenses-ledger?month=${encodeURIComponent(auditMonth)}`)
-      .then((r) => r.json())
-      .then((j) => setLedger(j.expenses ?? []))
-      .catch(() => setLedger([]))
-      .finally(() => setLedgerLoading(false));
+    try {
+      const r = await adminFetch(`/api/admin/finance/expenses-ledger?month=${encodeURIComponent(auditMonth)}`);
+      const j = await r.json();
+      setLedger(j.expenses ?? []);
+    } catch {
+      setLedger([]);
+    } finally {
+      setLedgerLoading(false);
+    }
   }, [adminFetch, auditMonth]);
+
+  useEffect(() => {
+    loadLedger();
+  }, [loadLedger]);
 
   const saveExpense = async () => {
     const cost = Number(expCost.replace(/,/g, ""));
@@ -260,7 +266,10 @@ export default function FinanceTab({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ paid }),
     });
-    if (res.ok) load();
+    if (res.ok) {
+      load();
+      loadLedger();
+    }
   };
 
   const saveStaffComp = async () => {
@@ -360,31 +369,31 @@ export default function FinanceTab({
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 text-sm">
           <div className="rounded-lg border border-white bg-white p-3 shadow-sm">
             <p className="text-[10px] text-slate-500 uppercase font-semibold">{t("Cash in bank", "Quỹ tiền mặt")}</p>
-            <p className="font-bold text-slate-900 mt-1">{fmt(data.config.current_cash)}</p>
+            <p className="font-bold text-slate-900 mt-1">{formatVnd(data.config.current_cash)}</p>
           </div>
           <div className="rounded-lg border border-white bg-white p-3 shadow-sm">
             <p className="text-[10px] text-slate-500 uppercase font-semibold">{t("Unpaid expenses", "Chi phí chưa trả")}</p>
-            <p className="font-bold text-slate-900 mt-1">{data.unpaid_expenses_sum != null ? fmt(data.unpaid_expenses_sum) : "—"}</p>
+            <p className="font-bold text-slate-900 mt-1">{data.unpaid_expenses_sum != null ? formatVnd(data.unpaid_expenses_sum) : "—"}</p>
             <p className="text-[10px] text-slate-400 mt-0.5">{t("Pending status", "Trạng thái chờ")}</p>
           </div>
           <div className="rounded-lg border border-white bg-white p-3 shadow-sm">
             <p className="text-[10px] text-slate-500 uppercase font-semibold">{t("Forecast cash out (30d)", "Dự kiến tiền ra (30 ngày)")}</p>
-            <p className="font-bold text-slate-900 mt-1">{data.forecast_cash_out_30d != null ? fmt(data.forecast_cash_out_30d) : "—"}</p>
+            <p className="font-bold text-slate-900 mt-1">{data.forecast_cash_out_30d != null ? formatVnd(data.forecast_cash_out_30d) : "—"}</p>
             <p className="text-[10px] text-slate-400 mt-0.5">{t("Expenses + payroll + rent", "Chi phí + lương + thuê")}</p>
           </div>
           <div className="rounded-lg border border-amber-100 bg-amber-50/60 p-3 shadow-sm">
             <p className="text-[10px] text-amber-900 uppercase font-semibold">{t("Payroll due", "Lương đến hạn")}</p>
-            <p className="font-bold text-amber-950 mt-1">{fmt(data.payroll_total)}</p>
+            <p className="font-bold text-amber-950 mt-1">{formatVnd(data.payroll_total)}</p>
             <p className="text-[10px] text-amber-800">{data.payroll_record.status === "paid" ? t("Paid", "Đã trả") : t("Pending", "Chờ trả")}</p>
           </div>
           <div className="rounded-lg border border-white bg-white p-3 shadow-sm">
             <p className="text-[10px] text-slate-500 uppercase font-semibold">{t("Rent due", "Tiền thuê")}</p>
-            <p className="font-bold text-slate-900 mt-1">{fmt(data.rent_amount)}</p>
+            <p className="font-bold text-slate-900 mt-1">{formatVnd(data.rent_amount)}</p>
             <p className="text-[10px] text-slate-500">{data.fixed_costs.find((x) => x.category === "Rent")?.due_date ?? "—"}</p>
           </div>
           <div className="rounded-lg border border-white bg-white p-3 shadow-sm">
             <p className="text-[10px] text-slate-500 uppercase font-semibold">{t(`Recorded expenses ${getHorizonSuffix(horizon)}`, `Chi phí đã ghi ${getHorizonSuffix(horizon)}`)}</p>
-            <p className="font-bold text-slate-900 mt-1">{fmt(data.expenses_mtd)}</p>
+            <p className="font-bold text-slate-900 mt-1">{formatVnd(data.expenses_mtd)}</p>
             <p className="text-[10px] text-slate-400">{t("Not same as “paid”", "Không = đã trả")}</p>
           </div>
           <div className="rounded-lg border border-sky-100 bg-sky-50/60 p-3 shadow-sm">
@@ -455,26 +464,26 @@ export default function FinanceTab({
         {[
           {
             label: t(`Cash sales ${getHorizonSuffix(horizon)}`, `Bán thu tiền ${getHorizonSuffix(horizon)}`),
-            value: fmt(data.cash_sales_mtd ?? data.revenue_mtd),
+            value: formatVnd(data.cash_sales_mtd ?? data.revenue_mtd),
             sub:
               (data.refunds_mtd ?? 0) > 0
-                ? t(`incl. net of refunds (${fmt(data.refunds_mtd ?? 0)} ref.)`, `đã trừ hoàn (${fmt(data.refunds_mtd ?? 0)})`)
+                ? t(`incl. net of refunds (${formatVnd(data.refunds_mtd ?? 0)} ref.)`, `đã trừ hoàn (${formatVnd(data.refunds_mtd ?? 0)})`)
                 : undefined,
             cls: "border-emerald-200 bg-emerald-50/60",
           },
           {
             label: t(`Net cash flow ${getHorizonSuffix(horizon)}`, `Dòng tiền ròng ${getHorizonSuffix(horizon)}`),
-            value: data.net_cash_flow_mtd != null ? fmt(data.net_cash_flow_mtd) : "—",
+            value: data.net_cash_flow_mtd != null ? formatVnd(data.net_cash_flow_mtd) : "—",
             cls: "border-teal-200 bg-teal-50/50",
           },
           {
             label: t(`Costs ${getHorizonSuffix(horizon)} (accrued mix)`, `Chi phí ${getHorizonSuffix(horizon)} (dồn tích)`),
-            value: fmt(data.monthly_costs),
+            value: formatVnd(data.monthly_costs),
             cls: "border-amber-200 bg-amber-50/60",
           },
           {
             label: t("Period surplus (approx.)", "Chênh lệch kỳ (ước tính)"),
-            value: fmt(data.profit),
+            value: formatVnd(data.profit),
             sub: t("Not operating P&L", "Không phải P&L ghi nhận"),
             cls: "border-slate-200 bg-slate-50",
           },
@@ -510,9 +519,9 @@ export default function FinanceTab({
               <BarChart data={data.cash_in_out_over_time} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatVndAxis(v)} />
                 <Tooltip
-                  formatter={(v: unknown) => [typeof v === "number" ? (v as number).toLocaleString("vi-VN") + " VND" : String(v ?? 0), ""]}
+                  formatter={(v: unknown) => [typeof v === "number" ? formatVnd(v as number) : String(v ?? 0), ""]}
                   labelFormatter={(l) => t("Date", "Ngày") + ": " + l}
                 />
                 <Legend />
@@ -556,7 +565,7 @@ export default function FinanceTab({
                 <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="py-3 px-4 font-medium text-slate-900">{row.category}</td>
                   <td className="py-3 px-4 text-slate-700">{row.item}</td>
-                  <td className="py-3 px-4 text-right text-slate-900 font-medium">{fmt(row.amount)}</td>
+                  <td className="py-3 px-4 text-right text-slate-900 font-medium">{formatVnd(row.amount)}</td>
                   <td className="py-3 px-4 text-slate-600">{row.due_date}</td>
                   <td className="py-3 px-4 text-slate-600">{row.status}</td>
                   <td className="py-3 px-4">
@@ -624,15 +633,15 @@ export default function FinanceTab({
                   </td>
                   <td className="py-3 px-4 text-right text-slate-900">
                     {isHourly && checkIns > 0 && s.hourly_rate_vnd != null
-                      ? `${checkIns} × ${fmt(s.hourly_rate_vnd)} = ${fmt(s.monthly_salary)}`
-                      : fmt(s.monthly_salary)}
+                      ? `${checkIns} × ${formatVnd(s.hourly_rate_vnd)} = ${formatVnd(s.monthly_salary)}`
+                      : formatVnd(s.monthly_salary)}
                   </td>
-                  <td className="py-3 px-4 text-right text-slate-700">{fmt(s.sales_mtd)}</td>
+                  <td className="py-3 px-4 text-right text-slate-700">{formatVnd(s.sales_mtd)}</td>
                   <td className="py-3 px-4 text-right text-slate-700">
-                    {fmt(s.variable_pay)}
+                    {formatVnd(s.variable_pay)}
                     <span className="text-xs text-slate-400 block">{s.variable_source}</span>
                   </td>
-                  <td className="py-3 px-4 text-right font-semibold text-slate-900">{fmt(s.line_total)}</td>
+                  <td className="py-3 px-4 text-right font-semibold text-slate-900">{formatVnd(s.line_total)}</td>
                   <td className="py-3 px-4">
                     <button
                       type="button"
@@ -748,7 +757,7 @@ export default function FinanceTab({
                       <td className="py-2 px-4 text-slate-700">{String(e.category)}</td>
                       <td className="py-2 px-4 text-slate-900 font-medium">{String(e.item_name)}</td>
                       <td className="py-2 px-4 text-right text-slate-700">{String(e.quantity)}</td>
-                      <td className="py-2 px-4 text-right font-medium text-slate-900">{fmt(Number(e.cost))}</td>
+                      <td className="py-2 px-4 text-right font-medium text-slate-900">{formatVnd(Number(e.cost))}</td>
                       <td className="py-2 px-4">
                         <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status === "paid" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
                           {status === "paid" ? t("Paid", "Đã trả") : t("Pending", "Chờ trả")}
@@ -805,11 +814,11 @@ export default function FinanceTab({
               {data.months_history.map((h) => (
                 <tr key={h.month_key} className="border-b border-slate-100">
                   <td className="py-2 px-3 font-medium text-slate-900">{h.month_key}</td>
-                  <td className="py-2 px-3 text-right text-slate-800">{fmt(h.revenue)}</td>
-                  <td className="py-2 px-3 text-right text-slate-700">{fmt(h.payroll_total)}</td>
-                  <td className="py-2 px-3 text-right text-slate-700">{fmt(h.rent)}</td>
-                  <td className="py-2 px-3 text-right text-slate-700">{fmt(h.expenses_total)}</td>
-                  <td className="py-2 px-3 text-right font-medium text-slate-900">{fmt(h.profit)}</td>
+                  <td className="py-2 px-3 text-right text-slate-800">{formatVnd(h.revenue)}</td>
+                  <td className="py-2 px-3 text-right text-slate-700">{formatVnd(h.payroll_total)}</td>
+                  <td className="py-2 px-3 text-right text-slate-700">{formatVnd(h.rent)}</td>
+                  <td className="py-2 px-3 text-right text-slate-700">{formatVnd(h.expenses_total)}</td>
+                  <td className="py-2 px-3 text-right font-medium text-slate-900">{formatVnd(h.profit)}</td>
                 </tr>
               ))}
             </tbody>
@@ -856,7 +865,7 @@ export default function FinanceTab({
                       <td className="py-1.5 px-2">{String(e.expense_date)}</td>
                       <td className="py-1.5 px-2">{String(e.category)}</td>
                       <td className="py-1.5 px-2">{String(e.item_name)}</td>
-                      <td className="py-1.5 px-2 text-right">{fmt(Number(e.cost))}</td>
+                      <td className="py-1.5 px-2 text-right">{formatVnd(Number(e.cost))}</td>
                       <td className="py-1.5 px-2">
                         <span className={`text-[10px] px-1.5 py-0.5 rounded ${st === "paid" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
                           {st === "paid" ? t("Paid", "Đã trả") : t("Pending", "Chờ")}
@@ -894,7 +903,7 @@ export default function FinanceTab({
                 {(data.snapshots as { month_key: string; profit: number; recorded_at: string; notes?: string }[]).map(
                   (s) => (
                     <li key={s.month_key}>
-                      {s.month_key} · {t("profit", "LN")} {fmt(s.profit)} · {new Date(s.recorded_at).toLocaleString()}
+                      {s.month_key} · {t("profit", "LN")} {formatVnd(s.profit)} · {new Date(s.recorded_at).toLocaleString()}
                       {s.notes ? ` — ${s.notes}` : ""}
                     </li>
                   )

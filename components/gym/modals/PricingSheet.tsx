@@ -11,6 +11,7 @@ import {
   dayPassVsMultiDayBaseline,
   isMultiDayPass,
 } from "@/lib/visitPackDayPassBaseline";
+import { formatVnd } from "@/lib/formatVndCompact";
 
 interface Plan {
   id: string;
@@ -24,10 +25,6 @@ interface Plan {
 interface PricingSheetProps {
   open: boolean;
   onClose: () => void;
-}
-
-function formatVnd(n: number): string {
-  return n.toLocaleString("vi-VN");
 }
 
 type PlanStyle = {
@@ -188,7 +185,6 @@ function PlanCard({ plan, benefitsLabel, isVi, description, dayPassPriceVnd }: {
         <h3 className="text-[15px] font-semibold leading-snug text-white/95 tracking-tight">{displayName}</h3>
         <div className="shrink-0 text-right">
           <p className={`text-lg font-bold tabular-nums tracking-tight ${s.price}`}>{formatVnd(plan.price_vnd)}</p>
-          <p className="text-[10px] font-medium uppercase tracking-wider text-white/35">VND</p>
           {vsDay && vsDay.discountPct > 0 && (
             <p className="mt-1 max-w-[9.5rem] text-right text-[10px] leading-snug text-amber-300/95">
               <span className="text-white/40 line-through">{formatVnd(vsDay.listAtDayRateVnd)}</span>

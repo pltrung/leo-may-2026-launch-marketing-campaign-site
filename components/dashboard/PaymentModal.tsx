@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { formatVnd } from "@/lib/formatVndCompact";
 import Logo from "@/components/Logo";
 
 function getProxyUrl(rawUrl: string | null): string | null {
@@ -249,7 +250,7 @@ export default function PaymentModal({
           {isVi ? "THANH TOÁN" : "PAYMENT"}
         </h2>
         <p className="text-base font-medium text-white mb-4 text-center">
-          {planName} — {priceVnd.toLocaleString("vi-VN")} VND
+          {planName} — {formatVnd(priceVnd)}
         </p>
 
         {(currentExpiry || newExpiry || visitsAdded) && (

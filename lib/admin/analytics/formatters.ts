@@ -1,7 +1,8 @@
-/** VND for analytics cards (consistent with rest of admin). */
+import { formatVnd } from "@/lib/formatVndCompact";
+
+/** VND for analytics cards — compact M/B/K format (consistent with rest of admin). */
 export function fmtVnd(n: number | null | undefined, empty = "—"): string {
-  if (n == null || !Number.isFinite(n)) return empty;
-  return `${Math.round(n).toLocaleString("vi-VN")} VND`;
+  return formatVnd(n, empty);
 }
 
 export function fmtInt(n: number | null | undefined, empty = "—"): string {

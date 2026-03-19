@@ -1,5 +1,15 @@
 /**
- * Compact VND for banners (e.g. 2.5M VND, 120K VND, 1.2B VND).
+ * Compact VND for display (e.g. 2.5M VND, 120K VND, 1.2B VND).
+ * Standard formatter for all VND amounts — use everywhere to avoid inflated numbers.
+ */
+export function formatVnd(amount: number | null | undefined, empty = "—"): string {
+  if (amount == null || !Number.isFinite(amount)) return empty;
+  const s = formatVndCompact(amount);
+  return s ? `${s} VND` : empty;
+}
+
+/**
+ * Compact VND value only (no " VND" suffix) — e.g. 2.5M, 120K, 1.2B.
  */
 export function formatVndCompact(amount: number): string {
   const n = Math.max(0, Math.round(Number(amount) || 0));
@@ -16,6 +26,15 @@ export function formatVndCompact(amount: number): string {
     return `${trimCompact(v)}K`;
   }
   return n.toLocaleString("vi-VN");
+}
+
+/** For chart axes (value only, no VND suffix). */
+export function formatVndAxis(value: number): string {
+  const n = Math.abs(value);
+  if (n >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(value / 1_000).toFixed(0)}K`;
+  return String(Math.round(value));
 }
 
 function trimCompact(v: number): string {

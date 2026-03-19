@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import type { Locale } from "@/lib/i18n";
 import { REFUND_REASONS, type RefundReasonValue } from "@/lib/refundReasons";
+import { formatVnd } from "@/lib/formatVndCompact";
 
 type HubSection = "settings" | "refunds" | "corporate" | "birthday" | "roster";
 
@@ -359,7 +360,7 @@ export default function GymOperationsHub({
           <ul className="text-xs text-slate-300 space-y-1 max-h-48 overflow-y-auto border border-slate-700 rounded-lg p-2">
             {(adjustments as { id: string; amount_vnd: number; reason: string; created_at: string }[]).map((a) => (
               <li key={a.id}>
-                {new Date(a.created_at).toLocaleString()} · {a.amount_vnd.toLocaleString()}đ · {a.reason}
+                {new Date(a.created_at).toLocaleString()} · {formatVnd(a.amount_vnd)} · {a.reason}
               </li>
             ))}
           </ul>

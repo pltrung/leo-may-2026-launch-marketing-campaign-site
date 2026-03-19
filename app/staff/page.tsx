@@ -58,6 +58,8 @@ interface RouteZone {
 
 type TaskStatus = "upcoming" | "pending" | "completed" | "overdue";
 
+type TaskPriority = "high" | "medium" | "low";
+
 interface StaffTask {
   id: string;
   title: string;
@@ -69,6 +71,9 @@ interface StaffTask {
   completed_at: string | null;
   completed_by_name?: string | null;
   completers?: string[];
+  priority?: TaskPriority;
+  estimated_duration_minutes?: number | null;
+  guidance?: string | null;
 }
 
 export default function StaffPage() {
@@ -111,6 +116,7 @@ export default function StaffPage() {
   const [staffTab, setStaffTab] = useState<"routes" | "coaching">("routes");
   const [completedTasksExpanded, setCompletedTasksExpanded] = useState(false);
   const [teamCompletions, setTeamCompletions] = useState<{ staff_name: string; task_title: string; completed_at: string }[]>([]);
+  const [taskDetailOpen, setTaskDetailOpen] = useState<StaffTask | null>(null);
 
   const loadAttendance = useCallback(async () => {
     const res = await staffFetch("/api/route-setter/attendance");
@@ -389,6 +395,13 @@ export default function StaffPage() {
   // Show upcoming tasks as part of the active checklist (matches admin view of "pending" before start_time)
   const activePending = activeTasks.filter((t) => t.status === "pending" || t.status === "upcoming");
   const activeCompleted = activeTasks.filter((t) => t.status === "completed");
+  const priority = (p: TaskPriority) => (t: StaffTask) => (t.priority ?? "medium") === p;
+  const highTasks = activeTasks.filter(priority("high"));
+  const mediumTasks = activeTasks.filter(priority("medium"));
+  const lowTasks = activeTasks.filter(priority("low"));
+  const highDone = highTasks.filter((t) => t.status === "completed").length;
+  const mediumDone = mediumTasks.filter((t) => t.status === "completed").length;
+  const lowDone = lowTasks.filter((t) => t.status === "completed").length;
   const phaseLabel = currentBlock === "closed" ? m.phaseClosed : currentBlock === "pre_open" ? m.phasePreOpen : currentBlock === "closing" ? m.phaseClosing : m.phaseGymOpen;
   const phaseTimeWindow = currentBlock === "closed" ? m.timeWindowClosed : currentBlock === "pre_open" ? m.timeWindow : currentBlock === "closing" ? m.timeWindowClosing : m.timeWindowOpen;
   const minutesOverdue = (t: StaffTask): number => {
@@ -541,13 +554,27 @@ export default function StaffPage() {
               <p className="text-sm text-slate-400">{phaseTimeWindow}</p>
             </section>
 
-            {/* ACTIVE TASKS — progress bar, overdue, pending, completed collapsed */}
+            {/* ACTIVE TASKS — priority breakdown, overdue, pending, completed collapsed */}
             <section className="rounded-xl bg-slate-800 border border-slate-700 p-4 space-y-3">
-              <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{m.activeTasks}</h2>
+              <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{m.todaysTasks}</h2>
               {activeTasks.length > 0 && (
                 <>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-300">{(m.tasksProgress as string).replace("{done}", String(activeCompleted.length)).replace("{total}", String(activeTasks.length))}</span>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                    {highTasks.length > 0 && (
+                      <span className="text-slate-300">
+                        <span className="text-red-400">🔴</span> {m.priorityHigh} ({highDone}/{highTasks.length})
+                      </span>
+                    )}
+                    {mediumTasks.length > 0 && (
+                      <span className="text-slate-300">
+                        <span className="text-amber-400">🟡</span> {m.priorityMedium} ({mediumDone}/{mediumTasks.length})
+                      </span>
+                    )}
+                    {lowTasks.length > 0 && (
+                      <span className="text-slate-300">
+                        <span className="text-slate-400">⚪</span> {m.priorityLow} ({lowDone}/{lowTasks.length})
+                      </span>
+                    )}
                   </div>
                   <div className="h-2 rounded-full bg-slate-700 overflow-hidden">
                     <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${activeTasks.length ? (activeCompleted.length / activeTasks.length) * 100 : 0}%` }} />
@@ -560,7 +587,13 @@ export default function StaffPage() {
                   <ul className="space-y-1">
                     {overdueTasksList.filter((t) => !isRouteResetDay || isStaffEssentialTaskDuringRouteReset(t.title)).map((t) => (
                       <li key={t.id} className="flex justify-between items-center gap-2 text-sm">
-                        <span className="text-slate-200">{t.title} — {(m.overdueByMinutes as string).replace("{n}", String(minutesOverdue(t)))}</span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`shrink-0 ${(t.priority ?? "medium") === "high" ? "text-red-400" : (t.priority ?? "medium") === "medium" ? "text-amber-400" : "text-slate-400"}`}>{(t.priority ?? "medium") === "high" ? "🔴" : (t.priority ?? "medium") === "medium" ? "🟡" : "⚪"}</span>
+                          <span className="text-slate-200">{t.title} — {(m.overdueByMinutes as string).replace("{n}", String(minutesOverdue(t)))}</span>
+                          {t.guidance && (
+                            <button type="button" onClick={() => setTaskDetailOpen(t)} className="shrink-0 text-[10px] text-slate-500 hover:text-slate-300 underline">{m.viewGuidance}</button>
+                          )}
+                        </div>
                         <button type="button" disabled={completingTaskId === t.id} onClick={() => handleCompleteTask(t.id)} className="shrink-0 px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-500 disabled:opacity-50">{completingTaskId === t.id ? "…" : m.complete}</button>
                       </li>
                     ))}
@@ -573,7 +606,18 @@ export default function StaffPage() {
               <ul className="space-y-1">
                 {activePending.map((t) => (
                   <li key={t.id} className="flex justify-between items-center gap-2 py-1.5 border-b border-slate-700 last:border-b-0">
-                    <span className="text-slate-200 text-sm">{t.title}</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`shrink-0 ${(t.priority ?? "medium") === "high" ? "text-red-400" : (t.priority ?? "medium") === "medium" ? "text-amber-400" : "text-slate-400"}`}>{(t.priority ?? "medium") === "high" ? "🔴" : (t.priority ?? "medium") === "medium" ? "🟡" : "⚪"}</span>
+                      <div className="min-w-0">
+                        <span className="text-slate-200 text-sm">{t.title}</span>
+                        {t.estimated_duration_minutes != null && (
+                          <span className="ml-1.5 text-[11px] text-slate-500">{(m.estimatedDuration as string).replace("{n}", String(t.estimated_duration_minutes))}</span>
+                        )}
+                      </div>
+                      {t.guidance && (
+                        <button type="button" onClick={() => setTaskDetailOpen(t)} className="shrink-0 text-[10px] text-slate-500 hover:text-slate-300 underline">{m.viewGuidance}</button>
+                      )}
+                    </div>
                     <button type="button" disabled={completingTaskId === t.id} onClick={() => handleCompleteTask(t.id)} className="shrink-0 px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-500 disabled:opacity-50">{completingTaskId === t.id ? "…" : m.complete}</button>
                   </li>
                 ))}
@@ -594,6 +638,19 @@ export default function StaffPage() {
                       ))}
                     </ul>
                   )}
+                </div>
+              )}
+              {taskDetailOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={() => setTaskDetailOpen(null)}>
+                  <div className="rounded-xl bg-slate-800 border border-slate-600 p-4 max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
+                    <h3 className="text-sm font-semibold text-white mb-2">{taskDetailOpen.title}</h3>
+                    {taskDetailOpen.estimated_duration_minutes != null && (
+                      <p className="text-xs text-slate-400 mb-2">{(m.estimatedDuration as string).replace("{n}", String(taskDetailOpen.estimated_duration_minutes))}</p>
+                    )}
+                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{m.taskGuidance}</h4>
+                    <div className="text-sm text-slate-200 whitespace-pre-wrap font-mono text-[13px]">{taskDetailOpen.guidance ?? taskDetailOpen.description ?? "—"}</div>
+                    <button type="button" onClick={() => setTaskDetailOpen(null)} className="mt-4 w-full py-2 rounded-lg bg-slate-600 text-slate-200 text-sm font-medium hover:bg-slate-500">{m.close}</button>
+                  </div>
                 </div>
               )}
             </section>

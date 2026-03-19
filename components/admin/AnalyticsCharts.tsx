@@ -17,6 +17,7 @@ import {
 } from "recharts";
 import ExecutiveSummary from "@/components/admin/ExecutiveSummary";
 import { getHorizonSuffix } from "@/lib/admin/analytics/periodUtils";
+import { formatVnd, formatVndAxis } from "@/lib/formatVndCompact";
 export type AdminFetch = (url: string, options?: RequestInit) => Promise<Response>;
 
 export type AnalyticsData = {
@@ -698,22 +699,22 @@ export default function AnalyticsCharts({
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               <KpiCard
                 label={t(`Cash sales ${getHorizonSuffix(horizon)}`, `Bán thu tiền ${getHorizonSuffix(horizon)}`)}
-                value={`${cashTotal.toLocaleString("vi-VN")} VND`}
+                value={formatVnd(cashTotal)}
                 sub={t("Same basis as Finance tab", "Cùng cơ sở với Tài chính")}
               />
-              <KpiCard label={t(`Membership sales ${getHorizonSuffix(horizon)}`, `Bán gói ${getHorizonSuffix(horizon)}`)} value={`${membershipMtd.toLocaleString("vi-VN")} VND`} />
-              <KpiCard label={t(`Day / visit passes ${getHorizonSuffix(horizon)}`, `Vé ngày / lượt ${getHorizonSuffix(horizon)}`)} value={`${passMtd.toLocaleString("vi-VN")} VND`} />
+              <KpiCard label={t(`Membership sales ${getHorizonSuffix(horizon)}`, `Bán gói ${getHorizonSuffix(horizon)}`)} value={formatVnd(membershipMtd)} />
+              <KpiCard label={t(`Day / visit passes ${getHorizonSuffix(horizon)}`, `Vé ngày / lượt ${getHorizonSuffix(horizon)}`)} value={formatVnd(passMtd)} />
               <KpiCard
                 label={t(`Class / newbie ${getHorizonSuffix(horizon)}`, `Lớp / newbie ${getHorizonSuffix(horizon)}`)}
-                value={`${classMtd.toLocaleString("vi-VN")} VND`}
+                value={formatVnd(classMtd)}
               />
-              <KpiCard label={t(`Merch & retail ${getHorizonSuffix(horizon)}`, `Bán lẻ ${getHorizonSuffix(horizon)}`)} value={`${merchMtd.toLocaleString("vi-VN")} VND`} />
+              <KpiCard label={t(`Merch & retail ${getHorizonSuffix(horizon)}`, `Bán lẻ ${getHorizonSuffix(horizon)}`)} value={formatVnd(merchMtd)} />
               <KpiCard label={t(`Renewals ${getHorizonSuffix(horizon)}`, `Gia hạn ${getHorizonSuffix(horizon)}`)} value={data?.ceo_snapshot?.renewals_mtd ?? "—"} />
             </div>
             <p className="text-[11px] text-slate-500 mt-2">
               {t("Secondary:", "Phụ:")}{" "}
               {t("Approx. cash ÷ paying members", "Ước tiền ÷ TV trả phí")}{" "}
-              {aovContext > 0 ? `≈ ${aovContext.toLocaleString("vi-VN")} VND — ` : ""}
+              {aovContext > 0 ? `≈ ${formatVnd(aovContext)} — ` : ""}
               {t("distorted by prepayments; not primary KPI.", "lệch khi trả trước; không phải KPI chính.")}
             </p>
             {catEntries.length > 0 && (
@@ -722,9 +723,9 @@ export default function AnalyticsCharts({
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={catEntries.map(([name, value]) => ({ name, value }))} layout="vertical" margin={{ left: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis type="number" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                    <XAxis type="number" tickFormatter={(v) => formatVndAxis(v)} />
                     <YAxis type="category" dataKey="name" width={55} tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(v: unknown) => [typeof v === "number" ? v.toLocaleString("vi-VN") + " VND" : String(v ?? 0), t("Amount", "Số tiền")]} />
+                    <Tooltip formatter={(v: unknown) => [typeof v === "number" ? formatVnd(v) : String(v ?? 0), t("Amount", "Số tiền")]} />
                     <Bar dataKey="value" fill="#0f766e" radius={[0, 4, 4, 0]} name={t("Revenue", "Doanh thu")} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -737,8 +738,8 @@ export default function AnalyticsCharts({
                   <LineChart data={r.over_time}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                    <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                    <Tooltip formatter={(v: unknown) => [typeof v === "number" ? v.toLocaleString("vi-VN") : String(v ?? 0), t("Revenue", "Doanh thu")]} />
+                    <YAxis tickFormatter={(v) => formatVndAxis(v)} />
+                    <Tooltip formatter={(v: unknown) => [typeof v === "number" ? formatVnd(v) : String(v ?? 0), t("Revenue", "Doanh thu")]} />
                     <Line type="monotone" dataKey="total" stroke="#0f766e" strokeWidth={2} dot={{ r: 3 }} />
                   </LineChart>
                 </ResponsiveContainer>
@@ -1128,8 +1129,8 @@ export default function AnalyticsCharts({
                       <tr key={s.staff_id} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-3 px-4 font-medium text-slate-900 whitespace-nowrap">{s.display_name}</td>
                         <td className="py-3 px-4 text-slate-600 whitespace-nowrap">{s.role}</td>
-                        <td className="py-3 px-4 text-right text-slate-900 whitespace-nowrap tabular-nums">{(s.sales ?? 0).toLocaleString("vi-VN")} VND</td>
-                        <td className="py-3 px-4 text-right text-slate-900 whitespace-nowrap tabular-nums">{(s.commission ?? 0).toLocaleString("vi-VN")} VND</td>
+                        <td className="py-3 px-4 text-right text-slate-900 whitespace-nowrap tabular-nums">{formatVnd(s.sales ?? 0)}</td>
+                        <td className="py-3 px-4 text-right text-slate-900 whitespace-nowrap tabular-nums">{formatVnd(s.commission ?? 0)}</td>
                         <td className="py-3 px-4 text-right text-slate-700 tabular-nums">{s.tasks_completed ?? 0}</td>
                         <td className="py-3 px-4 text-right text-slate-700 tabular-nums">{s.attendance_days ?? 0}</td>
                       </tr>

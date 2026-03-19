@@ -9,7 +9,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import type { Locale } from "@/lib/i18n";
 import { formatInGymTZ, getGymToday, getGymDateFromISO, getCurrentPhase } from "@/lib/gymTimezone";
 import { getPeriodRange } from "@/lib/admin/analytics/periodUtils";
-import { formatVndCompact } from "@/lib/formatVndCompact";
+import { formatVnd } from "@/lib/formatVndCompact";
 import { getStaffTaskTitle } from "@/lib/staffTaskTitles";
 import { parseCccdPipeDelimited } from "@/lib/vnEidQr";
 import { isStaffEssentialTaskDuringRouteReset } from "@/lib/staffRouteResetTaskFilter";
@@ -394,6 +394,8 @@ export default function AdminPage() {
   const [staffAttendanceLoading, setStaffAttendanceLoading] = useState(false);
   const [staffCompletedTasksExpanded, setStaffCompletedTasksExpanded] = useState(false);
   const [staffTaskError, setStaffTaskError] = useState<string | null>(null);
+  const [staffTaskDetailOpen, setStaffTaskDetailOpen] = useState<{ title: string; guidance?: string | null; description?: string | null; estimated_duration_minutes?: number | null } | null>(null);
+  const [operationsTaskDetailOpen, setOperationsTaskDetailOpen] = useState<{ title: string; guidance?: string | null; description?: string | null; estimated_duration_minutes?: number | null } | null>(null);
   const [shiftCheckInAttendance, setShiftCheckInAttendance] = useState<{ date: string; status: string } | null>(null);
   const [shiftCheckInQrToken, setShiftCheckInQrToken] = useState<string | null>(null);
   const [shiftCheckInLoading, setShiftCheckInLoading] = useState(false);
@@ -2086,8 +2088,8 @@ export default function AdminPage() {
             const staffMsg = getMessages(locale).staff;
             const sales = staffSalesSummary.sales_today ?? 0;
             const comm = staffSalesSummary.commission_today ?? 0;
-            const fullSales = `${sales.toLocaleString("vi-VN")} VND`;
-            const fullComm = `${comm.toLocaleString("vi-VN")} VND`;
+            const fullSales = formatVnd(sales);
+            const fullComm = formatVnd(comm);
             return (
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 md:gap-x-4 rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1.5 md:p-3" data-tour="staff-commission-bar">
                 {isShiftIn && (
@@ -2104,7 +2106,7 @@ export default function AdminPage() {
                 >
                   {locale === "vi" ? "Doanh số" : "Sales"}:{" "}
                   <span className="font-semibold text-white tabular-nums">
-                    {formatVndCompact(sales)} VND
+                    {formatVnd(sales)}
                   </span>
                 </span>
                 <span className="text-slate-500">·</span>
@@ -2114,7 +2116,7 @@ export default function AdminPage() {
                 >
                   {locale === "vi" ? "Hoa hồng" : "Commission"}:{" "}
                   <span className="font-semibold text-white tabular-nums">
-                    {formatVndCompact(comm)} VND
+                    {formatVnd(comm)}
                   </span>
                 </span>
               </div>
@@ -2715,7 +2717,7 @@ export default function AdminPage() {
                       <div className="col-span-2 rounded-xl bg-teal-500/20 border border-teal-400/50 px-3 py-3">
                         <p className="text-slate-300 mb-1">{locale === "vi" ? "Số dư tín dụng (hoàn tiền)" : "Credit balance (refunds)"}</p>
                         <p className="text-xl font-semibold text-teal-300">
-                          {(foundMember.credit_balance_vnd ?? 0).toLocaleString("vi-VN")} VND
+                          {formatVnd(foundMember.credit_balance_vnd ?? 0)}
                         </p>
                       </div>
                     )}
@@ -2892,7 +2894,7 @@ export default function AdminPage() {
                                   {new Date(entry.date).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", { month: "short", day: "numeric", year: "numeric" })}
                                 </span>
                               </div>
-                              <span className="font-medium text-slate-100">{entry.amount.toLocaleString("vi-VN")} VND</span>
+                              <span className="font-medium text-slate-100">{formatVnd(entry.amount)}</span>
                             </div>
                             {entry.items && entry.items.length > 0 && (
                               <ul className="list-disc list-inside text-slate-400 ml-0.5">
@@ -2966,7 +2968,7 @@ export default function AdminPage() {
                               {getRefundReasonLabel(a.reason, locale)}
                             </span>
                             <span className={`font-medium shrink-0 ${a.amount_vnd < 0 ? "text-emerald-300" : "text-amber-200"}`}>
-                              {a.amount_vnd >= 0 ? "+" : ""}{a.amount_vnd.toLocaleString("vi-VN")} VND
+                              {a.amount_vnd >= 0 ? "+" : ""}{formatVnd(a.amount_vnd)}
                             </span>
                           </li>
                         ))}
@@ -3157,8 +3159,8 @@ export default function AdminPage() {
                 <h3 className="text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase mb-3">{m.frontDeskSales}</h3>
                 <div className="space-y-3">
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => { const p = products.find((x) => x.category === "rental"); const v = p?.variants?.[0]; const price = v?.price ?? 50000; const name = p?.name ?? "Rental Shoes"; const sku = v?.sku ?? "RENTAL_SHOES"; setPosCart((c) => [...c, { sku, name, quantity: 1, price, variant_id: v?.id, image: p?.image ?? undefined }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.shoeRental} (50,000 VND)</button>
-                    <button type="button" onClick={() => { const p = products.find((x) => x.category === "chalk"); const v = p?.variants?.[0]; const price = v?.price ?? 20000; const name = p?.name ?? "Chalk (bag, return after session)"; const sku = v?.sku ?? "CHALK_BAG"; setPosCart((c) => [...c, { sku, name, quantity: 1, price, variant_id: v?.id, image: p?.image ?? undefined }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.buyChalk} (20,000 VND)</button>
+                    <button type="button" onClick={() => { const p = products.find((x) => x.category === "rental"); const v = p?.variants?.[0]; const price = v?.price ?? 50000; const name = p?.name ?? "Rental Shoes"; const sku = v?.sku ?? "RENTAL_SHOES"; setPosCart((c) => [...c, { sku, name, quantity: 1, price, variant_id: v?.id, image: p?.image ?? undefined }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.shoeRental} ({formatVnd(50000)})</button>
+                    <button type="button" onClick={() => { const p = products.find((x) => x.category === "chalk"); const v = p?.variants?.[0]; const price = v?.price ?? 20000; const name = p?.name ?? "Chalk (bag, return after session)"; const sku = v?.sku ?? "CHALK_BAG"; setPosCart((c) => [...c, { sku, name, quantity: 1, price, variant_id: v?.id, image: p?.image ?? undefined }]); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200">+ {m.buyChalk} ({formatVnd(20000)})</button>
                   </div>
                   <div className="flex flex-wrap gap-2 items-center">
                     <input
@@ -3232,7 +3234,7 @@ export default function AdminPage() {
                                   <div className="text-xs text-slate-600">
                                     {p.name}
                                     {v.size ? ` · ${v.size}` : ""}
-                                    {typeof v.price === "number" ? ` · ${v.price.toLocaleString("vi-VN")} VND` : ""}
+                                    {typeof v.price === "number" ? ` · ${formatVnd(v.price)}` : ""}
                                   </div>
                                 </button>
                               </li>
@@ -3254,7 +3256,7 @@ export default function AdminPage() {
                                 {posLookupResult.variant.sku}
                                 {posLookupResult.variant.size != null ? ` — ${posLookupResult.variant.size}` : ""}
                               </p>
-                              <p className="text-sm font-semibold text-slate-900 mt-0.5">{(posLookupResult.variant.price ?? 0).toLocaleString("vi-VN")} VND</p>
+                              <p className="text-sm font-semibold text-slate-900 mt-0.5">{formatVnd(posLookupResult.variant.price ?? 0)}</p>
                               <p className="text-xs text-slate-500 mt-0.5">
                                 {(posLookupResult.stock_quantity ?? 0) > 0 ? `${m.inStock}: ${posLookupResult.stock_quantity}` : m.outOfStock}
                               </p>
@@ -3292,7 +3294,7 @@ export default function AdminPage() {
                         <li key={`${item.sku}-${i}`} className="flex items-center gap-2 text-xs text-slate-800">
                           {item.image ? <img src={item.image} alt="" className="w-8 h-8 object-cover rounded flex-shrink-0" /> : null}
                           <span className="truncate flex-1">{item.name} × {item.quantity}</span>
-                          <span className="font-medium text-slate-900">{(item.quantity * item.price).toLocaleString("vi-VN")} VND</span>
+                          <span className="font-medium text-slate-900">{formatVnd(item.quantity * item.price)}</span>
                           <button type="button" onClick={() => setPosCart((c) => c.filter((_, j) => j !== i))} className="text-red-600 hover:underline">{m.remove}</button>
                         </li>
                       ))}
@@ -3303,18 +3305,18 @@ export default function AdminPage() {
                       {posMerchPct > 0 ? (
                         <div className="text-sm space-y-0.5 text-slate-800">
                           <p>
-                            {locale === "vi" ? "Tạm tính" : "Subtotal"}: {posCartSubtotal.toLocaleString("vi-VN")} VND
+                            {locale === "vi" ? "Tạm tính" : "Subtotal"}: {formatVnd(posCartSubtotal)}
                           </p>
                           <p className="text-emerald-700 font-medium">
                             {locale === "vi" ? "Giảm thành viên" : "Member discount"} ({posMerchPct}%): −
-                            {posMerchDiscountVnd.toLocaleString("vi-VN")} VND
+                            {formatVnd(posMerchDiscountVnd)}
                           </p>
                           <p className="font-semibold text-slate-900 pt-1 border-t border-slate-200">
-                            {m.total}: {posCartTotalDue.toLocaleString("vi-VN")} VND
+                            {m.total}: {formatVnd(posCartTotalDue)}
                           </p>
                         </div>
                       ) : (
-                        <p className="text-sm font-semibold text-slate-900">{m.total}: {posCartSubtotal.toLocaleString("vi-VN")} VND</p>
+                        <p className="text-sm font-semibold text-slate-900">{m.total}: {formatVnd(posCartSubtotal)}</p>
                       )}
                       <button type="button" onClick={() => { setPosPaymentModalOpen(true); setPosPaymentMethod("vietqr"); setPosQrUrl(null); setPosPendingTransactionId(null); }} disabled={posCheckoutLoading} className="mt-2 w-full px-3 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60">{m.checkout}</button>
                     </>
@@ -3416,7 +3418,7 @@ export default function AdminPage() {
                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{m.productInfo}</h4>
                 <p className="text-sm font-medium text-slate-800">{scannedProduct.name}{scannedProduct.brand ? ` · ${scannedProduct.brand}` : ""} · {scannedProduct.category}</p>
                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{m.variantSize}</h4>
-                <p className="text-sm text-slate-700">SKU: {scannedVariant.sku}{scannedVariant.size ? ` · Size ${scannedVariant.size}` : ""} · {m.price}: {(scannedVariant.price ?? 0).toLocaleString()} VND</p>
+                <p className="text-sm text-slate-700">SKU: {scannedVariant.sku}{scannedVariant.size ? ` · Size ${scannedVariant.size}` : ""} · {m.price}: {formatVnd(scannedVariant.price ?? 0)}</p>
                 <p className={`text-sm font-medium ${scannedStockQuantity > 0 ? "text-emerald-700" : "text-amber-700"}`}>
                   {scannedStockQuantity > 0
                     ? (locale === "vi" ? `Còn ${scannedStockQuantity} trong kho` : `${scannedStockQuantity} in stock`)
@@ -3428,7 +3430,7 @@ export default function AdminPage() {
                     <ul className="flex flex-wrap gap-2">
                       {scannedOtherSizesInStock.map((s) => (
                         <li key={s.variant_id} className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 text-xs font-medium">
-                          {s.size ? (locale === "vi" ? `Size ${s.size}` : `Size ${s.size}`) : s.sku} — {s.quantity} {locale === "vi" ? "cái" : "in stock"} · {(s.price ?? 0).toLocaleString("vi-VN")} VND
+                          {s.size ? (locale === "vi" ? `Size ${s.size}` : `Size ${s.size}`) : s.sku} — {s.quantity} {locale === "vi" ? "cái" : "in stock"} · {formatVnd(s.price ?? 0)}
                         </li>
                       ))}
                     </ul>
@@ -3744,7 +3746,7 @@ export default function AdminPage() {
                             </span>
                           </td>
                           <td className="px-3 py-2 text-right font-medium text-slate-100">{inv.quantity}</td>
-                          <td className="px-3 py-2 text-right text-slate-300">{(inv.variant?.price ?? 0).toLocaleString("vi-VN")} VND</td>
+                          <td className="px-3 py-2 text-right text-slate-300">{formatVnd(inv.variant?.price ?? 0)}</td>
                           <td className="px-2 py-2 text-center" onClick={(e) => e.stopPropagation()}>
                             {inv.variant?.id ? (
                               <button
@@ -4442,6 +4444,7 @@ export default function AdminPage() {
                             <thead>
                               <tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase">
                                 <th className="px-3 py-2">{taskM.taskName}</th>
+                                <th className="px-3 py-2">{taskM.priority}</th>
                                 <th className="px-3 py-2">{taskM.status}</th>
                                 <th className="px-3 py-2">{taskM.completedBy}</th>
                                 <th className="px-3 py-2">{taskM.completionTime}</th>
@@ -4451,7 +4454,7 @@ export default function AdminPage() {
                             <tbody>
                               {phaseTasks.length === 0 ? (
                                 <tr>
-                                  <td colSpan={5} className="px-3 py-6 text-center text-slate-500 text-sm">
+                                  <td colSpan={6} className="px-3 py-6 text-center text-slate-500 text-sm">
                                     {taskM.noTasksInPhase}
                                   </td>
                                 </tr>
@@ -4462,9 +4465,19 @@ export default function AdminPage() {
                                   const overdue = isOverdue(t);
                                   const statusText = t.status === "completed" ? taskM.done : overdue ? taskM.overdue : taskM.pending;
                                   const statusColor = t.status === "completed" ? "text-emerald-700" : overdue ? "text-red-700" : "text-amber-700";
+                                  const pri = (t as { priority?: string }).priority ?? "medium";
+                                  const priLabel = pri === "high" ? "🔴" : pri === "medium" ? "🟡" : "⚪";
                                   return (
                                     <tr key={t.id} className="border-t border-slate-100">
-                                      <td className="px-3 py-2 font-medium text-slate-800">{getStaffTaskTitle(t.title, locale)}</td>
+                                      <td className="px-3 py-2 font-medium text-slate-800">
+                                        <div className="flex items-center gap-1">
+                                          {getStaffTaskTitle(t.title, locale)}
+                                          {(t as { guidance?: string | null }).guidance && (
+                                            <button type="button" onClick={() => setOperationsTaskDetailOpen(t as { title: string; guidance?: string | null; description?: string | null; estimated_duration_minutes?: number | null })} className="text-[10px] text-slate-500 hover:text-slate-700 underline">{taskM.viewGuidance}</button>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className="px-3 py-2 text-slate-600">{priLabel}</td>
                                       <td className={`px-3 py-2 font-medium ${statusColor}`}>{statusText}</td>
                                       <td className="px-3 py-2 text-slate-600">{name ?? "—"}</td>
                                       <td className="px-3 py-2 text-slate-600">{t.completed_at ? formatInGymTZ(t.completed_at, { hour: "numeric", minute: "2-digit" }) : "—"}</td>
@@ -4510,6 +4523,17 @@ export default function AdminPage() {
                                 <li key={s.staff_id} className="flex justify-between items-center"><span className="font-medium text-slate-800">{s.display_name}</span><span className="text-slate-600">{taskM.tasksCompletedCount}: {s.tasks_completed} · {s.completion_rate_pct}% {taskM.completionRate}</span></li>
                               ))}
                             </ul>
+                          </div>
+                        )}
+                        {operationsTaskDetailOpen && (
+                          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60" onClick={() => setOperationsTaskDetailOpen(null)}>
+                            <div className="rounded-xl bg-white border border-slate-200 p-4 max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
+                              <h3 className="text-sm font-semibold text-slate-900 mb-2">{operationsTaskDetailOpen.title}</h3>
+                              {operationsTaskDetailOpen.estimated_duration_minutes != null && <p className="text-xs text-slate-500 mb-2">{(taskM.estimatedDuration as string).replace("{n}", String(operationsTaskDetailOpen.estimated_duration_minutes))}</p>}
+                              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">{taskM.taskGuidance}</h4>
+                              <div className="text-sm text-slate-700 whitespace-pre-wrap font-mono text-[13px]">{operationsTaskDetailOpen.guidance ?? operationsTaskDetailOpen.description ?? "—"}</div>
+                              <button type="button" onClick={() => setOperationsTaskDetailOpen(null)} className="mt-4 w-full py-2 rounded-lg bg-slate-200 text-slate-800 text-sm font-medium hover:bg-slate-300">{locale === "vi" ? "Đóng" : "Close"}</button>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -4761,7 +4785,7 @@ export default function AdminPage() {
             const hasAttendanceForToday = myAtt != null && myAtt.date === today;
             const isIn = hasAttendanceForToday && myAtt.status === "IN";
             const currentBlock = getCurrentPhase();
-            const preOpen = (staffOpsData?.preOpen ?? []) as { id: string; title: string; status: string; block?: string; due_time?: string | null; completed_by_name?: string | null; completers?: string[] }[];
+            const preOpen = (staffOpsData?.preOpen ?? []) as { id: string; title: string; status: string; block?: string; due_time?: string | null; completed_by_name?: string | null; completers?: string[]; priority?: "high" | "medium" | "low"; guidance?: string | null; estimated_duration_minutes?: number | null }[];
             const during = (staffOpsData?.during ?? []) as typeof preOpen;
             const closing = (staffOpsData?.closing ?? []) as typeof preOpen;
             const rawActiveTasks = currentBlock === "closed" ? [] : currentBlock === "pre_open" ? preOpen : currentBlock === "closing" ? closing : during;
@@ -4769,6 +4793,13 @@ export default function AdminPage() {
             const activeTasks = isRouteResetDay ? rawActiveTasks.filter((t) => isStaffEssentialTaskDuringRouteReset(t.title)) : rawActiveTasks;
             const activePending = activeTasks.filter((t) => t.status === "pending" || t.status === "upcoming");
             const activeCompleted = activeTasks.filter((t) => t.status === "completed");
+            const pr = (p: "high" | "medium" | "low") => (t: { priority?: string }) => (t.priority ?? "medium") === p;
+            const highTasks = activeTasks.filter(pr("high"));
+            const mediumTasks = activeTasks.filter(pr("medium"));
+            const lowTasks = activeTasks.filter(pr("low"));
+            const highDone = highTasks.filter((t) => t.status === "completed").length;
+            const mediumDone = mediumTasks.filter((t) => t.status === "completed").length;
+            const lowDone = lowTasks.filter((t) => t.status === "completed").length;
             const overdueTasksList = [...preOpen, ...during, ...closing].filter((t) => t.status === "overdue");
             const sessionsToday = (staffOpsData?.sessionsToday ?? staffOpsData?.sessions ?? []) as {
               id: string;
@@ -4822,7 +4853,7 @@ export default function AdminPage() {
                       </div>
                     )}
                     <div className="rounded-xl bg-slate-800 border border-slate-700 p-4 space-y-3" data-tour="tasks-section">
-                      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{staffMsg.activeTasks}</h3>
+                      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{staffMsg.todaysTasks}</h3>
                       {staffTaskError && (
                         <p className="text-sm font-medium text-rose-300">{staffTaskError}</p>
                       )}
@@ -4831,19 +4862,32 @@ export default function AdminPage() {
                       )}
                       {activeTasks.length > 0 && (
                         <>
-                          <div className="flex items-center justify-between text-sm"><span className="text-slate-300">{(staffMsg.tasksProgress as string).replace("{done}", String(activeCompleted.length)).replace("{total}", String(activeTasks.length))}</span></div>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                            {highTasks.length > 0 && <span className="text-slate-300"><span className="text-red-400">🔴</span> {staffMsg.priorityHigh} ({highDone}/{highTasks.length})</span>}
+                            {mediumTasks.length > 0 && <span className="text-slate-300"><span className="text-amber-400">🟡</span> {staffMsg.priorityMedium} ({mediumDone}/{mediumTasks.length})</span>}
+                            {lowTasks.length > 0 && <span className="text-slate-300"><span className="text-slate-400">⚪</span> {staffMsg.priorityLow} ({lowDone}/{lowTasks.length})</span>}
+                          </div>
                           <div className="h-2 rounded-full bg-slate-700 overflow-hidden"><div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${activeTasks.length ? (activeCompleted.length / activeTasks.length) * 100 : 0}%` }} /></div>
                         </>
                       )}
                       {overdueTasksList.filter((t) => !isRouteResetDay || isStaffEssentialTaskDuringRouteReset(t.title)).map((t, idx) => (
                         <div key={t.id} className="flex justify-between items-center gap-2 text-sm py-1.5">
-                          <span className="text-slate-200">{getStaffTaskTitle(t.title, locale)}</span>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={`shrink-0 ${(t.priority ?? "medium") === "high" ? "text-red-400" : (t.priority ?? "medium") === "medium" ? "text-amber-400" : "text-slate-400"}`}>{(t.priority ?? "medium") === "high" ? "🔴" : (t.priority ?? "medium") === "medium" ? "🟡" : "⚪"}</span>
+                            <span className="text-slate-200">{getStaffTaskTitle(t.title, locale)}</span>
+                            {t.guidance && <button type="button" onClick={() => setStaffTaskDetailOpen(t)} className="shrink-0 text-[10px] text-slate-500 hover:text-slate-300 underline">{staffMsg.viewGuidance}</button>}
+                          </div>
                           <button type="button" data-tour={idx === 0 ? "task-complete" : undefined} disabled={completingTaskId === t.id} onClick={async () => { setCompletingTaskId(t.id); setStaffTaskError(null); try { const res = await adminFetch(`/api/admin/staff/tasks/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) }); if (res.ok) { setStaffTaskError(null); adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d)); } else { const body = await res.json().catch(() => ({})); setStaffTaskError((body as { error?: string })?.error ?? `Request failed (${res.status})`); } } finally { setCompletingTaskId(null); } }} className="px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-500 disabled:opacity-50">{completingTaskId === t.id ? "…" : staffMsg.complete}</button>
                         </div>
                       ))}
                       {activePending.map((t) => (
                         <div key={t.id} className="flex justify-between items-center gap-2 py-1.5 border-b border-slate-700 last:border-b-0">
-                          <span className="text-slate-200 text-sm">{getStaffTaskTitle(t.title, locale)}</span>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={`shrink-0 ${(t.priority ?? "medium") === "high" ? "text-red-400" : (t.priority ?? "medium") === "medium" ? "text-amber-400" : "text-slate-400"}`}>{(t.priority ?? "medium") === "high" ? "🔴" : (t.priority ?? "medium") === "medium" ? "🟡" : "⚪"}</span>
+                            <span className="text-slate-200 text-sm">{getStaffTaskTitle(t.title, locale)}</span>
+                            {t.estimated_duration_minutes != null && <span className="text-[11px] text-slate-500">{(staffMsg.estimatedDuration as string).replace("{n}", String(t.estimated_duration_minutes))}</span>}
+                            {t.guidance && <button type="button" onClick={() => setStaffTaskDetailOpen(t)} className="shrink-0 text-[10px] text-slate-500 hover:text-slate-300 underline">{staffMsg.viewGuidance}</button>}
+                          </div>
                           <button type="button" disabled={completingTaskId === t.id} onClick={async () => { setCompletingTaskId(t.id); setStaffTaskError(null); try { const res = await adminFetch(`/api/admin/staff/tasks/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) }); if (res.ok) { setStaffTaskError(null); adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d)); } else { const body = await res.json().catch(() => ({})); setStaffTaskError((body as { error?: string })?.error ?? `Request failed (${res.status})`); } } finally { setCompletingTaskId(null); } }} className="shrink-0 px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-500 disabled:opacity-50">{completingTaskId === t.id ? "…" : staffMsg.complete}</button>
                         </div>
                       ))}
@@ -4851,6 +4895,17 @@ export default function AdminPage() {
                         <div>
                           <button type="button" onClick={() => setStaffCompletedTasksExpanded(!staffCompletedTasksExpanded)} className="w-full text-left text-xs font-semibold text-slate-400 uppercase tracking-wider py-0.5 flex items-center justify-between">{staffMsg.completedTasks} ({activeCompleted.length})<span className="text-slate-500">{staffCompletedTasksExpanded ? "▼" : "▶"}</span></button>
                           {staffCompletedTasksExpanded && <ul className="space-y-0.5 mt-1">{activeCompleted.map((t) => <li key={t.id} className="text-sm"><span className="text-emerald-400 line-through">{getStaffTaskTitle(t.title, locale)}</span></li>)}</ul>}
+                        </div>
+                      )}
+                      {staffTaskDetailOpen && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60" onClick={() => setStaffTaskDetailOpen(null)}>
+                          <div className="rounded-xl bg-slate-800 border border-slate-600 p-4 max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
+                            <h3 className="text-sm font-semibold text-white mb-2">{staffTaskDetailOpen.title}</h3>
+                            {staffTaskDetailOpen.estimated_duration_minutes != null && <p className="text-xs text-slate-400 mb-2">{(staffMsg.estimatedDuration as string).replace("{n}", String(staffTaskDetailOpen.estimated_duration_minutes))}</p>}
+                            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{staffMsg.taskGuidance}</h4>
+                            <div className="text-sm text-slate-200 whitespace-pre-wrap font-mono text-[13px]">{staffTaskDetailOpen.guidance ?? staffTaskDetailOpen.description ?? "—"}</div>
+                            <button type="button" onClick={() => setStaffTaskDetailOpen(null)} className="mt-4 w-full py-2 rounded-lg bg-slate-600 text-slate-200 text-sm font-medium hover:bg-slate-500">{staffMsg.close}</button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -5327,7 +5382,7 @@ export default function AdminPage() {
                           <>
                             <span className="text-sm text-white">{v.sku}</span>
                             {v.size && <span className="text-slate-400 text-sm">size {v.size}</span>}
-                            <span className="text-slate-400 text-sm">{(v.price ?? 0).toLocaleString("vi-VN")} VND</span>
+                            <span className="text-slate-400 text-sm">{formatVnd(v.price ?? 0)}</span>
                             <span className="text-slate-500 text-xs">qty: {v.stock_quantity ?? 0}</span>
                             <button type="button" onClick={() => { setProductDetailEditVariantId(v.id); setProductDetailEditVariant({ sku: v.sku, size: v.size, barcode: v.barcode, price: v.price, cost: v.cost }); }} className="text-xs text-amber-400 hover:underline">{locale === "vi" ? "Sửa" : "Edit"}</button>
                           </>
@@ -5406,25 +5461,25 @@ export default function AdminPage() {
               {posMerchPct > 0 && (
                 <>
                   <p>
-                    {locale === "vi" ? "Tạm tính" : "Subtotal"}: {posCartSubtotal.toLocaleString("vi-VN")} VND
+                    {locale === "vi" ? "Tạm tính" : "Subtotal"}: {formatVnd(posCartSubtotal)}
                   </p>
                   <p className="text-emerald-700">
-                    −{posMerchDiscountVnd.toLocaleString("vi-VN")} VND ({posMerchPct}%{" "}
+                    −{formatVnd(posMerchDiscountVnd)} ({posMerchPct}%{" "}
                     {locale === "vi" ? "thành viên" : "member"})
                   </p>
                 </>
               )}
               <p className="font-semibold text-slate-900">
-                {m.total}: {posCartTotalDue.toLocaleString("vi-VN")} VND
+                {m.total}: {formatVnd(posCartTotalDue)}
               </p>
               {(foundMember?.credit_balance_vnd ?? 0) > 0 && (
                 <div className="pt-2 border-t border-slate-200 space-y-1">
-                  <p className="text-slate-600">{locale === "vi" ? "Số dư credit" : "Credit balance"}: {(foundMember?.credit_balance_vnd ?? 0).toLocaleString("vi-VN")} VND</p>
+                  <p className="text-slate-600">{locale === "vi" ? "Số dư credit" : "Credit balance"}: {formatVnd(foundMember?.credit_balance_vnd ?? 0)}</p>
                   <div className="flex items-center gap-2">
                     <input type="number" min={0} max={Math.min(foundMember?.credit_balance_vnd ?? 0, posCartTotalDue)} value={posCreditToApply || ""} onChange={(e) => setPosCreditToApply(Math.max(0, parseInt(e.target.value, 10) || 0))} placeholder="0" className="w-24 px-2 py-1 rounded border border-slate-300 text-sm" />
                     <button type="button" onClick={() => setPosCreditToApply(Math.min(foundMember?.credit_balance_vnd ?? 0, posCartTotalDue))} className="text-xs font-medium text-teal-600 hover:underline">{locale === "vi" ? "Dùng tối đa" : "Use max"}</button>
                   </div>
-                  {posCreditToApply > 0 && <p className="text-teal-700 font-medium">{locale === "vi" ? "Còn thanh toán" : "Amount due"}: {Math.max(0, posCartTotalDue - posCreditToApply).toLocaleString("vi-VN")} VND</p>}
+                  {posCreditToApply > 0 && <p className="text-teal-700 font-medium">{locale === "vi" ? "Còn thanh toán" : "Amount due"}: {formatVnd(Math.max(0, posCartTotalDue - posCreditToApply))}</p>}
                 </div>
               )}
             </div>
@@ -5535,7 +5590,7 @@ export default function AdminPage() {
                   }
                   return opts.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name} — {p.price_vnd > 0 ? `${p.price_vnd.toLocaleString("vi-VN")} VND` : "prorated"}
+                      {p.name} — {p.price_vnd > 0 ? formatVnd(p.price_vnd) : "prorated"}
                     </option>
                   ));
                 })()}
@@ -5619,15 +5674,15 @@ export default function AdminPage() {
                     {paymentListPriceVnd != null && paymentListPriceVnd > paymentPrice ? (
                       <>
                         <span className="text-slate-500 line-through mr-2">
-                          {paymentListPriceVnd.toLocaleString("vi-VN")}
+                          {formatVnd(paymentListPriceVnd)}
                         </span>
-                        <span className="text-emerald-700">{paymentPrice.toLocaleString("vi-VN")} VND</span>
+                        <span className="text-emerald-700">{formatVnd(paymentPrice)}</span>
                         <span className="block text-xs text-amber-800 font-medium mt-0.5">
                           {locale === "vi" ? "Giá ưu đãi sau Newbie" : "Newbie graduate price"}
                         </span>
                       </>
                     ) : (
-                      <span>{paymentPrice.toLocaleString("vi-VN")} VND</span>
+                      <span>{formatVnd(paymentPrice)}</span>
                     )}
                   </span>
                   <span className="text-slate-600 font-medium">Member ID</span>
@@ -5682,7 +5737,7 @@ export default function AdminPage() {
                   </div>
                 )}
                 {paymentMethod === "cash" && (
-                  <p className="text-sm text-slate-600 py-2">Collect {paymentPrice.toLocaleString("vi-VN")} VND in cash. Confirm when received.</p>
+                  <p className="text-sm text-slate-600 py-2">Collect {formatVnd(paymentPrice)} in cash. Confirm when received.</p>
                 )}
                 {paymentMethod === "vietqr" && !paymentBankTransferAuto && (
                   <p className="text-xs text-slate-500">Customer scans with banking app, MoMo, or ZaloPay. Confirm after payment received.</p>
@@ -5787,7 +5842,7 @@ export default function AdminPage() {
             </button>
           </div>
           <div className="flex flex-col items-center px-6">
-            <p className="text-white font-medium mb-2">{paymentPlanName} — {paymentPrice.toLocaleString("vi-VN")} VND</p>
+            <p className="text-white font-medium mb-2">{paymentPlanName} — {formatVnd(paymentPrice)}</p>
             <div className="rounded-2xl bg-white p-4">
               <img src={getVietQrProxyUrl(paymentQrUrl) ?? undefined} alt="VietQR" className="w-72 h-72 object-contain" />
             </div>

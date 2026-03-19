@@ -22,6 +22,7 @@ import { getGymDateFromISO, getGymToday } from "@/lib/gymTimezone";
 import { roundSalePriceVnd } from "@/lib/newbieGraduateSale";
 import { memberIdentityComplete } from "@/lib/memberIdentity";
 import { visitPackVisitCount, visitPackVsDayPassBaseline, dayPassVsMultiDayBaseline, isMultiDayPass, DAY_PASS_BASELINE_PER_VISIT_VND } from "@/lib/visitPackDayPassBaseline";
+import { formatVnd } from "@/lib/formatVndCompact";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -1782,12 +1783,12 @@ export default function DashboardPage() {
                     {isVi ? (
                       <>
                         Gói lượt rẻ hơn so với mua từng vé ngày (
-                        <span className="text-white/70">390.000đ/lượt</span>).
+                        <span className="text-white/70">{formatVnd(390000)}/lượt</span>).
                       </>
                     ) : (
                       <>
                         Visit packs save vs. separate day passes at{" "}
-                        <span className="text-white/70">390,000 VND</span> each.
+                        <span className="text-white/70">{formatVnd(390000)}</span> each.
                       </>
                     )}
                   </p>
@@ -1798,12 +1799,12 @@ export default function DashboardPage() {
                     {isVi ? (
                       <>
                         Vé 30/180/365 ngày giảm so với mua vé 1 ngày × số ngày (
-                        <span className="text-white/70">vé 1 ngày: {plans.find((x) => x.id === "day_pass")?.price_vnd?.toLocaleString("vi-VN") ?? "390.000"}đ</span>).
+                        <span className="text-white/70">vé 1 ngày: {formatVnd(plans.find((x) => x.id === "day_pass")?.price_vnd ?? DAY_PASS_BASELINE_PER_VISIT_VND)}</span>).
                       </>
                     ) : (
                       <>
                         30/180/365 day passes save vs. 1 day pass × same days (
-                        <span className="text-white/70">1 day: {(plans.find((x) => x.id === "day_pass")?.price_vnd ?? DAY_PASS_BASELINE_PER_VISIT_VND).toLocaleString("vi-VN")} VND</span>).
+                        <span className="text-white/70">1 day: {formatVnd(plans.find((x) => x.id === "day_pass")?.price_vnd ?? DAY_PASS_BASELINE_PER_VISIT_VND)}</span>).
                       </>
                     )}
                   </p>
@@ -1854,22 +1855,22 @@ export default function DashboardPage() {
                           {pr.onSale ? (
                             <div className="mt-2 space-y-0.5">
                               <p className="text-white/45 text-[11px] line-through">
-                                {pr.list.toLocaleString("vi-VN")} VND
+                                {formatVnd(pr.list)}
                               </p>
                               <p className="text-emerald-300/90 text-sm font-semibold">
-                                {pr.pay.toLocaleString("vi-VN")} VND
+                                {formatVnd(pr.pay)}
                               </p>
                               <span className="text-[10px] font-medium text-amber-300">-50%</span>
                             </div>
                           ) : (
                             <p className="text-emerald-300/90 text-sm mt-2">
-                              {pr.pay.toLocaleString("vi-VN")} VND
+                              {formatVnd(pr.pay)}
                             </p>
                           )}
                           {savings && savings.discountPct > 0 && (
                             <>
                               <p className="text-white/45 text-[10px] line-through mt-1.5">
-                                {savings.listAtDayRateVnd.toLocaleString("vi-VN")} VND
+                                {formatVnd(savings.listAtDayRateVnd)}
                               </p>
                               <p className="text-[10px] font-semibold text-amber-300/95 mt-0.5 leading-tight">
                                 {vsPack ? (
@@ -1909,7 +1910,7 @@ export default function DashboardPage() {
                             {entry.label}
                           </span>
                           <span className="text-white/90 font-medium shrink-0">
-                            {entry.amount.toLocaleString("vi-VN")} VND
+                            {formatVnd(entry.amount)}
                           </span>
                         </div>
                         {entry.items && entry.items.length > 0 && (
