@@ -9,6 +9,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import type { Locale } from "@/lib/i18n";
 import { formatInGymTZ, getGymToday, getGymDateFromISO, getCurrentPhase } from "@/lib/gymTimezone";
 import { formatVndCompact } from "@/lib/formatVndCompact";
+import { getStaffTaskTitle } from "@/lib/staffTaskTitles";
 import { parseCccdPipeDelimited } from "@/lib/vnEidQr";
 
 const QrScannerModal = dynamic(() => import("@/components/admin/QrScannerModal"), { ssr: false });
@@ -1822,7 +1823,7 @@ export default function AdminPage() {
             const duringTotal = (staffOpsData.during ?? []).length;
             const closingDone = (staffOpsData.closing ?? []).filter((t: { status: string }) => t.status === "completed").length;
             const closingTotal = (staffOpsData.closing ?? []).length;
-            const phaseLabel = phase === "closed" ? (locale === "vi" ? "Đóng cửa" : "Closed") : phase === "pre_open" ? (locale === "vi" ? "Pre-Open" : "Pre-Open") : phase === "closing" ? (locale === "vi" ? "Đóng cửa" : "Closing") : (locale === "vi" ? "Giờ mở" : "Gym open");
+            const phaseLabel = phase === "closed" ? (locale === "vi" ? "Đóng cửa" : "Closed") : phase === "pre_open" ? (locale === "vi" ? "Trước mở cửa" : "Pre-Open") : phase === "closing" ? (locale === "vi" ? "Đóng cửa" : "Closing") : (locale === "vi" ? "Giờ mở" : "Gym open");
             const tasksDone = phase === "closed" ? 0 : phase === "pre_open" ? preOpenDone : phase === "closing" ? closingDone : duringDone;
             const tasksTotal = phase === "closed" ? 0 : phase === "pre_open" ? preOpenTotal : phase === "closing" ? closingTotal : duringTotal;
             const gymReady = staffOpsData.phase?.current_phase === "closed" ? false : staffOpsData.phase?.current_phase === "closing" ? staffOpsData.ready_to_close === true : staffOpsData.gym_ready === true;
@@ -1894,14 +1895,14 @@ export default function AdminPage() {
               if (t.status !== "completed" && t.due_time) {
                 const [dh, dm] = String(t.due_time).slice(0, 5).split(":").map(Number);
                 const minOver = nowMins - (dh * 60 + dm);
-                if (minOver > 0) alerts.push(`${t.title} ${locale === "vi" ? "quá hạn" : "overdue"} (${minOver} ${locale === "vi" ? "phút" : "min"})`);
+                if (minOver > 0) alerts.push(`${getStaffTaskTitle(t.title, locale)} ${locale === "vi" ? "quá hạn" : "overdue"} (${minOver} ${locale === "vi" ? "phút" : "min"})`);
               }
             });
             (staffOpsData?.closing ?? []).forEach((t: { status: string; due_time?: string | null; title: string }) => {
               if (t.status !== "completed" && t.due_time) {
                 const [dh, dm] = String(t.due_time).slice(0, 5).split(":").map(Number);
                 const minOver = nowMins - (dh * 60 + dm);
-                if (minOver > 0) alerts.push(`${t.title} ${locale === "vi" ? "quá hạn" : "overdue"} (${minOver} ${locale === "vi" ? "phút" : "min"})`);
+                if (minOver > 0) alerts.push(`${getStaffTaskTitle(t.title, locale)} ${locale === "vi" ? "quá hạn" : "overdue"} (${minOver} ${locale === "vi" ? "phút" : "min"})`);
               }
             });
             (staffOpsData?.zones ?? []).filter((z: { overdue?: boolean }) => z.overdue).forEach((z: { name: string }) =>
@@ -3359,7 +3360,7 @@ export default function AdminPage() {
                         const minOver = nh * 60 + nm - (dh * 60 + dm);
                         if (minOver > 0)
                           alerts.push(
-                            `${t.title} ${locale === "vi" ? "quá hạn" : "overdue"} (${minOver} ${
+                            `${getStaffTaskTitle(t.title, locale)} ${locale === "vi" ? "quá hạn" : "overdue"} (${minOver} ${
                               locale === "vi" ? "phút" : "min"
                             })`,
                           );
@@ -3381,7 +3382,7 @@ export default function AdminPage() {
                         const minOver = nh * 60 + nm - (dh * 60 + dm);
                         if (minOver > 0)
                           alerts.push(
-                            `${t.title} ${locale === "vi" ? "quá hạn" : "overdue"} (${minOver} ${
+                            `${getStaffTaskTitle(t.title, locale)} ${locale === "vi" ? "quá hạn" : "overdue"} (${minOver} ${
                               locale === "vi" ? "phút" : "min"
                             })`,
                           );
@@ -3610,7 +3611,7 @@ export default function AdminPage() {
                                   }) => (
                                     <li key={e.id} className="flex justify-between gap-3">
                                       <span className="flex-1">
-                                        {e.staff_name} — {e.task_title}
+                                        {e.staff_name} — {getStaffTaskTitle(e.task_title, locale)}
                                       </span>
                                       <span className="text-slate-400">
                                         {new Date(e.completed_at).toLocaleTimeString("en-US", {
@@ -3666,15 +3667,16 @@ export default function AdminPage() {
                     );
                   })()}
 
-                  {/* TAB 2 — TASKS (3 phase sub-tabs) */}
+                  {/* TAB 2 — TASKS (3 phase sub-tabs) — key by locale so task labels update when switching VN/EN */}
                   {staffModalTab === "tasks" && staffOpsData && (() => {
+                    const taskM = getMessages(locale).admin;
                     const preOpen = staffOpsData.preOpen ?? staffOpsData.tasks.filter((t) => t.block === "pre_open");
                     const during = staffOpsData.during ?? staffOpsData.tasks.filter((t) => t.block === "during_hours");
                     const closing = staffOpsData.closing ?? staffOpsData.tasks.filter((t) => t.block === "closing");
                     const phases: { phase: "pre_open" | "during_hours" | "closing"; phaseLabel: string; tasks: typeof preOpen }[] = [
-                      { phase: "pre_open", phaseLabel: m.preOpenSection, tasks: preOpen },
-                      { phase: "during_hours", phaseLabel: m.duringHoursSection, tasks: during },
-                      { phase: "closing", phaseLabel: m.closingSection, tasks: closing },
+                      { phase: "pre_open", phaseLabel: taskM.preOpenSection, tasks: preOpen },
+                      { phase: "during_hours", phaseLabel: taskM.duringHoursSection, tasks: during },
+                      { phase: "closing", phaseLabel: taskM.closingSection, tasks: closing },
                     ];
                     const phaseTasks = phases.find((p) => p.phase === operationsTaskPhase)?.tasks ?? [];
                     const nowHHMM = () => { const t = new Date().toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", timeZone: "America/Los_Angeles" }); return t.slice(0, 5); };
@@ -3687,7 +3689,7 @@ export default function AdminPage() {
                       return (nh * 60 + nm) > (dh * 60 + dm);
                     };
                     return (
-                      <>
+                      <div key={locale}>
                         <div className="flex gap-1 p-1 rounded-lg bg-slate-100 border border-slate-200 mb-3">
                           {phases.map(({ phase, phaseLabel, tasks: t }) => {
                             const done = t.filter((x) => x.status === "completed").length;
@@ -3713,18 +3715,18 @@ export default function AdminPage() {
                           <table className="min-w-[640px] w-full text-sm">
                             <thead>
                               <tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase">
-                                <th className="px-3 py-2">{locale === "vi" ? "Công việc" : "Task Name"}</th>
-                                <th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th>
-                                <th className="px-3 py-2">{m.completedBy}</th>
-                                <th className="px-3 py-2">{m.completionTime}</th>
-                                <th className="px-3 py-2 whitespace-nowrap">{locale === "vi" ? "Thao tác" : "Action"}</th>
+                                <th className="px-3 py-2">{taskM.taskName}</th>
+                                <th className="px-3 py-2">{taskM.status}</th>
+                                <th className="px-3 py-2">{taskM.completedBy}</th>
+                                <th className="px-3 py-2">{taskM.completionTime}</th>
+                                <th className="px-3 py-2 whitespace-nowrap">{taskM.action}</th>
                               </tr>
                             </thead>
                             <tbody>
                               {phaseTasks.length === 0 ? (
                                 <tr>
                                   <td colSpan={5} className="px-3 py-6 text-center text-slate-500 text-sm">
-                                    {locale === "vi" ? "Không có công việc nào trong giai đoạn này." : "No tasks in this phase."}
+                                    {taskM.noTasksInPhase}
                                   </td>
                                 </tr>
                               ) : (
@@ -3732,11 +3734,11 @@ export default function AdminPage() {
                                   const c = Array.isArray(t.completer) ? t.completer[0] : t.completer;
                                   const name = c ? (c.display_name || c.email) : null;
                                   const overdue = isOverdue(t);
-                                  const statusText = t.status === "completed" ? m.done : overdue ? m.overdue : m.pending;
+                                  const statusText = t.status === "completed" ? taskM.done : overdue ? taskM.overdue : taskM.pending;
                                   const statusColor = t.status === "completed" ? "text-emerald-700" : overdue ? "text-red-700" : "text-amber-700";
                                   return (
                                     <tr key={t.id} className="border-t border-slate-100">
-                                      <td className="px-3 py-2 font-medium text-slate-800">{t.title}</td>
+                                      <td className="px-3 py-2 font-medium text-slate-800">{getStaffTaskTitle(t.title, locale)}</td>
                                       <td className={`px-3 py-2 font-medium ${statusColor}`}>{statusText}</td>
                                       <td className="px-3 py-2 text-slate-600">{name ?? "—"}</td>
                                       <td className="px-3 py-2 text-slate-600">{t.completed_at ? formatInGymTZ(t.completed_at, { hour: "numeric", minute: "2-digit" }) : "—"}</td>
@@ -3763,7 +3765,7 @@ export default function AdminPage() {
                                             }}
                                             className="px-2 py-1 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-500 disabled:opacity-50"
                                           >
-                                            {completingTaskId === t.id ? "…" : m.complete}
+                                            {completingTaskId === t.id ? "…" : taskM.complete}
                                           </button>
                                         )}
                                       </td>
@@ -3776,15 +3778,15 @@ export default function AdminPage() {
                         </div>
                         {staffOpsData.staffTaskPerformance && staffOpsData.staffTaskPerformance.length > 0 && (
                           <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
-                            <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{m.staffTaskPerformance}</h4>
+                            <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{taskM.staffTaskPerformance}</h4>
                             <ul className="space-y-2 text-sm">
                               {staffOpsData.staffTaskPerformance.map((s: { staff_id: string; display_name: string; tasks_completed: number; completion_rate_pct: number }) => (
-                                <li key={s.staff_id} className="flex justify-between items-center"><span className="font-medium text-slate-800">{s.display_name}</span><span className="text-slate-600">{m.tasksCompletedCount}: {s.tasks_completed} · {s.completion_rate_pct}% {m.completionRate}</span></li>
+                                <li key={s.staff_id} className="flex justify-between items-center"><span className="font-medium text-slate-800">{s.display_name}</span><span className="text-slate-600">{taskM.tasksCompletedCount}: {s.tasks_completed} · {s.completion_rate_pct}% {taskM.completionRate}</span></li>
                               ))}
                             </ul>
                           </div>
                         )}
-                      </>
+                      </div>
                     );
                   })()}
 
@@ -3929,13 +3931,15 @@ export default function AdminPage() {
                                 <td className="px-3 py-2 text-slate-700">{setters || "—"}</td>
                                 <td className="px-3 py-2">
                                   {status === "completed" ? (
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">Completed</span>
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">{m.routeStatusCompleted}</span>
                                   ) : status === "overdue" ? (
                                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-200">⚠ {m.overdue}</span>
                                   ) : status === "in_progress" ? (
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">In Progress</span>
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">{m.routeStatusInProgress}</span>
+                                  ) : status === "not_started" ? (
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">{m.routeStatusNotStarted}</span>
                                   ) : (
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">Pending</span>
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">{m.pending}</span>
                                   )}
                                 </td>
                                 <td className="px-3 py-2">
@@ -3980,20 +3984,22 @@ export default function AdminPage() {
                                         </div>
                                       </div>
                                     </details>
-                                    <button
-                                      type="button"
-                                      onClick={async () => {
-                                        if (!window.confirm(`${m.areYouSure}\n\n${m.confirmMarkResetComplete}`)) return;
-                                        const res = await adminFetch(`/api/admin/routes/zones/${z.id}/reset`, { method: "POST" });
-                                        const d = await res.json();
-                                        if (res.ok && d?.ok) {
-                                          adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x));
-                                        }
-                                      }}
-                                      className="px-2 py-1 rounded-lg bg-slate-700 text-white text-xs font-medium hover:bg-slate-600"
-                                    >
-                                      {m.markResetComplete}
-                                    </button>
+                                    {(status === "in_progress" || status === "pending" || status === "overdue") && (
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          if (!window.confirm(`${m.areYouSure}\n\n${m.confirmMarkResetComplete}`)) return;
+                                          const res = await adminFetch(`/api/admin/routes/zones/${z.id}/reset`, { method: "POST" });
+                                          const d = await res.json();
+                                          if (res.ok && d?.ok) {
+                                            adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x));
+                                          }
+                                        }}
+                                        className="px-2 py-1 rounded-lg bg-slate-700 text-white text-xs font-medium hover:bg-slate-600"
+                                      >
+                                        {m.markResetComplete}
+                                      </button>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
@@ -4044,7 +4050,7 @@ export default function AdminPage() {
             const timeline = (staffOpsData?.timeline ?? []) as { staff_name: string; task_title: string; completed_at: string }[];
 
             return (
-              <section className="space-y-6 rounded-2xl bg-white border border-slate-200 shadow-lg p-4 md:p-6">
+              <section key={locale} className="space-y-6 rounded-2xl bg-white border border-slate-200 shadow-lg p-4 md:p-6">
                 {!hasAttendanceForToday && (
                   <div className="rounded-xl bg-slate-800 border border-slate-700 p-4">
                     <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">{staffMsg.dailyAttendance}</h3>
@@ -4094,49 +4100,67 @@ export default function AdminPage() {
                       )}
                       {overdueTasksList.filter((t) => !isRouteResetDay || isEssentialTask(t.title)).map((t, idx) => (
                         <div key={t.id} className="flex justify-between items-center gap-2 text-sm py-1.5">
-                          <span className="text-slate-200">{t.title}</span>
+                          <span className="text-slate-200">{getStaffTaskTitle(t.title, locale)}</span>
                           <button type="button" data-tour={idx === 0 ? "task-complete" : undefined} disabled={completingTaskId === t.id} onClick={async () => { setCompletingTaskId(t.id); setStaffTaskError(null); try { const res = await adminFetch(`/api/admin/staff/tasks/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) }); if (res.ok) { setStaffTaskError(null); adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d)); } else { const body = await res.json().catch(() => ({})); setStaffTaskError((body as { error?: string })?.error ?? `Request failed (${res.status})`); } } finally { setCompletingTaskId(null); } }} className="px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-500 disabled:opacity-50">{completingTaskId === t.id ? "…" : staffMsg.complete}</button>
                         </div>
                       ))}
                       {activePending.map((t) => (
                         <div key={t.id} className="flex justify-between items-center gap-2 py-1.5 border-b border-slate-700 last:border-b-0">
-                          <span className="text-slate-200 text-sm">{t.title}</span>
+                          <span className="text-slate-200 text-sm">{getStaffTaskTitle(t.title, locale)}</span>
                           <button type="button" disabled={completingTaskId === t.id} onClick={async () => { setCompletingTaskId(t.id); setStaffTaskError(null); try { const res = await adminFetch(`/api/admin/staff/tasks/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) }); if (res.ok) { setStaffTaskError(null); adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d)); } else { const body = await res.json().catch(() => ({})); setStaffTaskError((body as { error?: string })?.error ?? `Request failed (${res.status})`); } } finally { setCompletingTaskId(null); } }} className="shrink-0 px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-500 disabled:opacity-50">{completingTaskId === t.id ? "…" : staffMsg.complete}</button>
                         </div>
                       ))}
                       {activeCompleted.length > 0 && (
                         <div>
                           <button type="button" onClick={() => setStaffCompletedTasksExpanded(!staffCompletedTasksExpanded)} className="w-full text-left text-xs font-semibold text-slate-400 uppercase tracking-wider py-0.5 flex items-center justify-between">{staffMsg.completedTasks} ({activeCompleted.length})<span className="text-slate-500">{staffCompletedTasksExpanded ? "▼" : "▶"}</span></button>
-                          {staffCompletedTasksExpanded && <ul className="space-y-0.5 mt-1">{activeCompleted.map((t) => <li key={t.id} className="text-sm"><span className="text-emerald-400 line-through">{t.title}</span></li>)}</ul>}
+                          {staffCompletedTasksExpanded && <ul className="space-y-0.5 mt-1">{activeCompleted.map((t) => <li key={t.id} className="text-sm"><span className="text-emerald-400 line-through">{getStaffTaskTitle(t.title, locale)}</span></li>)}</ul>}
                         </div>
                       )}
                     </div>
                     {timeline.length > 0 && (
                       <div className="rounded-xl bg-slate-800 border border-slate-700 p-4">
                         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{staffMsg.teamStatus}</h3>
-                        <ul className="space-y-1 text-sm max-h-32 overflow-y-auto">{timeline.slice(0, 20).map((c, i) => <li key={i} className="flex justify-between gap-2 py-0.5 border-b border-slate-700/50 last:border-0"><span className="text-slate-200 truncate">{c.staff_name} — {c.task_title}</span><span className="text-slate-500 shrink-0">{new Date(c.completed_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span></li>)}</ul>
+                        <ul className="space-y-1 text-sm max-h-32 overflow-y-auto">{timeline.slice(0, 20).map((c, i) => <li key={i} className="flex justify-between gap-2 py-0.5 border-b border-slate-700/50 last:border-0"><span className="text-slate-200 truncate">{c.staff_name} — {getStaffTaskTitle(c.task_title, locale)}</span><span className="text-slate-500 shrink-0">{new Date(c.completed_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span></li>)}</ul>
                       </div>
                     )}
                     <div className="flex gap-1 p-1 rounded-xl bg-slate-800 border border-slate-700">
-                      <button type="button" data-tour="tab-routes" onClick={() => setStaffSubTab("routes")} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${staffSubTab === "routes" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>{staffMsg.tabRoutes}</button>
-                      <button type="button" data-tour="tab-coaching" onClick={() => setStaffSubTab("coaching")} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${staffSubTab === "coaching" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>{staffMsg.tabCoaching}</button>
+                      {(() => {
+                        const zonesDueToday = (staffOpsData.zones ?? []).filter((z: { reset_status?: string }) => z.reset_status === "pending" || z.reset_status === "in_progress" || z.reset_status === "overdue");
+                        const myAssignedCount = staffId ? (staffOpsData.zones ?? []).filter((z: { assigned_setters?: { staff_id: string }[] }) => (z.assigned_setters ?? []).some((s) => s.staff_id === staffId)).length : 0;
+                        const routesBadge = staffOpsData.route_reset_day && (zonesDueToday.length > 0 || myAssignedCount > 0) ? (myAssignedCount > 0 ? ` (${myAssignedCount})` : ` (${zonesDueToday.length})`) : null;
+                        return (
+                          <>
+                            <button type="button" data-tour="tab-routes" onClick={() => setStaffSubTab("routes")} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${staffSubTab === "routes" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>{staffMsg.tabRoutes}{routesBadge ?? ""}</button>
+                            <button type="button" data-tour="tab-coaching" onClick={() => setStaffSubTab("coaching")} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${staffSubTab === "coaching" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>{staffMsg.tabCoaching}</button>
+                          </>
+                        );
+                      })()}
                     </div>
                     {staffSubTab === "routes" && (
                       <div className="rounded-xl bg-slate-800 border border-slate-700 p-4" data-tour="routes-zones">
                         <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">{staffMsg.routeResetSchedule}</h3>
+                        {staffOpsData.route_reset_day && (
+                          <p className="text-xs text-amber-200/90 mb-3">{staffMsg.routeResetDayFocus}</p>
+                        )}
                         <div className="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory scrollbar-thin">
                           {(staffOpsData.zones ?? []).map((z: { id: string; name: string; next_reset_at: string | null; assigned_setters?: { staff_id: string; name: string }[]; reset_status?: string }) => {
                             const setters = (z.assigned_setters ?? []);
+                            const status = z.reset_status ?? "not_started";
+                            const statusLabel = status === "completed" ? staffMsg.routeStatusCompleted : status === "overdue" ? staffMsg.overdue : status === "in_progress" ? staffMsg.routeStatusInProgress : status === "pending" ? staffMsg.resetProgressPending : staffMsg.routeStatusNotStarted;
+                            const statusBg = status === "completed" ? "bg-emerald-900/40 text-emerald-200" : status === "overdue" ? "bg-red-900/40 text-red-200" : status === "in_progress" || status === "pending" ? "bg-amber-900/40 text-amber-200" : "bg-slate-700/50 text-slate-400";
                             return (
                               <div key={z.id} className="flex-none w-[280px] max-w-[85vw] snap-center rounded-xl border border-slate-700 bg-slate-900/30 p-4 space-y-3">
-                                <div className="text-slate-100 font-semibold">{z.name}</div>
+                                <div className="flex justify-between items-start gap-2">
+                                  <div className="text-slate-100 font-semibold">{z.name}</div>
+                                  <span className={`shrink-0 px-2 py-0.5 rounded text-xs font-medium ${statusBg}`}>{statusLabel}</span>
+                                </div>
                                 <div className="text-xs text-slate-400">{staffMsg.next}: <span className="text-slate-200">{formatDate(z.next_reset_at)}</span></div>
                                 <div className="flex flex-wrap items-center gap-2">
                                   {setters.length === 0 && <span className="text-sm text-slate-500">{staffMsg.noAssignments}</span>}
                                   {setters.map((s) => <span key={s.staff_id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-700/70 border border-slate-600 text-slate-200 text-xs">{s.name}{staffId && s.staff_id === staffId && <span className="text-emerald-400">{staffMsg.assignedToYou}</span>}</span>)}
                                   <button type="button" data-tour="route-assign-me" onClick={async () => { const nextIds = Array.from(new Set([...setters.map((s) => s.staff_id), staffId].filter(Boolean))); const res = await adminFetch(`/api/admin/routes/zones/${z.id}/assignments`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ staff_ids: nextIds }) }); const d = await res.json(); if (res.ok && d?.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x)); }} className="px-2 py-1 rounded-full bg-slate-800 border border-slate-600 text-slate-200 text-xs hover:bg-slate-700">+ {staffMsg.assignToMe}</button>
                                 </div>
-                                {(z.reset_status === "in_progress" || z.reset_status === "pending") && (
+                                {(status === "in_progress" || status === "pending") && (
                                   <button type="button" onClick={async () => { if (!window.confirm(m.confirmMarkResetComplete)) return; const res = await adminFetch(`/api/admin/routes/zones/${z.id}/reset`, { method: "POST" }); if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((x) => setStaffOpsData(x)); }} className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-100 text-sm hover:bg-slate-600">{staffMsg.markResetComplete}</button>
                                 )}
                               </div>

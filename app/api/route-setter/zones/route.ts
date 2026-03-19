@@ -44,9 +44,12 @@ export async function GET(request: NextRequest) {
       .filter((x): x is { staff_id: string; name: string } => !!x);
 
     const completedToday = lastReset ? getGymDateFromISO(lastReset) === today : false;
-    let reset_status: "pending" | "in_progress" | "completed" | "overdue" = assigned_setters.length > 0 ? "in_progress" : "pending";
+    const dueToday = next ? getGymDateFromISO(next) === today : false;
+    const isOverdue = next ? next < now : false;
+    let reset_status: "not_started" | "pending" | "in_progress" | "completed" | "overdue" = "not_started";
     if (completedToday) reset_status = "completed";
-    else if (next && next < now) reset_status = "overdue";
+    else if (isOverdue) reset_status = "overdue";
+    else if (dueToday) reset_status = assigned_setters.length > 0 ? "in_progress" : "pending";
 
     return { ...z, route_age_days: routeAgeDays, reset_status, assigned_setters };
   });

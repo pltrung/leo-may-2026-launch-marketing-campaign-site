@@ -242,9 +242,13 @@ export async function GET(request: NextRequest) {
       ? Math.max(0, Math.floor((Date.now() - new Date(z.last_reset_at).getTime()) / (24 * 60 * 60 * 1000)))
       : null;
     const completedToday = z.last_reset_at ? getGymDateFromISO(z.last_reset_at) === today : false;
-    let reset_status: "pending" | "in_progress" | "completed" | "overdue" = assigned_setters.length > 0 ? "in_progress" : "pending";
+    const dueToday = z.next_reset_at ? getGymDateFromISO(z.next_reset_at) === today : false;
+    const isOverdue = z.next_reset_at ? z.next_reset_at < nowIso : false;
+    let reset_status: "not_started" | "pending" | "in_progress" | "completed" | "overdue" = "not_started";
     if (completedToday) reset_status = "completed";
-    else if (z.next_reset_at && z.next_reset_at < nowIso) reset_status = "overdue";
+    else if (isOverdue) reset_status = "overdue";
+    else if (dueToday) reset_status = assigned_setters.length > 0 ? "in_progress" : "pending";
+    // else: not due today → not_started
 
     return {
       ...z,
