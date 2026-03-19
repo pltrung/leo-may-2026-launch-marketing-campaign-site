@@ -206,6 +206,7 @@ export default function AdminPage() {
   const [memberProfileSubTab, setMemberProfileSubTab] = useState<"summary" | "membership" | "sales" | "history">("summary");
   const [managementTab, setManagementTab] = useState<"inventory" | "admin_tools">("inventory");
   const [staffModalTab, setStaffModalTab] = useState<"overview" | "tasks" | "attendance" | "coaching" | "routes">("overview");
+  const [operationsTaskPhase, setOperationsTaskPhase] = useState<"pre_open" | "during_hours" | "closing">("pre_open");
   const [staffResetLoading, setStaffResetLoading] = useState(false);
   const [resetAttendanceWarningOpen, setResetAttendanceWarningOpen] = useState(false);
   const [showNewMemberForm, setShowNewMemberForm] = useState(false);
@@ -349,6 +350,7 @@ export default function AdminPage() {
   const [staffSubTab, setStaffSubTab] = useState<"routes" | "coaching">("routes");
   const [staffAttendanceLoading, setStaffAttendanceLoading] = useState(false);
   const [staffCompletedTasksExpanded, setStaffCompletedTasksExpanded] = useState(false);
+  const [staffTaskError, setStaffTaskError] = useState<string | null>(null);
   const [shiftCheckInAttendance, setShiftCheckInAttendance] = useState<{ date: string; status: string } | null>(null);
   const [shiftCheckInQrToken, setShiftCheckInQrToken] = useState<string | null>(null);
   const [shiftCheckInLoading, setShiftCheckInLoading] = useState(false);
@@ -3582,6 +3584,11 @@ export default function AdminPage() {
                             </ul>
                           )}
                         </div>
+                        {staffTaskError && (
+                          <div className="rounded-xl bg-rose-500/20 border border-rose-400/50 px-4 py-3 text-rose-700 text-sm font-medium">
+                            {staffTaskError}
+                          </div>
+                        )}
                         {/* STAFF ACTIVITY FEED + FOCUS */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                           <div className="rounded-lg border border-slate-200 bg-white p-3">
@@ -3659,16 +3666,17 @@ export default function AdminPage() {
                     );
                   })()}
 
-                  {/* TAB 2 — TASKS */}
+                  {/* TAB 2 — TASKS (3 phase sub-tabs) */}
                   {staffModalTab === "tasks" && staffOpsData && (() => {
                     const preOpen = staffOpsData.preOpen ?? staffOpsData.tasks.filter((t) => t.block === "pre_open");
                     const during = staffOpsData.during ?? staffOpsData.tasks.filter((t) => t.block === "during_hours");
                     const closing = staffOpsData.closing ?? staffOpsData.tasks.filter((t) => t.block === "closing");
-                    const allByPhase: { phase: string; phaseLabel: string; tasks: typeof preOpen }[] = [
+                    const phases: { phase: "pre_open" | "during_hours" | "closing"; phaseLabel: string; tasks: typeof preOpen }[] = [
                       { phase: "pre_open", phaseLabel: m.preOpenSection, tasks: preOpen },
                       { phase: "during_hours", phaseLabel: m.duringHoursSection, tasks: during },
                       { phase: "closing", phaseLabel: m.closingSection, tasks: closing },
                     ];
+                    const phaseTasks = phases.find((p) => p.phase === operationsTaskPhase)?.tasks ?? [];
                     const nowHHMM = () => { const t = new Date().toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit", timeZone: "America/Los_Angeles" }); return t.slice(0, 5); };
                     const isOverdue = (t: { status: string; due_time?: string | null }) => {
                       if (t.status === "completed") return false;
@@ -3680,12 +3688,32 @@ export default function AdminPage() {
                     };
                     return (
                       <>
+                        <div className="flex gap-1 p-1 rounded-lg bg-slate-100 border border-slate-200 mb-3">
+                          {phases.map(({ phase, phaseLabel, tasks: t }) => {
+                            const done = t.filter((x) => x.status === "completed").length;
+                            const total = t.length;
+                            const label = total ? `${phaseLabel} (${done}/${total})` : phaseLabel;
+                            return (
+                              <button
+                                key={phase}
+                                type="button"
+                                onClick={() => setOperationsTaskPhase(phase)}
+                                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                                  operationsTaskPhase === phase
+                                    ? "bg-white text-slate-900 shadow border border-slate-200"
+                                    : "text-slate-600 hover:bg-slate-200/80"
+                                }`}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
                         <div className="rounded-lg border border-slate-200 overflow-x-auto">
-                          <table className="min-w-[720px] w-full text-sm">
+                          <table className="min-w-[640px] w-full text-sm">
                             <thead>
                               <tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase">
                                 <th className="px-3 py-2">{locale === "vi" ? "Công việc" : "Task Name"}</th>
-                                <th className="px-3 py-2">{m.phaseColumn}</th>
                                 <th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th>
                                 <th className="px-3 py-2">{m.completedBy}</th>
                                 <th className="px-3 py-2">{m.completionTime}</th>
@@ -3693,7 +3721,13 @@ export default function AdminPage() {
                               </tr>
                             </thead>
                             <tbody>
-                              {allByPhase.flatMap(({ phaseLabel, tasks: phaseTasks }) =>
+                              {phaseTasks.length === 0 ? (
+                                <tr>
+                                  <td colSpan={5} className="px-3 py-6 text-center text-slate-500 text-sm">
+                                    {locale === "vi" ? "Không có công việc nào trong giai đoạn này." : "No tasks in this phase."}
+                                  </td>
+                                </tr>
+                              ) : (
                                 phaseTasks.map((t) => {
                                   const c = Array.isArray(t.completer) ? t.completer[0] : t.completer;
                                   const name = c ? (c.display_name || c.email) : null;
@@ -3703,7 +3737,6 @@ export default function AdminPage() {
                                   return (
                                     <tr key={t.id} className="border-t border-slate-100">
                                       <td className="px-3 py-2 font-medium text-slate-800">{t.title}</td>
-                                      <td className="px-3 py-2 text-slate-600">{phaseLabel}</td>
                                       <td className={`px-3 py-2 font-medium ${statusColor}`}>{statusText}</td>
                                       <td className="px-3 py-2 text-slate-600">{name ?? "—"}</td>
                                       <td className="px-3 py-2 text-slate-600">{t.completed_at ? formatInGymTZ(t.completed_at, { hour: "numeric", minute: "2-digit" }) : "—"}</td>
@@ -3714,9 +3747,16 @@ export default function AdminPage() {
                                             disabled={completingTaskId === t.id}
                                             onClick={async () => {
                                               setCompletingTaskId(t.id);
+                                              setStaffTaskError(null);
                                               try {
                                                 const res = await adminFetch(`/api/admin/staff/tasks/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) });
-                                                if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d));
+                                                if (res.ok) {
+                                                  setStaffTaskError(null);
+                                                  adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d));
+                                                } else {
+                                                  const body = await res.json().catch(() => ({}));
+                                                  setStaffTaskError((body as { error?: string })?.error ?? `Request failed (${res.status})`);
+                                                }
                                               } finally {
                                                 setCompletingTaskId(null);
                                               }
@@ -4040,6 +4080,9 @@ export default function AdminPage() {
                     )}
                     <div className="rounded-xl bg-slate-800 border border-slate-700 p-4 space-y-3" data-tour="tasks-section">
                       <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{staffMsg.activeTasks}</h3>
+                      {staffTaskError && (
+                        <p className="text-sm font-medium text-rose-300">{staffTaskError}</p>
+                      )}
                       {currentBlock === "closed" && (
                         <p className="text-sm text-slate-400">{locale === "vi" ? "Gym đóng cửa đến 6:00 sáng." : "Gym closed until 6:00 AM."}</p>
                       )}
@@ -4052,13 +4095,13 @@ export default function AdminPage() {
                       {overdueTasksList.filter((t) => !isRouteResetDay || isEssentialTask(t.title)).map((t, idx) => (
                         <div key={t.id} className="flex justify-between items-center gap-2 text-sm py-1.5">
                           <span className="text-slate-200">{t.title}</span>
-                          <button type="button" data-tour={idx === 0 ? "task-complete" : undefined} disabled={completingTaskId === t.id} onClick={async () => { setCompletingTaskId(t.id); try { const res = await adminFetch(`/api/admin/staff/tasks/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) }); if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d)); } finally { setCompletingTaskId(null); } }} className="px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-500 disabled:opacity-50">{completingTaskId === t.id ? "…" : staffMsg.complete}</button>
+                          <button type="button" data-tour={idx === 0 ? "task-complete" : undefined} disabled={completingTaskId === t.id} onClick={async () => { setCompletingTaskId(t.id); setStaffTaskError(null); try { const res = await adminFetch(`/api/admin/staff/tasks/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) }); if (res.ok) { setStaffTaskError(null); adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d)); } else { const body = await res.json().catch(() => ({})); setStaffTaskError((body as { error?: string })?.error ?? `Request failed (${res.status})`); } } finally { setCompletingTaskId(null); } }} className="px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-500 disabled:opacity-50">{completingTaskId === t.id ? "…" : staffMsg.complete}</button>
                         </div>
                       ))}
                       {activePending.map((t) => (
                         <div key={t.id} className="flex justify-between items-center gap-2 py-1.5 border-b border-slate-700 last:border-b-0">
                           <span className="text-slate-200 text-sm">{t.title}</span>
-                          <button type="button" disabled={completingTaskId === t.id} onClick={async () => { setCompletingTaskId(t.id); try { const res = await adminFetch(`/api/admin/staff/tasks/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) }); if (res.ok) adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d)); } finally { setCompletingTaskId(null); } }} className="shrink-0 px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-500 disabled:opacity-50">{completingTaskId === t.id ? "…" : staffMsg.complete}</button>
+                          <button type="button" disabled={completingTaskId === t.id} onClick={async () => { setCompletingTaskId(t.id); setStaffTaskError(null); try { const res = await adminFetch(`/api/admin/staff/tasks/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) }); if (res.ok) { setStaffTaskError(null); adminFetch("/api/admin/staff").then((r) => r.json()).then((d) => setStaffOpsData(d)); } else { const body = await res.json().catch(() => ({})); setStaffTaskError((body as { error?: string })?.error ?? `Request failed (${res.status})`); } } finally { setCompletingTaskId(null); } }} className="shrink-0 px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-500 disabled:opacity-50">{completingTaskId === t.id ? "…" : staffMsg.complete}</button>
                         </div>
                       ))}
                       {activeCompleted.length > 0 && (

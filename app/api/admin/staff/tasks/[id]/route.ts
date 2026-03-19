@@ -37,6 +37,19 @@ export async function PATCH(
     const r = await supabase.from("staff_profiles").select("id, display_name").eq("auth_id", unified.user.id).single();
     staff = r.data;
   }
+  // Admin from ADMIN_EMAILS often has no staff_profiles row; ensure one exists so task_logs has a valid staff_id.
+  if (!staff && unified.role === "admin") {
+    const email = (unified.user.email ?? "").trim() || "admin@leo-may.vn";
+    const { data: upserted, error: upsertErr } = await supabase
+      .from("staff_profiles")
+      .upsert(
+        { auth_id: unified.user.id, email, role: "admin", display_name: unified.user.email ?? "Admin" },
+        { onConflict: "auth_id" }
+      )
+      .select("id, display_name")
+      .single();
+    if (!upsertErr && upserted) staff = upserted;
+  }
   if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
 
   const { data: task } = await supabase
