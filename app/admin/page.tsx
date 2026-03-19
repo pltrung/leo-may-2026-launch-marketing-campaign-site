@@ -296,6 +296,7 @@ export default function AdminPage() {
   const [stockOutQty, setStockOutQty] = useState("1");
   const [inventoryActionMessage, setInventoryActionMessage] = useState<string | null>(null);
   const [inventoryCreateError, setInventoryCreateError] = useState<string | null>(null);
+  const [inventoryReorderRequests, setInventoryReorderRequests] = useState<{ id: string; variant_id: string; variant_label: string; quantity_requested: number; status: string; created_at: string; requested_by_name?: string | null }[]>([]);
   const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
   const inventoryQtyInputRef = React.useRef<HTMLInputElement>(null);
   const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState<"all" | "shoes" | "merch">("all");
@@ -617,6 +618,10 @@ export default function AdminPage() {
       .then((r) => r.json())
       .then((d) => setInventoryList(d.inventory ?? []))
       .catch(() => setInventoryList([]));
+    adminFetch("/api/admin/inventory/reorder-requests")
+      .then((r) => r.json())
+      .then((d) => setInventoryReorderRequests(d.requests ?? []))
+      .catch(() => setInventoryReorderRequests([]));
   }, [isInventoryActive, inventoryCategoryFilter, adminFetch]);
 
   // Load product detail when opening product detail modal
@@ -1107,6 +1112,18 @@ export default function AdminPage() {
     },
     [adminFetch]
   );
+
+  const loadInventoryReorderRequests = useCallback(async () => {
+    const res = await adminFetch("/api/admin/inventory/reorder-requests");
+    const d = await res.json().catch(() => ({}));
+    if (res.ok) {
+      setInventoryReorderRequests(
+        (d as { requests?: { id: string; variant_id: string; variant_label: string; quantity_requested: number; status: string; created_at: string; requested_by_name?: string | null }[] }).requests ?? []
+      );
+    } else {
+      setInventoryReorderRequests([]);
+    }
+  }, [adminFetch]);
 
   const handleScanQr = useCallback(() => {
     setSearchMode("qr");
@@ -3453,6 +3470,7 @@ export default function AdminPage() {
                             ? "Đã gửi yêu cầu nhập hàng."
                             : "Restock request sent."
                         );
+                        loadInventoryReorderRequests().catch(() => setInventoryReorderRequests([]));
                         setTimeout(() => setInventoryActionMessage(null), 5000);
                       } else setInventoryCreateError(d?.error ?? "Failed");
                     }}
@@ -3588,7 +3606,68 @@ export default function AdminPage() {
                 .catch(() => setInventoryCreateError("Lookup failed."));
             }} onError={(msg) => setInventoryCreateError(msg)} title={m.scanProduct} hint={m.scanProductHint} />
 
-            {/* 4) View Inventory — table, filter All/Shoes/Merch, search, sorted by qty*price desc */}
+            {/* 4) Pending restock requests — receive to increase stock */}
+            <div className="rounded-lg border border-slate-600 bg-slate-800/60 p-3">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                  {locale === "vi" ? "Yêu cầu nhập hàng đang mở" : "Open restock requests"}
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => loadInventoryReorderRequests().catch(() => setInventoryReorderRequests([]))}
+                  className="text-xs text-slate-400 hover:text-slate-200"
+                >
+                  {locale === "vi" ? "Tải lại" : "Refresh"}
+                </button>
+              </div>
+              {inventoryReorderRequests.length === 0 ? (
+                <p className="text-xs text-slate-500">{locale === "vi" ? "Không có yêu cầu mở." : "No open requests."}</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {inventoryReorderRequests.map((r) => (
+                    <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 border border-slate-700 rounded-lg px-2.5 py-2">
+                      <div className="min-w-0">
+                        <p className="text-sm text-slate-100 truncate">{r.variant_label}</p>
+                        <p className="text-xs text-slate-400">
+                          {locale === "vi" ? "Yêu cầu:" : "Requested:"} x{r.quantity_requested}
+                          {r.requested_by_name ? ` · ${r.requested_by_name}` : ""}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const q = window.prompt(
+                            locale === "vi" ? "Số lượng đã nhận:" : "Quantity received:",
+                            String(r.quantity_requested)
+                          );
+                          if (!q) return;
+                          const qty = Math.max(1, parseInt(q, 10) || r.quantity_requested || 1);
+                          const res = await adminFetch("/api/admin/inventory/reorder-requests", {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ request_id: r.id, received_quantity: qty }),
+                          });
+                          const d = await res.json().catch(() => ({}));
+                          if (res.ok && d?.ok) {
+                            setInventoryActionMessage(locale === "vi" ? "Đã nhận hàng và cập nhật tồn kho." : "Stock received and inventory updated.");
+                            adminFetch("/api/admin/inventory").then((x) => x.json()).then((x) => setInventoryList(x.inventory ?? []));
+                            loadInventoryReorderRequests().catch(() => setInventoryReorderRequests([]));
+                            setTimeout(() => setInventoryActionMessage(null), 4000);
+                          } else {
+                            setInventoryCreateError((d as { error?: string }).error ?? "Failed");
+                          }
+                        }}
+                        className="shrink-0 text-xs px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500"
+                      >
+                        {locale === "vi" ? "Đã nhận hàng" : "Receive stock"}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* 5) View Inventory — table, filter All/Shoes/Merch, search, sorted by qty*price desc */}
             <div>
               <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">{m.viewInventory}</h4>
               <div className="flex flex-wrap gap-2 mb-2 items-center">
@@ -3678,6 +3757,7 @@ export default function AdminPage() {
                                         ? "Đã gửi yêu cầu nhập hàng. Xem tab Phân tích → Tài chính."
                                         : "Restock request sent. See Analytics → Finance."
                                     );
+                                    loadInventoryReorderRequests().catch(() => setInventoryReorderRequests([]));
                                     setTimeout(() => setInventoryActionMessage(null), 5000);
                                   } else setInventoryCreateError(d?.error ?? "Failed");
                                 }}
