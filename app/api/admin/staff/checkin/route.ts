@@ -13,7 +13,7 @@ import { insertAdminAuditLog, getStaffIdFromAuthId } from "@/lib/auditLog";
  */
 export async function POST(request: NextRequest) {
   const unified = await getUnifiedAdminOrStaffFromRequest(request);
-  if (!unified || (unified.role !== "admin" && unified.role !== "frontdesk"))
+  if (!unified || (unified.role !== "admin" && unified.role !== "frontdesk" && unified.role !== "checkin_operator"))
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let body: { staff_id?: string; qr?: string };
@@ -69,4 +69,28 @@ export async function POST(request: NextRequest) {
       email: staff.email,
     },
   });
+}
+
+/**
+ * GET /api/admin/staff/checkin?limit=10
+ * Returns recent attendance rows for kiosk confirmation feed.
+ */
+export async function GET(request: NextRequest) {
+  const unified = await getUnifiedAdminOrStaffFromRequest(request);
+  if (!unified || (unified.role !== "admin" && unified.role !== "frontdesk" && unified.role !== "checkin_operator")) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rawLimit = Number(request.nextUrl.searchParams.get("limit") ?? "10");
+  const limit = Number.isFinite(rawLimit) ? Math.min(30, Math.max(1, Math.floor(rawLimit))) : 10;
+
+  const supabase = createServerClient();
+  const { data, error } = await supabase
+    .from("staff_attendance")
+    .select("id, date, status, created_at, staff_id, staff_profiles(display_name, email)")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ checkins: data ?? [] });
 }

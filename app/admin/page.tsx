@@ -166,6 +166,8 @@ export default function AdminPage() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [kioskRecentCheckins, setKioskRecentCheckins] = useState<{ id: string; created_at: string; staff_profiles?: { display_name?: string | null; email?: string | null } | { display_name?: string | null; email?: string | null }[] | null }[]>([]);
+  const [kioskRecentLoading, setKioskRecentLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<null | "checkin" | "manual" | "undo" | "extend" | "cancel" | "upgrade" | "payment" | "confirm">(null);
   const [climbingFulfillMv, setClimbingFulfillMv] = useState<number | null>(null);
   const [plans, setPlans] = useState<{ id: string; name: string; duration_days: number; duration_visits?: number | null; price_vnd: number; pass_type?: "newbie" | "day" | "visit"; description?: string | null }[]>([]);
@@ -223,6 +225,7 @@ export default function AdminPage() {
   const [frontDeskTab, setFrontDeskTab] = useState<"checkin" | "member">("checkin");
   const [memberProfileSubTab, setMemberProfileSubTab] = useState<"summary" | "membership" | "sales" | "history" | "refunds" | "incidents">("summary");
   const [managementTab, setManagementTab] = useState<"inventory" | "admin_tools">("inventory");
+  const [adminToolsTab, setAdminToolsTab] = useState<"general" | "emergency_checkin">("general");
   const [staffModalTab, setStaffModalTab] = useState<"overview" | "tasks" | "attendance" | "coaching" | "routes" | "facility">("overview");
   const [operationsTaskPhase, setOperationsTaskPhase] = useState<"pre_open" | "during_hours" | "closing">("pre_open");
   const [staffResetLoading, setStaffResetLoading] = useState(false);
@@ -231,6 +234,11 @@ export default function AdminPage() {
   const [auditLogEntries, setAuditLogEntries] = useState<{ id: string; action_type: string; entity_id: string | null; created_at: string; actor: { display_name: string | null; email: string | null } | null }[] | null>(null);
   const [auditLogLoading, setAuditLogLoading] = useState(false);
   const [auditLogVisible, setAuditLogVisible] = useState(false);
+  const [emergencyCheckinEnabled, setEmergencyCheckinEnabled] = useState(false);
+  const [emergencyCheckinDate, setEmergencyCheckinDate] = useState("");
+  const [emergencyCheckinLoading, setEmergencyCheckinLoading] = useState(false);
+  const [emergencyCheckinMsg, setEmergencyCheckinMsg] = useState<string | null>(null);
+  const [emergencyCheckinErr, setEmergencyCheckinErr] = useState<string | null>(null);
   const [memberAdjustments, setMemberAdjustments] = useState<{ id: string; amount_vnd: number; reason: string; created_at: string }[]>([]);
   const [memberIncidents, setMemberIncidents] = useState<{ id: string; severity: string; title: string; description: string; status: string; created_at: string; resolved_at?: string | null }[]>([]);
   const [memberOpsHistoryLoading, setMemberOpsHistoryLoading] = useState(false);
@@ -567,6 +575,22 @@ export default function AdminPage() {
     if (role === "admin" && memberProfileSubTab === "sales") setMemberProfileSubTab("summary");
     if (adminArea === "management" && !canAccessAdminTools && managementTab !== "inventory") setManagementTab("inventory");
   }, [role, canAccessFrontDeskFull, canAccessFrontDeskLimited, canAccessOperations, canAccessManagement, canAccessAnalytics, adminArea, canDoCheckIn, frontDeskTab, canDoMembershipModify, canCollectMembershipPayment, memberProfileSubTab, canAccessAdminTools, managementTab, meFetched]);
+
+  useEffect(() => {
+    if (!(adminArea === "management" && managementTab === "admin_tools")) return;
+    setEmergencyCheckinLoading(true);
+    setEmergencyCheckinErr(null);
+    adminFetch("/api/admin/gym-operations/settings")
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error((d as { error?: string }).error ?? `Error ${r.status}`);
+        const settings = (d as { settings?: { allow_self_checkin_today?: boolean; allow_self_checkin_date?: string | null } }).settings;
+        setEmergencyCheckinEnabled(Boolean(settings?.allow_self_checkin_today));
+        setEmergencyCheckinDate((settings?.allow_self_checkin_date as string | null) ?? getGymToday());
+      })
+      .catch((e) => setEmergencyCheckinErr(e instanceof Error ? e.message : "Failed to load emergency check-in settings"))
+      .finally(() => setEmergencyCheckinLoading(false));
+  }, [adminArea, managementTab, adminFetch]);
 
   // Don't carry Front Desk toast messages across Check-in ↔ Member (stale "check-in recorded" before search)
   useEffect(() => {
@@ -1098,6 +1122,26 @@ export default function AdminPage() {
     setScannerModalOpen(true);
   }, []);
 
+  const loadKioskRecentCheckins = useCallback(async () => {
+    setKioskRecentLoading(true);
+    try {
+      const res = await adminFetch("/api/admin/staff/checkin?limit=10");
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setKioskRecentCheckins((d as { checkins?: { id: string; created_at: string; staff_profiles?: { display_name?: string | null; email?: string | null } | { display_name?: string | null; email?: string | null }[] | null }[] }).checkins ?? []);
+      } else {
+        setKioskRecentCheckins([]);
+      }
+    } finally {
+      setKioskRecentLoading(false);
+    }
+  }, [adminFetch]);
+
+  useEffect(() => {
+    if (role !== "checkin_operator") return;
+    loadKioskRecentCheckins();
+  }, [role, loadKioskRecentCheckins]);
+
   /** When USB barcode scanner "types" member QR + Enter in the check-in tab input. */
   const handleUsbScanSubmit = useCallback(async () => {
     const raw = usbScanInputValue.trim();
@@ -1162,12 +1206,17 @@ export default function AdminPage() {
           if (res.ok && data?.staff) {
             const name = (data.staff.display_name || data.staff.email) ?? "Staff";
             setActionMessage(m.staffCheckinSuccess.replace("{name}", name));
+            if (role === "checkin_operator") loadKioskRecentCheckins();
           } else {
             setActionError(data?.error || m.staffCheckinFailed);
           }
         } catch {
           setActionError(m.unableToRecordStaffCheckin);
         }
+        return;
+      }
+      if (role === "checkin_operator") {
+        setActionError(locale === "vi" ? "Kiosk chỉ quét QR nhân sự." : "Kiosk accepts staff QR only.");
         return;
       }
       if (scannerIntent === "quick_checkin") {
@@ -1194,7 +1243,7 @@ export default function AdminPage() {
         setSearchError(m.noMemberIdFromQr);
       }
     },
-    [loadMemberById, adminFetch, scannerIntent, m]
+    [loadMemberById, adminFetch, scannerIntent, m, role, locale, loadKioskRecentCheckins]
   );
 
   const canCheckIn = useMemo(
@@ -1706,6 +1755,84 @@ export default function AdminPage() {
   }
   if (!hasAccess) {
     return <AdminLoginForm locale={locale} onLocaleChange={setLocaleAndStore} />;
+  }
+
+  if (role === "checkin_operator") {
+    return (
+      <div className="min-h-screen bg-slate-900 text-slate-50">
+        <header className="border-b border-slate-800 bg-slate-900/95 backdrop-blur">
+          <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+            <h1 className="text-sm font-semibold tracking-[0.18em] uppercase text-emerald-300">
+              {locale === "vi" ? "Kiosk Check-in Nhân Sự" : "Staff Check-in Kiosk"}
+            </h1>
+            <button
+              type="button"
+              onClick={() => signOut()}
+              className="px-3 py-1.5 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-700 text-sm"
+            >
+              {t.logout}
+            </button>
+          </div>
+        </header>
+        <main className="max-w-3xl mx-auto p-4 md:p-6 space-y-4">
+          <section className="rounded-2xl border border-slate-700 bg-slate-800/90 p-4">
+            <p className="text-sm text-slate-300 mb-3">
+              {locale === "vi"
+                ? "Chỉ quét QR nhân sự để ghi nhận check-in vào ca."
+                : "Scan staff QR only to record shift check-in."}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchError(null);
+                setActionError(null);
+                setActionMessage(null);
+                setScannerModalOpen(true);
+              }}
+              className="w-full rounded-xl bg-emerald-600 text-white py-3 text-sm font-semibold hover:bg-emerald-500"
+            >
+              {locale === "vi" ? "Mở máy quét QR" : "Open QR scanner"}
+            </button>
+            {actionMessage && <p className="mt-3 text-sm text-emerald-300">{actionMessage}</p>}
+            {actionError && <p className="mt-3 text-sm text-rose-300">{actionError}</p>}
+          </section>
+          <section className="rounded-2xl border border-slate-700 bg-slate-800/90 p-4">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <h2 className="text-xs font-semibold tracking-[0.12em] uppercase text-slate-300">
+                {locale === "vi" ? "10 check-in gần nhất" : "Recent 10 check-ins"}
+              </h2>
+              <button
+                type="button"
+                onClick={loadKioskRecentCheckins}
+                className="text-xs text-emerald-300 hover:text-emerald-200"
+              >
+                {locale === "vi" ? "Tải lại" : "Refresh"}
+              </button>
+            </div>
+            {kioskRecentLoading ? (
+              <p className="text-sm text-slate-400">{m.loading}</p>
+            ) : kioskRecentCheckins.length === 0 ? (
+              <p className="text-sm text-slate-500">{locale === "vi" ? "Chưa có dữ liệu." : "No check-ins yet."}</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {kioskRecentCheckins.map((row) => {
+                  const p = Array.isArray(row.staff_profiles) ? row.staff_profiles[0] : row.staff_profiles;
+                  const name = p?.display_name || p?.email || row.id.slice(0, 8);
+                  return (
+                    <li key={row.id} className="flex items-center justify-between gap-2 text-sm border-b border-slate-700/70 pb-1 last:border-0">
+                      <span className="text-slate-200">{name}</span>
+                      <span className="text-slate-500 text-xs">
+                        {new Date(row.created_at).toLocaleTimeString(locale === "vi" ? "vi-VN" : "en-US", { hour: "numeric", minute: "2-digit" })}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        </main>
+      </div>
+    );
   }
 
   // Staff and frontdesk: until checked in today, show only the QR check-in module (no tabs, no other content).
@@ -3548,47 +3675,121 @@ export default function AdminPage() {
                 {m.adminTools}
               </h3>
               <p className="text-xs text-slate-400 mb-4">{m.adminToolsSubtitle}</p>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex gap-1 p-1 rounded-xl bg-slate-700/60 border border-slate-600">
                 <button
                   type="button"
-                  disabled={staffResetLoading}
-                  onClick={() => setResetAttendanceWarningOpen(true)}
-                  className="px-4 py-2 rounded-xl border border-amber-500/50 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20 text-sm font-medium disabled:opacity-50"
+                  onClick={() => setAdminToolsTab("general")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium ${adminToolsTab === "general" ? "bg-slate-900 text-white" : "text-slate-300 hover:bg-slate-600"}`}
                 >
-                  {staffResetLoading ? "…" : m.toolResetAttendance}
+                  {locale === "vi" ? "Công cụ chung" : "General tools"}
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!auditLogVisible) {
-                      setAuditLogVisible(true);
-                      if (auditLogEntries === null) {
-                        setAuditLogLoading(true);
-                        adminFetch("/api/admin/audit-log?limit=80")
-                          .then((r) => r.json())
-                          .then((data) => { setAuditLogEntries(data.entries ?? []); })
-                          .catch(() => setAuditLogEntries([]))
-                          .finally(() => setAuditLogLoading(false));
-                      }
-                    } else setAuditLogVisible(false);
-                  }}
-                  className="px-4 py-2 rounded-xl border border-slate-500 bg-slate-700/80 text-slate-200 hover:bg-slate-600 text-sm font-medium"
+                  onClick={() => setAdminToolsTab("emergency_checkin")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium ${adminToolsTab === "emergency_checkin" ? "bg-amber-700 text-white" : "text-amber-200 hover:bg-amber-700/50"}`}
                 >
-                  {auditLogVisible ? m.auditLogHide : m.toolViewAuditLog}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.open(`/${locale}/countdown`, "_blank")}
-                  className="px-4 py-2 rounded-xl border border-slate-500 bg-slate-700/80 text-slate-200 hover:bg-slate-600 text-sm font-medium"
-                >
-                  {m.toolOpenCountdown}
+                  {locale === "vi" ? "Emergency Check-in" : "Emergency Check-in"}
                 </button>
               </div>
+              {adminToolsTab === "general" && (
+                <div className="flex flex-wrap gap-3 mt-4">
+                  <button
+                    type="button"
+                    disabled={staffResetLoading}
+                    onClick={() => setResetAttendanceWarningOpen(true)}
+                    className="px-4 py-2 rounded-xl border border-amber-500/50 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20 text-sm font-medium disabled:opacity-50"
+                  >
+                    {staffResetLoading ? "…" : m.toolResetAttendance}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!auditLogVisible) {
+                        setAuditLogVisible(true);
+                        if (auditLogEntries === null) {
+                          setAuditLogLoading(true);
+                          adminFetch("/api/admin/audit-log?limit=80")
+                            .then((r) => r.json())
+                            .then((data) => { setAuditLogEntries(data.entries ?? []); })
+                            .catch(() => setAuditLogEntries([]))
+                            .finally(() => setAuditLogLoading(false));
+                        }
+                      } else setAuditLogVisible(false);
+                    }}
+                    className="px-4 py-2 rounded-xl border border-slate-500 bg-slate-700/80 text-slate-200 hover:bg-slate-600 text-sm font-medium"
+                  >
+                    {auditLogVisible ? m.auditLogHide : m.toolViewAuditLog}
+                  </button>
+                </div>
+              )}
+              {adminToolsTab === "emergency_checkin" && (
+                <div className="mt-4 rounded-xl border border-amber-500/50 bg-amber-500/10 p-4 space-y-3">
+                  <p className="text-sm font-semibold text-amber-200">
+                    {locale === "vi" ? "⚠ Chỉ dùng khi quét QR gặp sự cố" : "⚠ Use only when QR check-in fails"}
+                  </p>
+                  <p className="text-xs text-slate-300">
+                    {locale === "vi"
+                      ? "Bật chế độ này sẽ cho phép staff/frontdesk tự check-in trong ngày đã chọn."
+                      : "When enabled, staff/frontdesk can self check-in for the selected date."}
+                  </p>
+                  {emergencyCheckinErr && <p className="text-xs text-rose-300">{emergencyCheckinErr}</p>}
+                  {emergencyCheckinMsg && <p className="text-xs text-emerald-300">{emergencyCheckinMsg}</p>}
+                  <label className="inline-flex items-center gap-2 text-sm text-slate-100">
+                    <input
+                      type="checkbox"
+                      checked={emergencyCheckinEnabled}
+                      onChange={(e) => setEmergencyCheckinEnabled(e.target.checked)}
+                      disabled={emergencyCheckinLoading}
+                    />
+                    {locale === "vi" ? "Cho phép tự check-in khẩn cấp" : "Allow emergency self check-in"}
+                  </label>
+                  <label className="block text-xs text-slate-300">
+                    {locale === "vi" ? "Ngày áp dụng" : "Effective date"}
+                    <input
+                      type="date"
+                      value={emergencyCheckinDate}
+                      onChange={(e) => setEmergencyCheckinDate(e.target.value)}
+                      disabled={emergencyCheckinLoading || !emergencyCheckinEnabled}
+                      className="mt-1 block w-full max-w-xs px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-600 text-white disabled:opacity-50"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={emergencyCheckinLoading || (emergencyCheckinEnabled && !emergencyCheckinDate)}
+                    onClick={async () => {
+                      if (emergencyCheckinEnabled && !window.confirm(locale === "vi" ? "Bật Emergency Check-in cho ngày này?" : "Enable Emergency Check-in for this date?")) return;
+                      setEmergencyCheckinLoading(true);
+                      setEmergencyCheckinErr(null);
+                      setEmergencyCheckinMsg(null);
+                      try {
+                        const res = await adminFetch("/api/admin/gym-operations/settings", {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            allow_self_checkin_today: emergencyCheckinEnabled,
+                            allow_self_checkin_date: emergencyCheckinEnabled ? emergencyCheckinDate : null,
+                          }),
+                        });
+                        const d = await res.json().catch(() => ({}));
+                        if (!res.ok) throw new Error((d as { error?: string }).error ?? `Error ${res.status}`);
+                        setEmergencyCheckinMsg(locale === "vi" ? "Đã lưu Emergency Check-in." : "Emergency Check-in saved.");
+                      } catch (e) {
+                        setEmergencyCheckinErr(e instanceof Error ? e.message : "Failed to save emergency check-in");
+                      } finally {
+                        setEmergencyCheckinLoading(false);
+                      }
+                    }}
+                    className="px-4 py-2 rounded-xl border border-amber-400/60 bg-amber-500/20 text-amber-100 hover:bg-amber-500/30 text-sm font-medium disabled:opacity-50"
+                  >
+                    {emergencyCheckinLoading ? "…" : (locale === "vi" ? "Lưu Emergency Check-in" : "Save Emergency Check-in")}
+                  </button>
+                </div>
+              )}
             </div>
 
-            <GymOperationsHub adminFetch={adminFetch} locale={locale} />
+            {adminToolsTab === "general" && <GymOperationsHub adminFetch={adminFetch} locale={locale} />}
 
-            {auditLogVisible && (
+            {adminToolsTab === "general" && auditLogVisible && (
               <div className="rounded-2xl bg-slate-800/90 border border-slate-700 p-4 md:p-5">
                 <h4 className="text-xs font-semibold text-slate-300 uppercase mb-3">{m.auditLogTitle}</h4>
                 {auditLogLoading ? (

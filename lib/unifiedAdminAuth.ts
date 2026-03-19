@@ -8,14 +8,14 @@ import { createClient } from "@supabase/supabase-js";
 import type { User } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { isAdminEmail, isFrontdeskEmail } from "@/lib/adminAuth";
+import { isAdminEmail, isFrontdeskEmail, isCheckinOperatorEmail } from "@/lib/adminAuth";
 import { isRouteSetterEmail } from "@/lib/routeSetterAuth";
 
 /** UI role: admin (full), frontdesk (front desk only), staff (operations + limited front desk) */
-export type UnifiedRole = "admin" | "frontdesk" | "staff";
+export type UnifiedRole = "admin" | "frontdesk" | "staff" | "checkin_operator";
 
 /** DB role in staff_profiles */
-export type StaffProfileRole = "admin" | "frontdesk" | "route_setter" | "coach";
+export type StaffProfileRole = "admin" | "frontdesk" | "route_setter" | "coach" | "checkin_operator";
 
 export interface StaffProfileRow {
   id: string;
@@ -43,6 +43,8 @@ function mapToUnifiedRole(dbRole: string): UnifiedRole {
       return "admin";
     case "frontdesk":
       return "frontdesk";
+    case "checkin_operator":
+      return "checkin_operator";
     case "route_setter":
     case "coach":
     default:
@@ -151,6 +153,29 @@ export async function getUnifiedAdminOrStaffFromRequest(
     }
   }
 
+  // 5) If no row but is check-in operator email → create with role checkin_operator.
+  if (!row && isCheckinOperatorEmail(user.email)) {
+    const { data: inserted, error: insertErr } = await supabase
+      .from("staff_profiles")
+      .insert({
+        auth_id: user.id,
+        email,
+        role: "checkin_operator",
+        display_name: "Check-in Operator",
+      })
+      .select("id, auth_id, email, role, display_name")
+      .single();
+    if (!insertErr && inserted) {
+      const newRow = inserted as StaffProfileRow;
+      return {
+        user,
+        role: "checkin_operator",
+        staffId: newRow.id,
+        staffProfile: newRow,
+      };
+    }
+  }
+
   if (!row) return null;
 
   return {
@@ -215,5 +240,5 @@ export function canAccessAnalytics(role: UnifiedRole): boolean {
 }
 
 export function canDoCheckIn(role: UnifiedRole): boolean {
-  return role === "admin" || role === "frontdesk";
+  return role === "admin" || role === "frontdesk" || role === "checkin_operator";
 }

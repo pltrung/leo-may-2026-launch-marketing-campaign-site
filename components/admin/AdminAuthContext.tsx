@@ -85,7 +85,7 @@ function perm(role: UnifiedRole | null) {
     canCollectMembershipPayment: role === "admin" || role === "frontdesk" || role === "staff",
     canDoPaymentConfirm: role === "admin" || role === "frontdesk",
     canAccessRevenue: role === "admin",
-    canDoCheckIn: role === "admin" || role === "frontdesk",
+    canDoCheckIn: role === "admin" || role === "frontdesk" || role === "checkin_operator",
     canAccessInventory: role === "admin" || role === "frontdesk",
     canAccessAdminTools: role === "admin",
     canAccessAnalytics: role === "admin",
@@ -212,7 +212,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   }, [session?.access_token, adminFetch]);
 
   const isAdmin = role === "admin";
-  const hasAccess = role === "admin" || role === "frontdesk" || role === "staff";
+  const hasAccess = role === "admin" || role === "frontdesk" || role === "staff" || role === "checkin_operator";
 
   const signIn = useCallback(async (email: string, password: string) => {
     const supabase = getSupabaseBrowserClient();

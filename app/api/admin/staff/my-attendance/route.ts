@@ -11,6 +11,9 @@ import { fetchGymOperationalSettings } from "@/lib/gymOperationalSettings";
 export async function GET(request: NextRequest) {
   const unified = await getUnifiedAdminOrStaffFromRequest(request);
   if (!unified) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (unified.role === "checkin_operator") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const supabase = createServerClient();
   let staffId = unified.staffId;
@@ -45,6 +48,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const unified = await getUnifiedAdminOrStaffFromRequest(request);
   if (!unified) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (unified.role === "checkin_operator") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   let body: { status?: string };
   try {
