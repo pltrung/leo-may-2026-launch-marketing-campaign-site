@@ -263,6 +263,7 @@ export default function AdminPage() {
   const [posCreditToApply, setPosCreditToApply] = useState(0);
   const [posSkuInput, setPosSkuInput] = useState("");
   const [posBarcodeScannerOpen, setPosBarcodeScannerOpen] = useState(false);
+  const [posSkuPickerOpen, setPosSkuPickerOpen] = useState(false);
   const [posLookupResult, setPosLookupResult] = useState<{ found: boolean; product?: { name: string; image?: string | null }; variant?: { id: string; sku: string; price: number; size?: string | null }; stock_quantity?: number } | null>(null);
   const [posCheckoutLoading, setPosCheckoutLoading] = useState(false);
   const [posPaymentModalOpen, setPosPaymentModalOpen] = useState(false);
@@ -3155,7 +3156,11 @@ export default function AdminPage() {
                       type="button"
                       onClick={() => {
                         const val = posSkuInput.trim();
-                        if (!val) return;
+                        if (!val) {
+                          setPosSkuPickerOpen(true);
+                          return;
+                        }
+                        setPosSkuPickerOpen(false);
                         doPosLookup(val).then(() => setPosAddQty(1));
                       }}
                       className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-white hover:bg-slate-700"
@@ -3163,6 +3168,50 @@ export default function AdminPage() {
                       {locale === "vi" ? "Tìm / Thêm" : "Lookup / Add"}
                     </button>
                   </div>
+                  {posSkuPickerOpen && (
+                    <div className="rounded-lg border border-slate-200 bg-white p-3 max-h-64 overflow-y-auto">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                          {locale === "vi" ? "Chọn SKU" : "Select SKU"}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setPosSkuPickerOpen(false)}
+                          className="text-xs text-slate-500 hover:text-slate-700"
+                        >
+                          {locale === "vi" ? "Đóng" : "Close"}
+                        </button>
+                      </div>
+                      {products.length === 0 ? (
+                        <p className="text-xs text-slate-500">{locale === "vi" ? "Chưa có SKU nào." : "No SKUs found."}</p>
+                      ) : (
+                        <ul className="space-y-1">
+                          {products.flatMap((p) =>
+                            (p.variants ?? []).map((v) => (
+                              <li key={`${p.id}-${v.id}`}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPosSkuInput(v.sku);
+                                    setPosSkuPickerOpen(false);
+                                    doPosLookup(v.sku).then(() => setPosAddQty(1));
+                                  }}
+                                  className="w-full text-left px-2 py-1.5 rounded hover:bg-slate-100"
+                                >
+                                  <div className="text-sm text-slate-900 font-medium">{v.sku}</div>
+                                  <div className="text-xs text-slate-600">
+                                    {p.name}
+                                    {v.size ? ` · ${v.size}` : ""}
+                                    {typeof v.price === "number" ? ` · ${v.price.toLocaleString("vi-VN")} VND` : ""}
+                                  </div>
+                                </button>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      )}
+                    </div>
+                  )}
                   {posLookupResult && (
                     <div className={`rounded-lg border p-3 text-sm ${posLookupResult.found ? "border-emerald-200 bg-emerald-50/80" : "border-amber-200 bg-amber-50/80"}`}>
                       {posLookupResult.found && posLookupResult.product && posLookupResult.variant ? (
