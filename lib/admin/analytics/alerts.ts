@@ -10,7 +10,7 @@ export type AnalyticsAlert = {
   detailEn: string;
   detailVi: string;
   /** Tab key to open in analytics */
-  navigateTab?: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing";
+  navigateTab?: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance";
 };
 
 type MemberHealth = { at_risk?: number; inactive?: number; expiring_soon?: number };
@@ -95,9 +95,9 @@ export function buildAnalyticsAlerts(
       severity: "warning",
       titleEn: "Payroll not marked paid",
       titleVi: "Chưa đánh dấu đã trả lương",
-      detailEn: "Mark payroll paid in Operations or Admin Tools.",
-      detailVi: "Đánh dấu đã trả lương trong Vận hành hoặc Công cụ.",
-      navigateTab: "overview",
+      detailEn: "Complete payroll in Finance tab when paid.",
+      detailVi: "Hoàn tất ở tab Tài chính khi đã trả.",
+      navigateTab: "finance",
     });
   }
 

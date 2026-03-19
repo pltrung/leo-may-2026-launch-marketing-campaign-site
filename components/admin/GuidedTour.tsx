@@ -9,7 +9,7 @@ export interface TourStepNavigate {
   managementTab?: "inventory" | "admin_tools";
   staffSubTab?: "routes" | "coaching";
   operationsTab?: "overview" | "tasks" | "attendance" | "coaching" | "routes";
-  analyticsTab?: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing";
+  analyticsTab?: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance";
   /** Dashboard member app: switch tab so target is visible. */
   dashboardTab?: "membership" | "activity" | "redeem" | "events" | "leaderboard";
 }
@@ -259,6 +259,7 @@ export const TOUR_STEPS_ADMIN: TourStep[] = [
   { id: "analytics-engagement", target: "[data-tour=analytics-tab-engagement]", titleEn: "Engagement", titleVi: "Tương tác", contentEn: "Retention cohorts, visit patterns (WAU/MAU, daily visits, peak hours), and conversion funnel together.", contentVi: "Giữ chân theo nhóm, mẫu đến (WAU/MAU, lượt theo ngày, giờ cao điểm) và phễu chuyển đổi.", navigate: { area: "analytics", analyticsTab: "engagement" } },
   { id: "analytics-ops-team", target: "[data-tour=analytics-tab-ops_team]", titleEn: "Ops & team", titleVi: "VH & đội ngũ", contentEn: "Tasks and coaching metrics, staff POS performance, then staff training (onboarding) if you have admin access.", contentVi: "Nhiệm vụ và coaching, hiệu suất POS nhân sự, sau đó đào tạo (onboarding) nếu có quyền admin.", navigate: { area: "analytics", analyticsTab: "ops_team" } },
   { id: "analytics-marketing", target: "[data-tour=analytics-tab-marketing]", titleEn: "Marketing", titleVi: "Marketing", contentEn: "Send email campaigns to segments and view recent sends.", contentVi: "Gửi chiến dịch email theo phân khúc và xem lần gửi gần đây.", navigate: { area: "analytics", analyticsTab: "marketing" } },
+  { id: "analytics-finance", target: "[data-tour=analytics-tab-finance]", titleEn: "Finance", titleVi: "Tài chính", contentEn: "This month P&amp;L, payroll, expenses, runway. Cash in bank, obligations, and restock requests.", contentVi: "P&amp;L tháng này, lương, chi phí, đường băng. Quỹ tiền mặt, nghĩa vụ và yêu cầu nhập hàng.", navigate: { area: "analytics", analyticsTab: "finance" } },
 ];
 
 /** Member dashboard first-time: waiver → profile (photo + govt ID) → visits (buy pass OR redeem LMG- friend code). */

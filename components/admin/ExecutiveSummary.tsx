@@ -56,7 +56,7 @@ export default function ExecutiveSummary({
   locale: string;
   horizon?: TimeHorizon;
   adminFetch?: AdminFetch;
-  onOpenTab?: (tab: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing") => void;
+  onOpenTab?: (tab: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance") => void;
   onAlertsCount?: (n: number) => void;
 }) {
   const isVi = locale === "vi";
@@ -159,7 +159,7 @@ export default function ExecutiveSummary({
     actionQueue.push({
       en: `Approve / mark payroll paid (${formatVnd(finance?.payroll_total ?? 0)} est.)`,
       vi: `Duyệt / đánh dấu đã trả lương (${formatVnd(finance?.payroll_total ?? 0)} ước tính)`,
-      tab: "overview",
+      tab: "finance",
     });
   }
   if ((mh.expiring_soon ?? 0) > 0) {

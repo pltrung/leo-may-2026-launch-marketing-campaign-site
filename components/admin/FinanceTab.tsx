@@ -11,7 +11,6 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import ForecastPanel from "@/components/admin/ForecastPanel";
 import { formatRunway } from "@/lib/admin/analytics/metricCalculators";
 import { formatVnd, formatVndAxis } from "@/lib/formatVndCompact";
 import { getHorizonSuffix } from "@/lib/admin/analytics/periodUtils";
@@ -123,7 +122,6 @@ export default function FinanceTab({
     hourly_rate: string;
   } | null>(null);
   const [snapNote, setSnapNote] = useState("");
-  const [financeView, setFinanceView] = useState<"books" | "forecast">("books");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -322,42 +320,17 @@ export default function FinanceTab({
 
   return (
     <div className="space-y-6 text-slate-900">
-      <nav className="flex flex-wrap gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200" aria-label="Finance sections">
-        <button
-          type="button"
-          onClick={() => setFinanceView("books")}
-          className={`flex-1 min-w-[140px] px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            financeView === "books" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-white/80"
-          }`}
-        >
-          {t("This month", "Tháng này")}
-        </button>
-        <button
-          type="button"
-          onClick={() => setFinanceView("forecast")}
-          className={`flex-1 min-w-[140px] px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            financeView === "forecast" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-white/80"
-          }`}
-        >
-          {t("Forecast", "Dự báo")}
-        </button>
-      </nav>
-
-      {financeView === "forecast" && (
-        <ForecastPanel adminFetch={adminFetch} locale={locale} />
-      )}
-
-      {financeView === "books" && loading && !data && (
+      {loading && !data && (
         <p className="text-slate-500 text-sm">{t("Loading…", "Đang tải…")}</p>
       )}
-      {financeView === "books" && err && !data && (
+      {err && !data && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800 text-sm">
           {err}
           <p className="mt-2 text-xs">{t("Apply migration 055 if tables are missing.", "Chạy migration 055 nếu thiếu bảng.")}</p>
         </div>
       )}
 
-      {financeView === "books" && data && (
+      {data && (
         <>
       {err && <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">{err}</p>}
 

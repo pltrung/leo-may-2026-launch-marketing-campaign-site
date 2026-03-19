@@ -23,6 +23,7 @@ const AnalyticsCharts = dynamic(() => import("@/components/admin/AnalyticsCharts
 import { GuidedTour, TOUR_STEPS_FRONTDESK, TOUR_STEPS_STAFF, TOUR_STEPS_ADMIN, ADMIN_TOUR_STEP_IDS_ADMIN_TOOLS } from "@/components/admin/GuidedTour";
 import OnboardingAnalyticsTable from "@/components/admin/OnboardingAnalyticsTable";
 
+const FinanceTab = dynamic(() => import("@/components/admin/FinanceTab"), { ssr: false });
 const GymOperationsHub = dynamic(() => import("@/components/admin/gymOps/GymOperationsHub"), { ssr: false });
 const FacilityOperationsPanel = dynamic(() => import("@/components/admin/gymOps/FacilityOperationsPanel"), { ssr: false });
 const FrontDeskOpsExtras = dynamic(() => import("@/components/admin/gymOps/FrontDeskOpsExtras"), { ssr: false });
@@ -324,7 +325,7 @@ export default function AdminPage() {
   const [staffQrToken, setStaffQrToken] = useState<string | null>(null);
   const [staffCheckInSuccess, setStaffCheckInSuccess] = useState(false);
   const [analyticsTab, setAnalyticsTab] = useState<
-    "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing"
+    "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance"
   >("overview");
   const [analyticsPeriod, setAnalyticsPeriod] = useState<"day" | "week" | "month" | "quarter" | "custom">("month");
   const [analyticsTimeHorizon, setAnalyticsTimeHorizon] = useState<"wtd" | "mtd" | "qtd" | "ytd">("mtd");
@@ -448,7 +449,7 @@ export default function AdminPage() {
     summary: { staff_in_today: number; staff_out_today: number; staff_total?: number; sessions_today: number; newbie_attendance_today?: number; zones_overdue: number; zones_route_reset_today?: number; tasks_pending: number; tasks_completed?: number; tasks_overdue?: number; tasks_total?: number; pre_open_completed?: number; pre_open_total?: number; closing_overdue?: number; unassigned_sessions?: number; staff_required?: number };
   } | null>(null);
 
-  const handleTourNavigate = useCallback((step: { navigate?: { area?: "front_desk" | "operations" | "management" | "staff" | "analytics"; frontDeskTab?: "checkin" | "member"; managementTab?: "inventory" | "admin_tools"; staffSubTab?: "routes" | "coaching"; operationsTab?: "overview" | "tasks" | "attendance" | "coaching" | "routes"; analyticsTab?: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" } }) => {
+  const handleTourNavigate = useCallback((step: { navigate?: { area?: "front_desk" | "operations" | "management" | "staff" | "analytics"; frontDeskTab?: "checkin" | "member"; managementTab?: "inventory" | "admin_tools"; staffSubTab?: "routes" | "coaching"; operationsTab?: "overview" | "tasks" | "attendance" | "coaching" | "routes"; analyticsTab?: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance" } }) => {
     if (!step?.navigate) return;
     const n = step.navigate;
     if (n.area) setAdminArea(n.area);
@@ -458,7 +459,7 @@ export default function AdminPage() {
     if (n.operationsTab) setStaffModalTab(n.operationsTab);
     if (n.analyticsTab)
       setAnalyticsTab(
-        n.analyticsTab as "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing"
+        n.analyticsTab as "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance"
       );
   }, []);
 
@@ -3797,8 +3798,8 @@ export default function AdminPage() {
                                   if (res.ok && d.ok) {
                                     setInventoryActionMessage(
                                       locale === "vi"
-                                        ? "Đã gửi yêu cầu nhập hàng. Xem Quản lý → Kho."
-                                        : "Restock request sent. See Management → Inventory."
+                                        ? "Đã gửi yêu cầu nhập hàng. Xem Phân tích → Tài chính."
+                                        : "Restock request sent. See Analytics → Finance."
                                     );
                                     loadInventoryReorderRequests().catch(() => setInventoryReorderRequests([]));
                                     setTimeout(() => setInventoryActionMessage(null), 5000);
@@ -5095,7 +5096,7 @@ export default function AdminPage() {
               <h2 className="text-lg font-semibold text-slate-900">{locale === "vi" ? "Phân tích & Báo cáo" : "Analytics & Reporting"}</h2>
               <p className="text-sm text-slate-600 mt-1">{locale === "vi" ? "Tab đầu là tóm tắt điều hành; các tab sau chi tiết từng mảng (doanh thu, thành viên, email, v.v.)." : "First tab is the executive summary; other tabs drill into each area (revenue, members, email, etc.)."}</p>
 
-              {/* Global filters — time horizon applies to all analytics tabs */}
+              {/* Global filters — time horizon applies to all tabs including Finance */}
               <div className="mt-4 flex flex-wrap gap-3 items-center rounded-xl border border-slate-200 bg-slate-50 p-3" data-tour="analytics-filters">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{locale === "vi" ? "Bộ lọc" : "Filters"}</span>
                 <select
@@ -5161,7 +5162,7 @@ export default function AdminPage() {
 
               {/* Analytics sub-tabs */}
               <nav className="mt-4 flex gap-1 p-1 border-b border-slate-200 overflow-x-auto" aria-label="Analytics tabs">
-                {(["overview", "revenue_members", "engagement", "ops_team", "marketing"] as const).map((t) => (
+                {(["overview", "revenue_members", "engagement", "ops_team", "marketing", "finance"] as const).map((t) => (
                   <button
                     key={t}
                     type="button"
@@ -5176,6 +5177,7 @@ export default function AdminPage() {
                     {t === "engagement" ? (locale === "vi" ? "Tương tác" : "Engagement") : null}
                     {t === "ops_team" ? (locale === "vi" ? "VH & đội ngũ" : "Ops & team") : null}
                     {t === "marketing" ? (locale === "vi" ? "Marketing" : "Marketing") : null}
+                    {t === "finance" ? (locale === "vi" ? "Tài chính" : "Finance") : null}
                   </button>
                 ))}
               </nav>
@@ -5185,7 +5187,9 @@ export default function AdminPage() {
                   <span className="font-semibold text-slate-500 uppercase tracking-wide mr-1">
                     {locale === "vi" ? "Cập nhật" : "Last refreshed"}:
                   </span>
-                  {analyticsFetchedAt
+                  {analyticsTab === "finance"
+                    ? "—"
+                    : analyticsFetchedAt
                       ? new Date(analyticsFetchedAt).toLocaleString(locale === "vi" ? "vi-VN" : "en-US", {
                           dateStyle: "short",
                           timeStyle: "short",
@@ -5216,6 +5220,7 @@ export default function AdminPage() {
                 >
                   {locale === "vi" ? "Cơ sở: hỗn hợp" : "Basis: mixed"}
                 </span>
+                {analyticsTab !== "finance" && (
                 <span>
                   <span className="font-semibold text-slate-500 uppercase tracking-wide mr-1">
                     {locale === "vi" ? "Cảnh báo mở" : "Open alerts"}:
@@ -5223,9 +5228,13 @@ export default function AdminPage() {
                   {analyticsTab === "overview" ? executiveAlertsCount : "—"}
                   <span className="text-slate-400 ml-1">({locale === "vi" ? "tab Điều hành" : "Executive tab"})</span>
                 </span>
+                )}
               </div>
 
               <div className="mt-6 min-w-0 max-w-full">
+                {analyticsTab === "finance" ? (
+                  <FinanceTab adminFetch={adminFetch} locale={locale} horizon={analyticsTimeHorizon} />
+                ) : (
                 <AnalyticsCharts
                     data={analyticsData}
                     tab={analyticsTab}
@@ -5253,6 +5262,7 @@ export default function AdminPage() {
                       ) : undefined
                     }
                   />
+                )}
               </div>
             </section>
           )}
