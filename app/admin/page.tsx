@@ -3680,9 +3680,18 @@ export default function AdminPage() {
                     };
                     return (
                       <>
-                        <div className="rounded-lg border border-slate-200 overflow-hidden">
-                          <table className="w-full text-sm">
-                            <thead><tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase"><th className="px-3 py-2">{locale === "vi" ? "Công việc" : "Task Name"}</th><th className="px-3 py-2">{m.phaseColumn}</th><th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th><th className="px-3 py-2">{m.completedBy}</th><th className="px-3 py-2">{m.completionTime}</th><th className="px-3 py-2">{locale === "vi" ? "Thao tác" : "Action"}</th></tr></thead>
+                        <div className="rounded-lg border border-slate-200 overflow-x-auto">
+                          <table className="min-w-[720px] w-full text-sm">
+                            <thead>
+                              <tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase">
+                                <th className="px-3 py-2">{locale === "vi" ? "Công việc" : "Task Name"}</th>
+                                <th className="px-3 py-2">{m.phaseColumn}</th>
+                                <th className="px-3 py-2">{locale === "vi" ? "Trạng thái" : "Status"}</th>
+                                <th className="px-3 py-2">{m.completedBy}</th>
+                                <th className="px-3 py-2">{m.completionTime}</th>
+                                <th className="px-3 py-2 whitespace-nowrap">{locale === "vi" ? "Thao tác" : "Action"}</th>
+                              </tr>
+                            </thead>
                             <tbody>
                               {allByPhase.flatMap(({ phaseLabel, tasks: phaseTasks }) =>
                                 phaseTasks.map((t) => {
@@ -3698,7 +3707,7 @@ export default function AdminPage() {
                                       <td className={`px-3 py-2 font-medium ${statusColor}`}>{statusText}</td>
                                       <td className="px-3 py-2 text-slate-600">{name ?? "—"}</td>
                                       <td className="px-3 py-2 text-slate-600">{t.completed_at ? formatInGymTZ(t.completed_at, { hour: "numeric", minute: "2-digit" }) : "—"}</td>
-                                      <td className="px-3 py-2">
+                                      <td className="px-3 py-2 whitespace-nowrap">
                                         {t.status !== "completed" && (
                                           <button
                                             type="button"
