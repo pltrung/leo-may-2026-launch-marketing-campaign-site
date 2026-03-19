@@ -4,6 +4,7 @@
  */
 
 export type CampaignSegmentId =
+  | "expiring_soon_7d"
   | "inactive_members_30d"
   | "visit_pass_users"
   | "highly_active_users"
@@ -54,6 +55,22 @@ export interface CampaignSegmentDefinition {
 }
 
 export const CAMPAIGN_SEGMENTS: CampaignSegmentDefinition[] = [
+  {
+    id: "expiring_soon_7d",
+    nameEn: "Expiring within 7 days",
+    nameVi: "Hết hạn trong 7 ngày",
+    descriptionEn: "Memberships expiring within the next 7 days",
+    descriptionVi: "Gói hết hạn trong 7 ngày tới",
+    ctaEn: "Send Renewal Reminder",
+    ctaVi: "Gửi nhắc gia hạn",
+    subject: "Your Leo Mây membership expires soon — renew to keep climbing",
+    body: `Hey [Name],
+
+Your membership is expiring soon. Don't lose access — renew now and keep your climbing momentum going.
+
+See you on the wall,
+Leo Mây Team`,
+  },
   {
     id: "inactive_members_30d",
     nameEn: "Inactive members (30+ days)",
@@ -239,6 +256,12 @@ export type CampaignSegmentReward = {
 };
 
 export const CAMPAIGN_SEGMENT_REWARDS: Record<CampaignSegmentId, CampaignSegmentReward> = {
+  expiring_soon_7d: {
+    type: "visits",
+    amount: 1,
+    labelEn: "1 free visit (renewal incentive)",
+    labelVi: "1 lượt miễn phí (ưu đãi gia hạn)",
+  },
   inactive_members_30d: {
     type: "visits",
     amount: 2,

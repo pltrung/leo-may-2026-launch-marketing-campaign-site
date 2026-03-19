@@ -20,7 +20,6 @@ const BarcodeScannerModal = dynamic(() => import("@/components/admin/BarcodeScan
 const QRCodeSVG = dynamic(() => import("qrcode.react").then((m) => m.QRCodeSVG), { ssr: false });
 const EidQrScannerModal = dynamic(() => import("@/components/dashboard/EidQrScannerModal"), { ssr: false });
 const AnalyticsCharts = dynamic(() => import("@/components/admin/AnalyticsCharts"), { ssr: false });
-const FinanceTab = dynamic(() => import("@/components/admin/FinanceTab"), { ssr: false });
 import { GuidedTour, TOUR_STEPS_FRONTDESK, TOUR_STEPS_STAFF, TOUR_STEPS_ADMIN, ADMIN_TOUR_STEP_IDS_ADMIN_TOOLS } from "@/components/admin/GuidedTour";
 import OnboardingAnalyticsTable from "@/components/admin/OnboardingAnalyticsTable";
 
@@ -325,7 +324,7 @@ export default function AdminPage() {
   const [staffQrToken, setStaffQrToken] = useState<string | null>(null);
   const [staffCheckInSuccess, setStaffCheckInSuccess] = useState(false);
   const [analyticsTab, setAnalyticsTab] = useState<
-    "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance"
+    "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing"
   >("overview");
   const [analyticsPeriod, setAnalyticsPeriod] = useState<"day" | "week" | "month" | "quarter" | "custom">("month");
   const [analyticsTimeHorizon, setAnalyticsTimeHorizon] = useState<"wtd" | "mtd" | "qtd" | "ytd">("mtd");
@@ -389,6 +388,7 @@ export default function AdminPage() {
   const [guidedTourActive, setGuidedTourActive] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [opsOverviewExpanded, setOpsOverviewExpanded] = useState(false);
+  const [analyticsAlertsCount, setAnalyticsAlertsCount] = useState<number | null>(null);
   const [frontdeskBannerData, setFrontdeskBannerData] = useState<{ gym_ready: boolean; checkins_today: number; inventory_need_restock: number } | null>(null);
   const [staffSubTab, setStaffSubTab] = useState<"routes" | "coaching">("routes");
   const [staffAttendanceLoading, setStaffAttendanceLoading] = useState(false);
@@ -448,7 +448,7 @@ export default function AdminPage() {
     summary: { staff_in_today: number; staff_out_today: number; staff_total?: number; sessions_today: number; newbie_attendance_today?: number; zones_overdue: number; zones_route_reset_today?: number; tasks_pending: number; tasks_completed?: number; tasks_overdue?: number; tasks_total?: number; pre_open_completed?: number; pre_open_total?: number; closing_overdue?: number; unassigned_sessions?: number; staff_required?: number };
   } | null>(null);
 
-  const handleTourNavigate = useCallback((step: { navigate?: { area?: "front_desk" | "operations" | "management" | "staff" | "analytics"; frontDeskTab?: "checkin" | "member"; managementTab?: "inventory" | "admin_tools"; staffSubTab?: "routes" | "coaching"; operationsTab?: "overview" | "tasks" | "attendance" | "coaching" | "routes"; analyticsTab?: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance" } }) => {
+  const handleTourNavigate = useCallback((step: { navigate?: { area?: "front_desk" | "operations" | "management" | "staff" | "analytics"; frontDeskTab?: "checkin" | "member"; managementTab?: "inventory" | "admin_tools"; staffSubTab?: "routes" | "coaching"; operationsTab?: "overview" | "tasks" | "attendance" | "coaching" | "routes"; analyticsTab?: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" } }) => {
     if (!step?.navigate) return;
     const n = step.navigate;
     if (n.area) setAdminArea(n.area);
@@ -458,7 +458,7 @@ export default function AdminPage() {
     if (n.operationsTab) setStaffModalTab(n.operationsTab);
     if (n.analyticsTab)
       setAnalyticsTab(
-        n.analyticsTab as "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance"
+        n.analyticsTab as "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing"
       );
   }, []);
 
@@ -747,6 +747,25 @@ export default function AdminPage() {
     }, 60000);
     return () => clearInterval(id);
   }, [role, adminFetch]);
+
+  // Fetch analytics alerts count for Operations bar "open alerts" box (admin with analytics access)
+  useEffect(() => {
+    if (role !== "admin" || !canAccessAnalytics) {
+      setAnalyticsAlertsCount(null);
+      return;
+    }
+    adminFetch("/api/admin/alerts-count")
+      .then((r) => r.json())
+      .then((d) => setAnalyticsAlertsCount(typeof d.count === "number" ? d.count : 0))
+      .catch(() => setAnalyticsAlertsCount(0));
+    const id = setInterval(() => {
+      adminFetch("/api/admin/alerts-count")
+        .then((r) => r.json())
+        .then((d) => setAnalyticsAlertsCount(typeof d.count === "number" ? d.count : 0))
+        .catch(() => {});
+    }, 60000);
+    return () => clearInterval(id);
+  }, [role, canAccessAnalytics, adminFetch]);
 
   // Refresh operations overview for admin every 60s so top bar stays current
   useEffect(() => {
@@ -2156,22 +2175,22 @@ export default function AdminPage() {
             return (
               <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden" data-tour="staff-status-banner">
                 <div className="flex flex-wrap gap-2 md:gap-4 px-2.5 py-1.5 md:px-3 md:py-2">
-                  <div className={`rounded border px-2 py-1 min-w-0 ${gymReady ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200"}`}>
+                  <button type="button" onClick={() => setAdminArea("staff")} className={`rounded border px-2 py-1 min-w-0 text-left transition-opacity hover:opacity-90 cursor-pointer ${gymReady ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200"}`} title={locale === "vi" ? "Xem khu vực Nhân sự" : "View Staff area"}>
                     <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Gym" : "Gym"}</p>
                     <p className="text-xs font-bold text-slate-800">{gymReady ? (locale === "vi" ? "Sẵn sàng" : "Ready") : (locale === "vi" ? "Chưa sẵn sàng" : "Not ready")}</p>
-                  </div>
-                  <div className="rounded border px-2 py-1 min-w-0 bg-slate-50 border-slate-200">
+                  </button>
+                  <button type="button" onClick={() => setAdminArea("staff")} className="rounded border px-2 py-1 min-w-0 text-left transition-opacity hover:opacity-90 cursor-pointer bg-slate-50 border-slate-200" title={locale === "vi" ? "Xem nhiệm vụ của bạn" : "View your tasks"}>
                     <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Nhiệm vụ" : "Tasks"} ({phaseLabel})</p>
                     <p className="text-xs font-bold text-slate-800">{tasksDone} / {tasksTotal}</p>
-                  </div>
-                  <div className="rounded border px-2 py-1 min-w-0 bg-slate-50 border-slate-200">
+                  </button>
+                  <button type="button" onClick={() => { setAdminArea("staff"); setStaffSubTab("coaching"); }} className="rounded border px-2 py-1 min-w-0 text-left transition-opacity hover:opacity-90 cursor-pointer bg-slate-50 border-slate-200" title={locale === "vi" ? "Xem coaching hôm nay" : "View coaching today"}>
                     <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Coaching hôm nay" : "Coaching today"}</p>
                     <p className="text-xs font-bold text-slate-800">{sessionsToday}</p>
-                  </div>
-                  <div className="rounded border px-2 py-1 min-w-0 bg-slate-50 border-slate-200">
+                  </button>
+                  <button type="button" onClick={() => { setAdminArea("staff"); setStaffSubTab("routes"); }} className="rounded border px-2 py-1 min-w-0 text-left transition-opacity hover:opacity-90 cursor-pointer bg-slate-50 border-slate-200" title={locale === "vi" ? "Xem lịch route reset hôm nay" : "View route reset schedule today"}>
                     <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Route reset hôm nay" : "Route reset today"}</p>
                     <p className="text-xs font-bold text-slate-800">{routeResetToday}</p>
-                  </div>
+                  </button>
                 </div>
               </div>
             );
@@ -2182,20 +2201,20 @@ export default function AdminPage() {
             if (frontdeskBannerData === null) return <div className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 md:p-3"><p className="text-xs md:text-sm text-slate-500">{m.loading}</p></div>;
             const { gym_ready, checkins_today, inventory_need_restock } = frontdeskBannerData;
             return (
-              <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+              <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden" data-tour="frontdesk-status-banner">
                 <div className="flex flex-wrap gap-2 md:gap-4 px-2.5 py-1.5 md:px-3 md:py-2">
-                  <div className={`rounded border px-2 py-1 min-w-0 ${gym_ready ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200"}`}>
+                  <button type="button" onClick={() => { if (canAccessOperations) { setAdminArea("operations"); setStaffModalTab("overview"); } else { setAdminArea("front_desk"); setFrontDeskTab("checkin"); } }} className={`rounded border px-2 py-1 min-w-0 text-left transition-opacity hover:opacity-90 cursor-pointer ${gym_ready ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200"}`} title={canAccessOperations ? (locale === "vi" ? "Xem trạng thái gym trong Vận hành" : "View gym status in Operations") : (locale === "vi" ? "Xem khu vực Quầy" : "View Front Desk area")}>
                     <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Gym" : "Gym"}</p>
                     <p className="text-xs font-bold text-slate-800">{gym_ready ? (locale === "vi" ? "Sẵn sàng" : "Ready") : (locale === "vi" ? "Chưa sẵn sàng" : "Not ready")}</p>
-                  </div>
-                  <div className="rounded border px-2 py-1 min-w-0 bg-slate-50 border-slate-200">
+                  </button>
+                  <button type="button" onClick={() => { setAdminArea("front_desk"); setFrontDeskTab("checkin"); }} className="rounded border px-2 py-1 min-w-0 text-left transition-opacity hover:opacity-90 cursor-pointer bg-slate-50 border-slate-200" title={locale === "vi" ? "Xem check-in hôm nay" : "View check-ins today"}>
                     <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Check-in hôm nay" : "Total check-ins today"}</p>
                     <p className="text-xs font-bold text-slate-800">{checkins_today}</p>
-                  </div>
-                  <div className="rounded border px-2 py-1 min-w-0 bg-slate-50 border-slate-200">
+                  </button>
+                  <button type="button" onClick={() => { if (canAccessManagement) { setAdminArea("management"); setManagementTab("inventory"); } else { setAdminArea("front_desk"); setFrontDeskTab("checkin"); } }} className="rounded border px-2 py-1 min-w-0 text-left transition-opacity hover:opacity-90 cursor-pointer bg-slate-50 border-slate-200" title={canAccessManagement ? (locale === "vi" ? "Xem kho cần nhập thêm" : "View inventory that needs restock") : (locale === "vi" ? "Xem khu vực Quầy" : "View Front Desk area")}>
                     <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Cần nhập thêm" : "Inventory need restock"}</p>
                     <p className="text-xs font-bold text-slate-800">{inventory_need_restock}</p>
-                  </div>
+                  </button>
                 </div>
               </div>
             );
@@ -2234,30 +2253,39 @@ export default function AdminPage() {
             );
             if (unassigned > 0) alerts.push(`${unassigned} ${locale === "vi" ? "buổi coaching chưa giao" : "coaching sessions unassigned"}`);
             const gymReady = staffOpsData?.phase?.current_phase === "closed" ? false : staffOpsData?.phase?.current_phase === "closing" ? staffOpsData?.ready_to_close === true : staffOpsData?.gym_ready === true;
-            const summaryLine = alerts.length === 0 ? (locale === "vi" ? "Không có sự cố hôm nay" : "No issues today") : `${alerts.length} ${locale === "vi" ? "cảnh báo" : "alerts"}`;
+            const opsSummary = alerts.length === 0 ? (locale === "vi" ? "Không có sự cố hôm nay" : "No issues today") : `${alerts.length} ${locale === "vi" ? "cảnh báo" : "alerts"}`;
+            const analyticsAlertsPart = canAccessAnalytics && analyticsAlertsCount != null && analyticsAlertsCount > 0 ? ` · ${analyticsAlertsCount} ${locale === "vi" ? "cảnh báo mở" : "open alerts"}` : "";
             return (
-              <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+              <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden" data-tour="admin-ops-bar">
                 <button type="button" onClick={() => setOpsOverviewExpanded(!opsOverviewExpanded)} className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 md:px-3 md:py-2 text-left">
-                  <span className={`text-[10px] md:text-xs font-semibold uppercase tracking-wider ${alerts.length === 0 ? "text-emerald-700" : "text-amber-800"}`}>
-                    {locale === "vi" ? "Vận hành" : "Operations"}: {summaryLine}
+                  <span className={`text-[10px] md:text-xs font-semibold uppercase tracking-wider min-w-0 truncate ${alerts.length === 0 && !analyticsAlertsPart ? "text-emerald-700" : "text-amber-800"}`}>
+                    {locale === "vi" ? "Vận hành" : "Operations"}: {opsSummary}{analyticsAlertsPart}
                   </span>
                   <span className="text-slate-400 text-xs shrink-0">{opsOverviewExpanded ? "▲" : "▼"} {locale === "vi" ? "Chi tiết" : "Details"}</span>
                 </button>
                 {opsOverviewExpanded && (
                   <div className="border-t border-slate-100 px-2.5 py-2 md:px-3 md:py-3 space-y-2">
                     <div className="flex flex-wrap gap-2 md:gap-4">
-                      <div className={`rounded border px-2 py-1 min-w-0 ${staffStatus === "green" ? "bg-emerald-50 border-emerald-200" : staffStatus === "yellow" ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200"}`}>
+                      <button type="button" onClick={() => { setAdminArea("operations"); setStaffModalTab("overview"); }} className={`rounded border px-2 py-1 min-w-0 shrink-0 text-left transition-opacity hover:opacity-90 cursor-pointer ${staffStatus === "green" ? "bg-emerald-50 border-emerald-200" : staffStatus === "yellow" ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200"}`} title={locale === "vi" ? "Xem nhân sự có mặt trong Vận hành → Tổng quan" : "View who's present in Operations → Overview"}>
                         <p className="text-[10px] font-semibold text-slate-600 uppercase">{m.staffPresent}</p>
                         <p className="text-xs font-bold text-slate-800">{present} / {totalStaff}</p>
-                      </div>
-                      <div className={`rounded border px-2 py-1 min-w-0 ${gymReady ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200"}`}>
+                      </button>
+                      <button type="button" onClick={() => { setAdminArea("operations"); setStaffModalTab("overview"); }} className={`rounded border px-2 py-1 min-w-0 shrink-0 text-left transition-opacity hover:opacity-90 cursor-pointer ${gymReady ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200"}`} title={locale === "vi" ? "Xem trạng thái gym trong Vận hành → Tổng quan" : "View gym status in Operations → Overview"}>
                         <p className="text-[10px] font-semibold text-slate-600 uppercase">{locale === "vi" ? "Gym" : "Gym"}</p>
                         <p className="text-xs font-bold text-slate-800">{gymReady ? (locale === "vi" ? "Sẵn sàng" : "Ready") : (locale === "vi" ? "Chưa sẵn sàng" : "Not ready")}</p>
-                      </div>
-                      <div className={`rounded border px-2 py-1 flex-1 min-w-0 ${alerts.length === 0 ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
+                      </button>
+                      {canAccessAnalytics && (
+                        <button type="button" onClick={() => { setAdminArea("analytics"); setAnalyticsTab("overview"); }} className={`rounded border px-2 py-1 min-w-0 shrink-0 text-left transition-colors hover:opacity-90 ${(analyticsAlertsCount ?? 0) > 0 ? "bg-amber-50 border-amber-300 hover:bg-amber-100" : "bg-slate-50 border-slate-200 hover:bg-slate-100"}`}>
+                          <p className="text-[10px] font-semibold text-slate-600 uppercase">{m.openAlerts}</p>
+                          <p className="text-xs font-bold text-slate-800">
+                            {analyticsAlertsCount != null ? (locale === "vi" ? `${analyticsAlertsCount} cảnh báo mở` : `${analyticsAlertsCount} open alerts`) : "…"}
+                          </p>
+                        </button>
+                      )}
+                      <button type="button" onClick={() => { setAdminArea("operations"); setStaffModalTab("overview"); }} className={`rounded border px-2 py-1 flex-1 min-w-0 text-left transition-opacity hover:opacity-90 cursor-pointer ${alerts.length === 0 ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`} title={locale === "vi" ? "Xem chi tiết cảnh báo trong Vận hành → Tổng quan" : "View alert details in Operations → Overview"}>
                         <p className="text-[10px] font-semibold text-slate-600 uppercase">{m.operationsAlerts}</p>
                         {alerts.length === 0 ? <p className="text-xs text-slate-700">{m.noOperationalAlerts}</p> : <ul className="list-disc list-inside text-[10px] text-slate-700">{alerts.slice(0, 5).map((a) => <li key={a}>{a}</li>)}</ul>}
-                      </div>
+                      </button>
                     </div>
                   </div>
                 )}
@@ -3769,8 +3797,8 @@ export default function AdminPage() {
                                   if (res.ok && d.ok) {
                                     setInventoryActionMessage(
                                       locale === "vi"
-                                        ? "Đã gửi yêu cầu nhập hàng. Xem tab Phân tích → Tài chính."
-                                        : "Restock request sent. See Analytics → Finance."
+                                        ? "Đã gửi yêu cầu nhập hàng. Xem Quản lý → Kho."
+                                        : "Restock request sent. See Management → Inventory."
                                     );
                                     loadInventoryReorderRequests().catch(() => setInventoryReorderRequests([]));
                                     setTimeout(() => setInventoryActionMessage(null), 5000);
@@ -5067,7 +5095,7 @@ export default function AdminPage() {
               <h2 className="text-lg font-semibold text-slate-900">{locale === "vi" ? "Phân tích & Báo cáo" : "Analytics & Reporting"}</h2>
               <p className="text-sm text-slate-600 mt-1">{locale === "vi" ? "Tab đầu là tóm tắt điều hành; các tab sau chi tiết từng mảng (doanh thu, thành viên, email, v.v.)." : "First tab is the executive summary; other tabs drill into each area (revenue, members, email, etc.)."}</p>
 
-              {/* Global filters — time horizon applies to all tabs including Finance */}
+              {/* Global filters — time horizon applies to all analytics tabs */}
               <div className="mt-4 flex flex-wrap gap-3 items-center rounded-xl border border-slate-200 bg-slate-50 p-3" data-tour="analytics-filters">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{locale === "vi" ? "Bộ lọc" : "Filters"}</span>
                 <select
@@ -5133,7 +5161,7 @@ export default function AdminPage() {
 
               {/* Analytics sub-tabs */}
               <nav className="mt-4 flex gap-1 p-1 border-b border-slate-200 overflow-x-auto" aria-label="Analytics tabs">
-                {(["overview", "revenue_members", "engagement", "ops_team", "marketing", "finance"] as const).map((t) => (
+                {(["overview", "revenue_members", "engagement", "ops_team", "marketing"] as const).map((t) => (
                   <button
                     key={t}
                     type="button"
@@ -5148,7 +5176,6 @@ export default function AdminPage() {
                     {t === "engagement" ? (locale === "vi" ? "Tương tác" : "Engagement") : null}
                     {t === "ops_team" ? (locale === "vi" ? "VH & đội ngũ" : "Ops & team") : null}
                     {t === "marketing" ? (locale === "vi" ? "Marketing" : "Marketing") : null}
-                    {t === "finance" ? (locale === "vi" ? "Tài chính" : "Finance") : null}
                   </button>
                 ))}
               </nav>
@@ -5158,9 +5185,7 @@ export default function AdminPage() {
                   <span className="font-semibold text-slate-500 uppercase tracking-wide mr-1">
                     {locale === "vi" ? "Cập nhật" : "Last refreshed"}:
                   </span>
-                  {analyticsTab === "finance"
-                    ? "—"
-                    : analyticsFetchedAt
+                  {analyticsFetchedAt
                       ? new Date(analyticsFetchedAt).toLocaleString(locale === "vi" ? "vi-VN" : "en-US", {
                           dateStyle: "short",
                           timeStyle: "short",
@@ -5191,22 +5216,17 @@ export default function AdminPage() {
                 >
                   {locale === "vi" ? "Cơ sở: hỗn hợp" : "Basis: mixed"}
                 </span>
-                {analyticsTab !== "finance" && (
-                  <span>
-                    <span className="font-semibold text-slate-500 uppercase tracking-wide mr-1">
-                      {locale === "vi" ? "Cảnh báo mở" : "Open alerts"}:
-                    </span>
-                    {analyticsTab === "overview" ? executiveAlertsCount : "—"}
-                    <span className="text-slate-400 ml-1">({locale === "vi" ? "tab Điều hành" : "Executive tab"})</span>
+                <span>
+                  <span className="font-semibold text-slate-500 uppercase tracking-wide mr-1">
+                    {locale === "vi" ? "Cảnh báo mở" : "Open alerts"}:
                   </span>
-                )}
+                  {analyticsTab === "overview" ? executiveAlertsCount : "—"}
+                  <span className="text-slate-400 ml-1">({locale === "vi" ? "tab Điều hành" : "Executive tab"})</span>
+                </span>
               </div>
 
               <div className="mt-6 min-w-0 max-w-full">
-                {analyticsTab === "finance" ? (
-                  <FinanceTab adminFetch={adminFetch} locale={locale} horizon={analyticsTimeHorizon} />
-                ) : (
-                  <AnalyticsCharts
+                <AnalyticsCharts
                     data={analyticsData}
                     tab={analyticsTab}
                     locale={locale}
@@ -5233,7 +5253,6 @@ export default function AdminPage() {
                       ) : undefined
                     }
                   />
-                )}
               </div>
             </section>
           )}

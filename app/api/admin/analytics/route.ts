@@ -767,6 +767,18 @@ export async function GET(req: NextRequest) {
       .eq("date", todayGym)
       .eq("status", "IN");
 
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: recentCampaigns } = await supabase
+      .from("campaign_logs")
+      .select("segment")
+      .gte("sent_at", sevenDaysAgo)
+      .in("segment", ["expiring_soon_7d", "inactive_members_30d"]);
+    const recentSegments = new Set((recentCampaigns ?? []).map((r: { segment: string }) => r.segment));
+    const campaign_suppress = {
+      expiring_7d: recentSegments.has("expiring_soon_7d"),
+      inactive_30: recentSegments.has("inactive_members_30d"),
+    };
+
     return NextResponse.json(
       {
         filters: { period: label, since, until, period_horizon: periodHorizon, period_since: since, period_until: until, member_type: memberType, activity, activity_level: activityLevel },
@@ -864,6 +876,7 @@ export async function GET(req: NextRequest) {
           coaching_missed: coachingMissed,
         },
         staff: staffPerformance,
+        campaign_suppress,
       },
       { headers: { "Cache-Control": "no-store, max-age=0" } }
     );

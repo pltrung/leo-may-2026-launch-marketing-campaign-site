@@ -15,8 +15,8 @@ export type FinanceMetricsPayload = {
   expenses_mtd?: number;
   runway_months?: number | null;
   runway_display?: "months" | "cash_positive" | "unknown";
-  config?: { current_cash?: number };
-  payroll_record?: { status?: string } | null;
+  config?: { current_cash?: number; payroll_day?: number };
+  payroll_record?: { status?: string; month_key?: string } | null;
 };
 
 export function basisForFinance(): MetricBasis {

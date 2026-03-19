@@ -165,7 +165,7 @@ export default function AnalyticsCharts({
   /** Shown under Ops & people — staff onboarding training table */
   onboardingExtra?: React.ReactNode;
   onOpenAnalyticsTab?: (
-    t: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance"
+    t: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing"
   ) => void;
   onExecutiveAlertsCount?: (n: number) => void;
 }) {

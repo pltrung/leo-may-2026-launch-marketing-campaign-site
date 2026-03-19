@@ -33,10 +33,12 @@ export async function getSegmentRecipients(
   const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString();
   const fourWeeksAgo = new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000).toISOString();
 
+  const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
   const { data: profiles } = await supabase
     .from("member_profiles")
-    .select("id, email, full_name, display_name, created_at, membership_expires_at, visits_remaining, date_of_birth, first_visit_welcomed_at");
-  const allProfiles = (profiles ?? []) as (SegmentRecipient & { created_at: string; date_of_birth?: string | null; first_visit_welcomed_at?: string | null })[];
+    .select("id, email, full_name, display_name, created_at, membership_expires_at, visits_remaining, date_of_birth, first_visit_welcomed_at, membership_status");
+  const allProfiles = (profiles ?? []) as (SegmentRecipient & { created_at: string; date_of_birth?: string | null; first_visit_welcomed_at?: string | null; membership_status?: string })[];
   const byId = new Map(allProfiles.map((p) => [p.id, p]));
 
   function hasCurrentAccess(p: SegmentRecipient): boolean {
@@ -86,6 +88,18 @@ export async function getSegmentRecipients(
   let memberIds: string[] = [];
 
   switch (segmentId) {
+    case "expiring_soon_7d": {
+      memberIds = allProfiles
+        .filter((p) => {
+          if (p.membership_status !== "active") return false;
+          const exp = p.membership_expires_at ? new Date(p.membership_expires_at).getTime() : null;
+          if (!exp) return false;
+          const nowMs = now.getTime();
+          return exp >= nowMs && exp <= in7Days.getTime();
+        })
+        .map((p) => p.id);
+      break;
+    }
     case "inactive_members_30d": {
       memberIds = allProfiles
         .filter((p) => {

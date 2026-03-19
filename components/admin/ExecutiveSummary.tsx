@@ -56,7 +56,7 @@ export default function ExecutiveSummary({
   locale: string;
   horizon?: TimeHorizon;
   adminFetch?: AdminFetch;
-  onOpenTab?: (tab: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance") => void;
+  onOpenTab?: (tab: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing") => void;
   onAlertsCount?: (n: number) => void;
 }) {
   const isVi = locale === "vi";
@@ -121,9 +121,10 @@ export default function ExecutiveSummary({
     loadFinance();
   }, [loadFinance]);
 
+  const campaignSuppress = (data as { campaign_suppress?: { expiring_7d?: boolean; inactive_30?: boolean } })?.campaign_suppress;
   const alerts = useMemo(() => {
-    return buildAnalyticsAlerts(finance, data as never, loc);
-  }, [finance, data, loc]);
+    return buildAnalyticsAlerts(finance, data as never, loc, campaignSuppress);
+  }, [finance, data, loc, campaignSuppress]);
 
   useEffect(() => {
     onAlertsCount?.(alerts.length);
@@ -158,21 +159,21 @@ export default function ExecutiveSummary({
     actionQueue.push({
       en: `Approve / mark payroll paid (${formatVnd(finance?.payroll_total ?? 0)} est.)`,
       vi: `Duyệt / đánh dấu đã trả lương (${formatVnd(finance?.payroll_total ?? 0)} ước tính)`,
-      tab: "finance",
+      tab: "overview",
     });
   }
   if ((mh.expiring_soon ?? 0) > 0) {
     actionQueue.push({
       en: `Reach out to ${mh.expiring_soon} member(s) expiring within 7 days`,
       vi: `Liên hệ ${mh.expiring_soon} TV hết hạn trong 7 ngày`,
-      tab: "revenue_members",
+      tab: "marketing",
     });
   }
   if ((mh.at_risk ?? 0) > 0) {
     actionQueue.push({
       en: `${mh.at_risk} at-risk members (7–14d no visit)`,
       vi: `${mh.at_risk} TV rủi ro (7–14 ngày không tới)`,
-      tab: "engagement",
+      tab: "marketing",
     });
   }
   if ((op.tasks_overdue ?? 0) > 0) {

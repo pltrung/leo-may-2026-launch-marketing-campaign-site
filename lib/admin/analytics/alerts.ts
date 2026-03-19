@@ -10,7 +10,7 @@ export type AnalyticsAlert = {
   detailEn: string;
   detailVi: string;
   /** Tab key to open in analytics */
-  navigateTab?: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance";
+  navigateTab?: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing";
 };
 
 type MemberHealth = { at_risk?: number; inactive?: number; expiring_soon?: number };
@@ -20,24 +20,31 @@ type AnalyticsSlice = {
   operations?: Operations;
 };
 
+/** Suppress alerts for segments we recently emailed (within 7 days). */
+export type AlertsSuppress = {
+  expiring_7d?: boolean;
+  inactive_30?: boolean;
+};
+
 export function buildAnalyticsAlerts(
   finance: FinanceMetricsPayload | null,
   analytics: AnalyticsSlice | null,
-  _locale: "en" | "vi"
+  _locale: "en" | "vi",
+  suppress?: AlertsSuppress
 ): AnalyticsAlert[] {
   const alerts: AnalyticsAlert[] = [];
 
   const mh = analytics?.members?.member_health;
   const exp = mh?.expiring_soon ?? 0;
-  if (exp > 0) {
+  if (exp > 0 && !suppress?.expiring_7d) {
     alerts.push({
       id: "expiring_7d",
       severity: exp >= 8 ? "warning" : "info",
       titleEn: `${exp} memberships expiring within 7 days`,
       titleVi: `${exp} gói hết hạn trong 7 ngày`,
-      detailEn: "Review renewals and outreach.",
-      detailVi: "Xem gia hạn và liên hệ.",
-      navigateTab: "revenue_members",
+      detailEn: "Send renewal reminder via Marketing.",
+      detailVi: "Gửi nhắc gia hạn qua Marketing.",
+      navigateTab: "marketing",
     });
   }
 
@@ -48,14 +55,14 @@ export function buildAnalyticsAlerts(
       severity: atRisk >= 7 ? "warning" : "info",
       titleEn: `${atRisk} at-risk members (7–14d no visit)`,
       titleVi: `${atRisk} TV rủi ro (7–14 ngày không tới)`,
-      detailEn: "Consider retention campaigns.",
-      detailVi: "Cân nhắc chiến dịch giữ chân.",
-      navigateTab: "engagement",
+      detailEn: "Send retention campaign via Marketing.",
+      detailVi: "Gửi chiến dịch giữ chân qua Marketing.",
+      navigateTab: "marketing",
     });
   }
 
   const inactive = mh?.inactive ?? 0;
-  if (inactive > 0) {
+  if (inactive > 0 && !suppress?.inactive_30) {
     alerts.push({
       id: "inactive_30",
       severity: "info",
@@ -67,17 +74,30 @@ export function buildAnalyticsAlerts(
     });
   }
 
+  // Payroll alert: only show within a window around due date (3 days before to 2 days after)
   const payrollPending = finance?.payroll_record?.status !== "paid";
   const payrollAmt = finance?.payroll_total ?? 0;
-  if (payrollPending && payrollAmt > 0) {
+  const monthKey = finance?.payroll_record?.month_key;
+  const payrollDay = finance?.config?.payroll_day ?? 25;
+  let payrollDueStr = "";
+  if (monthKey && /^\d{4}-\d{2}$/.test(monthKey)) {
+    const [y, m] = monthKey.split("-");
+    payrollDueStr = `${y}-${m}-${String(payrollDay).padStart(2, "0")}`;
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  const dueMs = payrollDueStr ? new Date(payrollDueStr + "T12:00:00Z").getTime() : 0;
+  const todayMs = new Date(today + "T12:00:00Z").getTime();
+  const daysFromDue = dueMs ? Math.round((todayMs - dueMs) / 86400000) : 0;
+  const withinPayrollWindow = payrollDueStr && daysFromDue >= -3 && daysFromDue <= 2;
+  if (payrollPending && payrollAmt > 0 && withinPayrollWindow) {
     alerts.push({
       id: "payroll_pending",
       severity: "warning",
       titleEn: "Payroll not marked paid",
       titleVi: "Chưa đánh dấu đã trả lương",
-      detailEn: "Complete payroll in Finance tab when paid.",
-      detailVi: "Hoàn tất ở tab Tài chính khi đã trả.",
-      navigateTab: "finance",
+      detailEn: "Mark payroll paid in Operations or Admin Tools.",
+      detailVi: "Đánh dấu đã trả lương trong Vận hành hoặc Công cụ.",
+      navigateTab: "overview",
     });
   }
 
