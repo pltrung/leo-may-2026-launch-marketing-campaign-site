@@ -50,12 +50,22 @@ export async function GET(req: NextRequest) {
       if (error) throw error;
 
       const members =
-        data?.map((row) => ({
-          id: row.id as string,
-          displayId: (row.member_code as string | null) ?? null,
-          name: (row.full_name as string) ?? "Member",
-          membershipType: (row.tier as string) ?? "Member",
-        })) ?? [];
+        data?.map((row) => {
+          const statusRaw = (row.membership_status as string | null) || "inactive";
+          const expiresAt = row.membership_expires_at
+            ? new Date(row.membership_expires_at as string).getTime()
+            : 0;
+          const visitsRemaining = (row.visits_remaining as number) ?? 0;
+          const hasValidDayPass = statusRaw === "active" && expiresAt > Date.now();
+          const hasValidVisitPass = visitsRemaining > 0;
+          return {
+            id: row.id as string,
+            displayId: (row.member_code as string | null) ?? null,
+            name: (row.full_name as string) ?? "Member",
+            status: hasValidDayPass || hasValidVisitPass ? ("Active" as const) : ("Inactive" as const),
+            date_of_birth: (row.date_of_birth as string | null) ?? null,
+          };
+        }) ?? [];
 
       return NextResponse.json(
         { members },

@@ -121,7 +121,8 @@ interface NameSearchResult {
   id: string;
   displayId: string | null;
   name: string;
-  membershipType: string;
+  status: "Active" | "Inactive";
+  date_of_birth: string | null;
 }
 
 export default function AdminPage() {
@@ -208,6 +209,7 @@ export default function AdminPage() {
   const [nameResults, setNameResults] = useState<NameSearchResult[]>([]);
   const [paymentReceived, setPaymentReceived] = useState(false);
   const lastPaymentCountRef = React.useRef<number | null>(null);
+  const quickScanPreviewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [adminArea, setAdminArea] = useState<"front_desk" | "operations" | "management" | "staff" | "analytics">("front_desk");
   const hasInitializedAdminArea = useRef(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -667,6 +669,26 @@ export default function AdminPage() {
     }
   }, [adminFetch, m, foundMember?.id]);
 
+  const showQuickCheckinMemberPreview = useCallback(async (memberId: string) => {
+    try {
+      const res = await adminFetch(`/api/admin/members?id=${encodeURIComponent(memberId)}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.member) return;
+      setFoundMember(data.member as AdminMember);
+      setMemberProfileSubTab("summary");
+      setFrontDeskTab("member");
+      if (quickScanPreviewTimeoutRef.current) {
+        clearTimeout(quickScanPreviewTimeoutRef.current);
+      }
+      quickScanPreviewTimeoutRef.current = setTimeout(() => {
+        setFoundMember(null);
+        setFrontDeskTab("checkin");
+      }, 5000);
+    } catch {
+      // Keep check-in flow fast; missing preview should not block check-in success.
+    }
+  }, [adminFetch]);
+
   const refetchMemberOpsHistory = useCallback(
     async (memberId: string) => {
       const [adjRes, incRes] = await Promise.all([
@@ -711,6 +733,14 @@ export default function AdminPage() {
     const id = setInterval(poll, 4000);
     return () => clearInterval(id);
   }, [foundMember?.id, loadMemberById, adminFetch]);
+
+  useEffect(() => {
+    return () => {
+      if (quickScanPreviewTimeoutRef.current) {
+        clearTimeout(quickScanPreviewTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Fetch check-ins when Front Desk → Check-in tab is active
   useEffect(() => {
@@ -1223,6 +1253,7 @@ export default function AdminPage() {
         const data = await res.json().catch(() => ({}));
         if (res.ok) {
           setActionMessage(data?.already_checked_in_today ? m.welcomeBackAgainToday : m.checkinRecorded);
+          void showQuickCheckinMemberPreview(memberId);
         } else {
           setActionError(data?.error || m.checkinFailed);
         }
@@ -1235,6 +1266,7 @@ export default function AdminPage() {
         const data = await res.json().catch(() => ({}));
         if (res.ok) {
           setActionMessage(data?.already_checked_in_today ? m.welcomeBackAgainToday : m.checkinRecorded);
+          void showQuickCheckinMemberPreview(memberId);
         } else {
           setActionError(data?.error ?? "Check-in failed");
         }
@@ -1242,7 +1274,7 @@ export default function AdminPage() {
     } catch {
       setActionError(m.unableToRecordCheckin);
     }
-  }, [usbScanInputValue, adminFetch, m]);
+  }, [usbScanInputValue, adminFetch, m, showQuickCheckinMemberPreview]);
 
   const handleQrScanned = useCallback(
     async (result: { type: "member"; raw: string; id?: string } | { type: "staff"; raw: string; id?: string }) => {
@@ -1282,6 +1314,13 @@ export default function AdminPage() {
           const data = await res.json().catch(() => ({}));
           if (res.ok) {
             setActionMessage(data?.already_checked_in_today ? m.welcomeBackAgainToday : m.checkinRecorded);
+            const memberIdFromScan =
+              result.id ??
+              result.raw.match(/[?&]member_id=([^&\s#]+)/)?.[1]?.trim() ??
+              (result.raw.startsWith("leo-member:") ? result.raw.split(":")[1]?.trim() : "");
+            if (memberIdFromScan) {
+              void showQuickCheckinMemberPreview(memberIdFromScan);
+            }
           } else {
             setActionError(data?.error || m.checkinFailed);
           }
@@ -1296,7 +1335,7 @@ export default function AdminPage() {
         setSearchError(m.noMemberIdFromQr);
       }
     },
-    [loadMemberById, adminFetch, scannerIntent, m, role, locale, loadKioskRecentCheckins]
+    [loadMemberById, adminFetch, scannerIntent, m, role, locale, loadKioskRecentCheckins, showQuickCheckinMemberPreview]
   );
 
   const canCheckIn = useMemo(
@@ -2543,7 +2582,18 @@ export default function AdminPage() {
                               </p>
                             </div>
                             <span className="text-[11px] text-slate-600">
-                              {member.membershipType}
+                              <span className={`font-medium ${member.status === "Active" ? "text-emerald-700" : "text-slate-600"}`}>
+                                {member.status === "Active" ? m.statusActive : m.statusInactive}
+                              </span>
+                              <span className="block text-[10px] text-slate-500">
+                                {member.date_of_birth
+                                  ? new Date(member.date_of_birth).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", {
+                                      year: "numeric",
+                                      month: "short",
+                                      day: "numeric",
+                                    })
+                                  : (locale === "vi" ? "Chưa có ngày sinh" : "No birthday")}
+                              </span>
                             </span>
                           </div>
                         </button>
