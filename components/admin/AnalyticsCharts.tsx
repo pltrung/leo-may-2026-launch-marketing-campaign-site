@@ -222,6 +222,12 @@ export default function AnalyticsCharts({
     fetchCampaignLogs();
   }, [tab, adminFetch, fetchCampaignLogs]);
 
+  const openCampaignModal = useCallback((segment: CampaignSegmentRow) => {
+    setCampaignModal({ segment, subject: segment.subject, body: segment.body });
+    setCampaignSuccess(null);
+    setShowPreview(false);
+  }, []);
+
   useEffect(() => {
     if (tab !== "marketing") return;
     if (typeof window === "undefined") return;
@@ -244,12 +250,6 @@ export default function AnalyticsCharts({
       localStorage.removeItem("admin_marketing_segment_intent");
     }
   }, [tab, campaignSegments, openCampaignModal]);
-
-  const openCampaignModal = useCallback((segment: CampaignSegmentRow) => {
-    setCampaignModal({ segment, subject: segment.subject, body: segment.body });
-    setCampaignSuccess(null);
-    setShowPreview(false);
-  }, []);
 
   const openCreateCampaign = useCallback(() => {
     setCreateAudienceId("marketing_all_members");
