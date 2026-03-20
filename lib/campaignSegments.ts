@@ -406,10 +406,10 @@ export function getCampaignBaseUrl(): string {
   return url.replace(/\/$/, "");
 }
 
-/** Logo URL for emails (full URL so it loads in Gmail) */
+/** Logo URL for emails (full URL so it loads in Gmail). Black variant, same mark as site logo. */
 export function getCampaignLogoUrl(): string {
   const base = getCampaignBaseUrl();
-  return `${base}/logo.svg`;
+  return `${base}/logo-email-black.svg`;
 }
 
 /**
@@ -430,14 +430,14 @@ export function bodyToHtml(
   const logoUrl = getCampaignLogoUrl();
   const gymPath = options?.locale === "vi" ? "/vi/gym#intro" : "/en/gym#intro";
   const loginUrl = `${baseUrl}${gymPath}`;
-  const displayUrl = `${baseUrl}${gymPath.replace(/#intro$/, "")}`;
+  const linkStyle = "color: #0d9488; font-weight: 600; text-decoration: underline;";
   const hasPromo = !!(options?.promoCode && options.promoCode.trim());
   const ctaEn = options?.marketing && !hasPromo
-    ? `Visit us at <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${displayUrl}</a> — sign in with your email to manage your membership, check in, and see what&apos;s new at Leo Mây.`
-    : `Go to <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${displayUrl}</a>, sign in with your email, and redeem your code in the dashboard to earn your benefits and visit the gym.`;
+    ? `Go to our <a href="${loginUrl}" style="${linkStyle}">site</a> — sign in with your email to manage your membership, check in, and see what&apos;s new at Leo Mây.`
+    : `Go to our <a href="${loginUrl}" style="${linkStyle}">site</a>, sign in with your email, and redeem your code in the dashboard to earn your benefits and visit the gym.`;
   const ctaVi = options?.marketing && !hasPromo
-    ? `Ghé <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${displayUrl}</a> — đăng nhập bằng email để quản lý thành viên, check-in và xem tin mới tại Leo Mây.`
-    : `Truy cập <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${displayUrl}</a>, đăng nhập bằng email của bạn và nhập mã trong dashboard để nhận ưu đãi và tới phòng tập.`;
+    ? `Vào <a href="${loginUrl}" style="${linkStyle}">trang web</a> của chúng tôi — đăng nhập bằng email để quản lý thành viên, check-in và xem tin mới tại Leo Mây.`
+    : `Vào <a href="${loginUrl}" style="${linkStyle}">trang web</a> của chúng tôi, đăng nhập bằng email và nhập mã trong dashboard để nhận ưu đãi và tới phòng tập.`;
   const cta = options?.locale === "vi" ? ctaVi : ctaEn;
   const promoKind = options?.promoKind ?? null;
   const promoExplainEn =
@@ -473,10 +473,13 @@ export function bodyToHtml(
     .map((p) => `<p style="margin: 0 0 1em 0; color: #1e293b; font-size: 15px; line-height: 1.6;">${p.replace(/\n/g, "<br/>")}</p>`)
     .join("");
 
+  /** Natural aspect logo 322×143 — avoid distorted width/height in Gmail */
+  const logoImg = `<img src="${logoUrl}" alt="Leo Mây" width="200" height="89" style="display: block; margin: 0 auto; max-width: 200px; height: auto; border: 0; outline: none;" />`;
+
   return `
 <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto; background-color: #ffffff; color: #1e293b;">
   <div style="text-align: center; margin-bottom: 16px;">
-    <img src="${logoUrl}" alt="Leo Mây" width="120" height="40" style="display: inline-block;" />
+    ${logoImg}
   </div>
   <h1 style="margin: 0 0 1em 0; font-size: 20px; font-weight: 700; color: #0f172a; line-height: 1.3;">${titleText}</h1>
   <div style="line-height: 1.6;">
@@ -484,9 +487,8 @@ export function bodyToHtml(
     <p style="margin: 1.5em 0 0 0; font-size: 15px; color: #1e293b;">${cta}</p>
     ${codeBlock}
   </div>
-  <p style="margin: 2em 0 0 0; font-size: 13px; color: #475569;">Leo Mây Team</p>
   <div style="text-align: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
-    <img src="${logoUrl}" alt="Leo Mây" width="100" height="34" style="display: inline-block;" />
+    ${logoImg}
   </div>
 </div>`;
 }
