@@ -406,15 +406,29 @@ export function getCampaignBaseUrl(): string {
   return url.replace(/\/$/, "");
 }
 
-/** Logo URL for emails (full URL so it loads in Gmail). Black variant, same mark as site logo. */
-export function getCampaignLogoUrl(): string {
-  const base = getCampaignBaseUrl();
-  return `${base}/logo-email-black.svg`;
+/**
+ * Hero image for marketing / segment campaign emails (landscape facade).
+ * Default: `/campaign-email-hero.png` on your site (add under `public/`).
+ * Override with absolute URL: `CAMPAIGN_EMAIL_HERO_URL=https://...`
+ */
+export function getCampaignEmailHeroUrl(): string {
+  const env = process.env.CAMPAIGN_EMAIL_HERO_URL?.trim();
+  if (env) {
+    if (env.startsWith("http://") || env.startsWith("https://")) return env;
+    const base = getCampaignBaseUrl();
+    return `${base}${env.startsWith("/") ? env : `/${env}`}`;
+  }
+  return `${getCampaignBaseUrl()}/campaign-email-hero.png`;
+}
+
+/** White logo on dark footer — `public/logo-white.svg` (full URL for Gmail). */
+export function getCampaignEmailFooterLogoUrl(): string {
+  return `${getCampaignBaseUrl()}/logo-white.svg`;
 }
 
 /**
- * Build full campaign email HTML: dark text throughout, logo top + bottom, clear title, body, promo code (if any), CTA.
- * All text uses explicit dark color (#1e293b / #0f172a) so it's visible in any email client.
+ * Build full campaign email HTML: hero image, white content card, dark footer with white logo.
+ * Text uses dark colors on white for readability.
  */
 export function bodyToHtml(
   body: string,
@@ -427,7 +441,8 @@ export function bodyToHtml(
   }
 ): string {
   const baseUrl = getCampaignBaseUrl();
-  const logoUrl = getCampaignLogoUrl();
+  const heroUrl = getCampaignEmailHeroUrl();
+  const footerLogoUrl = getCampaignEmailFooterLogoUrl();
   const gymPath = options?.locale === "vi" ? "/vi/gym#intro" : "/en/gym#intro";
   const loginUrl = `${baseUrl}${gymPath}`;
   const linkStyle = "color: #0d9488; font-weight: 600; text-decoration: underline;";
@@ -473,22 +488,39 @@ export function bodyToHtml(
     .map((p) => `<p style="margin: 0 0 1em 0; color: #1e293b; font-size: 15px; line-height: 1.6;">${p.replace(/\n/g, "<br/>")}</p>`)
     .join("");
 
-  /** Natural aspect logo 322×143 — avoid distorted width/height in Gmail */
-  const logoImg = `<img src="${logoUrl}" alt="Leo Mây" width="200" height="89" style="display: block; margin: 0 auto; max-width: 200px; height: auto; border: 0; outline: none;" />`;
+  /** Hero: full card width, height:auto so landscape photo is not squashed. Footer logo: narrow width, native SVG aspect (~2.2:1). */
+  const heroImg = `<img src="${heroUrl}" alt="Leo Mây Climbing Gym" width="560" style="display: block; width: 100%; max-width: 560px; height: auto; border: 0; outline: none; -ms-interpolation-mode: bicubic;" />`;
+  const footerLogoImg = `<img src="${footerLogoUrl}" alt="Leo Mây" width="132" style="display: block; margin: 0 auto; max-width: 132px; width: 132px; height: auto; border: 0; outline: none;" />`;
 
   return `
-<div style="font-family: sans-serif; max-width: 560px; margin: 0 auto; background-color: #ffffff; color: #1e293b;">
-  <div style="text-align: center; margin-bottom: 16px;">
-    ${logoImg}
-  </div>
-  <h1 style="margin: 0 0 1em 0; font-size: 20px; font-weight: 700; color: #0f172a; line-height: 1.3;">${titleText}</h1>
-  <div style="line-height: 1.6;">
-    ${bodyHtml}
-    <p style="margin: 1.5em 0 0 0; font-size: 15px; color: #1e293b;">${cta}</p>
-    ${codeBlock}
-  </div>
-  <div style="text-align: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
-    ${logoImg}
-  </div>
+<div style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: sans-serif;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f1f5f9; border-collapse: collapse;">
+    <tr>
+      <td align="center" style="padding: 0 8px 24px 8px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="max-width: 560px; width: 100%; background-color: #ffffff; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 0; line-height: 0; font-size: 0; background-color: #0f172a;">
+              ${heroImg}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 20px 8px 20px; background-color: #ffffff;">
+              <h1 style="margin: 0 0 1em 0; font-size: 20px; font-weight: 700; color: #0f172a; line-height: 1.3;">${titleText}</h1>
+              <div style="line-height: 1.6;">
+                ${bodyHtml}
+                <p style="margin: 1.5em 0 0 0; font-size: 15px; color: #1e293b;">${cta}</p>
+                ${codeBlock}
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 22px 20px 26px 20px; background-color: #0f172a; text-align: center;">
+              ${footerLogoImg}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </div>`;
 }
