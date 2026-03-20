@@ -1,26 +1,30 @@
 /**
  * POST /api/integrations/meta/sync
- * Stub: Sync ad stats from Meta Marketing API.
- * Requires META_ACCESS_TOKEN and app credentials. Returns 501 until configured.
+ * Syncs ad campaign insights from Meta Marketing API into ad_campaign_daily_stats.
+ * Requires META_ACCESS_TOKEN and META_AD_ACCOUNT_ID.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAdminOrStaffFromRequest, canAccessAnalytics } from "@/lib/unifiedAdminAuth";
+import { runMetaSync } from "@/lib/metaSync";
 
 export async function POST(req: NextRequest) {
   const unified = await getUnifiedAdminOrStaffFromRequest(req);
   if (!unified || !canAccessAnalytics(unified.role))
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const token = process.env.META_ACCESS_TOKEN ?? process.env.META_APP_TOKEN;
-  if (!token) {
+  const url = new URL(req.url);
+  const daysParam = url.searchParams.get("days");
+  const days = Math.min(Math.max(parseInt(daysParam || "30", 10) || 30, 1), 90);
+
+  const result = await runMetaSync(days);
+
+  if (!result.ok) {
+    const status = result.error.includes("not configured") ? 501 : 502;
     return NextResponse.json(
-      { error: "Meta API not configured. Set META_ACCESS_TOKEN or META_APP_TOKEN." },
-      { status: 501 }
+      { error: result.error, detail: result.detail },
+      { status }
     );
   }
 
-  return NextResponse.json({
-    ok: false,
-    error: "Meta sync not implemented. Scaffold only. Configure credentials and implement fetch from Marketing API.",
-  }, { status: 501 });
+  return NextResponse.json(result);
 }

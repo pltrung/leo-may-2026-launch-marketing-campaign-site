@@ -32,6 +32,8 @@ export default function AcquisitionTab({
   const [manualClicks, setManualClicks] = useState("");
   const [manualLeads, setManualLeads] = useState("");
   const [manualSaving, setManualSaving] = useState(false);
+  const [metaSyncLoading, setMetaSyncLoading] = useState(false);
+  const [metaSyncMessage, setMetaSyncMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   const params = new URLSearchParams();
   params.set("horizon", horizon);
@@ -72,6 +74,33 @@ export default function AcquisitionTab({
   useEffect(() => {
     load();
   }, [load]);
+
+  const syncFromMeta = async () => {
+    setMetaSyncLoading(true);
+    setMetaSyncMessage(null);
+    try {
+      const res = await adminFetch("/api/integrations/meta/sync?days=30", { method: "POST" });
+      const j = await res.json();
+      if (res.ok && j.ok) {
+        setMetaSyncMessage({
+          type: "ok",
+          text: isVi
+            ? `Đã đồng bộ ${j.synced ?? 0} bản ghi từ Meta (${j.range?.since ?? ""} – ${j.range?.until ?? ""})`
+            : `Synced ${j.synced ?? 0} rows from Meta (${j.range?.since ?? ""} – ${j.range?.until ?? ""})`,
+        });
+        load();
+      } else {
+        setMetaSyncMessage({
+          type: "err",
+          text: j.error ?? j.detail ?? (isVi ? "Đồng bộ thất bại" : "Sync failed"),
+        });
+      }
+    } catch {
+      setMetaSyncMessage({ type: "err", text: isVi ? "Lỗi mạng" : "Network error" });
+    } finally {
+      setMetaSyncLoading(false);
+    }
+  };
 
   const saveManual = async () => {
     if (!manualStatDate || !manualPlatform) return;
@@ -136,14 +165,35 @@ export default function AcquisitionTab({
         <p className="text-sm text-slate-600">
           {t("Paid ad performance (Meta, Google, TikTok): spend, funnel, package conversion, landing pages. For email campaigns, see CRM & Email tab.", "Hiệu suất quảng cáo trả phí (Meta, Google, TikTok): chi phí, phễu, chuyển đổi gói, trang đích. Để gửi email, xem tab CRM & Email.")}
         </p>
-        <button
-          type="button"
-          onClick={() => setManualOpen(true)}
-          className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50"
-        >
-          {t("Add ad stats (manual)", "Thêm số liệu quảng cáo (thủ công)")}
-        </button>
+        <div className="flex flex-wrap gap-2 items-center">
+          <button
+            type="button"
+            onClick={syncFromMeta}
+            disabled={metaSyncLoading}
+            className="px-3 py-1.5 rounded-lg border border-indigo-300 bg-indigo-50 text-sm font-medium text-indigo-800 hover:bg-indigo-100 disabled:opacity-60"
+          >
+            {metaSyncLoading ? t("Syncing…", "Đang đồng bộ…") : t("Sync from Meta", "Đồng bộ từ Meta")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setManualOpen(true)}
+            className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            {t("Add ad stats (manual)", "Thêm số liệu quảng cáo (thủ công)")}
+          </button>
+        </div>
       </div>
+      {metaSyncMessage && (
+        <div
+          className={`rounded-lg px-3 py-2 text-sm ${
+            metaSyncMessage.type === "ok"
+              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+              : "bg-rose-50 text-rose-800 border border-rose-200"
+          }`}
+        >
+          {metaSyncMessage.text}
+        </div>
+      )}
 
       {/* 1. Overview KPIs — paid ad performance */}
       <section data-tour="acquisition-overview">
