@@ -57,12 +57,36 @@ export async function GET(req: NextRequest) {
     requesterName[s.id] = s.display_name || s.email || s.id;
   }
 
+  const requestIds = rows.map((r) => r.id);
+  const payState = new Map<string, { hasPending: boolean; hasPaid: boolean }>();
+  for (const id of requestIds) payState.set(id, { hasPending: false, hasPaid: false });
+  if (requestIds.length) {
+    const { data: expenseRows } = await supabase
+      .from("expenses")
+      .select("reorder_request_id, status")
+      .in("reorder_request_id", requestIds);
+    for (const e of expenseRows ?? []) {
+      const rid = e.reorder_request_id as string;
+      const cur = payState.get(rid);
+      if (!cur) continue;
+      if (e.status === "paid") cur.hasPaid = true;
+      else cur.hasPending = true;
+      payState.set(rid, cur);
+    }
+  }
+
   return NextResponse.json({
-    requests: rows.map((r) => ({
-      ...r,
-      variant_label: variantLabel[r.variant_id] ?? r.variant_id.slice(0, 8),
-      requested_by_name: r.requested_by_staff_id ? requesterName[r.requested_by_staff_id] ?? "—" : "—",
-    })),
+    requests: rows.map((r) => {
+      const ps = payState.get(r.id) ?? { hasPending: false, hasPaid: false };
+      const expense_payment_status = ps.hasPaid ? "paid" : ps.hasPending ? "pending" : "none";
+      return {
+        ...r,
+        variant_label: variantLabel[r.variant_id] ?? r.variant_id.slice(0, 8),
+        requested_by_name: r.requested_by_staff_id ? requesterName[r.requested_by_staff_id] ?? "—" : "—",
+        expense_payment_status,
+        receive_stock_allowed: ps.hasPaid,
+      };
+    }),
   });
 }
 
@@ -135,6 +159,23 @@ export async function PATCH(req: NextRequest) {
   if (reqErr || !reqRow) return NextResponse.json({ error: "Request not found" }, { status: 404 });
   if (!["pending", "approved", "ordered"].includes(String(reqRow.status))) {
     return NextResponse.json({ error: "Request already resolved" }, { status: 400 });
+  }
+
+  const { data: paidExpense } = await supabase
+    .from("expenses")
+    .select("id")
+    .eq("reorder_request_id", requestId)
+    .eq("status", "paid")
+    .limit(1)
+    .maybeSingle();
+  if (!paidExpense) {
+    return NextResponse.json(
+      {
+        error:
+          "This restock cannot be received until Finance marks the linked expense as paid (Analytics → Finance → Expenses).",
+      },
+      { status: 403 }
+    );
   }
 
   const receiveQty = Math.max(1, Math.floor(Number(body.received_quantity) || Number(reqRow.quantity_requested) || 1));

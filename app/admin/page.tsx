@@ -313,7 +313,19 @@ export default function AdminPage() {
   const [stockOutQty, setStockOutQty] = useState("1");
   const [inventoryActionMessage, setInventoryActionMessage] = useState<string | null>(null);
   const [inventoryCreateError, setInventoryCreateError] = useState<string | null>(null);
-  const [inventoryReorderRequests, setInventoryReorderRequests] = useState<{ id: string; variant_id: string; variant_label: string; quantity_requested: number; status: string; created_at: string; requested_by_name?: string | null }[]>([]);
+  const [inventoryReorderRequests, setInventoryReorderRequests] = useState<
+    {
+      id: string;
+      variant_id: string;
+      variant_label: string;
+      quantity_requested: number;
+      status: string;
+      created_at: string;
+      requested_by_name?: string | null;
+      expense_payment_status?: "none" | "pending" | "paid";
+      receive_stock_allowed?: boolean;
+    }[]
+  >([]);
   const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
   const inventoryQtyInputRef = React.useRef<HTMLInputElement>(null);
   const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState<"all" | "shoes" | "merch">("all");
@@ -1218,8 +1230,21 @@ export default function AdminPage() {
     const res = await adminFetch("/api/admin/inventory/reorder-requests");
     const d = await res.json().catch(() => ({}));
     if (res.ok) {
+      const raw = (d as { requests?: Record<string, unknown>[] }).requests ?? [];
       setInventoryReorderRequests(
-        (d as { requests?: { id: string; variant_id: string; variant_label: string; quantity_requested: number; status: string; created_at: string; requested_by_name?: string | null }[] }).requests ?? []
+        raw.map((r) => ({
+          ...(r as {
+            id: string;
+            variant_id: string;
+            variant_label: string;
+            quantity_requested: number;
+            status: string;
+            created_at: string;
+            requested_by_name?: string | null;
+          }),
+          expense_payment_status: (r.expense_payment_status as "none" | "pending" | "paid") ?? "none",
+          receive_stock_allowed: r.receive_stock_allowed === true,
+        }))
       );
     } else {
       setInventoryReorderRequests([]);
@@ -1231,15 +1256,13 @@ export default function AdminPage() {
     [inventoryReorderRequests]
   );
 
-  const { inventoryNeedsRestockActionable, inventoryNeedsRestockPendingOnlyCount } = useMemo(() => {
+  const inventoryNeedsRestockActionable = useMemo(() => {
     const low = inventoryList.filter(
       (inv) => inv.variant?.id && inv.quantity <= INVENTORY_RESTOCK_THRESHOLD
     );
-    const actionable = low
+    return low
       .filter((inv) => !inventoryPendingRequestVariantIds.has(inv.variant_id))
       .sort((a, b) => a.quantity - b.quantity);
-    const pendingOnly = low.filter((inv) => inventoryPendingRequestVariantIds.has(inv.variant_id)).length;
-    return { inventoryNeedsRestockActionable: actionable, inventoryNeedsRestockPendingOnlyCount: pendingOnly };
   }, [inventoryList, inventoryPendingRequestVariantIds]);
 
   const handleScanQr = useCallback(() => {
@@ -3801,115 +3824,117 @@ export default function AdminPage() {
                 .catch(() => setInventoryCreateError("Lookup failed."));
             }} onError={(msg) => setInventoryCreateError(msg)} title={m.scanProduct} hint={m.scanProductHint} />
 
-            {/* 4) Pending restock requests — receive to increase stock */}
-            <div className="rounded-lg border border-slate-600 bg-slate-800/60 p-3">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                  {locale === "vi" ? "Yêu cầu nhập hàng đang mở" : "Open restock requests"}
-                </h4>
-                <button
-                  type="button"
-                  onClick={() => loadInventoryReorderRequests().catch(() => setInventoryReorderRequests([]))}
-                  className="text-xs text-slate-400 hover:text-slate-200"
-                >
-                  {locale === "vi" ? "Tải lại" : "Refresh"}
-                </button>
-              </div>
-              {inventoryReorderRequests.length === 0 ? (
-                <p className="text-xs text-slate-500">{locale === "vi" ? "Không có yêu cầu mở." : "No open requests."}</p>
-              ) : (
+            {/* 4) Open restock requests — only when any; Receive only after Finance marks expense paid */}
+            {inventoryReorderRequests.length > 0 ? (
+              <div className="rounded-lg border border-slate-600 bg-slate-800/60 p-3">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                    {locale === "vi" ? "Yêu cầu nhập hàng đang mở" : "Open restock requests"}
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => loadInventoryReorderRequests().catch(() => setInventoryReorderRequests([]))}
+                    className="text-xs text-slate-400 hover:text-slate-200"
+                  >
+                    {locale === "vi" ? "Tải lại" : "Refresh"}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-500 mb-2">
+                  {locale === "vi"
+                    ? "Nhận hàng chỉ bật sau khi Tài chính ghi chi phí mua và đánh dấu «Đã trả» trên Phân tích → Tài chính → Chi phí."
+                    : "Receive stock is only available after Finance records the purchase and marks the expense Paid (Analytics → Finance → Expenses)."}
+                </p>
                 <ul className="space-y-1.5">
                   {inventoryReorderRequests.map((r) => (
                     <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 border border-slate-700 rounded-lg px-2.5 py-2">
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm text-slate-100 truncate">{r.variant_label}</p>
                         <p className="text-xs text-slate-400">
                           {locale === "vi" ? "Yêu cầu:" : "Requested:"} x{r.quantity_requested}
                           {r.requested_by_name ? ` · ${r.requested_by_name}` : ""}
+                          {r.status ? ` · ${r.status}` : ""}
                         </p>
+                        {r.receive_stock_allowed ? null : r.expense_payment_status === "pending" ? (
+                          <p className="text-[11px] text-amber-300/90 mt-1">
+                            {locale === "vi"
+                              ? "Chi phí đã ghi — đánh dấu «Đã trả» trong Tài chính để có thể nhận hàng."
+                              : "Purchase recorded — mark the expense Paid in Finance to receive stock."}
+                          </p>
+                        ) : (
+                          <p className="text-[11px] text-slate-500 mt-1">
+                            {locale === "vi"
+                              ? "Chờ Tài chính ghi chi phí mua (Phân tích → Tài chính) rồi đánh dấu đã trả."
+                              : "Waiting for Finance to record purchase cost, then mark it paid."}
+                          </p>
+                        )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const q = window.prompt(
-                            locale === "vi" ? "Số lượng đã nhận:" : "Quantity received:",
-                            String(r.quantity_requested)
-                          );
-                          if (!q) return;
-                          const qty = Math.max(1, parseInt(q, 10) || r.quantity_requested || 1);
-                          const res = await adminFetch("/api/admin/inventory/reorder-requests", {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ request_id: r.id, received_quantity: qty }),
-                          });
-                          const d = await res.json().catch(() => ({}));
-                          if (res.ok && d?.ok) {
-                            setInventoryActionMessage(locale === "vi" ? "Đã nhận hàng và cập nhật tồn kho." : "Stock received and inventory updated.");
-                            adminFetch("/api/admin/inventory").then((x) => x.json()).then((x) => setInventoryList(x.inventory ?? []));
-                            loadInventoryReorderRequests().catch(() => setInventoryReorderRequests([]));
-                            setTimeout(() => setInventoryActionMessage(null), 4000);
-                          } else {
-                            setInventoryCreateError((d as { error?: string }).error ?? "Failed");
-                          }
-                        }}
-                        className="shrink-0 text-xs px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500"
-                      >
-                        {locale === "vi" ? "Đã nhận hàng" : "Receive stock"}
-                      </button>
+                      {r.receive_stock_allowed ? (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const q = window.prompt(
+                              locale === "vi" ? "Số lượng đã nhận:" : "Quantity received:",
+                              String(r.quantity_requested)
+                            );
+                            if (!q) return;
+                            const qty = Math.max(1, parseInt(q, 10) || r.quantity_requested || 1);
+                            const res = await adminFetch("/api/admin/inventory/reorder-requests", {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ request_id: r.id, received_quantity: qty }),
+                            });
+                            const d = await res.json().catch(() => ({}));
+                            if (res.ok && d?.ok) {
+                              setInventoryActionMessage(locale === "vi" ? "Đã nhận hàng và cập nhật tồn kho." : "Stock received and inventory updated.");
+                              adminFetch("/api/admin/inventory").then((x) => x.json()).then((x) => setInventoryList(x.inventory ?? []));
+                              loadInventoryReorderRequests().catch(() => setInventoryReorderRequests([]));
+                              setTimeout(() => setInventoryActionMessage(null), 4000);
+                            } else {
+                              setInventoryCreateError((d as { error?: string }).error ?? "Failed");
+                            }
+                          }}
+                          className="shrink-0 text-xs px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500"
+                        >
+                          {locale === "vi" ? "Đã nhận hàng" : "Receive stock"}
+                        </button>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
-              )}
-            </div>
-
-            {/* 4b) SKUs at/below restock threshold — quick request (below open requests) */}
-            <div
-              className="rounded-lg border-2 border-amber-500/50 bg-amber-950/40 p-3"
-              data-tour="inventory-needs-restock"
-            >
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div>
-                  <h4 className="text-xs font-semibold text-amber-100 uppercase tracking-wider">
-                    {locale === "vi" ? "Kho cần nhập thêm (theo ngưỡng)" : "Inventory needs restock"}
-                  </h4>
-                  <p className="text-[11px] text-amber-200/80 mt-1">
-                    {locale === "vi"
-                      ? `SKU có tồn kho ≤ ${INVENTORY_RESTOCK_THRESHOLD} (cùng tiêu chí banner quầy). Nhấn Yêu cầu để tạo hàng chờ nhập — hiển thị ở ô phía trên.`
-                      : `SKUs at or below ${INVENTORY_RESTOCK_THRESHOLD} units (same as front-desk banner). Request adds a row to open restock requests above.`}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    adminFetch("/api/admin/inventory")
-                      .then((r) => r.json())
-                      .then((x) => setInventoryList(x.inventory ?? []))
-                      .catch(() => {});
-                    loadInventoryReorderRequests().catch(() => setInventoryReorderRequests([]));
-                  }}
-                  className="shrink-0 text-xs text-amber-200/90 hover:text-amber-50 underline"
-                >
-                  {locale === "vi" ? "Tải lại" : "Refresh"}
-                </button>
               </div>
-              {inventoryList.length === 0 ? (
-                <p className="text-xs text-amber-200/70">{locale === "vi" ? "Đang tải kho…" : "Loading inventory…"}</p>
-              ) : inventoryNeedsRestockActionable.length === 0 ? (
-                <div className="text-xs text-amber-200/85 space-y-1">
-                  <p>
-                    {locale === "vi"
-                      ? "Không có SKU nào cần yêu cầu mới — tất cả đều trên ngưỡng hoặc đã có yêu cầu mở."
-                      : "No SKUs need a new request — either above threshold or already in open requests."}
-                  </p>
-                  {inventoryNeedsRestockPendingOnlyCount > 0 ? (
-                    <p className="text-amber-100/90 font-medium">
+            ) : null}
+
+            {/* 4b) SKUs at/below restock threshold — only when actionable SKUs exist */}
+            {inventoryNeedsRestockActionable.length > 0 ? (
+              <div
+                className="rounded-lg border-2 border-amber-500/50 bg-amber-950/40 p-3"
+                data-tour="inventory-needs-restock"
+              >
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div>
+                    <h4 className="text-xs font-semibold text-amber-100 uppercase tracking-wider">
+                      {locale === "vi" ? "Kho cần nhập thêm (theo ngưỡng)" : "Inventory needs restock"}
+                    </h4>
+                    <p className="text-[11px] text-amber-200/80 mt-1">
                       {locale === "vi"
-                        ? `${inventoryNeedsRestockPendingOnlyCount} SKU đang thấp nhưng đã có trong «Yêu cầu nhập hàng đang mở» phía trên.`
-                        : `${inventoryNeedsRestockPendingOnlyCount} low-stock SKU(s) already listed in open restock requests above.`}
+                        ? `SKU có tồn ≤ ${INVENTORY_RESTOCK_THRESHOLD} (cùng tiêu chí banner quầy). Yêu cầu tạo mục «Yêu cầu nhập hàng đang mở» khi có.`
+                        : `SKUs at or below ${INVENTORY_RESTOCK_THRESHOLD} units (same as front-desk banner). Request creates an open restock row when applicable.`}
                     </p>
-                  ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      adminFetch("/api/admin/inventory")
+                        .then((r) => r.json())
+                        .then((x) => setInventoryList(x.inventory ?? []))
+                        .catch(() => {});
+                      loadInventoryReorderRequests().catch(() => setInventoryReorderRequests([]));
+                    }}
+                    className="shrink-0 text-xs text-amber-200/90 hover:text-amber-50 underline"
+                  >
+                    {locale === "vi" ? "Tải lại" : "Refresh"}
+                  </button>
                 </div>
-              ) : (
                 <ul className="space-y-2">
                   {inventoryNeedsRestockActionable.map((inv) => (
                     <li
@@ -3949,8 +3974,8 @@ export default function AdminPage() {
                           if (res.ok && (d as { ok?: boolean }).ok) {
                             setInventoryActionMessage(
                               locale === "vi"
-                                ? "Đã gửi yêu cầu nhập hàng. Xem mục yêu cầu mở phía trên."
-                                : "Restock request sent. See open requests above."
+                                ? "Đã gửi yêu cầu nhập hàng."
+                                : "Restock request sent."
                             );
                             loadInventoryReorderRequests().catch(() => setInventoryReorderRequests([]));
                             setTimeout(() => setInventoryActionMessage(null), 5000);
@@ -3963,8 +3988,8 @@ export default function AdminPage() {
                     </li>
                   ))}
                 </ul>
-              )}
-            </div>
+              </div>
+            ) : null}
 
             {/* 5) View Inventory — table, filter All/Shoes/Merch, search, sorted by qty*price desc */}
             <div>
