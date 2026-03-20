@@ -1,4 +1,5 @@
 import type { FinanceMetricsPayload } from "./metricCalculators";
+import type { CampaignSegmentId } from "@/lib/campaignSegments";
 
 export type AnalyticsAlertSeverity = "critical" | "warning" | "info";
 
@@ -11,6 +12,8 @@ export type AnalyticsAlert = {
   detailVi: string;
   /** Tab key to open in analytics */
   navigateTab?: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance";
+  /** Optional campaign segment to pre-open in Marketing tab */
+  campaignSegmentId?: CampaignSegmentId;
 };
 
 type MemberHealth = { at_risk?: number; inactive?: number; expiring_soon?: number };
@@ -45,6 +48,7 @@ export function buildAnalyticsAlerts(
       detailEn: "Send renewal reminder via Marketing.",
       detailVi: "Gửi nhắc gia hạn qua Marketing.",
       navigateTab: "marketing",
+      campaignSegmentId: "expiring_soon_7d",
     });
   }
 
@@ -70,7 +74,8 @@ export function buildAnalyticsAlerts(
       titleVi: `${inactive} không hoạt động (30+ ngày)`,
       detailEn: "Reactivation opportunities.",
       detailVi: "Cơ hội kích hoạt lại.",
-      navigateTab: "engagement",
+      navigateTab: "marketing",
+      campaignSegmentId: "inactive_members_30d",
     });
   }
 

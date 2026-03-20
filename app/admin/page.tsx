@@ -2740,31 +2740,6 @@ export default function AdminPage() {
                           {foundMember.guardian_name || "—"} · {foundMember.guardian_phone || "—"}
                         </div>
                       )}
-                      <div className="col-span-2 flex flex-wrap items-center gap-2">
-                        <p className="text-slate-400 text-xs w-full">
-                          {locale === "vi" ? "Chào mừng lần đầu (dashboard)" : "First visit welcome (dashboard)"}
-                        </p>
-                        {foundMember.first_visit_welcomed_at ? (
-                          <p className="text-emerald-300 text-xs">
-                            ✓ {new Date(foundMember.first_visit_welcomed_at).toLocaleString(locale === "vi" ? "vi-VN" : "en-US")}
-                          </p>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              const res = await adminFetch("/api/admin/gym-operations/first-visit-welcome", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ member_id: foundMember.id }),
-                              });
-                              if (res.ok) await loadMemberById(foundMember.id);
-                            }}
-                            className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-500"
-                          >
-                            {locale === "vi" ? "Đánh dấu đã chào mừng" : "Mark welcomed"}
-                          </button>
-                        )}
-                      </div>
                     </div>
                   </div>
                   <div className="rounded-2xl bg-slate-800/90 border border-slate-700 shadow-[0_16px_40px_rgba(15,23,42,0.7)] p-4 md:p-5">

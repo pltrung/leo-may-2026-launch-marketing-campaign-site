@@ -37,8 +37,8 @@ export async function getSegmentRecipients(
 
   const { data: profiles } = await supabase
     .from("member_profiles")
-    .select("id, email, full_name, display_name, created_at, membership_expires_at, visits_remaining, date_of_birth, first_visit_welcomed_at, membership_status");
-  const allProfiles = (profiles ?? []) as (SegmentRecipient & { created_at: string; date_of_birth?: string | null; first_visit_welcomed_at?: string | null; membership_status?: string })[];
+    .select("id, email, full_name, display_name, created_at, membership_expires_at, visits_remaining, date_of_birth, membership_status");
+  const allProfiles = (profiles ?? []) as (SegmentRecipient & { created_at: string; date_of_birth?: string | null; membership_status?: string })[];
   const byId = new Map(allProfiles.map((p) => [p.id, p]));
 
   function hasCurrentAccess(p: SegmentRecipient): boolean {
@@ -169,16 +169,6 @@ export async function getSegmentRecipients(
         7
       );
       memberIds = upcoming.map((u) => u.id);
-      break;
-    }
-    case "first_visit_not_welcomed": {
-      const withCheckin = new Set<string>();
-      for (const c of allCheckins) withCheckin.add(c.member_id);
-      memberIds = allProfiles.filter((p) => {
-        if (!withCheckin.has(p.id)) return false;
-        if (p.first_visit_welcomed_at) return false;
-        return true;
-      }).map((p) => p.id);
       break;
     }
     default:

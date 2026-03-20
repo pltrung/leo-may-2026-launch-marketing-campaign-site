@@ -185,6 +185,9 @@ export default function ExecutiveSummary({
   }
 
   const openAlert = (a: AnalyticsAlert) => {
+    if (a.campaignSegmentId && typeof window !== "undefined") {
+      localStorage.setItem("admin_marketing_segment_intent", a.campaignSegmentId);
+    }
     if (a.navigateTab && onOpenTab) onOpenTab(a.navigateTab);
   };
 

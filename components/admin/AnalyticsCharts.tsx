@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { renderBody } from "@/lib/campaignSegments";
+import { renderBody, getSegmentById } from "@/lib/campaignSegments";
 import { MARKETING_AUDIENCES } from "@/lib/marketingAudienceQueries";
 import { SEGMENT_GROUPS, type CampaignSegmentId } from "@/lib/campaignSegments";
 import {
@@ -221,6 +221,29 @@ export default function AnalyticsCharts({
       .finally(() => setCampaignSegmentsLoading(false));
     fetchCampaignLogs();
   }, [tab, adminFetch, fetchCampaignLogs]);
+
+  useEffect(() => {
+    if (tab !== "marketing") return;
+    if (typeof window === "undefined") return;
+    const intent = localStorage.getItem("admin_marketing_segment_intent");
+    if (!intent) return;
+    const seg = campaignSegments.find((s) => s.id === intent);
+    if (seg) {
+      openCampaignModal(seg);
+      localStorage.removeItem("admin_marketing_segment_intent");
+      return;
+    }
+    if (campaignSegments.length > 0) {
+      const fallback = getSegmentById(intent as CampaignSegmentId);
+      if (fallback) {
+        setCreateAudienceId("marketing_inactive_members");
+        setCreateSubject(fallback.subject);
+        setCreateBody(fallback.body);
+        setCreateCampaignOpen(true);
+      }
+      localStorage.removeItem("admin_marketing_segment_intent");
+    }
+  }, [tab, campaignSegments, openCampaignModal]);
 
   const openCampaignModal = useCallback((segment: CampaignSegmentRow) => {
     setCampaignModal({ segment, subject: segment.subject, body: segment.body });
