@@ -113,7 +113,7 @@ function payrollForPeriod(
     const checkIns = checkInsByStaff[s.id] ?? 0;
     const hourlyRate = Number(s.hourly_rate_vnd) || 0;
     const basePay = isHourly
-      ? Math.round(checkIns * hourlyRate)
+      ? Math.round(checkIns * 12 * hourlyRate)
       : Number(s.monthly_salary) || 0;
     const lineTotal = basePay + variable;
     payrollTotal += lineTotal;

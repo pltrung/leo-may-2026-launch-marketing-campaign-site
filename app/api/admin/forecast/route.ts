@@ -37,7 +37,7 @@ function payrollForPeriod(
     const checkIns = checkInsByStaff[s.id] ?? 0;
     const hourlyRate = Number(s.hourly_rate_vnd) || 0;
     const basePay = isHourly
-      ? Math.round(checkIns * hourlyRate)
+      ? Math.round(checkIns * 12 * hourlyRate)
       : Number(s.monthly_salary) || 0;
     total += basePay + variable;
   }
@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
       const isHourly = (x.compensation_type || "monthly") === "hourly";
       const checkIns = checkInsByStaff[x.id] ?? 0;
       const hourlyRate = Number(x.hourly_rate_vnd) || 0;
-      return s + (isHourly ? Math.round(checkIns * hourlyRate) : (Number(x.monthly_salary) || 0));
+      return s + (isHourly ? Math.round(checkIns * 12 * hourlyRate) : (Number(x.monthly_salary) || 0));
     }, 0);
     const variableMtd = Math.max(0, payrollMtd - sumSalaries);
     const monthly_costs = Math.round(rentAmount + sumSalaries + variableMtd * extrap + expensesMtd * extrap);

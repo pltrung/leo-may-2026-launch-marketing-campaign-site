@@ -606,7 +606,7 @@ export default function FinanceTab({
                   </td>
                   <td className="py-3 px-4 text-right text-slate-900">
                     {isHourly && checkIns > 0 && s.hourly_rate_vnd != null
-                      ? `${checkIns} × ${formatVnd(s.hourly_rate_vnd)} = ${formatVnd(s.monthly_salary)}`
+                      ? `${checkIns} × 12h × ${formatVnd(s.hourly_rate_vnd)} = ${formatVnd(s.monthly_salary)}`
                       : formatVnd(s.monthly_salary)}
                   </td>
                   <td className="py-3 px-4 text-right text-slate-700">{formatVnd(s.sales_mtd)}</td>
@@ -644,8 +644,8 @@ export default function FinanceTab({
         </div>
         <p className="text-xs text-slate-500 mt-2">
           {t(
-            "Base: monthly = fixed salary; hourly = check-ins × rate (1 check-in/day). Variable = commission_rate × POS sales or summed commission.",
-            "Cố định: tháng = lương cố định; theo ca = số ca × đơn giá (1 ca/ngày). Biến đổi = tỷ lệ × DS POS hoặc HH thực tế."
+            "Base: monthly = fixed salary; hourly = check-ins × 12h × rate (1 check-in/day, 12h/day). Variable = commission_rate × POS sales or summed commission.",
+            "Cố định: tháng = lương cố định; theo ca = số ca × 12h × đơn giá (1 ca/ngày, 12h/ngày). Biến đổi = tỷ lệ × DS POS hoặc HH thực tế."
           )}
         </p>
       </div>
