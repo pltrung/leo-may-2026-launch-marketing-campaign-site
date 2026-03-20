@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
   renderBody,
   getSegmentById,
   bodyToHtml,
   getSubjectWithBrand,
+  getMarketingSubject,
   defaultPromoKindForSegment,
   type CampaignPromoKind,
+  type CampaignPosterPosition,
 } from "@/lib/campaignSegments";
 import { MARKETING_AUDIENCES } from "@/lib/marketingAudienceQueries";
 import { SEGMENT_GROUPS, type CampaignSegmentId } from "@/lib/campaignSegments";
@@ -231,6 +233,11 @@ export default function AnalyticsCharts({
     }[]
   >([]);
   const [createPromoKind, setCreatePromoKind] = useState<CampaignPromoKind | "">("");
+  const [createPosterUrl, setCreatePosterUrl] = useState<string | null>(null);
+  const [createPosterPosition, setCreatePosterPosition] = useState<CampaignPosterPosition>("top");
+  const [createPosterUploading, setCreatePosterUploading] = useState(false);
+  const [createPosterError, setCreatePosterError] = useState<string | null>(null);
+  const createPosterFileRef = useRef<HTMLInputElement>(null);
   const [showEmptySegments, setShowEmptySegments] = useState(false);
 
   const marketingAudiencesAvailable = useMemo(
@@ -352,6 +359,10 @@ export default function AnalyticsCharts({
     setCreateSuccess(null);
     setCreateSendFootnote(null);
     setCreatePromoKind("");
+    setCreatePosterUrl(null);
+    setCreatePosterPosition("top");
+    setCreatePosterUploading(false);
+    setCreatePosterError(null);
     setCreateCampaignOpen(true);
   }, []);
 
@@ -372,6 +383,9 @@ export default function AnalyticsCharts({
           marketing: !createPromoKind,
           locale: isVi ? "vi" : "en",
           ...(createPromoKind ? { promo_kind: createPromoKind } : {}),
+          ...(createPosterUrl
+            ? { poster_image_url: createPosterUrl, poster_position: createPosterPosition }
+            : {}),
         }),
       });
       const d = await res.json().catch(() => ({}));
@@ -385,7 +399,7 @@ export default function AnalyticsCharts({
     } finally {
       setCreateTestSending(false);
     }
-  }, [adminFetch, createSubject, createBody, isVi, t]);
+  }, [adminFetch, createSubject, createBody, createPromoKind, createPosterUrl, createPosterPosition, isVi, t]);
 
   const sendCreateCampaign = useCallback(async () => {
     if (!adminFetch || !createAudienceId || !createSubject.trim() || !createBody.trim()) return;
@@ -401,6 +415,9 @@ export default function AnalyticsCharts({
           subject: createSubject.trim(),
           body: createBody,
           ...(createPromoKind ? { promo_kind: createPromoKind } : {}),
+          ...(createPosterUrl
+            ? { poster_image_url: createPosterUrl, poster_position: createPosterPosition }
+            : {}),
         }),
       });
       const d = await res.json().catch(() => ({}));
@@ -675,9 +692,11 @@ export default function AnalyticsCharts({
         {createCampaignOpen && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-            onClick={() => !createSending && !createTestSending && setCreateCampaignOpen(false)}
+            onClick={() =>
+              !createSending && !createTestSending && !createPosterUploading && setCreateCampaignOpen(false)
+            }
           >
-            <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-lg font-semibold text-slate-900 mb-1">
                 {t("New marketing campaign", "Chiến dịch marketing mới")}
               </h3>
@@ -752,6 +771,115 @@ export default function AnalyticsCharts({
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white mb-2 font-mono"
               />
               <label className="block text-sm font-medium text-slate-700 mb-1">
+                {t("Poster / photo (optional)", "Ảnh poster (tuỳ chọn)")}
+              </label>
+              <p className="text-xs text-slate-500 mb-2">
+                {t(
+                  "JPEG, PNG, or WebP (max 5MB). Choose whether it replaces the top banner or sits above the footer.",
+                  "JPEG, PNG hoặc WebP (tối đa 5MB). Chọn thay banner trên cùng hoặc đặt phía trên chân trang."
+                )}
+              </p>
+              <input
+                ref={createPosterFileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!f || !/^image\/(jpeg|png|webp)$/i.test(f.type)) return;
+                  if (!adminFetch) return;
+                  setCreatePosterUploading(true);
+                  setCreatePosterError(null);
+                  const reader = new FileReader();
+                  reader.onload = async () => {
+                    try {
+                      const dataUrl = reader.result as string;
+                      const res = await adminFetch("/api/admin/upload/campaign-poster", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ image: dataUrl }),
+                      });
+                      const d = await res.json().catch(() => ({}));
+                      if (res.ok && typeof d.url === "string" && d.url) {
+                        setCreatePosterUrl(d.url);
+                      } else {
+                        setCreatePosterError(
+                          (d as { error?: string }).error || t("Upload failed.", "Tải lên thất bại.")
+                        );
+                      }
+                    } catch {
+                      setCreatePosterError(t("Upload failed.", "Tải lên thất bại."));
+                    } finally {
+                      setCreatePosterUploading(false);
+                    }
+                  };
+                  reader.readAsDataURL(f);
+                }}
+              />
+              <div className="flex flex-wrap items-center gap-3 mb-3">
+                <button
+                  type="button"
+                  onClick={() => createPosterFileRef.current?.click()}
+                  disabled={createPosterUploading || createSending || createTestSending}
+                  className="px-3 py-1.5 rounded-lg border border-slate-300 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {createPosterUploading
+                    ? t("Uploading…", "Đang tải…")
+                    : createPosterUrl
+                      ? t("Replace image", "Đổi ảnh")
+                      : t("Upload poster", "Tải poster")}
+                </button>
+                {createPosterUrl ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreatePosterUrl(null);
+                      setCreatePosterError(null);
+                    }}
+                    disabled={createPosterUploading || createSending || createTestSending}
+                    className="text-sm text-red-600 hover:underline disabled:opacity-50"
+                  >
+                    {t("Remove", "Xóa")}
+                  </button>
+                ) : null}
+              </div>
+              {createPosterError ? <p className="text-sm text-red-600 mb-2">{createPosterError}</p> : null}
+              {createPosterUrl ? (
+                <div className="mb-4 space-y-2">
+                  <img
+                    src={createPosterUrl}
+                    alt=""
+                    className="max-h-36 rounded border border-slate-200 object-contain bg-slate-50"
+                  />
+                  <fieldset className="border border-slate-200 rounded-lg p-3">
+                    <legend className="text-xs font-medium text-slate-600 px-1">
+                      {t("Poster position", "Vị trí poster")}
+                    </legend>
+                    <div className="flex flex-wrap gap-4 text-sm">
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="createPosterPosition"
+                          checked={createPosterPosition === "top"}
+                          onChange={() => setCreatePosterPosition("top")}
+                        />
+                        {t("Top (banner hero)", "Trên cùng (banner)")}
+                      </label>
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="createPosterPosition"
+                          checked={createPosterPosition === "bottom"}
+                          onChange={() => setCreatePosterPosition("bottom")}
+                        />
+                        {t("Bottom (above footer logo)", "Dưới (trên logo chân trang)")}
+                      </label>
+                    </div>
+                  </fieldset>
+                </div>
+              ) : null}
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 {t("Promo code type", "Loại mã ưu đãi")}
               </label>
               <select
@@ -775,27 +903,34 @@ export default function AnalyticsCharts({
               {createShowPreview && (
                 <div className="mb-4 p-4 rounded-lg bg-slate-100 border border-slate-200 text-sm space-y-3">
                   <p className="font-medium text-slate-700">
-                    {t("Sample", "Mẫu")} (Alex): {createSubject || "—"}
+                    {t("Sample", "Mẫu")} (Alex):{" "}
+                    {createPromoKind
+                      ? getSubjectWithBrand(createSubject.trim() || "Leo Mây")
+                      : getMarketingSubject(createSubject.trim())}
                   </p>
-                  {createPromoKind ? (
-                    <>
-                      <p className="text-xs text-slate-600">{t("Email preview (with sample code):", "Xem trước email (mã mẫu):")}</p>
-                      <div
-                        className="bg-white rounded border border-slate-200 p-3 max-h-80 overflow-y-auto text-left"
-                        dangerouslySetInnerHTML={{
-                          __html: bodyToHtml(renderBody(createBody || "", "Alex"), {
-                            marketing: false,
-                            locale: isVi ? "vi" : "en",
-                            subject: getSubjectWithBrand(createSubject.trim() || "Leo Mây"),
-                            promoCode: samplePromoCodeForPreview(createPromoKind),
-                            promoKind: createPromoKind,
-                          }),
-                        }}
-                      />
-                    </>
-                  ) : (
-                    <pre className="whitespace-pre-wrap font-sans text-slate-800">{renderBody(createBody || "", "Alex")}</pre>
-                  )}
+                  <p className="text-xs text-slate-600">
+                    {createPromoKind
+                      ? t("Full email preview (sample code; includes footer logo):", "Xem trước đầy đủ (mã mẫu; có logo chân trang):")
+                      : t("Full email preview (includes footer logo):", "Xem trước đầy đủ (có logo chân trang):")}
+                  </p>
+                  <div
+                    className="bg-white rounded border border-slate-200 max-h-[480px] overflow-y-auto text-left"
+                    dangerouslySetInnerHTML={{
+                      __html: bodyToHtml(renderBody(createBody || "", "Alex"), {
+                        marketing: !createPromoKind,
+                        locale: isVi ? "vi" : "en",
+                        subject: createPromoKind
+                          ? getSubjectWithBrand(createSubject.trim() || "Leo Mây")
+                          : getMarketingSubject(createSubject.trim()),
+                        promoCode: createPromoKind ? samplePromoCodeForPreview(createPromoKind) : undefined,
+                        promoKind: createPromoKind || undefined,
+                        posterImageUrl: createPosterUrl,
+                        posterPosition: createPosterUrl ? createPosterPosition : null,
+                        previewAssetOrigin:
+                          typeof window !== "undefined" ? window.location.origin : null,
+                      }),
+                    }}
+                  />
                 </div>
               )}
               {createTestMessage && <p className="text-sm mb-3 text-teal-700">{createTestMessage}</p>}
@@ -818,7 +953,7 @@ export default function AnalyticsCharts({
                 <button
                   type="button"
                   onClick={() => setCreateCampaignOpen(false)}
-                  disabled={createSending || createTestSending}
+                  disabled={createSending || createTestSending || createPosterUploading}
                   className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                 >
                   {t("Cancel", "Hủy")}
@@ -826,7 +961,13 @@ export default function AnalyticsCharts({
                 <button
                   type="button"
                   onClick={sendCreateCampaignTest}
-                  disabled={createTestSending || createSending || !createSubject.trim() || !createBody.trim()}
+                  disabled={
+                    createTestSending ||
+                    createSending ||
+                    createPosterUploading ||
+                    !createSubject.trim() ||
+                    !createBody.trim()
+                  }
                   className="px-4 py-2 rounded-lg border border-teal-600 text-teal-700 hover:bg-teal-50 disabled:opacity-50"
                 >
                   {createTestSending ? t("Sending test…", "Đang gửi thử…") : t("Test send (to me)", "Gửi thử (tới tôi)")}
@@ -837,6 +978,7 @@ export default function AnalyticsCharts({
                   disabled={
                     createSending ||
                     createTestSending ||
+                    createPosterUploading ||
                     !createSubject.trim() ||
                     !createBody.trim() ||
                     (marketingAudiences.length > 0 && marketingAudiencesAvailable.length === 0) ||

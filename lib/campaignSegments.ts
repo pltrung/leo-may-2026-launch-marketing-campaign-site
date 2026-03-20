@@ -426,6 +426,13 @@ export function getCampaignEmailFooterLogoUrl(): string {
   return `${getCampaignBaseUrl()}/logo-white.svg`;
 }
 
+/** Where to place an optional poster image in marketing/segment campaign emails. */
+export type CampaignPosterPosition = "top" | "bottom";
+
+function escapeHtmlAttr(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
 /**
  * Build full campaign email HTML: hero image, white content card, dark footer with white logo.
  * Text uses dark colors on white for readability.
@@ -438,11 +445,32 @@ export function bodyToHtml(
     locale?: "en" | "vi";
     subject?: string;
     marketing?: boolean;
+    /** Public HTTPS URL of an uploaded poster/photo (marketing campaigns). */
+    posterImageUrl?: string | null;
+    posterPosition?: CampaignPosterPosition | null;
+    /**
+     * In-browser preview only: set to `window.location.origin` so `/logo-white.svg` and default hero load from the current site.
+     * Omit when generating HTML for Gmail (server uses getCampaignBaseUrl()).
+     */
+    previewAssetOrigin?: string | null;
   }
 ): string {
   const baseUrl = getCampaignBaseUrl();
-  const heroUrl = getCampaignEmailHeroUrl();
-  const footerLogoUrl = getCampaignEmailFooterLogoUrl();
+  const previewOrigin = options?.previewAssetOrigin?.replace(/\/$/, "").trim() || null;
+  const staticBase = previewOrigin || baseUrl;
+
+  const posterUrl = options?.posterImageUrl?.trim() || "";
+  const posterPos = options?.posterPosition ?? null;
+  const usePosterTop = posterPos === "top" && !!posterUrl;
+  const usePosterBottom = posterPos === "bottom" && !!posterUrl;
+
+  const heroUrl = usePosterTop
+    ? posterUrl
+    : previewOrigin
+      ? `${staticBase}/campaign-email-hero.png`
+      : getCampaignEmailHeroUrl();
+
+  const footerLogoUrl = previewOrigin ? `${staticBase}/logo-white.svg` : getCampaignEmailFooterLogoUrl();
   const gymPath = options?.locale === "vi" ? "/vi/gym#intro" : "/en/gym#intro";
   const loginUrl = `${baseUrl}${gymPath}`;
   const linkStyle = "color: #0d9488; font-weight: 600; text-decoration: underline;";
@@ -488,9 +516,13 @@ export function bodyToHtml(
     .map((p) => `<p style="margin: 0 0 1em 0; color: #1e293b; font-size: 15px; line-height: 1.6;">${p.replace(/\n/g, "<br/>")}</p>`)
     .join("");
 
-  /** Hero: full card width, height:auto so landscape photo is not squashed. Footer logo: narrow width, native SVG aspect (~2.2:1). */
-  const heroImg = `<img src="${heroUrl}" alt="Leo Mây Climbing Gym" width="560" style="display: block; width: 100%; max-width: 560px; height: auto; border: 0; outline: none; -ms-interpolation-mode: bicubic;" />`;
-  const footerLogoImg = `<img src="${footerLogoUrl}" alt="Leo Mây" width="132" style="display: block; margin: 0 auto; max-width: 132px; width: 132px; height: auto; border: 0; outline: none;" />`;
+  /** Hero: full card width, height:auto. Custom poster top uses same sizing. */
+  const heroImg = `<img src="${escapeHtmlAttr(heroUrl)}" alt="Leo Mây Climbing Gym" width="560" style="display: block; width: 100%; max-width: 560px; height: auto; border: 0; outline: none; -ms-interpolation-mode: bicubic;" />`;
+  const footerLogoImg = `<img src="${escapeHtmlAttr(footerLogoUrl)}" alt="Leo Mây" width="132" style="display: block; margin: 0 auto; max-width: 132px; width: 132px; height: auto; border: 0; outline: none;" />`;
+
+  const posterBottomImg = usePosterBottom
+    ? `<img src="${escapeHtmlAttr(posterUrl)}" alt="" width="560" style="display: block; width: 100%; max-width: 560px; height: auto; border: 0; outline: none; -ms-interpolation-mode: bicubic;" />`
+    : "";
 
   return `
 <div style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: sans-serif;">
@@ -513,6 +545,15 @@ export function bodyToHtml(
               </div>
             </td>
           </tr>
+          ${
+            usePosterBottom
+              ? `<tr>
+            <td style="padding: 0; line-height: 0; font-size: 0; background-color: #ffffff;">
+              ${posterBottomImg}
+            </td>
+          </tr>`
+              : ""
+          }
           <tr>
             <td style="padding: 22px 20px 26px 20px; background-color: #0f172a; text-align: center;">
               ${footerLogoImg}

@@ -11,6 +11,7 @@ import {
   getMarketingSubject,
   isCampaignPromoKind,
   type CampaignPromoKind,
+  type CampaignPosterPosition,
 } from "@/lib/campaignSegments";
 import { sendEmail } from "@/lib/email/sendGmail";
 
@@ -31,6 +32,8 @@ export async function POST(req: NextRequest) {
     marketing?: boolean;
     locale?: string;
     promo_kind?: string;
+    poster_image_url?: string;
+    poster_position?: string;
   };
   try {
     body = await req.json();
@@ -59,12 +62,23 @@ export async function POST(req: NextRequest) {
   const text = renderBody(emailBody, previewName);
   const sampleCode =
     promoKind === "guest_pass_friend" ? "LEO-PRETND1" : "LEO-PREVIEW1";
+  const rawPoster = typeof body.poster_image_url === "string" ? body.poster_image_url.trim() : "";
+  const posterImageUrl =
+    rawPoster && (rawPoster.startsWith("https://") || rawPoster.startsWith("http://")) ? rawPoster : null;
+  const posRaw = typeof body.poster_position === "string" ? body.poster_position.trim().toLowerCase() : "top";
+  const posterPosition: CampaignPosterPosition | null = posterImageUrl
+    ? posRaw === "bottom"
+      ? "bottom"
+      : "top"
+    : null;
   const html = bodyToHtml(text, {
     marketing: marketing && !withPromo,
     locale,
     subject: subjectLine,
     promoCode: withPromo ? sampleCode : undefined,
     promoKind: promoKind ?? undefined,
+    posterImageUrl,
+    posterPosition,
   });
 
   try {

@@ -16,6 +16,7 @@ import {
   isCampaignPromoKind,
   usesPerRecipientPromoCodes,
   type CampaignPromoKind,
+  type CampaignPosterPosition,
 } from "@/lib/campaignSegments";
 import { getSegmentRecipients } from "@/lib/campaignSegmentQueries";
 import type { CampaignSegmentId } from "@/lib/campaignSegments";
@@ -72,6 +73,19 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function parseMarketingPoster(body: Record<string, unknown>): {
+  posterImageUrl: string | null;
+  posterPosition: CampaignPosterPosition | null;
+} {
+  const raw = typeof body.poster_image_url === "string" ? body.poster_image_url.trim() : "";
+  if (!raw || (!raw.startsWith("https://") && !raw.startsWith("http://"))) {
+    return { posterImageUrl: null, posterPosition: null };
+  }
+  const pos = typeof body.poster_position === "string" ? body.poster_position.trim().toLowerCase() : "top";
+  const posterPosition: CampaignPosterPosition = pos === "bottom" ? "bottom" : "top";
+  return { posterImageUrl: raw, posterPosition };
+}
+
 const PROMO_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 function generatePromoCode(): string {
   let code = "LEO-";
@@ -120,6 +134,8 @@ export async function POST(req: NextRequest) {
     subject?: string;
     body?: string;
     promo_kind?: string;
+    poster_image_url?: string;
+    poster_position?: string;
   };
   try {
     body = await req.json();
@@ -162,6 +178,7 @@ export async function POST(req: NextRequest) {
     const withPromo = !!promoKind;
     const subjectWithBrand = withPromo ? getSubjectWithBrand(subject) : getMarketingSubject(subject);
     const singlePromoCode = withPromo && promoKind && !usesPerRecipientPromoCodes(promoKind) ? generatePromoCode() : null;
+    const { posterImageUrl, posterPosition } = parseMarketingPoster(body as Record<string, unknown>);
 
     const { data: insertedLog, error: logErr } = await supabase
       .from("campaign_logs")
@@ -212,6 +229,8 @@ export async function POST(req: NextRequest) {
           subject: subjectWithBrand,
           promoCode: promoCode || undefined,
           promoKind: withPromo ? promoKind : null,
+          posterImageUrl,
+          posterPosition,
         });
         await sendEmail({ to: r.email.trim(), subject: subjectWithBrand, html, text });
       });
