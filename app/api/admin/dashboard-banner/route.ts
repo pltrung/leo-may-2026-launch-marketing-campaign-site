@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getUnifiedAdminOrStaffFromRequest } from "@/lib/unifiedAdminAuth";
 import { getGymToday, getGymStartOfDay, getGymEndOfDay } from "@/lib/gymTimezone";
+import { INVENTORY_RESTOCK_THRESHOLD } from "@/lib/inventoryRestockThreshold";
 
 const GYM_TZ = "America/Los_Angeles";
-const RESTOCK_THRESHOLD = 5;
 
 function getGymMinutesFromMidnight(): number {
   const t = new Date().toLocaleTimeString("en-GB", {
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
   }
   const { data: variantRows } = await supabase.from("product_variants").select("id");
   const variantIds = (variantRows ?? []).map((v) => v.id);
-  const inventoryNeedRestock = variantIds.filter((id) => (qtyByVariant[id] ?? 0) <= RESTOCK_THRESHOLD).length;
+  const inventoryNeedRestock = variantIds.filter((id) => (qtyByVariant[id] ?? 0) <= INVENTORY_RESTOCK_THRESHOLD).length;
 
   const phase = getCurrentPhase();
   const safetyTasks = preOpenTasks.filter((t) =>

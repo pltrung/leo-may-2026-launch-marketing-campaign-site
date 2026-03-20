@@ -14,6 +14,7 @@ import { getStaffTaskTitle } from "@/lib/staffTaskTitles";
 import { parseCccdPipeDelimited } from "@/lib/vnEidQr";
 import { isStaffEssentialTaskDuringRouteReset } from "@/lib/staffRouteResetTaskFilter";
 import { REFUND_REASONS, getRefundReasonLabel, type RefundReasonValue } from "@/lib/refundReasons";
+import { INVENTORY_RESTOCK_THRESHOLD } from "@/lib/inventoryRestockThreshold";
 
 const QrScannerModal = dynamic(() => import("@/components/admin/QrScannerModal"), { ssr: false });
 const BarcodeScannerModal = dynamic(() => import("@/components/admin/BarcodeScannerModal"), { ssr: false });
@@ -1224,6 +1225,22 @@ export default function AdminPage() {
       setInventoryReorderRequests([]);
     }
   }, [adminFetch]);
+
+  const inventoryPendingRequestVariantIds = useMemo(
+    () => new Set(inventoryReorderRequests.map((r) => r.variant_id)),
+    [inventoryReorderRequests]
+  );
+
+  const { inventoryNeedsRestockActionable, inventoryNeedsRestockPendingOnlyCount } = useMemo(() => {
+    const low = inventoryList.filter(
+      (inv) => inv.variant?.id && inv.quantity <= INVENTORY_RESTOCK_THRESHOLD
+    );
+    const actionable = low
+      .filter((inv) => !inventoryPendingRequestVariantIds.has(inv.variant_id))
+      .sort((a, b) => a.quantity - b.quantity);
+    const pendingOnly = low.filter((inv) => inventoryPendingRequestVariantIds.has(inv.variant_id)).length;
+    return { inventoryNeedsRestockActionable: actionable, inventoryNeedsRestockPendingOnlyCount: pendingOnly };
+  }, [inventoryList, inventoryPendingRequestVariantIds]);
 
   const handleScanQr = useCallback(() => {
     setSearchMode("qr");
@@ -3838,6 +3855,110 @@ export default function AdminPage() {
                         className="shrink-0 text-xs px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500"
                       >
                         {locale === "vi" ? "Đã nhận hàng" : "Receive stock"}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* 4b) SKUs at/below restock threshold — quick request (below open requests) */}
+            <div
+              className="rounded-lg border-2 border-amber-500/50 bg-amber-950/40 p-3"
+              data-tour="inventory-needs-restock"
+            >
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div>
+                  <h4 className="text-xs font-semibold text-amber-100 uppercase tracking-wider">
+                    {locale === "vi" ? "Kho cần nhập thêm (theo ngưỡng)" : "Inventory needs restock"}
+                  </h4>
+                  <p className="text-[11px] text-amber-200/80 mt-1">
+                    {locale === "vi"
+                      ? `SKU có tồn kho ≤ ${INVENTORY_RESTOCK_THRESHOLD} (cùng tiêu chí banner quầy). Nhấn Yêu cầu để tạo hàng chờ nhập — hiển thị ở ô phía trên.`
+                      : `SKUs at or below ${INVENTORY_RESTOCK_THRESHOLD} units (same as front-desk banner). Request adds a row to open restock requests above.`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    adminFetch("/api/admin/inventory")
+                      .then((r) => r.json())
+                      .then((x) => setInventoryList(x.inventory ?? []))
+                      .catch(() => {});
+                    loadInventoryReorderRequests().catch(() => setInventoryReorderRequests([]));
+                  }}
+                  className="shrink-0 text-xs text-amber-200/90 hover:text-amber-50 underline"
+                >
+                  {locale === "vi" ? "Tải lại" : "Refresh"}
+                </button>
+              </div>
+              {inventoryList.length === 0 ? (
+                <p className="text-xs text-amber-200/70">{locale === "vi" ? "Đang tải kho…" : "Loading inventory…"}</p>
+              ) : inventoryNeedsRestockActionable.length === 0 ? (
+                <div className="text-xs text-amber-200/85 space-y-1">
+                  <p>
+                    {locale === "vi"
+                      ? "Không có SKU nào cần yêu cầu mới — tất cả đều trên ngưỡng hoặc đã có yêu cầu mở."
+                      : "No SKUs need a new request — either above threshold or already in open requests."}
+                  </p>
+                  {inventoryNeedsRestockPendingOnlyCount > 0 ? (
+                    <p className="text-amber-100/90 font-medium">
+                      {locale === "vi"
+                        ? `${inventoryNeedsRestockPendingOnlyCount} SKU đang thấp nhưng đã có trong «Yêu cầu nhập hàng đang mở» phía trên.`
+                        : `${inventoryNeedsRestockPendingOnlyCount} low-stock SKU(s) already listed in open restock requests above.`}
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {inventoryNeedsRestockActionable.map((inv) => (
+                    <li
+                      key={inv.variant_id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-600/40 bg-slate-900/50 px-2.5 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm text-amber-50 font-medium truncate">
+                          {inv.variant?.sku ?? "—"}
+                          {inv.product?.name ? ` — ${inv.product.name}` : ""}
+                          {inv.product?.brand ? ` · ${inv.product.brand}` : ""}
+                          {inv.variant?.size ? ` (${inv.variant.size})` : ""}
+                        </p>
+                        <p className="text-xs text-amber-200/80">
+                          {locale === "vi" ? "Tồn:" : "On hand:"}{" "}
+                          <span className="font-semibold text-amber-100">{inv.quantity}</span>
+                          {inv.variant?.price != null ? ` · ${formatVnd(inv.variant.price)}` : ""}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const q = window.prompt(
+                            locale === "vi" ? "Số lượng cần nhập thêm:" : "Quantity to reorder:",
+                            "10"
+                          );
+                          if (!q || !inv.variant?.id) return;
+                          const res = await adminFetch("/api/admin/inventory/reorder-requests", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              variant_id: inv.variant.id,
+                              quantity_requested: parseInt(q, 10) || 1,
+                            }),
+                          });
+                          const d = await res.json().catch(() => ({}));
+                          if (res.ok && (d as { ok?: boolean }).ok) {
+                            setInventoryActionMessage(
+                              locale === "vi"
+                                ? "Đã gửi yêu cầu nhập hàng. Xem mục yêu cầu mở phía trên."
+                                : "Restock request sent. See open requests above."
+                            );
+                            loadInventoryReorderRequests().catch(() => setInventoryReorderRequests([]));
+                            setTimeout(() => setInventoryActionMessage(null), 5000);
+                          } else setInventoryCreateError((d as { error?: string }).error ?? "Failed");
+                        }}
+                        className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-amber-500 text-slate-900 font-semibold hover:bg-amber-400"
+                      >
+                        {locale === "vi" ? "Yêu cầu nhập" : "Request restock"}
                       </button>
                     </li>
                   ))}
