@@ -212,8 +212,10 @@ export default function AnalyticsCharts({
   const [createTestMessage, setCreateTestMessage] = useState<string | null>(null);
   const [createSending, setCreateSending] = useState(false);
   const [createSuccess, setCreateSuccess] = useState<number | null>(null);
+  const [createSendFootnote, setCreateSendFootnote] = useState<string | null>(null);
   const [campaignSending, setCampaignSending] = useState(false);
   const [campaignSuccess, setCampaignSuccess] = useState<number | null>(null);
+  const [campaignSendFootnote, setCampaignSendFootnote] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [campaignLogs, setCampaignLogs] = useState<
     {
@@ -269,8 +271,43 @@ export default function AnalyticsCharts({
       promoKind: defaultPromoKindForSegment(segment.id as CampaignSegmentId),
     });
     setCampaignSuccess(null);
+    setCampaignSendFootnote(null);
     setShowPreview(false);
   }, []);
+
+  /** Optional neutral detail under “Email campaign sent” — no alarm wording for skipped/failed addresses. */
+  const buildCampaignSendSuccessDetail = useCallback(
+    (d: { sent?: number; targeted?: number }) => {
+      const sent = typeof d.sent === "number" ? d.sent : null;
+      const targeted = typeof d.targeted === "number" ? d.targeted : null;
+      if (sent === null) return null;
+      if (targeted !== null && targeted !== sent) {
+        return t(`${sent} of ${targeted} emails delivered.`, `${sent}/${targeted} email đã gửi.`);
+      }
+      return t(`${sent} emails delivered.`, `Đã gửi ${sent} email.`);
+    },
+    [t]
+  );
+
+  /** When fetch fails or returns non-JSON: server may still have finished sending & written campaign_logs. */
+  const buildCampaignSendFailureFootnote = useCallback((res: Response, d: Record<string, unknown>) => {
+    const serverErr = typeof d.error === "string" ? d.error : null;
+    const statusBit =
+      res.status && !res.ok
+        ? t(`HTTP ${res.status}.`, `HTTP ${res.status}.`)
+        : "";
+    const hint = t(
+      "If recipients already received mail, the run likely completed—check “Recent sends” below and server logs. Large lists can time out before the browser gets JSON.",
+      "Nếu người nhận đã có email, lần gửi có thể đã xong—xem “Gửi gần đây” bên dưới và log máy chủ. Danh sách lớn có thể bị timeout trước khi trình duyệt nhận kết quả."
+    );
+    const tokenHint = t(
+      " If nothing was delivered, confirm GMAIL_REFRESH_TOKEN (or GMAIL_ACCESS_TOKEN) and Gmail API quotas.",
+      " Nếu không ai nhận được, kiểm tra GMAIL_REFRESH_TOKEN (hoặc GMAIL_ACCESS_TOKEN) và hạn mức Gmail API."
+    );
+    const parts = [serverErr, statusBit].filter(Boolean);
+    const head = parts.length ? `${parts.join(" ")} ` : "";
+    return `${head}${hint}${tokenHint}`;
+  }, [t]);
 
   useEffect(() => {
     if (tab !== "marketing") return;
@@ -313,6 +350,7 @@ export default function AnalyticsCharts({
     setCreateShowPreview(false);
     setCreateTestMessage(null);
     setCreateSuccess(null);
+    setCreateSendFootnote(null);
     setCreatePromoKind("");
     setCreateCampaignOpen(true);
   }, []);
@@ -353,6 +391,7 @@ export default function AnalyticsCharts({
     if (!adminFetch || !createAudienceId || !createSubject.trim() || !createBody.trim()) return;
     setCreateSending(true);
     setCreateSuccess(null);
+    setCreateSendFootnote(null);
     try {
       const res = await adminFetch("/api/admin/campaigns/send", {
         method: "POST",
@@ -364,9 +403,10 @@ export default function AnalyticsCharts({
           ...(createPromoKind ? { promo_kind: createPromoKind } : {}),
         }),
       });
-      const d = await res.json();
-      if (res.ok && d.sent != null) {
+      const d = await res.json().catch(() => ({}));
+      if (res.ok && typeof d.sent === "number" && d.ok !== false) {
         setCreateSuccess(d.sent);
+        setCreateSendFootnote(buildCampaignSendSuccessDetail(d));
         fetchCampaignLogs();
         adminFetch("/api/admin/campaigns/segments")
           .then((r) => r.json())
@@ -378,20 +418,32 @@ export default function AnalyticsCharts({
         setTimeout(() => {
           setCreateCampaignOpen(false);
           setCreateSuccess(null);
-        }, 2200);
+          setCreateSendFootnote(null);
+        }, 3200);
       } else {
         setCreateSuccess(-1);
+        setCreateSendFootnote(buildCampaignSendFailureFootnote(res, d as Record<string, unknown>));
+        fetchCampaignLogs();
       }
     } catch {
       setCreateSuccess(-1);
+      setCreateSendFootnote(
+        t(
+          "Network error. The send may still have completed—check “Recent sends” below.",
+          "Lỗi mạng. Chiến dịch có thể vẫn đã gửi—xem “Gửi gần đây” bên dưới."
+        )
+      );
+      fetchCampaignLogs();
     } finally {
       setCreateSending(false);
     }
-  }, [adminFetch, createAudienceId, createSubject, createBody, createPromoKind, fetchCampaignLogs]);
+  }, [adminFetch, createAudienceId, createSubject, createBody, createPromoKind, fetchCampaignLogs, buildCampaignSendSuccessDetail, buildCampaignSendFailureFootnote, t]);
 
   const sendCampaign = useCallback(async () => {
     if (!campaignModal || !adminFetch) return;
     setCampaignSending(true);
+    setCampaignSendFootnote(null);
+    setCampaignSuccess(null);
     try {
       const res = await adminFetch("/api/admin/campaigns/send", {
         method: "POST",
@@ -403,9 +455,10 @@ export default function AnalyticsCharts({
           promo_kind: campaignModal.promoKind,
         }),
       });
-      const d = await res.json();
-      if (res.ok && d.sent != null) {
+      const d = await res.json().catch(() => ({}));
+      if (res.ok && typeof d.sent === "number" && d.ok !== false) {
         setCampaignSuccess(d.sent);
+        setCampaignSendFootnote(buildCampaignSendSuccessDetail(d));
         fetchCampaignLogs();
         adminFetch("/api/admin/campaigns/segments")
           .then((r) => r.json())
@@ -417,16 +470,26 @@ export default function AnalyticsCharts({
         setTimeout(() => {
           setCampaignModal(null);
           setCampaignSuccess(null);
-        }, 2000);
+          setCampaignSendFootnote(null);
+        }, 3200);
       } else {
         setCampaignSuccess(-1);
+        setCampaignSendFootnote(buildCampaignSendFailureFootnote(res, d as Record<string, unknown>));
+        fetchCampaignLogs();
       }
     } catch {
       setCampaignSuccess(-1);
+      setCampaignSendFootnote(
+        t(
+          "Network error. The send may still have completed—check “Recent sends” below.",
+          "Lỗi mạng. Chiến dịch có thể vẫn đã gửi—xem “Gửi gần đây” bên dưới."
+        )
+      );
+      fetchCampaignLogs();
     } finally {
       setCampaignSending(false);
     }
-  }, [campaignModal, adminFetch, fetchCampaignLogs]);
+  }, [campaignModal, adminFetch, fetchCampaignLogs, buildCampaignSendSuccessDetail, buildCampaignSendFailureFootnote, t]);
 
   const samplePromoCodeForPreview = (kind: CampaignPromoKind) =>
     kind === "guest_pass_friend" ? "LEO-SAMPLE9Z" : "LEO-SAMPLE12";
@@ -737,11 +800,19 @@ export default function AnalyticsCharts({
               )}
               {createTestMessage && <p className="text-sm mb-3 text-teal-700">{createTestMessage}</p>}
               {createSuccess !== null && (
-                <p className={`text-sm mb-3 ${createSuccess >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                  {createSuccess >= 0
-                    ? t(`Sent to ${createSuccess} recipients.`, `Đã gửi tới ${createSuccess} người nhận.`)
-                    : t("Send failed.", "Gửi thất bại.")}
-                </p>
+                <div className={`text-sm mb-3 space-y-1 ${createSuccess >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                  <p className="font-medium">
+                    {createSuccess >= 0
+                      ? t("Email campaign sent.", "Đã gửi chiến dịch email.")
+                      : t("Could not confirm send.", "Không thể xác nhận đã gửi.")}
+                  </p>
+                  {createSuccess >= 0 && createSendFootnote ? (
+                    <p className="text-slate-600 text-xs">{createSendFootnote}</p>
+                  ) : null}
+                  {createSuccess < 0 && createSendFootnote ? (
+                    <p className="text-xs opacity-90 text-red-700">{createSendFootnote}</p>
+                  ) : null}
+                </div>
               )}
               <div className="flex flex-wrap gap-2 justify-end">
                 <button
@@ -843,9 +914,22 @@ export default function AnalyticsCharts({
                 </div>
               )}
               {campaignSuccess !== null && (
-                <p className={`text-sm mb-4 ${campaignSuccess >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                  {campaignSuccess >= 0 ? t(`Sent to ${campaignSuccess} recipients.`, `Đã gửi tới ${campaignSuccess} người nhận.`) : t("Send failed. Check GMAIL_ACCESS_TOKEN and logs.", "Gửi thất bại. Kiểm tra GMAIL_ACCESS_TOKEN và nhật ký.")}
-                </p>
+                <div className={`text-sm mb-4 space-y-1 ${campaignSuccess >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                  <p className="font-medium">
+                    {campaignSuccess >= 0
+                      ? t("Email campaign sent.", "Đã gửi chiến dịch email.")
+                      : t("Could not confirm send.", "Không thể xác nhận đã gửi.")}
+                  </p>
+                  {campaignSendFootnote ? (
+                    <p
+                      className={
+                        campaignSuccess >= 0 ? "text-slate-600 text-xs" : "text-xs opacity-90"
+                      }
+                    >
+                      {campaignSendFootnote}
+                    </p>
+                  ) : null}
+                </div>
               )}
               <div className="flex gap-3 justify-end">
                 <button type="button" onClick={() => setCampaignModal(null)} disabled={campaignSending} className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50">

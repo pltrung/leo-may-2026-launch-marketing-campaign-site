@@ -22,10 +22,51 @@ import type { CampaignSegmentId } from "@/lib/campaignSegments";
 import { getMarketingAudienceRecipients, isMarketingAudienceId } from "@/lib/marketingAudienceQueries";
 import { sendEmail } from "@/lib/email/sendGmail";
 import { getGymDateFromISO, getGymToday } from "@/lib/gymTimezone";
+import { isValidCampaignEmail } from "@/lib/campaignEmail";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+/** Long-running batch sends (Vercel/serverless); avoids cutting the HTTP response mid-flight. */
+export const maxDuration = 300;
 
 const BATCH_SIZE = 15;
 const BATCH_DELAY_MS = 500;
+
+type CampaignRecipient = { email: string; member_id: string; name: string };
+
+/**
+ * Send in batches; one Gmail error or invalid address must not fail the whole campaign.
+ */
+async function deliverCampaignEmails(
+  recipients: CampaignRecipient[],
+  sendOne: (r: CampaignRecipient) => Promise<void>
+): Promise<{ sent: number; failed: number; skipped_invalid: number }> {
+  let sent = 0;
+  let failed = 0;
+  let skipped_invalid = 0;
+  for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
+    const batch = recipients.slice(i, i + BATCH_SIZE);
+    for (const r of batch) {
+      if (!isValidCampaignEmail(r.email)) {
+        skipped_invalid++;
+        console.warn("[campaign send] skip invalid email", { member_id: r.member_id });
+        continue;
+      }
+      try {
+        await sendOne(r);
+        sent++;
+      } catch (e) {
+        failed++;
+        console.error("[campaign send] Gmail error", {
+          member_id: r.member_id,
+          email: r.email?.trim(),
+          err: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+    if (i + BATCH_SIZE < recipients.length) await sleep(BATCH_DELAY_MS);
+  }
+  return { sent, failed, skipped_invalid };
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -158,37 +199,35 @@ export async function POST(req: NextRequest) {
       rows.forEach((row) => codeByMemberId.set(row.member_id, row.promo_code));
     }
 
-    let sent = 0;
-    for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
-      const batch = recipients.slice(i, i + BATCH_SIZE);
-      await Promise.all(
-        batch.map((r) => {
-          const text = renderBody(emailBody, r.name);
-          const perRc = promoKind ? usesPerRecipientPromoCodes(promoKind) : false;
-          const promoCode =
-            withPromo && promoKind ? (perRc ? (codeByMemberId.get(r.member_id) ?? "") : (singlePromoCode ?? "")) : "";
-          const html = bodyToHtml(text, {
-            marketing: !withPromo,
-            locale: "en",
-            subject: subjectWithBrand,
-            promoCode: promoCode || undefined,
-            promoKind: withPromo ? promoKind : null,
-          });
-          return sendEmail({ to: r.email, subject: subjectWithBrand, html, text }).then(() => {
-            sent++;
-          });
-        })
+    let sendStats = { sent: 0, failed: 0, skipped_invalid: 0 };
+    try {
+      sendStats = await deliverCampaignEmails(recipients as CampaignRecipient[], async (r) => {
+        const text = renderBody(emailBody, r.name);
+        const perRc = promoKind ? usesPerRecipientPromoCodes(promoKind) : false;
+        const promoCode =
+          withPromo && promoKind ? (perRc ? (codeByMemberId.get(r.member_id) ?? "") : (singlePromoCode ?? "")) : "";
+        const html = bodyToHtml(text, {
+          marketing: !withPromo,
+          locale: "en",
+          subject: subjectWithBrand,
+          promoCode: promoCode || undefined,
+          promoKind: withPromo ? promoKind : null,
+        });
+        await sendEmail({ to: r.email.trim(), subject: subjectWithBrand, html, text });
+      });
+    } finally {
+      const { error: recErr } = await supabase.from("campaign_log_recipients").insert(
+        recipients.map((r) => ({ campaign_log_id: campaignLogId, member_id: r.member_id }))
       );
-      if (i + BATCH_SIZE < recipients.length) await sleep(BATCH_DELAY_MS);
+      if (recErr) console.error("campaign_log_recipients insert error:", recErr);
     }
-
-    await supabase.from("campaign_log_recipients").insert(
-      recipients.map((r) => ({ campaign_log_id: campaignLogId, member_id: r.member_id }))
-    );
 
     return NextResponse.json({
       ok: true,
-      sent,
+      sent: sendStats.sent,
+      failed: sendStats.failed,
+      skipped_invalid: sendStats.skipped_invalid,
+      targeted: recipients.length,
       marketing: true,
       promoCode: singlePromoCode ?? undefined,
       codesPerRecipient: withPromo && promoKind && usesPerRecipientPromoCodes(promoKind) ? true : undefined,
@@ -260,36 +299,34 @@ export async function POST(req: NextRequest) {
     rows.forEach((row) => codeByMemberId.set(row.member_id, row.promo_code));
   }
 
-  let sent = 0;
-  for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
-    const batch = recipients.slice(i, i + BATCH_SIZE);
-    await Promise.all(
-      batch.map((r) => {
-        const promoCode = isGuestPass ? (codeByMemberId.get(r.member_id) ?? "") : (singlePromoCode ?? "");
-        const text = renderBody(emailBody, r.name);
-        const html = bodyToHtml(text, {
-          promoCode,
-          promoKind: promoKind ?? undefined,
-          locale: "en",
-          subject: subjectWithBrand,
-        });
-        return sendEmail({ to: r.email, subject: subjectWithBrand, html, text }).then(() => {
-          sent++;
-        });
-      })
-    );
-    if (i + BATCH_SIZE < recipients.length) await sleep(BATCH_DELAY_MS);
-  }
-
-  if (recipients.length > 0) {
-    await supabase.from("campaign_log_recipients").insert(
-      recipients.map((r) => ({ campaign_log_id: campaignLogId, member_id: r.member_id }))
-    );
+  let sendStats = { sent: 0, failed: 0, skipped_invalid: 0 };
+  try {
+    sendStats = await deliverCampaignEmails(recipients as CampaignRecipient[], async (r) => {
+      const promoCode = isGuestPass ? (codeByMemberId.get(r.member_id) ?? "") : (singlePromoCode ?? "");
+      const text = renderBody(emailBody, r.name);
+      const html = bodyToHtml(text, {
+        promoCode,
+        promoKind: promoKind ?? undefined,
+        locale: "en",
+        subject: subjectWithBrand,
+      });
+      await sendEmail({ to: r.email.trim(), subject: subjectWithBrand, html, text });
+    });
+  } finally {
+    if (recipients.length > 0) {
+      const { error: recErr } = await supabase.from("campaign_log_recipients").insert(
+        recipients.map((r) => ({ campaign_log_id: campaignLogId, member_id: r.member_id }))
+      );
+      if (recErr) console.error("campaign_log_recipients insert error:", recErr);
+    }
   }
 
   return NextResponse.json({
     ok: true,
-    sent,
+    sent: sendStats.sent,
+    failed: sendStats.failed,
+    skipped_invalid: sendStats.skipped_invalid,
+    targeted: recipients.length,
     promoCode: singlePromoCode ?? undefined,
     codesPerRecipient: isGuestPass ? true : undefined,
   });
