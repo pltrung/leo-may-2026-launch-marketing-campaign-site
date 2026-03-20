@@ -3,7 +3,11 @@ import { createServerClient } from "@/lib/supabaseServer";
 import { getUnifiedAdminOrStaffFromRequest, canCollectMembershipPayment } from "@/lib/unifiedAdminAuth";
 import { computeNewExpiry } from "@/lib/membershipExtension";
 import { bookNewbieClass } from "@/lib/newbieClassBooking";
-import { amountsMatchVnd, effectivePriceForPlan } from "@/lib/newbieGraduateSale";
+import {
+  amountsMatchVnd,
+  effectivePriceForPlan,
+  shouldClearCampaignMembershipDiscount,
+} from "@/lib/newbieGraduateSale";
 import { applyDayPassPurchaseBenefits } from "@/lib/membershipBenefits";
 
 /**
@@ -128,6 +132,10 @@ export async function POST(req: NextRequest) {
       const newExpiryDay = computeNewExpiry(currentExpiry, durationDays, now);
       updatePayload.membership_expires_at = newExpiryDay.toISOString();
       updatePayload.membership_status = "active";
+    }
+    if (shouldClearCampaignMembershipDiscount(planId, isVisitPass)) {
+      updatePayload.campaign_membership_discount_percent = null;
+      updatePayload.campaign_membership_discount_until = null;
     }
     const { error: updateErr } = await supabase
       .from("member_profiles")

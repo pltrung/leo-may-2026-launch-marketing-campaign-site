@@ -62,13 +62,8 @@ export async function GET(req: NextRequest) {
     }
     const planName = plan.name as string;
     const listPriceVnd = plan.price_vnd as number;
-    const { chargeVnd, saleActive, saleEndsAt } = await effectivePriceForPlan(
-      supabase,
-      member.id as string,
-      planId,
-      listPriceVnd
-    );
-    const priceVnd = chargeVnd;
+    const pricing = await effectivePriceForPlan(supabase, member.id as string, planId, listPriceVnd);
+    const priceVnd = pricing.chargeVnd;
     const durationVisits = (plan.duration_visits as number | null) ?? 0;
     const isVisitPass = durationVisits > 0;
     const currentVisits = (member.visits_remaining as number) ?? 0;
@@ -115,10 +110,9 @@ export async function GET(req: NextRequest) {
       url: qrUrl,
       plan_name: planName,
       price_vnd: priceVnd,
-      list_price_vnd: saleActive ? listPriceVnd : undefined,
-      newbie_graduate_sale: saleActive
-        ? { discount_percent: 50, ends_at: saleEndsAt }
-        : undefined,
+      list_price_vnd: pricing.saleActive ? listPriceVnd : undefined,
+      campaign_membership_sale: pricing.campaign_membership_sale ?? undefined,
+      newbie_graduate_sale: pricing.newbie_graduate_sale ?? undefined,
       memo: memoQr,
       memo_human: memoHuman,
       transfer_code: bankTransferAuto ? memoQr : null,

@@ -74,8 +74,10 @@ Leo Mây Team`,
     id: "inactive_members_30d",
     nameEn: "Inactive members (30+ days)",
     nameVi: "Thành viên không hoạt động (30+ ngày)",
-    descriptionEn: "No visit in the last 30 days",
-    descriptionVi: "Không có lượt tới trong 30 ngày qua",
+    descriptionEn:
+      "Matches Analytics member health: no check-in in the last 90 days, or last check-in over 30 days ago. Recipients need an email on file.",
+    descriptionVi:
+      "Khớp mục sức khỏe TV trên Analytics: không check-in trong 90 ngày qua, hoặc lần check-in >30 ngày trước. Chỉ gửi cho TV có email.",
     ctaEn: "Send Reactivation Email",
     ctaVi: "Gửi email kích hoạt lại",
     subject: "We miss you at Leo Mây ☁️ Come climb again",
@@ -309,6 +311,66 @@ export function getRewardForSegment(segmentId: string): CampaignSegmentReward {
   };
 }
 
+/** Admin-selected promo for sends (overrides segment default rewards when set on campaign_logs). */
+export type CampaignPromoKind = "free_visit" | "guest_pass_friend" | "membership_50pct";
+
+export const CAMPAIGN_PROMO_KINDS: CampaignPromoKind[] = ["free_visit", "guest_pass_friend", "membership_50pct"];
+
+export function isCampaignPromoKind(v: string): v is CampaignPromoKind {
+  return (CAMPAIGN_PROMO_KINDS as string[]).includes(v);
+}
+
+export function defaultPromoKindForSegment(segmentId: CampaignSegmentId): CampaignPromoKind {
+  const r = getRewardForSegment(segmentId);
+  return r.type === "guest_pass" ? "guest_pass_friend" : "free_visit";
+}
+
+/** Per-recipient unique codes (single share with a friend). */
+export function usesPerRecipientPromoCodes(promoKind: CampaignPromoKind): boolean {
+  return promoKind === "guest_pass_friend";
+}
+
+export type ResolvedCampaignReward =
+  | { kind: "visits"; amount: number; labelEn: string; labelVi: string }
+  | { kind: "guest_pass"; amount: number; labelEn: string; labelVi: string }
+  | { kind: "membership_discount"; percent: number; labelEn: string; labelVi: string };
+
+/** Resolve reward for redemption / copy. When promoKind is null, use legacy segment mapping. */
+export function resolveCampaignReward(
+  promoKind: CampaignPromoKind | string | null | undefined,
+  segmentId: string
+): ResolvedCampaignReward {
+  if (promoKind === "free_visit") {
+    return {
+      kind: "visits",
+      amount: 1,
+      labelEn: "1 free visit on us",
+      labelVi: "1 lượt miễn phí từ Leo Mây",
+    };
+  }
+  if (promoKind === "guest_pass_friend") {
+    return {
+      kind: "guest_pass",
+      amount: 1,
+      labelEn: "1 guest pass for a friend (they must be inactive or new to membership)",
+      labelVi: "1 vé khách tặng bạn — người nhận phải đang không hoạt động hoặc chưa từng có gói thành viên",
+    };
+  }
+  if (promoKind === "membership_50pct") {
+    return {
+      kind: "membership_discount",
+      percent: 50,
+      labelEn: "50% off day / monthly / 6-month / annual membership at checkout",
+      labelVi: "Giảm 50% gói ngày / tháng / 6 tháng / năm khi thanh toán",
+    };
+  }
+  const r = getRewardForSegment(segmentId);
+  if (r.type === "guest_pass") {
+    return { kind: "guest_pass", amount: r.amount, labelEn: r.labelEn, labelVi: r.labelVi };
+  }
+  return { kind: "visits", amount: r.amount, labelEn: r.labelEn, labelVi: r.labelVi };
+}
+
 /** Subject line: always make clear it's from Leo Mây and that a code is inside */
 export function getSubjectWithBrand(subject: string): string {
   const trimmed = subject?.trim() || "";
@@ -356,23 +418,52 @@ export function getCampaignLogoUrl(): string {
  */
 export function bodyToHtml(
   body: string,
-  options?: { promoCode?: string; locale?: "en" | "vi"; subject?: string; marketing?: boolean }
+  options?: {
+    promoCode?: string;
+    promoKind?: CampaignPromoKind | null;
+    locale?: "en" | "vi";
+    subject?: string;
+    marketing?: boolean;
+  }
 ): string {
   const baseUrl = getCampaignBaseUrl();
   const logoUrl = getCampaignLogoUrl();
   const gymPath = options?.locale === "vi" ? "/vi/gym#intro" : "/en/gym#intro";
   const loginUrl = `${baseUrl}${gymPath}`;
   const displayUrl = `${baseUrl}${gymPath.replace(/#intro$/, "")}`;
-  const ctaEn = options?.marketing
+  const hasPromo = !!(options?.promoCode && options.promoCode.trim());
+  const ctaEn = options?.marketing && !hasPromo
     ? `Visit us at <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${displayUrl}</a> — sign in with your email to manage your membership, check in, and see what&apos;s new at Leo Mây.`
     : `Go to <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${displayUrl}</a>, sign in with your email, and redeem your code in the dashboard to earn your benefits and visit the gym.`;
-  const ctaVi = options?.marketing
+  const ctaVi = options?.marketing && !hasPromo
     ? `Ghé <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${displayUrl}</a> — đăng nhập bằng email để quản lý thành viên, check-in và xem tin mới tại Leo Mây.`
     : `Truy cập <a href="${loginUrl}" style="color: #0d9488; font-weight: 600;">${displayUrl}</a>, đăng nhập bằng email của bạn và nhập mã trong dashboard để nhận ưu đãi và tới phòng tập.`;
   const cta = options?.locale === "vi" ? ctaVi : ctaEn;
+  const promoKind = options?.promoKind ?? null;
+  const promoExplainEn =
+    promoKind === "free_visit"
+      ? "Redeem this code on your member dashboard to add <strong>1 free visit</strong> to your account. Only the person who received this email can use it."
+      : promoKind === "guest_pass_friend"
+        ? "Share this code with <strong>one friend</strong>. They sign in on the website and redeem it on their dashboard for <strong>1 guest pass</strong>. They must not be the email recipient, and must be <strong>inactive</strong> or have <strong>never had a membership</strong> (day/month/6-month/year pass) before."
+        : promoKind === "membership_50pct"
+          ? "Redeem on your dashboard to unlock <strong>50% off</strong> our day, 30-day, 6-month, and annual membership prices at online checkout — until the offer expires."
+          : "";
+  const promoExplainVi =
+    promoKind === "free_visit"
+      ? "Nhập mã trong <strong>dashboard thành viên</strong> để được cộng <strong>1 lượt miễn phí</strong>. Chỉ người nhận email này mới có thể dùng mã."
+      : promoKind === "guest_pass_friend"
+        ? "Chia sẻ mã này cho <strong>một người bạn</strong>. Họ đăng nhập và nhập mã trong dashboard để nhận <strong>1 vé khách</strong>. Người đó <strong>không được</strong> là người nhận email này, và phải đang <strong>không hoạt động</strong> hoặc <strong>chưa từng có gói thành viên</strong> (gói ngày/tháng/6 tháng/năm)."
+        : promoKind === "membership_50pct"
+          ? "Nhập mã trên dashboard để được <strong>giảm 50%</strong> giá gói ngày, tháng, 6 tháng và năm khi thanh toán trực tuyến — trong thời hạn ưu đãi."
+          : "";
+  const promoExplain = options?.locale === "vi" ? promoExplainVi : promoExplainEn;
   const codeBlock =
     options?.promoCode && options.promoCode.trim()
-      ? `<p style="margin: 1em 0 0 0; font-size: 14px; color: #1e293b;"><strong>${options.locale === "vi" ? "Mã ưu đãi của bạn" : "Your promo code"}:</strong> <code style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 16px; color: #0f766e;">${options.promoCode}</code></p>`
+      ? `<p style="margin: 1em 0 0 0; font-size: 14px; color: #1e293b;"><strong>${options.locale === "vi" ? "Mã ưu đãi của bạn" : "Your promo code"}:</strong> <code style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 16px; color: #0f766e;">${options.promoCode}</code></p>${
+          promoExplain
+            ? `<p style="margin: 0.75em 0 0 0; font-size: 13px; color: #475569; line-height: 1.55;">${promoExplain}</p>`
+            : ""
+        }`
       : "";
 
   const rawTitle = options?.subject?.trim() || "Leo Mây";

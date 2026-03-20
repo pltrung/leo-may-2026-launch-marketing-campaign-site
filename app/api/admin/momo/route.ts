@@ -82,12 +82,8 @@ export async function GET(req: NextRequest) {
   }
 
   const listPriceVnd = plan.price_vnd as number;
-  const { chargeVnd, saleActive, saleEndsAt } = await effectivePriceForPlan(
-    supabase,
-    memberId,
-    planId,
-    listPriceVnd
-  );
+  const pricing = await effectivePriceForPlan(supabase, memberId, planId, listPriceVnd);
+  const chargeVnd = pricing.chargeVnd;
 
   const orderId = `LM${memberId.replace(/-/g, "").slice(0, 10)}${Date.now()}`;
   const requestId = randomUUID();
@@ -112,10 +108,9 @@ export async function GET(req: NextRequest) {
     qr_code_url: created.qrCodeUrl,
     plan_name: plan.name,
     price_vnd: chargeVnd,
-    list_price_vnd: saleActive ? listPriceVnd : undefined,
-    newbie_graduate_sale: saleActive
-      ? { discount_percent: 50, ends_at: saleEndsAt }
-      : undefined,
+    list_price_vnd: pricing.saleActive ? listPriceVnd : undefined,
+    campaign_membership_sale: pricing.campaign_membership_sale ?? undefined,
+    newbie_graduate_sale: pricing.newbie_graduate_sale ?? undefined,
     order_id: orderId,
   });
 }

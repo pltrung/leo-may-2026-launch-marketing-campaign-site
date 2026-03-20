@@ -76,13 +76,8 @@ export async function GET(req: NextRequest) {
     }
     const planName = plan.name as string;
     const listPriceVnd = plan.price_vnd as number;
-    const { chargeVnd, saleActive, saleEndsAt } = await effectivePriceForPlan(
-      supabase,
-      member.id as string,
-      planId,
-      listPriceVnd
-    );
-    const priceVnd = chargeVnd;
+    const pricing = await effectivePriceForPlan(supabase, member.id as string, planId, listPriceVnd);
+    const priceVnd = pricing.chargeVnd;
 
     const txnRef = `LM-${member.id.slice(0, 8)}-${Date.now()}`;
     const orderInfo = `${member.id}|${planId}`;
@@ -103,10 +98,9 @@ export async function GET(req: NextRequest) {
       url: paymentUrl,
       plan_name: planName,
       price_vnd: priceVnd,
-      list_price_vnd: saleActive ? listPriceVnd : undefined,
-      newbie_graduate_sale: saleActive
-        ? { discount_percent: 50, ends_at: saleEndsAt }
-        : undefined,
+      list_price_vnd: pricing.saleActive ? listPriceVnd : undefined,
+      campaign_membership_sale: pricing.campaign_membership_sale ?? undefined,
+      newbie_graduate_sale: pricing.newbie_graduate_sale ?? undefined,
       txn_ref: txnRef,
     });
   } catch (e) {

@@ -2,16 +2,59 @@
  * POST /api/member/campaign-redeem
  * Authorization: Bearer <access_token>
  * Body: { code: string }
- * Redeems a campaign promo code for the current member. One redemption per campaign per member.
- * Reward is segment-specific (see getRewardForSegment in campaignSegments).
+ * Redeems a campaign promo code. Reward from campaign_logs.promo_kind when set; else legacy segment mapping.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@/lib/supabaseServer";
-import { getRewardForSegment } from "@/lib/campaignSegments";
+import { resolveCampaignReward, type CampaignPromoKind } from "@/lib/campaignSegments";
+import { CAMPAIGN_MEMBERSHIP_DISCOUNT_PLAN_IDS } from "@/lib/newbieGraduateSale";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+const MEMBERSHIP_HISTORY_PLAN_IDS = [...CAMPAIGN_MEMBERSHIP_DISCOUNT_PLAN_IDS] as string[];
+
+async function guestPassFriendEligible(
+  supabase: ReturnType<typeof createServerClient>,
+  memberId: string
+): Promise<{ ok: true } | { ok: false; messageEn: string; messageVi: string }> {
+  const { data: profile } = await supabase
+    .from("member_profiles")
+    .select("membership_status, membership_expires_at, visits_remaining")
+    .eq("id", memberId)
+    .maybeSingle();
+  if (!profile) {
+    return { ok: false, messageEn: "Member not found.", messageVi: "Không tìm thấy thành viên." };
+  }
+  const visits = (profile.visits_remaining as number) ?? 0;
+  const exp = profile.membership_expires_at ? new Date(profile.membership_expires_at as string) : null;
+  const hasActiveDay =
+    (profile.membership_status as string) === "active" &&
+    exp !== null &&
+    !Number.isNaN(exp.getTime()) &&
+    exp.getTime() > Date.now();
+  const hasAccess = visits > 0 || !!hasActiveDay;
+
+  const { count } = await supabase
+    .from("payments")
+    .select("id", { count: "exact", head: true })
+    .eq("member_id", memberId)
+    .eq("status", "success")
+    .in("plan_id", MEMBERSHIP_HISTORY_PLAN_IDS);
+
+  const everMembership = (count ?? 0) > 0;
+  if (hasAccess && everMembership) {
+    return {
+      ok: false,
+      messageEn:
+        "This guest pass is for friends who are inactive or have never had a membership. Active members can share a different invite code from their dashboard.",
+      messageVi:
+        "Vé khách này dành cho bạn bè đang không hoạt động hoặc chưa từng có gói thành viên. Thành viên đang hoạt động có thể dùng mã mời khác trên dashboard.",
+    };
+  }
+  return { ok: true };
+}
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("Authorization");
@@ -49,7 +92,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Member not found" }, { status: 404 });
   }
 
-  // Prefer per-recipient code (guest-pass campaigns: one code per recipient, single-use).
   const { data: recipientCode, error: rcError } = await supabase
     .from("campaign_recipient_codes")
     .select("id, campaign_log_id, member_id")
@@ -61,6 +103,7 @@ export async function POST(request: NextRequest) {
 
   let campaignLogId: string;
   let segment: string;
+  let promoKind: CampaignPromoKind | null = null;
   let recipientCodeId: string | null = null;
   let isRecipient = false;
   let recipientIds = new Set<string>();
@@ -71,12 +114,16 @@ export async function POST(request: NextRequest) {
     const recipientId = recipientCode.member_id;
     recipientIds = new Set([recipientId]);
     isRecipient = member.id === recipientId;
-    const { data: log } = await supabase.from("campaign_logs").select("segment").eq("id", campaignLogId).single();
+    const { data: log } = await supabase
+      .from("campaign_logs")
+      .select("segment, promo_kind")
+      .eq("id", campaignLogId)
+      .maybeSingle();
     if (!log) {
       return NextResponse.json({ error: "Invalid or expired code" }, { status: 404 });
     }
-    segment = log.segment;
-    // Per-recipient code: already redeemed? (each code is single-use)
+    segment = log.segment as string;
+    promoKind = (log.promo_kind as CampaignPromoKind | null) ?? null;
     const { data: existingRedemption } = await supabase
       .from("campaign_code_redemptions")
       .select("id")
@@ -92,7 +139,7 @@ export async function POST(request: NextRequest) {
   } else {
     const { data: campaignLog, error: logError } = await supabase
       .from("campaign_logs")
-      .select("id, segment")
+      .select("id, segment, promo_kind")
       .eq("promo_code", rawCode)
       .maybeSingle();
     if (logError) {
@@ -102,7 +149,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid or expired code" }, { status: 404 });
     }
     campaignLogId = campaignLog.id;
-    segment = campaignLog.segment;
+    segment = campaignLog.segment as string;
+    promoKind = (campaignLog.promo_kind as CampaignPromoKind | null) ?? null;
     const { data: recipientRows } = await supabase
       .from("campaign_log_recipients")
       .select("member_id")
@@ -124,18 +172,39 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const reward = getRewardForSegment(segment as import("@/lib/campaignSegments").CampaignSegmentId);
-  if (reward.type === "guest_pass") {
+  const resolved = resolveCampaignReward(promoKind, segment);
+
+  if (resolved.kind === "guest_pass") {
     if (recipientIds.size > 0 && isRecipient) {
       return NextResponse.json(
-        { error: "This guest pass code was sent to you to give to someone else. Share the code with a friend — only they can redeem it to add the guest pass to their profile." },
+        {
+          error:
+            "This guest pass code was sent to you to give to someone else. Share the code with a friend — only they can redeem it to add the guest pass to their profile.",
+        },
         { status: 403 }
       );
     }
-  } else if (reward.type === "visits") {
+    if (promoKind === "guest_pass_friend") {
+      const elig = await guestPassFriendEligible(supabase, member.id);
+      if (!elig.ok) {
+        return NextResponse.json({ error: elig.messageEn, errorVi: elig.messageVi }, { status: 403 });
+      }
+    }
+  } else if (resolved.kind === "visits") {
     if (recipientIds.size > 0 && !isRecipient) {
       return NextResponse.json(
-        { error: "This free visit code was sent to a different recipient. Only the person who received the email can redeem it." },
+        {
+          error: "This free visit code was sent to a different recipient. Only the person who received the email can redeem it.",
+        },
+        { status: 403 }
+      );
+    }
+  } else if (resolved.kind === "membership_discount") {
+    if (recipientIds.size > 0 && !isRecipient) {
+      return NextResponse.json(
+        {
+          error: "This membership discount code was sent to a different recipient. Only the person who received the email can redeem it.",
+        },
         { status: 403 }
       );
     }
@@ -151,29 +220,45 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Redemption failed" }, { status: 500 });
   }
 
-  // Apply segment-specific reward: visits (for lapsed) or guest_pass (for active membership / active visit pass)
   const { data: profile } = await supabase
     .from("member_profiles")
     .select("visits_remaining, guest_passes_remaining")
     .eq("id", member.id)
     .single();
 
-  if (reward.type === "visits" && reward.amount > 0) {
+  if (resolved.kind === "visits" && resolved.amount > 0) {
     const currentVisits = (profile?.visits_remaining as number) ?? 0;
     await supabase
       .from("member_profiles")
-      .update({ visits_remaining: currentVisits + reward.amount })
+      .update({ visits_remaining: currentVisits + resolved.amount })
       .eq("id", member.id);
-  } else if (reward.type === "guest_pass" && reward.amount > 0) {
+  } else if (resolved.kind === "guest_pass" && resolved.amount > 0) {
     const currentGuest = (profile?.guest_passes_remaining as number) ?? 0;
     await supabase
       .from("member_profiles")
-      .update({ guest_passes_remaining: currentGuest + reward.amount })
+      .update({ guest_passes_remaining: currentGuest + resolved.amount })
+      .eq("id", member.id);
+  } else if (resolved.kind === "membership_discount") {
+    const until = new Date();
+    until.setUTCDate(until.getUTCDate() + 90);
+    await supabase
+      .from("member_profiles")
+      .update({
+        campaign_membership_discount_percent: resolved.percent,
+        campaign_membership_discount_until: until.toISOString(),
+      })
       .eq("id", member.id);
   }
 
-  const messageEn = `Code redeemed. ${reward.labelEn}.`;
-  const messageVi = `Đã áp dụng mã. ${reward.labelVi}.`;
+  const messageEn = `Code redeemed. ${resolved.labelEn}`;
+  const messageVi = `Đã áp dụng mã. ${resolved.labelVi}`;
+
+  const rewardSummary =
+    resolved.kind === "visits"
+      ? `${resolved.amount} free visit(s)`
+      : resolved.kind === "guest_pass"
+        ? `${resolved.amount} guest pass(es)`
+        : `${resolved.percent}% off membership tiers`;
 
   return NextResponse.json({
     success: true,
@@ -181,8 +266,9 @@ export async function POST(request: NextRequest) {
     message: messageEn,
     messageVi,
     segment,
-    reward: reward.type === "visits" ? `${reward.amount} free visit(s)` : `${reward.amount} guest pass(es)`,
-    rewardLabelEn: reward.labelEn,
-    rewardLabelVi: reward.labelVi,
+    reward: rewardSummary,
+    rewardLabelEn: resolved.labelEn,
+    rewardLabelVi: resolved.labelVi,
+    promo_kind: promoKind,
   });
 }

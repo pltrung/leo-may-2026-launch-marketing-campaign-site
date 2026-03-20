@@ -1,6 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { computeNewExpiry } from "@/lib/membershipExtension";
-import { amountsMatchVnd, effectivePriceForPlan } from "@/lib/newbieGraduateSale";
+import {
+  amountsMatchVnd,
+  effectivePriceForPlan,
+  shouldClearCampaignMembershipDiscount,
+} from "@/lib/newbieGraduateSale";
 import { applyDayPassPurchaseBenefits } from "@/lib/membershipBenefits";
 
 export const MEMBERSHIP_GATEWAY_PLANS = [
@@ -133,6 +137,10 @@ export async function fulfillMembershipGatewayPayment(
   } else {
     updatePayload.membership_expires_at = newExpiry!.toISOString();
     updatePayload.membership_status = "active";
+  }
+  if (shouldClearCampaignMembershipDiscount(planId, isVisitPass)) {
+    updatePayload.campaign_membership_discount_percent = null;
+    updatePayload.campaign_membership_discount_until = null;
   }
   const { error: updateErr } = await supabase
     .from("member_profiles")

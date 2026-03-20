@@ -85,12 +85,8 @@ export async function GET(req: NextRequest) {
   }
 
   const listPriceVnd = plan.price_vnd as number;
-  const { chargeVnd, saleActive, saleEndsAt } = await effectivePriceForPlan(
-    supabase,
-    memberId,
-    planId,
-    listPriceVnd
-  );
+  const pricing = await effectivePriceForPlan(supabase, memberId, planId, listPriceVnd);
+  const chargeVnd = pricing.chargeVnd;
 
   const prefix = zalopayAppTransIdPrefix();
   const app_trans_id = `${prefix}_ADM_${memberId.slice(0, 8)}_${Date.now()}`;
@@ -130,9 +126,8 @@ export async function GET(req: NextRequest) {
     app_trans_id,
     plan_name: plan.name,
     price_vnd: chargeVnd,
-    list_price_vnd: saleActive ? listPriceVnd : undefined,
-    newbie_graduate_sale: saleActive
-      ? { discount_percent: 50, ends_at: saleEndsAt }
-      : undefined,
+    list_price_vnd: pricing.saleActive ? listPriceVnd : undefined,
+    campaign_membership_sale: pricing.campaign_membership_sale ?? undefined,
+    newbie_graduate_sale: pricing.newbie_graduate_sale ?? undefined,
   });
 }

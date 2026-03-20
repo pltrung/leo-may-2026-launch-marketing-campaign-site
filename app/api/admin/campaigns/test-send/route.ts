@@ -4,7 +4,14 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAdminOrStaffFromRequest, canAccessAnalytics } from "@/lib/unifiedAdminAuth";
-import { renderBody, bodyToHtml, getSubjectWithBrand, getMarketingSubject } from "@/lib/campaignSegments";
+import {
+  renderBody,
+  bodyToHtml,
+  getSubjectWithBrand,
+  getMarketingSubject,
+  isCampaignPromoKind,
+  type CampaignPromoKind,
+} from "@/lib/campaignSegments";
 import { sendEmail } from "@/lib/email/sendGmail";
 
 export async function POST(req: NextRequest) {
@@ -18,7 +25,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Your account has no email for test send" }, { status: 400 });
   }
 
-  let body: { subject?: string; body?: string; marketing?: boolean; locale?: string };
+  let body: {
+    subject?: string;
+    body?: string;
+    marketing?: boolean;
+    locale?: string;
+    promo_kind?: string;
+  };
   try {
     body = await req.json();
   } catch {
@@ -29,22 +42,29 @@ export async function POST(req: NextRequest) {
   const emailBody = typeof body.body === "string" ? body.body : "";
   const marketing = !!body.marketing;
   const locale = body.locale === "vi" ? "vi" : "en";
+  const rawPk = typeof body.promo_kind === "string" ? body.promo_kind.trim() : "";
+  const promoKind: CampaignPromoKind | null = isCampaignPromoKind(rawPk) ? rawPk : null;
 
   if (!subject || !emailBody) {
     return NextResponse.json({ error: "subject and body required" }, { status: 400 });
   }
 
-  const subjectLine = marketing ? getMarketingSubject(subject) : getSubjectWithBrand(subject);
+  const withPromo = !!promoKind;
+  const subjectLine =
+    marketing && !withPromo ? getMarketingSubject(subject) : getSubjectWithBrand(subject);
   const previewName =
     unified.staffProfile?.display_name?.trim() ||
     unified.user.user_metadata?.full_name ||
     "You";
   const text = renderBody(emailBody, previewName);
+  const sampleCode =
+    promoKind === "guest_pass_friend" ? "LEO-PRETND1" : "LEO-PREVIEW1";
   const html = bodyToHtml(text, {
-    marketing,
+    marketing: marketing && !withPromo,
     locale,
     subject: subjectLine,
-    promoCode: marketing ? undefined : "LEO-TEST-XXXX",
+    promoCode: withPromo ? sampleCode : undefined,
+    promoKind: promoKind ?? undefined,
   });
 
   try {

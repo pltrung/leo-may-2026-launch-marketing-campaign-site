@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const supabase = createServerClient();
   const { data, error } = await supabase
     .from("campaign_logs")
-    .select("id, segment, subject, recipient_count, sent_at, status, promo_code")
+    .select("id, segment, subject, recipient_count, sent_at, status, promo_code, promo_kind")
     .order("sent_at", { ascending: false })
     .limit(limit);
 

@@ -1,7 +1,14 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
-import { renderBody, getSegmentById } from "@/lib/campaignSegments";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import {
+  renderBody,
+  getSegmentById,
+  bodyToHtml,
+  getSubjectWithBrand,
+  defaultPromoKindForSegment,
+  type CampaignPromoKind,
+} from "@/lib/campaignSegments";
 import { MARKETING_AUDIENCES } from "@/lib/marketingAudienceQueries";
 import { SEGMENT_GROUPS, type CampaignSegmentId } from "@/lib/campaignSegments";
 import {
@@ -143,6 +150,21 @@ export interface CampaignSegmentRow {
   subject: string;
   body: string;
   count: number;
+  /** ISO timestamp of last completed send for this segment id */
+  last_sent_at?: string | null;
+  /** True if last send was on the current gym calendar day */
+  sent_today?: boolean;
+}
+
+export interface MarketingAudienceRow {
+  id: string;
+  nameEn: string;
+  nameVi: string;
+  descriptionEn: string;
+  descriptionVi: string;
+  count: number;
+  last_sent_at?: string | null;
+  sent_today?: boolean;
 }
 
 export default function AnalyticsCharts({
@@ -173,14 +195,13 @@ export default function AnalyticsCharts({
   const t = (en: string, vi: string) => (isVi ? vi : en);
 
   const [campaignSegments, setCampaignSegments] = useState<CampaignSegmentRow[]>([]);
-  const [marketingAudiences, setMarketingAudiences] = useState<
-    { id: string; nameEn: string; nameVi: string; descriptionEn: string; descriptionVi: string; count: number }[]
-  >([]);
+  const [marketingAudiences, setMarketingAudiences] = useState<MarketingAudienceRow[]>([]);
   const [campaignSegmentsLoading, setCampaignSegmentsLoading] = useState(false);
   const [campaignModal, setCampaignModal] = useState<{
     segment: CampaignSegmentRow;
     subject: string;
     body: string;
+    promoKind: CampaignPromoKind;
   } | null>(null);
   const [createCampaignOpen, setCreateCampaignOpen] = useState(false);
   const [createAudienceId, setCreateAudienceId] = useState("marketing_all_members");
@@ -194,8 +215,26 @@ export default function AnalyticsCharts({
   const [campaignSending, setCampaignSending] = useState(false);
   const [campaignSuccess, setCampaignSuccess] = useState<number | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-  const [campaignLogs, setCampaignLogs] = useState<{ id: string; segment: string; subject: string; recipient_count: number; sent_at: string; status: string; promo_code?: string | null; redemption_count?: number }[]>([]);
+  const [campaignLogs, setCampaignLogs] = useState<
+    {
+      id: string;
+      segment: string;
+      subject: string;
+      recipient_count: number;
+      sent_at: string;
+      status: string;
+      promo_code?: string | null;
+      promo_kind?: string | null;
+      redemption_count?: number;
+    }[]
+  >([]);
+  const [createPromoKind, setCreatePromoKind] = useState<CampaignPromoKind | "">("");
   const [showEmptySegments, setShowEmptySegments] = useState(false);
+
+  const marketingAudiencesAvailable = useMemo(
+    () => marketingAudiences.filter((a) => !a.sent_today),
+    [marketingAudiences]
+  );
 
   const fetchCampaignLogs = useCallback(() => {
     if (!adminFetch) return;
@@ -223,7 +262,12 @@ export default function AnalyticsCharts({
   }, [tab, adminFetch, fetchCampaignLogs]);
 
   const openCampaignModal = useCallback((segment: CampaignSegmentRow) => {
-    setCampaignModal({ segment, subject: segment.subject, body: segment.body });
+    setCampaignModal({
+      segment,
+      subject: segment.subject,
+      body: segment.body,
+      promoKind: defaultPromoKindForSegment(segment.id as CampaignSegmentId),
+    });
     setCampaignSuccess(null);
     setShowPreview(false);
   }, []);
@@ -235,7 +279,7 @@ export default function AnalyticsCharts({
     if (!intent) return;
     const seg = campaignSegments.find((s) => s.id === intent);
     if (seg) {
-      openCampaignModal(seg);
+      if (!seg.sent_today) openCampaignModal(seg);
       localStorage.removeItem("admin_marketing_segment_intent");
       return;
     }
@@ -251,6 +295,15 @@ export default function AnalyticsCharts({
     }
   }, [tab, campaignSegments, openCampaignModal]);
 
+  /** When opening create campaign, default audience to one not already sent today (gym day). */
+  useEffect(() => {
+    if (!createCampaignOpen || marketingAudiences.length === 0) return;
+    const available = marketingAudiences.filter((a) => !a.sent_today);
+    if (available.length === 0) return;
+    const currentOk = available.some((a) => a.id === createAudienceId);
+    if (!currentOk) setCreateAudienceId(available[0].id);
+  }, [createCampaignOpen, marketingAudiences, createAudienceId]);
+
   const openCreateCampaign = useCallback(() => {
     setCreateAudienceId("marketing_all_members");
     setCreateSubject("");
@@ -260,6 +313,7 @@ export default function AnalyticsCharts({
     setCreateShowPreview(false);
     setCreateTestMessage(null);
     setCreateSuccess(null);
+    setCreatePromoKind("");
     setCreateCampaignOpen(true);
   }, []);
 
@@ -277,8 +331,9 @@ export default function AnalyticsCharts({
         body: JSON.stringify({
           subject: createSubject.trim(),
           body: createBody,
-          marketing: true,
+          marketing: !createPromoKind,
           locale: isVi ? "vi" : "en",
+          ...(createPromoKind ? { promo_kind: createPromoKind } : {}),
         }),
       });
       const d = await res.json().catch(() => ({}));
@@ -306,6 +361,7 @@ export default function AnalyticsCharts({
           marketing_audience: createAudienceId,
           subject: createSubject.trim(),
           body: createBody,
+          ...(createPromoKind ? { promo_kind: createPromoKind } : {}),
         }),
       });
       const d = await res.json();
@@ -331,7 +387,7 @@ export default function AnalyticsCharts({
     } finally {
       setCreateSending(false);
     }
-  }, [adminFetch, createAudienceId, createSubject, createBody, fetchCampaignLogs]);
+  }, [adminFetch, createAudienceId, createSubject, createBody, createPromoKind, fetchCampaignLogs]);
 
   const sendCampaign = useCallback(async () => {
     if (!campaignModal || !adminFetch) return;
@@ -344,18 +400,23 @@ export default function AnalyticsCharts({
           segment: campaignModal.segment.id,
           subject: campaignModal.subject,
           body: campaignModal.body,
+          promo_kind: campaignModal.promoKind,
         }),
       });
       const d = await res.json();
       if (res.ok && d.sent != null) {
         setCampaignSuccess(d.sent);
         fetchCampaignLogs();
+        adminFetch("/api/admin/campaigns/segments")
+          .then((r) => r.json())
+          .then((seg) => {
+            setCampaignSegments(seg.segments ?? []);
+            setMarketingAudiences(seg.marketingAudiences ?? []);
+          })
+          .catch(() => {});
         setTimeout(() => {
           setCampaignModal(null);
           setCampaignSuccess(null);
-          setCampaignSegments((prev) =>
-            prev.map((s) => (s.id === campaignModal.segment.id ? { ...s, count: Math.max(0, s.count - d.sent) } : s))
-          );
         }, 2000);
       } else {
         setCampaignSuccess(-1);
@@ -366,6 +427,16 @@ export default function AnalyticsCharts({
       setCampaignSending(false);
     }
   }, [campaignModal, adminFetch, fetchCampaignLogs]);
+
+  const samplePromoCodeForPreview = (kind: CampaignPromoKind) =>
+    kind === "guest_pass_friend" ? "LEO-SAMPLE9Z" : "LEO-SAMPLE12";
+
+  const formatCampaignLastSent = (iso: string | null | undefined) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleString(isVi ? "vi-VN" : "en-US", { dateStyle: "medium", timeStyle: "short" });
+  };
 
   if (tab !== "marketing" && (loading || !data)) {
     return (
@@ -396,6 +467,12 @@ export default function AnalyticsCharts({
                 {t("Campaign segments", "Nhóm chiến dịch")}
               </h3>
               <p className="text-xs text-teal-700/90 mb-2">{t("Targeted cohorts with pre-built templates, grouped by focus.", "Đối tượng có mẫu sẵn, nhóm theo mục tiêu.")}</p>
+              <p className="text-xs text-teal-800/80 mb-2 font-medium">
+                {t(
+                  "Each cohort can be sent at most once per gym day (Los Angeles time). Already-sent cohorts stay hidden until tomorrow.",
+                  "Mỗi nhóm chỉ gửi tối đa một lần mỗi ngày theo giờ phòng tập (LA). Nhóm đã gửi hôm nay sẽ ẩn đến ngày mai."
+                )}
+              </p>
               <label className="flex items-center gap-2 text-xs text-teal-900 mb-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -411,19 +488,25 @@ export default function AnalyticsCharts({
                   {SEGMENT_GROUPS.map((grp) => {
                     const segs = campaignSegments.filter((s) => grp.segmentIds.includes(s.id as CampaignSegmentId));
                     const visible = showEmptySegments ? segs : segs.filter((s) => s.count > 0);
-                    if (visible.length === 0) return null;
+                    const visibleNotSentToday = visible.filter((s) => !s.sent_today);
+                    if (visibleNotSentToday.length === 0) return null;
                     return (
                       <div key={grp.id} className="rounded-lg border border-teal-200 bg-teal-50/30 p-3">
                         <h4 className="text-xs font-semibold text-teal-900 uppercase tracking-wide mb-2">
                           {isVi ? grp.nameVi : grp.nameEn}
                         </h4>
                         <ul className="space-y-2">
-                          {visible.map((seg) => (
+                          {visibleNotSentToday.map((seg) => (
                             <li key={seg.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2 rounded-lg bg-white border border-teal-100">
                               <div>
                                 <span className="font-medium text-slate-900">{isVi ? seg.nameVi : seg.nameEn}</span>
                                 <span className="ml-2 text-slate-600">({seg.count})</span>
                                 <p className="text-xs text-slate-500 mt-0.5">{isVi ? seg.descriptionVi : seg.descriptionEn}</p>
+                                <p className="text-xs text-slate-400 mt-1">
+                                  {seg.last_sent_at
+                                    ? `${t("Last sent", "Gửi lần cuối")}: ${formatCampaignLastSent(seg.last_sent_at)}`
+                                    : t("Never sent", "Chưa gửi lần nào")}
+                                </p>
                               </div>
                               <button
                                 type="button"
@@ -453,18 +536,24 @@ export default function AnalyticsCharts({
                 <p className="text-sm text-slate-500">{t("Loading…", "Đang tải…")}</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {marketingAudiences.map((a) => (
+                  {marketingAudiences.filter((a) => !a.sent_today).map((a) => (
                     <div
                       key={a.id}
                       className="p-3 rounded-lg bg-white/80 border border-teal-100 flex flex-col gap-1"
                     >
                       <span className="font-medium text-slate-900">{isVi ? a.nameVi : a.nameEn}</span>
                       <span className="text-sm text-teal-600">{a.count} {t("recipients", "người nhận")}</span>
+                      <p className="text-xs text-slate-400">
+                        {a.last_sent_at
+                          ? `${t("Last sent", "Gửi lần cuối")}: ${formatCampaignLastSent(a.last_sent_at)}`
+                          : t("Never sent", "Chưa gửi lần nào")}
+                      </p>
                       <p className="text-xs text-slate-500 line-clamp-2">{isVi ? a.descriptionVi : a.descriptionEn}</p>
                       <button
                         type="button"
                         onClick={() => {
                           setCreateAudienceId(a.id);
+                          setCreatePromoKind("");
                           setCreateCampaignOpen(true);
                         }}
                         className="mt-1 text-xs text-teal-600 hover:text-teal-800 font-medium self-start"
@@ -490,6 +579,12 @@ export default function AnalyticsCharts({
                         <>
                           <span className="text-slate-500">·</span>
                           <code className="text-xs font-mono bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded">{log.promo_code}</code>
+                        </>
+                      )}
+                      {log.promo_kind && (
+                        <>
+                          <span className="text-slate-500">·</span>
+                          <span className="text-xs font-medium text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded">{log.promo_kind}</span>
                         </>
                       )}
                       <span className="text-slate-500">·</span>
@@ -524,22 +619,43 @@ export default function AnalyticsCharts({
                 {t("New marketing campaign", "Chiến dịch marketing mới")}
               </h3>
               <p className="text-xs text-slate-500 mb-4">
-                {t("No promo code — general announcement. Use Test send to preview in your inbox.", "Không kèm mã ưu đãi — thông báo chung. Dùng Gửi thử để xem trong hộp thư của bạn.")}
+                {t(
+                  "Optional promo code: pick a type below or leave “None” for a general announcement.",
+                  "Có thể kèm mã ưu đãi: chọn loại bên dưới hoặc để “Không” cho email thông báo chung."
+                )}
               </p>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t("Audience", "Đối tượng")}</label>
+              {marketingAudiences.length > 0 && marketingAudiencesAvailable.length === 0 ? (
+                <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+                  {t(
+                    "All audiences already had a campaign send today (gym time). Try again tomorrow.",
+                    "Tất cả đối tượng đã được gửi chiến dịch hôm nay (giờ phòng tập). Vui lòng thử lại ngày mai."
+                  )}
+                </p>
+              ) : null}
               <select
                 value={createAudienceId}
                 onChange={(e) => setCreateAudienceId(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white mb-4"
+                disabled={marketingAudiences.length > 0 && marketingAudiencesAvailable.length === 0}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white mb-4 disabled:opacity-60"
               >
-                {(marketingAudiences.length
-                  ? marketingAudiences
-                  : MARKETING_AUDIENCES.map((a) => ({ ...a, count: 0 }))
-                ).map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {isVi ? a.nameVi : a.nameEn} ({a.count})
-                  </option>
-                ))}
+                {marketingAudiences.length === 0
+                  ? MARKETING_AUDIENCES.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {isVi ? a.nameVi : a.nameEn} (…)
+                      </option>
+                    ))
+                  : marketingAudiencesAvailable.length === 0
+                    ? [
+                        <option key="_none" value="" disabled>
+                          {t("No audiences left today", "Hôm nay không còn đối tượng để gửi")}
+                        </option>,
+                      ]
+                    : marketingAudiencesAvailable.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {isVi ? a.nameVi : a.nameEn} ({a.count})
+                        </option>
+                      ))}
               </select>
               {(() => {
                 const a =
@@ -558,7 +674,12 @@ export default function AnalyticsCharts({
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white mb-2"
               />
               <p className="text-xs text-slate-500 mb-4">
-                {t("Subject will show as “Leo Mây — …” (no promo-code line).", "Tiêu đề hiển thị dạng “Leo Mây — …” (không dòng mã ưu đãi).")}
+                {createPromoKind
+                  ? t(
+                      "Subject will include “Code inside” like segment campaigns.",
+                      "Tiêu đề sẽ có “mã trong email” giống chiến dịch phân khúc."
+                    )
+                  : t("Subject will show as “Leo Mây — …” (no promo).", "Tiêu đề hiển thị “Leo Mây — …” (không mã ưu đãi).")}
               </p>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t("Body", "Nội dung")}</label>
               <textarea
@@ -567,16 +688,51 @@ export default function AnalyticsCharts({
                 rows={12}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white mb-2 font-mono"
               />
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                {t("Promo code type", "Loại mã ưu đãi")}
+              </label>
+              <select
+                value={createPromoKind}
+                onChange={(e) => setCreatePromoKind((e.target.value || "") as CampaignPromoKind | "")}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white mb-4"
+              >
+                <option value="">{t("None (announcement only)", "Không (chỉ thông báo)")}</option>
+                <option value="free_visit">{t("Free visit pass (1 visit, recipient only)", "1 lượt miễn phí (chỉ người nhận email)")}</option>
+                <option value="guest_pass_friend">
+                  {t("Free guest pass (friend redeems; inactive / new to membership)", "Vé khách (bạn nhập mã; TV không hoạt động hoặc chưa có gói TV)")}
+                </option>
+                <option value="membership_50pct">
+                  {t("50% off membership tiers (recipient; dashboard checkout)", "Giảm 50% gói TV (người nhận; thanh toán trên dashboard)")}
+                </option>
+              </select>
               <p className="text-xs text-slate-500 mb-4">{t("Use [Name] for the member’s first name.", "Dùng [Name] cho tên thành viên.")}</p>
               <button type="button" onClick={() => setCreateShowPreview((v) => !v)} className="mb-3 text-sm text-teal-600 hover:underline">
                 {createShowPreview ? t("Hide preview", "Ẩn xem trước") : t("Preview message", "Xem trước nội dung")}
               </button>
               {createShowPreview && (
-                <div className="mb-4 p-4 rounded-lg bg-slate-100 border border-slate-200 text-sm">
-                  <p className="font-medium text-slate-700 mb-1">
+                <div className="mb-4 p-4 rounded-lg bg-slate-100 border border-slate-200 text-sm space-y-3">
+                  <p className="font-medium text-slate-700">
                     {t("Sample", "Mẫu")} (Alex): {createSubject || "—"}
                   </p>
-                  <pre className="whitespace-pre-wrap font-sans text-slate-800">{renderBody(createBody || "", "Alex")}</pre>
+                  {createPromoKind ? (
+                    <>
+                      <p className="text-xs text-slate-600">{t("Email preview (with sample code):", "Xem trước email (mã mẫu):")}</p>
+                      <div
+                        className="bg-white rounded border border-slate-200 p-3 max-h-80 overflow-y-auto text-left"
+                        dangerouslySetInnerHTML={{
+                          __html: bodyToHtml(renderBody(createBody || "", "Alex"), {
+                            marketing: false,
+                            locale: isVi ? "vi" : "en",
+                            subject: getSubjectWithBrand(createSubject.trim() || "Leo Mây"),
+                            promoCode: samplePromoCodeForPreview(createPromoKind),
+                            promoKind: createPromoKind,
+                          }),
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <pre className="whitespace-pre-wrap font-sans text-slate-800">{renderBody(createBody || "", "Alex")}</pre>
+                  )}
                 </div>
               )}
               {createTestMessage && <p className="text-sm mb-3 text-teal-700">{createTestMessage}</p>}
@@ -612,8 +768,9 @@ export default function AnalyticsCharts({
                     createTestSending ||
                     !createSubject.trim() ||
                     !createBody.trim() ||
+                    (marketingAudiences.length > 0 && marketingAudiencesAvailable.length === 0) ||
                     (() => {
-                      const c = marketingAudiences.find((a) => a.id === createAudienceId)?.count;
+                      const c = marketingAudiencesAvailable.find((a) => a.id === createAudienceId)?.count;
                       return c !== undefined && c === 0;
                     })()
                   }
@@ -645,14 +802,44 @@ export default function AnalyticsCharts({
                 rows={10}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 mb-2 font-mono"
               />
-              <p className="text-xs text-slate-500 mb-4">{t("A unique promo code will be added to the email when you send.", "Một mã ưu đãi sẽ được thêm vào email khi bạn gửi.")}</p>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                {t("Promo code type", "Loại mã ưu đãi")}
+              </label>
+              <select
+                value={campaignModal.promoKind}
+                onChange={(e) =>
+                  setCampaignModal((m) =>
+                    m ? { ...m, promoKind: e.target.value as CampaignPromoKind } : null
+                  )
+                }
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white mb-4"
+              >
+                <option value="free_visit">{t("Free visit pass (1 visit, recipient only)", "1 lượt miễn phí (chỉ người nhận email)")}</option>
+                <option value="guest_pass_friend">
+                  {t("Free guest pass (friend redeems; inactive / new to membership)", "Vé khách (bạn nhập mã; TV không hoạt động hoặc chưa có gói TV)")}
+                </option>
+                <option value="membership_50pct">
+                  {t("50% off membership tiers (recipient; dashboard checkout)", "Giảm 50% gói TV (người nhận; thanh toán trên dashboard)")}
+                </option>
+              </select>
               <button type="button" onClick={() => setShowPreview((v) => !v)} className="mb-4 text-sm text-teal-600 hover:underline">
                 {showPreview ? t("Hide preview", "Ẩn xem trước") : t("Preview message", "Xem trước nội dung")}
               </button>
               {showPreview && (
-                <div className="mb-4 p-4 rounded-lg bg-slate-100 border border-slate-200 text-sm">
-                  <p className="font-medium text-slate-700 mb-1">{t("Subject", "Tiêu đề")}: {campaignModal.subject}</p>
-                  <pre className="whitespace-pre-wrap font-sans text-slate-800">{renderBody(campaignModal.body, "Alex")}</pre>
+                <div className="mb-4 p-4 rounded-lg bg-slate-100 border border-slate-200 text-sm space-y-2">
+                  <p className="font-medium text-slate-700">{t("Subject", "Tiêu đề")}: {getSubjectWithBrand(campaignModal.subject)}</p>
+                  <p className="text-xs text-slate-600">{t("Email preview (sample code):", "Xem trước email (mã mẫu):")}</p>
+                  <div
+                    className="bg-white rounded border border-slate-200 p-3 max-h-80 overflow-y-auto text-left"
+                    dangerouslySetInnerHTML={{
+                      __html: bodyToHtml(renderBody(campaignModal.body, "Alex"), {
+                        promoCode: samplePromoCodeForPreview(campaignModal.promoKind),
+                        promoKind: campaignModal.promoKind,
+                        locale: isVi ? "vi" : "en",
+                        subject: getSubjectWithBrand(campaignModal.subject),
+                      }),
+                    }}
+                  />
                 </div>
               )}
               {campaignSuccess !== null && (

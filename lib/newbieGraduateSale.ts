@@ -59,25 +59,99 @@ export function isNewbieGraduateSalePlan(planId: string): boolean {
   return (NEWBIE_GRADUATE_SALE_PLAN_IDS as readonly string[]).includes(planId);
 }
 
+/** Membership tier plans that accept email-campaign % discount (not visit packs or newbie class). */
+export const CAMPAIGN_MEMBERSHIP_DISCOUNT_PLAN_IDS = [
+  "day_pass",
+  "month_pass",
+  "half_year_pass",
+  "year_pass",
+] as const;
+
+export function isCampaignMembershipDiscountPlan(planId: string): boolean {
+  return (CAMPAIGN_MEMBERSHIP_DISCOUNT_PLAN_IDS as readonly string[]).includes(planId);
+}
+
+export function roundDiscountedPriceVnd(fullPriceVnd: number, percentOff: number): number {
+  if (percentOff <= 0) return fullPriceVnd;
+  const raw = fullPriceVnd * ((100 - percentOff) / 100);
+  return Math.max(0, Math.round(raw / 1000) * 1000);
+}
+
+/** After successful purchase of a discounted tier plan, clear stored campaign discount. */
+export function shouldClearCampaignMembershipDiscount(planId: string, isVisitPassPackage: boolean): boolean {
+  if (isVisitPassPackage) return false;
+  return isCampaignMembershipDiscountPlan(planId);
+}
+
+export type EffectivePriceForPlanResult = {
+  chargeVnd: number;
+  saleActive: boolean;
+  saleEndsAt: string | null;
+  campaign_membership_sale: { discount_percent: number; until: string } | null;
+  newbie_graduate_sale: { discount_percent: number; ends_at: string | null } | null;
+};
+
 export async function effectivePriceForPlan(
   supabase: SupabaseClient,
   memberId: string,
   planId: string,
   listPriceVnd: number,
   now?: Date
-): Promise<{ chargeVnd: number; saleActive: boolean; saleEndsAt: string | null }> {
+): Promise<EffectivePriceForPlanResult> {
   const t = now ?? new Date();
-  if (!isNewbieGraduateSalePlan(planId)) {
-    return { chargeVnd: listPriceVnd, saleActive: false, saleEndsAt: null };
+
+  const { data: discRow } = await supabase
+    .from("member_profiles")
+    .select("campaign_membership_discount_percent, campaign_membership_discount_until")
+    .eq("id", memberId)
+    .maybeSingle();
+
+  let chargeVnd = listPriceVnd;
+  let campaignSale: { discount_percent: number; until: string } | null = null;
+  const pct = discRow?.campaign_membership_discount_percent as number | null | undefined;
+  const untilRaw = discRow?.campaign_membership_discount_until as string | null | undefined;
+  const until = untilRaw ? new Date(untilRaw) : null;
+
+  if (
+    isCampaignMembershipDiscountPlan(planId) &&
+    pct != null &&
+    pct > 0 &&
+    until &&
+    !Number.isNaN(until.getTime()) &&
+    until.getTime() > t.getTime()
+  ) {
+    const campaignCharge = roundDiscountedPriceVnd(listPriceVnd, pct);
+    campaignSale = { discount_percent: pct, until: until.toISOString() };
+    chargeVnd = Math.min(chargeVnd, campaignCharge);
   }
-  const win = await getNewbieGraduateSaleWindow(supabase, memberId, t);
-  if (!win.active) {
-    return { chargeVnd: listPriceVnd, saleActive: false, saleEndsAt: null };
+
+  let newbieSale: { discount_percent: number; ends_at: string | null } | null = null;
+  if (isNewbieGraduateSalePlan(planId)) {
+    const win = await getNewbieGraduateSaleWindow(supabase, memberId, t);
+    if (win.active && win.endsAt) {
+      const newbieCharge = roundSalePriceVnd(listPriceVnd);
+      newbieSale = { discount_percent: NEWBIE_GRADUATE_DISCOUNT_PERCENT, ends_at: win.endsAt };
+      chargeVnd = Math.min(chargeVnd, newbieCharge);
+    }
   }
+
+  const saleActive = chargeVnd < listPriceVnd;
+  let saleEndsAt: string | null = null;
+  if (campaignSale && newbieSale?.ends_at) {
+    saleEndsAt =
+      new Date(campaignSale.until).getTime() <= new Date(newbieSale.ends_at).getTime()
+        ? campaignSale.until
+        : newbieSale.ends_at;
+  } else {
+    saleEndsAt = campaignSale?.until ?? newbieSale?.ends_at ?? null;
+  }
+
   return {
-    chargeVnd: roundSalePriceVnd(listPriceVnd),
-    saleActive: true,
-    saleEndsAt: win.endsAt,
+    chargeVnd,
+    saleActive,
+    saleEndsAt,
+    campaign_membership_sale: campaignSale,
+    newbie_graduate_sale: newbieSale,
   };
 }
 

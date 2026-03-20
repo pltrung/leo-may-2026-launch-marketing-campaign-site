@@ -19,7 +19,7 @@ import AchievementUnlockModal, { type AchievementUnlockData } from "@/components
 import { GuidedTour, TOUR_STEPS_DASHBOARD, TOUR_STEPS_ONBOARDING } from "@/components/admin/GuidedTour";
 import { getMessages } from "@/lib/messages";
 import { getGymDateFromISO, getGymToday } from "@/lib/gymTimezone";
-import { roundSalePriceVnd } from "@/lib/newbieGraduateSale";
+import { roundSalePriceVnd, roundDiscountedPriceVnd } from "@/lib/newbieGraduateSale";
 import { memberIdentityComplete } from "@/lib/memberIdentity";
 import { visitPackVisitCount, visitPackVsDayPassBaseline, dayPassVsMultiDayBaseline, isMultiDayPass, DAY_PASS_BASELINE_PER_VISIT_VND } from "@/lib/visitPackDayPassBaseline";
 import { formatVnd } from "@/lib/formatVndCompact";
@@ -293,11 +293,15 @@ export default function DashboardPage() {
   // Sale countdown tick (must be before early return so hook count is stable — fixes React #310 when /api/member/me 404)
   const graduateSaleFromMember = member?.newbie_graduate_sale;
   const graduateSaleLiveComputed = !!(graduateSaleFromMember?.ends_at && new Date(graduateSaleFromMember.ends_at).getTime() > Date.now());
+  const campaignSaleFromMember = member?.campaign_membership_sale;
+  const campaignSaleLiveComputed = !!(
+    campaignSaleFromMember?.until && new Date(campaignSaleFromMember.until).getTime() > Date.now()
+  );
   useEffect(() => {
-    if (!graduateSaleLiveComputed) return;
+    if (!graduateSaleLiveComputed && !campaignSaleLiveComputed) return;
     const id = window.setInterval(() => setSaleTick((x) => x + 1), 1000);
     return () => clearInterval(id);
-  }, [graduateSaleLiveComputed]);
+  }, [graduateSaleLiveComputed, campaignSaleLiveComputed]);
 
   function formatCountdown(startTimeIso: string): { text: string; done: boolean } {
     const start = new Date(startTimeIso).getTime();
@@ -1089,12 +1093,34 @@ export default function DashboardPage() {
     return `${d}d ${h}h ${m}m ${s}s`;
   })();
 
+  const campaignSale = member.campaign_membership_sale;
+  const campaignSaleEndsMs = campaignSale?.until ? new Date(campaignSale.until).getTime() : 0;
+  const campaignSaleLive = !!(campaignSale && campaignSaleEndsMs > Date.now());
+  const campaignCountdownStr = (() => {
+    void saleTick;
+    if (!campaignSale?.until) return "";
+    const ms = Math.max(0, new Date(campaignSale.until).getTime() - Date.now());
+    const d = Math.floor(ms / 86400000);
+    const h = Math.floor((ms % 86400000) / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    return `${d}d ${h}h ${m}m ${s}s`;
+  })();
+
   const getPlanPricing = (p: Plan) => {
     const list = p.price_vnd;
-    if (!graduateSaleLive || !graduateSale?.eligible_plan_ids?.includes(p.id)) {
-      return { list, pay: list, onSale: false };
+    let pay = list;
+    let onSale = false;
+    if (graduateSaleLive && graduateSale?.eligible_plan_ids?.includes(p.id)) {
+      pay = Math.min(pay, roundSalePriceVnd(list));
+      onSale = pay < list;
     }
-    return { list, pay: roundSalePriceVnd(list), onSale: true };
+    if (campaignSaleLive && campaignSale?.eligible_plan_ids?.includes(p.id)) {
+      const pct = campaignSale.discount_percent;
+      pay = Math.min(pay, roundDiscountedPriceVnd(list, pct));
+      onSale = pay < list;
+    }
+    return { list, pay, onSale };
   };
 
   return (
@@ -1251,6 +1277,30 @@ export default function DashboardPage() {
             <p className="text-[14px] font-mono text-amber-300 mt-2 tabular-nums" aria-live="polite">
               {isVi ? "Còn lại: " : "Time left: "}
               {saleCountdownStr}
+            </p>
+          </div>
+        )}
+        {campaignSaleLive && (
+          <div
+            className="w-full max-w-[720px] mb-6 rounded-[20px] px-5 py-4 border border-teal-400/40"
+            style={{
+              background: "linear-gradient(135deg, rgba(13,148,136,0.22) 0%, rgba(15,23,42,0.9) 100%)",
+              backdropFilter: "blur(16px)",
+            }}
+          >
+            <p className="text-[16px] font-semibold text-teal-200">
+              {isVi
+                ? `📧 Ưu đãi từ email: giảm ${Math.round(campaignSale!.discount_percent)}%`
+                : `📧 Email offer: ${Math.round(campaignSale!.discount_percent)}% off`}
+            </p>
+            <p className="text-[13px] text-teal-100/85 mt-1">
+              {isVi
+                ? "Gói ngày / tháng / 6 tháng / năm — áp dụng khi thanh toán trên dashboard."
+                : "Day / month / 6-month / year passes — applies at checkout on this dashboard."}
+            </p>
+            <p className="text-[14px] font-mono text-teal-300 mt-2 tabular-nums" aria-live="polite">
+              {isVi ? "Còn lại: " : "Time left: "}
+              {campaignCountdownStr}
             </p>
           </div>
         )}

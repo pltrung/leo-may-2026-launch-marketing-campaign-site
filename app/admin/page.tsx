@@ -107,6 +107,11 @@ interface AdminMember {
     discount_percent: number;
     eligible_plan_ids: string[];
   } | null;
+  campaign_membership_sale?: {
+    until: string;
+    discount_percent: number;
+    eligible_plan_ids: string[];
+  } | null;
   merchandise_discount_percent?: number;
   merchandise_discount_effective?: number;
   friend_guest_codes?: { code: string; used: boolean; expired: boolean }[];
@@ -123,6 +128,14 @@ interface NameSearchResult {
   name: string;
   status: "Active" | "Inactive";
   date_of_birth: string | null;
+}
+
+/** Inline card under Scan-to-check-in (name, photo, DoB, active membership summary). */
+interface QuickCheckinMiniProfile {
+  name: string;
+  profile_photo_url: string | null;
+  date_of_birth: string | null;
+  membership_label: string;
 }
 
 export default function AdminPage() {
@@ -209,7 +222,7 @@ export default function AdminPage() {
   const [nameResults, setNameResults] = useState<NameSearchResult[]>([]);
   const [paymentReceived, setPaymentReceived] = useState(false);
   const lastPaymentCountRef = React.useRef<number | null>(null);
-  const quickScanPreviewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [quickCheckinMiniProfile, setQuickCheckinMiniProfile] = useState<QuickCheckinMiniProfile | null>(null);
   const [adminArea, setAdminArea] = useState<"front_desk" | "operations" | "management" | "staff" | "analytics">("front_desk");
   const hasInitializedAdminArea = useRef(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -539,11 +552,19 @@ export default function AdminPage() {
   }, [foundMember?.id, adminFetch]);
 
   useEffect(() => {
-    const ends = foundMember?.newbie_graduate_sale?.ends_at;
-    if (!ends || new Date(ends).getTime() <= Date.now()) return;
+    const endsN = foundMember?.newbie_graduate_sale?.ends_at;
+    const endsC = foundMember?.campaign_membership_sale?.until;
+    const active =
+      (endsN && new Date(endsN).getTime() > Date.now()) ||
+      (endsC && new Date(endsC).getTime() > Date.now());
+    if (!active) return;
     const id = window.setInterval(() => setAdminSaleTick((x) => x + 1), 1000);
     return () => clearInterval(id);
-  }, [foundMember?.id, foundMember?.newbie_graduate_sale?.ends_at]);
+  }, [
+    foundMember?.id,
+    foundMember?.newbie_graduate_sale?.ends_at,
+    foundMember?.campaign_membership_sale?.until,
+  ]);
 
   // Staff commission summary (My Sales Today / My Commission) — not for CEO admin role
   useEffect(() => {
@@ -669,25 +690,47 @@ export default function AdminPage() {
     }
   }, [adminFetch, m, foundMember?.id]);
 
-  const showQuickCheckinMemberPreview = useCallback(async (memberId: string) => {
-    try {
-      const res = await adminFetch(`/api/admin/members?id=${encodeURIComponent(memberId)}`);
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.member) return;
-      setFoundMember(data.member as AdminMember);
-      setMemberProfileSubTab("summary");
-      setFrontDeskTab("member");
-      if (quickScanPreviewTimeoutRef.current) {
-        clearTimeout(quickScanPreviewTimeoutRef.current);
-      }
-      quickScanPreviewTimeoutRef.current = setTimeout(() => {
-        setFoundMember(null);
+  const showQuickCheckinMemberPreview = useCallback(
+    async (memberId: string) => {
+      try {
+        const res = await adminFetch(`/api/admin/members?id=${encodeURIComponent(memberId)}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.member) return;
+        const mem = data.member as AdminMember;
+        const isVi = locale === "vi";
+        const visits = mem.visits_remaining ?? 0;
+        let membershipLabel: string;
+        if (visits > 0) {
+          membershipLabel = isVi ? `Gói lượt · còn ${visits} lượt` : `Visit pass · ${visits} visits left`;
+        } else if (mem.status === "Active" && mem.has_active_day_pass) {
+          membershipLabel = isVi
+            ? `${m.dayPass} · ${m.validUntil}: ${mem.validUntil}`
+            : `${m.dayPass} · ${m.validUntil}: ${mem.validUntil}`;
+        } else if (mem.status === "Active") {
+          membershipLabel =
+            mem.membershipType === "Founder Member"
+              ? m.founderMember
+              : mem.membershipType === "Standard"
+                ? m.standard
+                : mem.membershipType === "Day Pass"
+                  ? m.dayPass
+                  : String(mem.membershipType);
+        } else {
+          membershipLabel = isVi ? "Không có gói hiệu lực" : "No active membership";
+        }
+        setQuickCheckinMiniProfile({
+          name: mem.name,
+          profile_photo_url: mem.profile_photo_url ?? null,
+          date_of_birth: mem.date_of_birth ?? null,
+          membership_label: membershipLabel,
+        });
         setFrontDeskTab("checkin");
-      }, 5000);
-    } catch {
-      // Keep check-in flow fast; missing preview should not block check-in success.
-    }
-  }, [adminFetch]);
+      } catch {
+        // Keep check-in flow fast; missing preview should not block check-in success.
+      }
+    },
+    [adminFetch, locale, m]
+  );
 
   const refetchMemberOpsHistory = useCallback(
     async (memberId: string) => {
@@ -733,14 +776,6 @@ export default function AdminPage() {
     const id = setInterval(poll, 4000);
     return () => clearInterval(id);
   }, [foundMember?.id, loadMemberById, adminFetch]);
-
-  useEffect(() => {
-    return () => {
-      if (quickScanPreviewTimeoutRef.current) {
-        clearTimeout(quickScanPreviewTimeoutRef.current);
-      }
-    };
-  }, []);
 
   // Fetch check-ins when Front Desk → Check-in tab is active
   useEffect(() => {
@@ -2430,6 +2465,55 @@ export default function AdminPage() {
                   </p>
                 )}
               </div>
+
+              {quickCheckinMiniProfile && (
+                <div className="rounded-xl md:rounded-2xl border border-slate-200 bg-white shadow-sm p-3 md:p-4" data-tour="quick-checkin-member-mini">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <p className="text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      {locale === "vi" ? "Thành viên vừa check-in" : "Checked-in member"}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setQuickCheckinMiniProfile(null)}
+                      className="text-[10px] md:text-xs text-slate-500 hover:text-slate-800"
+                    >
+                      {locale === "vi" ? "Đóng" : "Dismiss"}
+                    </button>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    {quickCheckinMiniProfile.profile_photo_url ? (
+                      <img
+                        src={quickCheckinMiniProfile.profile_photo_url}
+                        alt=""
+                        className="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover border border-slate-200 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-semibold text-lg shrink-0">
+                        {quickCheckinMiniProfile.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="font-semibold text-slate-900 text-sm md:text-base truncate">{quickCheckinMiniProfile.name}</p>
+                      <p className="text-xs text-slate-600">
+                        <span className="text-slate-500">{m.dateOfBirth}: </span>
+                        {quickCheckinMiniProfile.date_of_birth
+                          ? new Date(quickCheckinMiniProfile.date_of_birth).toLocaleDateString(
+                              locale === "vi" ? "vi-VN" : "en-US",
+                              { year: "numeric", month: "short", day: "numeric" }
+                            )
+                          : locale === "vi"
+                            ? "—"
+                            : "—"}
+                      </p>
+                      <p className="text-xs text-slate-800">
+                        <span className="text-slate-500">{m.membershipLabel}: </span>
+                        {quickCheckinMiniProfile.membership_label}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="rounded-xl md:rounded-2xl bg-slate-900/95 border border-slate-700 p-3 md:p-6">
                 <h3 className="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">{m.gymOccupancy}</h3>
                 <p className="text-2xl md:text-3xl font-bold text-white">
@@ -2654,6 +2738,31 @@ export default function AdminPage() {
                         const ms = Math.max(
                           0,
                           new Date(foundMember.newbie_graduate_sale!.ends_at).getTime() - Date.now()
+                        );
+                        const d = Math.floor(ms / 86400000);
+                        const h = Math.floor((ms % 86400000) / 3600000);
+                        const m = Math.floor((ms % 3600000) / 60000);
+                        const s = Math.floor((ms % 60000) / 1000);
+                        return `${d}d ${h}h ${m}m ${s}s`;
+                      })()}
+                    </p>
+                  </div>
+                )}
+              {foundMember.campaign_membership_sale?.until &&
+                new Date(foundMember.campaign_membership_sale.until).getTime() > Date.now() && (
+                  <div className="rounded-xl border border-teal-400/50 bg-teal-950/40 px-4 py-3 text-teal-100">
+                    <p className="text-sm font-semibold text-teal-200">
+                      {locale === "vi"
+                        ? `Ưu đãi email: -${Math.round(foundMember.campaign_membership_sale.discount_percent)}% (gói ngày / tháng / 6 tháng / năm)`
+                        : `Email campaign: ${Math.round(foundMember.campaign_membership_sale.discount_percent)}% off day / month / 6-mo / year passes`}
+                    </p>
+                    <p className="text-xs text-teal-200/80 mt-1 font-mono tabular-nums">
+                      {locale === "vi" ? "Hết hạn sau: " : "Ends in: "}
+                      {(() => {
+                        void adminSaleTick;
+                        const ms = Math.max(
+                          0,
+                          new Date(foundMember.campaign_membership_sale!.until).getTime() - Date.now()
                         );
                         const d = Math.floor(ms / 86400000);
                         const h = Math.floor((ms % 86400000) / 3600000);

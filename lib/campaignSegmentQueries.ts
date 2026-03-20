@@ -63,6 +63,15 @@ export async function getSegmentRecipients(
     const ex = lastVisitByMember.get(c.member_id);
     if (!ex || c.timestamp > ex) lastVisitByMember.set(c.member_id, c.timestamp);
   }
+  // Same basis as Analytics → Members → member_health.inactive: last activity from check-ins in the last 90 days;
+  // if none, treat as 999 days idle (>30) so "never visited" / "no recent check-in" matches dashboard counts.
+  const ninetyDaysAgoMs = now.getTime() - 90 * 24 * 60 * 60 * 1000;
+  const lastVisitIn90d = new Map<string, string>();
+  for (const c of allCheckins) {
+    if (new Date(c.timestamp).getTime() < ninetyDaysAgoMs) continue;
+    const ex = lastVisitIn90d.get(c.member_id);
+    if (!ex || c.timestamp > ex) lastVisitIn90d.set(c.member_id, c.timestamp);
+  }
   const totalVisitsByMember = new Map<string, number>();
   for (const c of allCheckins) {
     if (c.counts_as_visit === false) continue;
@@ -103,8 +112,10 @@ export async function getSegmentRecipients(
     case "inactive_members_30d": {
       memberIds = allProfiles
         .filter((p) => {
-          const last = lastVisitByMember.get(p.id);
-          return last && last < thirtyDaysAgo;
+          const last = lastVisitIn90d.get(p.id);
+          const daysSinceLast =
+            last != null ? (now.getTime() - new Date(last).getTime()) / (24 * 60 * 60 * 1000) : 999;
+          return daysSinceLast > 30;
         })
         .map((p) => p.id);
       break;

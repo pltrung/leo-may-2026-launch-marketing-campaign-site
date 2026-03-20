@@ -36,6 +36,12 @@ export interface MemberProfile {
     discount_percent: number;
     eligible_plan_ids: string[];
   } | null;
+  /** From email campaign redeem; % off day/month/half-year/year until `until` */
+  campaign_membership_sale?: {
+    until: string;
+    discount_percent: number;
+    eligible_plan_ids: string[];
+  } | null;
   /** Stored tier (5 or 10); use merchandise_discount_effective at POS eligibility */
   merchandise_discount_percent?: number;
   merchandise_discount_effective?: number;

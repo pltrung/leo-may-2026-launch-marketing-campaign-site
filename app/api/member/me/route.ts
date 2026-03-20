@@ -7,6 +7,7 @@ import {
   getNewbieGraduateSaleWindow,
   NEWBIE_GRADUATE_DISCOUNT_PERCENT,
   NEWBIE_GRADUATE_SALE_PLAN_IDS,
+  CAMPAIGN_MEMBERSHIP_DISCOUNT_PLAN_IDS,
 } from "@/lib/newbieGraduateSale";
 import {
   clearMerchDiscountIfLapsed,
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     const { data: existing, error: rowError } = await supabase
       .from("member_profiles")
-      .select("id, auth_id, email, phone, full_name, display_name, tier, waiver_signed, waiver_signed_at, created_at, member_code, membership_status, membership_expires_at, visits_remaining, guest_passes_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender, address, id_verified_from_cccd, current_streak, best_streak, merchandise_discount_percent, first_visit_welcomed_at, is_minor, guardian_name, guardian_phone, zalo_user_id, prefer_zalo_notifications, prefer_sms_notifications, credit_balance_vnd")
+      .select("id, auth_id, email, phone, full_name, display_name, tier, waiver_signed, waiver_signed_at, created_at, member_code, membership_status, membership_expires_at, visits_remaining, guest_passes_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender, address, id_verified_from_cccd, current_streak, best_streak, merchandise_discount_percent, first_visit_welcomed_at, is_minor, guardian_name, guardian_phone, zalo_user_id, prefer_zalo_notifications, prefer_sms_notifications, credit_balance_vnd, campaign_membership_discount_percent, campaign_membership_discount_until")
       .eq("auth_id", user.id)
       .maybeSingle();
 
@@ -91,7 +92,7 @@ export async function GET(request: NextRequest) {
             tier,
             membership_status: "inactive",
           })
-          .select("id, auth_id, email, phone, full_name, display_name, tier, waiver_signed, waiver_signed_at, created_at, member_code, membership_status, membership_expires_at, visits_remaining, guest_passes_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender, address, id_verified_from_cccd, current_streak, best_streak, merchandise_discount_percent, first_visit_welcomed_at, is_minor, guardian_name, guardian_phone, zalo_user_id, prefer_zalo_notifications, prefer_sms_notifications, credit_balance_vnd")
+          .select("id, auth_id, email, phone, full_name, display_name, tier, waiver_signed, waiver_signed_at, created_at, member_code, membership_status, membership_expires_at, visits_remaining, guest_passes_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender, address, id_verified_from_cccd, current_streak, best_streak, merchandise_discount_percent, first_visit_welcomed_at, is_minor, guardian_name, guardian_phone, zalo_user_id, prefer_zalo_notifications, prefer_sms_notifications, credit_balance_vnd, campaign_membership_discount_percent, campaign_membership_discount_until")
           .single();
 
         if (!insertErr && inserted) memberRow = inserted;
@@ -135,6 +136,23 @@ export async function GET(request: NextRequest) {
         }
       : null;
 
+    const nowMs = Date.now();
+    const cPct = memberRow.campaign_membership_discount_percent as number | null | undefined;
+    const cUntil = memberRow.campaign_membership_discount_until as string | null | undefined;
+    const cUntilMs = cUntil ? new Date(cUntil).getTime() : NaN;
+    const campaign_membership_sale =
+      cPct != null &&
+      cPct > 0 &&
+      cUntil &&
+      !Number.isNaN(cUntilMs) &&
+      cUntilMs > nowMs
+        ? {
+            until: cUntil,
+            discount_percent: cPct,
+            eligible_plan_ids: [...CAMPAIGN_MEMBERSHIP_DISCOUNT_PLAN_IDS],
+          }
+        : null;
+
     let merchStored =
       (memberRow.merchandise_discount_percent as number) ?? 0;
     let merchandise_discount_effective = 0;
@@ -166,15 +184,19 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    const { campaign_membership_discount_percent: _cp, campaign_membership_discount_until: _cu, ...restRow } =
+      memberRow as Record<string, unknown>;
+
     return NextResponse.json({
       member: {
-        ...memberRow,
+        ...restRow,
         merchandise_discount_percent: merchStored,
         merchandise_discount_effective,
         total_visits: count ?? 0,
         last_checkin: lastCheckin.data?.timestamp ?? null,
         checked_in_today,
         newbie_graduate_sale,
+        campaign_membership_sale,
       },
     }, { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch {

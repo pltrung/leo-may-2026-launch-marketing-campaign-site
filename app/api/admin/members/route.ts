@@ -7,6 +7,7 @@ import {
   getNewbieGraduateSaleWindow,
   NEWBIE_GRADUATE_DISCOUNT_PERCENT,
   NEWBIE_GRADUATE_SALE_PLAN_IDS,
+  CAMPAIGN_MEMBERSHIP_DISCOUNT_PLAN_IDS,
 } from "@/lib/newbieGraduateSale";
 import {
   clearMerchDiscountIfLapsed,
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const baseSelect =
-      "id, auth_id, email, phone, full_name, tier, member_code, created_at, membership_status, membership_expires_at, visits_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender, waiver_signed, waiver_signed_at, merchandise_discount_percent, first_visit_welcomed_at, is_minor, guardian_name, guardian_phone, credit_balance_vnd";
+      "id, auth_id, email, phone, full_name, tier, member_code, created_at, membership_status, membership_expires_at, visits_remaining, profile_photo_url, id_number, date_of_birth, instagram_handle, gender, waiver_signed, waiver_signed_at, merchandise_discount_percent, first_visit_welcomed_at, is_minor, guardian_name, guardian_phone, credit_balance_vnd, campaign_membership_discount_percent, campaign_membership_discount_until";
 
     // Name search: return a list of basic matches to let the UI choose.
     if (!id && !code && name) {
@@ -245,6 +246,22 @@ export async function GET(req: NextRequest) {
         }
       : null;
 
+    const campPct = memberRow.campaign_membership_discount_percent as number | null | undefined;
+    const campUntil = memberRow.campaign_membership_discount_until as string | null | undefined;
+    const campUntilMs = campUntil ? new Date(campUntil).getTime() : NaN;
+    const campaign_membership_sale =
+      campPct != null &&
+      campPct > 0 &&
+      campUntil &&
+      !Number.isNaN(campUntilMs) &&
+      campUntilMs > Date.now()
+        ? {
+            until: campUntil,
+            discount_percent: campPct,
+            eligible_plan_ids: [...CAMPAIGN_MEMBERSHIP_DISCOUNT_PLAN_IDS],
+          }
+        : null;
+
     const responseMember = {
       id: memberRow.id,
       displayId: memberRow.member_code ?? null,
@@ -282,6 +299,7 @@ export async function GET(req: NextRequest) {
         })),
       },
       newbie_graduate_sale,
+      campaign_membership_sale,
       merchandise_discount_percent: merchStored,
       merchandise_discount_effective,
       friend_guest_codes,
