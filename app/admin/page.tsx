@@ -2554,28 +2554,88 @@ export default function AdminPage() {
                 </div>
               )}
 
-              <div className="rounded-xl md:rounded-2xl bg-slate-900/95 border border-slate-700 p-3 md:p-6">
-                <h3 className="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">{m.gymOccupancy}</h3>
-                <p className="text-2xl md:text-3xl font-bold text-white">
-                  {gymOccupancy}
-                  {occupancyMeta ? (
-                    <span className="text-lg font-semibold text-slate-400"> / {occupancyMeta.maxCapacity}</span>
-                  ) : null}
-                </p>
-                <p className="text-xs md:text-sm text-slate-400 mt-0.5">{m.climbersInsideLast2h}</p>
-                {occupancyMeta?.isAtCapacity && (
-                  <p className="mt-2 text-xs font-semibold text-red-300 rounded-lg bg-red-950/40 border border-red-500/40 px-2 py-1.5">
-                    {locale === "vi"
-                      ? "Đã đạt sức chứa ước lượng — xem xét giới hạn vào cửa."
-                      : "At estimated capacity — consider holding the door / wait list."}
-                  </p>
-                )}
-                {occupancyMeta && !occupancyMeta.isAtCapacity && occupancyMeta.isBusy && (
-                  <p className="mt-2 text-xs text-amber-200/90">
-                    {locale === "vi" ? "Đang khá đông (theo ngưỡng admin)." : "Busy vs. admin threshold."}
-                  </p>
-                )}
-              </div>
+              {(() => {
+                const occupancyBusy =
+                  !!occupancyMeta && !occupancyMeta.isAtCapacity && occupancyMeta.isBusy;
+                return (
+                  <div
+                    data-tour="dashboard-gym-status"
+                    className={`relative rounded-xl md:rounded-2xl p-3 md:p-6 overflow-hidden transition-[box-shadow,border-color,background-color] duration-300 ${
+                      occupancyBusy
+                        ? "border-2 border-amber-400/55 bg-gradient-to-br from-amber-950/95 via-slate-900 to-orange-950/70 shadow-[0_0_32px_rgba(251,146,60,0.22),inset_0_1px_0_rgba(253,230,138,0.12)]"
+                        : "bg-slate-900/95 border border-slate-700"
+                    }`}
+                  >
+                    {occupancyBusy ? (
+                      <>
+                        <div
+                          className="pointer-events-none absolute inset-0 opacity-[0.14] motion-reduce:animate-none animate-pulse"
+                          style={{
+                            backgroundImage: `repeating-linear-gradient(
+                              -12deg,
+                              transparent,
+                              transparent 6px,
+                              rgba(251, 191, 36, 0.35) 6px,
+                              rgba(251, 191, 36, 0.35) 7px
+                            )`,
+                          }}
+                          aria-hidden
+                        />
+                        <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-400/20 blur-2xl motion-reduce:animate-none animate-pulse" aria-hidden />
+                        <div className="pointer-events-none absolute -left-4 bottom-0 h-16 w-16 rounded-full bg-orange-500/15 blur-xl motion-reduce:animate-none animate-pulse [animation-delay:300ms]" aria-hidden />
+                      </>
+                    ) : null}
+                    <div className="relative z-[1]">
+                      <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                        <h3 className="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                          {m.gymOccupancy}
+                        </h3>
+                        {occupancyBusy ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/25 border border-amber-400/50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-100 shadow-sm">
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className="motion-reduce:animate-none animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-60" />
+                              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-200" />
+                            </span>
+                            {locale === "vi" ? "Đông" : "Busy"}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p
+                        className={`text-2xl md:text-3xl font-bold ${occupancyBusy ? "text-amber-50 drop-shadow-[0_0_12px_rgba(251,191,36,0.35)]" : "text-white"}`}
+                      >
+                        {gymOccupancy}
+                        {occupancyMeta ? (
+                          <span
+                            className={`text-lg font-semibold ${
+                              occupancyBusy ? "text-amber-200/85" : "text-slate-400"
+                            }`}
+                          >
+                            {" "}
+                            / {occupancyMeta.maxCapacity}
+                          </span>
+                        ) : null}
+                      </p>
+                      <p className={`text-xs md:text-sm mt-0.5 ${occupancyBusy ? "text-amber-100/80" : "text-slate-400"}`}>
+                        {m.climbersInsideLast2h}
+                      </p>
+                      {occupancyMeta?.isAtCapacity && (
+                        <p className="mt-2 text-xs font-semibold text-red-300 rounded-lg bg-red-950/40 border border-red-500/40 px-2 py-1.5">
+                          {locale === "vi"
+                            ? "Đã đạt sức chứa ước lượng — xem xét giới hạn vào cửa."
+                            : "At estimated capacity — consider holding the door / wait list."}
+                        </p>
+                      )}
+                      {occupancyBusy ? (
+                        <p className="mt-2 text-xs font-medium text-amber-100/95 rounded-lg bg-black/25 border border-amber-400/30 px-2.5 py-2 leading-snug">
+                          {locale === "vi"
+                            ? "Phòng đang đông — ưu tiên lịch, giữ lối đi thoáng, báo đồng đội khi cần."
+                            : "Floor is busy — prioritize flow, keep walkways clear, sync with your team."}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })()}
 
               <FrontDeskOpsExtras
                 adminFetch={adminFetch}

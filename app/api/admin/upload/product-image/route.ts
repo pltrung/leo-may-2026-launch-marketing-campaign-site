@@ -13,7 +13,8 @@ const MAX_SIZE = 5 * 1024 * 1024; // 5MB
  */
 export async function POST(req: NextRequest) {
   const unified = await getUnifiedAdminOrStaffFromRequest(req);
-  if (!unified || !canAccessInventory(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!unified || !canAccessInventory(unified.role, unified.staffProfile))
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     const body = await req.json();

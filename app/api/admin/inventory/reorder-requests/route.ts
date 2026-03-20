@@ -9,7 +9,7 @@ import { insertAdminAuditLog, getStaffIdFromAuthId } from "@/lib/auditLog";
 export async function GET(req: NextRequest) {
   const unified = await getUnifiedAdminOrStaffFromRequest(req);
   if (!unified) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!canAccessInventory(unified.role)) {
+  if (!canAccessInventory(unified.role, unified.staffProfile)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
   if (!unified?.staffId) {
     return NextResponse.json({ error: "Staff profile required" }, { status: 401 });
   }
-  if (!canAccessInventory(unified.role)) {
+  if (!canAccessInventory(unified.role, unified.staffProfile)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const unified = await getUnifiedAdminOrStaffFromRequest(req);
   if (!unified) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!canAccessInventory(unified.role)) {
+  if (!canAccessInventory(unified.role, unified.staffProfile)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   let body: { request_id?: string; received_quantity?: number };

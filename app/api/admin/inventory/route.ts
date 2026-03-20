@@ -14,7 +14,8 @@ const CATEGORIES = ["shoes", "chalk", "merch", "rental"] as const;
  */
 export async function GET(req: NextRequest) {
   const unified = await getUnifiedAdminOrStaffFromRequest(req);
-  if (!unified || !canAccessInventory(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!unified || !canAccessInventory(unified.role, unified.staffProfile))
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServerClient();
   const variantIdParam = req.nextUrl.searchParams.get("variant_id")?.trim();
   const categoryParam = req.nextUrl.searchParams.get("category")?.trim().toLowerCase();
@@ -70,7 +71,8 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   const unified = await getUnifiedAdminOrStaffFromRequest(req);
-  if (!unified || !canAccessInventory(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!unified || !canAccessInventory(unified.role, unified.staffProfile))
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServerClient();
   try {
     const body = await req.json();
@@ -122,7 +124,8 @@ export async function POST(req: NextRequest) {
  */
 export async function PATCH(req: NextRequest) {
   const unified = await getUnifiedAdminOrStaffFromRequest(req);
-  if (!unified || !canAccessInventory(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!unified || !canAccessInventory(unified.role, unified.staffProfile))
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServerClient();
   try {
     const body = await req.json();

@@ -74,7 +74,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const unified = await getUnifiedAdminOrStaffFromRequest(req);
-  if (!unified || !canAccessInventory(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!unified || !canAccessInventory(unified.role, unified.staffProfile))
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "Product id required" }, { status: 400 });
   const supabase = createServerClient();

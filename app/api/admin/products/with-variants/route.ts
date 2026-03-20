@@ -15,7 +15,8 @@ const CODE_PATTERN = /^[A-Za-z0-9\-\[\]]+$/;
  */
 export async function POST(req: NextRequest) {
   const unified = await getUnifiedAdminOrStaffFromRequest(req);
-  if (!unified || !canAccessInventory(unified.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!unified || !canAccessInventory(unified.role, unified.staffProfile))
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServerClient();
   try {
     const body = await req.json();

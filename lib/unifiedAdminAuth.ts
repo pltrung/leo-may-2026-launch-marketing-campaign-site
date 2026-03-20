@@ -204,9 +204,17 @@ export function canAccessManagement(role: UnifiedRole): boolean {
   return role === "admin" || role === "frontdesk";
 }
 
-/** Can use Inventory (stock in/out, create product, view inventory). Admin + Frontdesk. */
-export function canAccessInventory(role: UnifiedRole): boolean {
-  return role === "admin" || role === "frontdesk";
+/**
+ * Can use Inventory (stock in/out, create product, view inventory). Admin + Frontdesk.
+ * Also honors `staff_profiles.role` when passed (covers edge cases where unified role and DB row differ).
+ */
+export function canAccessInventory(
+  role: UnifiedRole,
+  staffProfile?: StaffProfileRow | null
+): boolean {
+  if (role === "admin" || role === "frontdesk") return true;
+  const dbRole = staffProfile?.role;
+  return dbRole === "admin" || dbRole === "frontdesk";
 }
 
 export function canDoPos(role: UnifiedRole): boolean {

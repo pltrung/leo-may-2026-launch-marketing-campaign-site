@@ -59,7 +59,7 @@ interface AdminAuthContextValue {
 
 const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
 
-function perm(role: UnifiedRole | null) {
+function perm(role: UnifiedRole | null, staffProfile: AdminAuthContextValue["staffProfile"]) {
   if (!role) return {
     canAccessFrontDeskFull: false,
     canAccessFrontDeskLimited: false,
@@ -75,18 +75,21 @@ function perm(role: UnifiedRole | null) {
     canAccessAdminTools: false,
     canAccessAnalytics: false,
   };
+  const dbRole = staffProfile?.role;
+  const inventoryViaProfile = dbRole === "admin" || dbRole === "frontdesk";
+  const managementViaProfile = dbRole === "admin" || dbRole === "frontdesk";
   return {
     canAccessFrontDeskFull: role === "admin" || role === "frontdesk",
     canAccessFrontDeskLimited: role === "staff",
     canAccessOperations: role === "admin" || role === "staff",
-    canAccessManagement: role === "admin" || role === "frontdesk",
+    canAccessManagement: role === "admin" || role === "frontdesk" || managementViaProfile,
     canDoPos: true,
     canDoMembershipModify: role === "admin" || role === "frontdesk",
     canCollectMembershipPayment: role === "admin" || role === "frontdesk" || role === "staff",
     canDoPaymentConfirm: role === "admin" || role === "frontdesk",
     canAccessRevenue: role === "admin",
     canDoCheckIn: role === "admin" || role === "frontdesk" || role === "checkin_operator",
-    canAccessInventory: role === "admin" || role === "frontdesk",
+    canAccessInventory: role === "admin" || role === "frontdesk" || inventoryViaProfile,
     canAccessAdminTools: role === "admin",
     canAccessAnalytics: role === "admin",
   };
@@ -253,7 +256,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     setPhase(null);
   }, []);
 
-  const perms = perm(role);
+  const perms = perm(role, staffProfile);
 
   const value: AdminAuthContextValue = {
     session,

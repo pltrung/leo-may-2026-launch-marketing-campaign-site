@@ -73,7 +73,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const unified = await getUnifiedAdminOrStaffFromRequest(req);
   if (!unified) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!canAccessInventory(unified.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!canAccessInventory(unified.role, unified.staffProfile))
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const supabase = createServerClient();
   try {
     const body = await req.json();
