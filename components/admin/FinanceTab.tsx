@@ -45,6 +45,7 @@ type FinanceData = {
   }[];
   rent_amount: number;
   expenses_mtd: number;
+  ad_spend_mtd?: number;
   expenses_list: Record<string, unknown>[];
   monthly_costs: number;
   profit: number;
@@ -368,6 +369,11 @@ export default function FinanceTab({
             <p className="text-[10px] text-slate-500 uppercase font-semibold">{t(`Recorded expenses ${getHorizonSuffix(horizon)}`, `Chi phí đã ghi ${getHorizonSuffix(horizon)}`)}</p>
             <p className="font-bold text-slate-900 mt-1">{formatVnd(data.expenses_mtd)}</p>
             <p className="text-[10px] text-slate-400">{t("Not same as “paid”", "Không = đã trả")}</p>
+          </div>
+          <div className="rounded-lg border border-violet-100 bg-violet-50/60 p-3 shadow-sm">
+            <p className="text-[10px] text-violet-800 uppercase font-semibold">{t("Paid ad spend (Meta, Google, TikTok)", "Chi phí quảng cáo trả phí")}</p>
+            <p className="font-bold text-violet-950 mt-1">{formatVnd(data.ad_spend_mtd ?? 0)}</p>
+            <p className="text-[10px] text-violet-700">{t("From Paid Ads tab", "Từ tab Quảng cáo trả phí")}</p>
           </div>
           <div className="rounded-lg border border-sky-100 bg-sky-50/60 p-3 shadow-sm">
             <p className="text-[10px] text-sky-900 uppercase font-semibold">{t("Runway", "Đường băng")}</p>

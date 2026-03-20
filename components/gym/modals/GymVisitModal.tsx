@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getMessages } from "@/lib/messages";
 import { useLocale } from "@/components/LocaleProvider";
+import { trackLead } from "@/lib/metaPixel";
 
 interface GymVisitModalProps {
   open: boolean;
@@ -44,6 +45,7 @@ export default function GymVisitModal({ open, onClose }: GymVisitModalProps) {
         setError(data?.error ?? m.error);
         return;
       }
+      trackLead();
       setSuccess(true);
     } catch {
       setError(m.error);

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocale } from "@/components/LocaleProvider";
+import { trackLead } from "@/lib/metaPixel";
 
 export default function CorporateGroupModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const locale = useLocale();
@@ -38,6 +39,7 @@ export default function CorporateGroupModal({ open, onClose }: { open: boolean; 
         setError((data as { error?: string }).error ?? "Error");
         return;
       }
+      trackLead();
       setSuccess(true);
     } catch {
       setError(vi ? "Lỗi mạng" : "Network error");

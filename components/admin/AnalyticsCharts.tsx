@@ -189,7 +189,7 @@ export default function AnalyticsCharts({
   /** Shown under Ops & people — staff onboarding training table */
   onboardingExtra?: React.ReactNode;
   onOpenAnalyticsTab?: (
-    t: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "finance"
+    t: "overview" | "revenue_members" | "engagement" | "ops_team" | "marketing" | "acquisition" | "finance"
   ) => void;
   onExecutiveAlertsCount?: (n: number) => void;
 }) {
@@ -531,20 +531,20 @@ export default function AnalyticsCharts({
       <div className="space-y-6">
         {adminFetch ? (
           <div className="rounded-xl border-2 border-teal-200 bg-teal-50/50 p-4 md:p-6">
-            <p className="text-sm font-semibold text-teal-900 mb-2">{t("Email campaigns", "Chiến dịch email")}</p>
-            <p className="text-xs text-teal-800/90 mb-3">{t("Send targeted emails with pre-built templates. Edit subject/body in the modal before sending.", "Gửi email theo đối tượng với mẫu có sẵn. Chỉnh sửa tiêu đề/nội dung trong hộp thoại trước khi gửi.")}</p>
+            <p className="text-sm font-semibold text-teal-900 mb-1">{t("Email & lifecycle — owned channels", "Email & vòng đời — kênh sở hữu")}</p>
+            <p className="text-xs text-teal-700/90 mb-3">{t("Send targeted emails to segments. For paid ad performance (Meta, Google, TikTok), see the Paid Ads tab.", "Gửi email theo phân khúc. Để xem hiệu suất quảng cáo trả phí (Meta, Google, TikTok), xem tab Quảng cáo trả phí.")}</p>
             <button
               type="button"
               onClick={openCreateCampaign}
               className="mb-6 w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 border border-slate-800 shadow-sm"
             >
-              {t("Create a new campaign", "Tạo chiến dịch mới")}
+              {t("Send email campaign", "Gửi chiến dịch email")}
             </button>
 
-            {/* Campaign segments — grouped: Lifecycle, Retention, Upsell */}
+            {/* Email segments — grouped: Lifecycle, Retention, Upsell */}
             <section className="mb-6">
               <h3 className="text-xs font-bold text-teal-800 uppercase tracking-wider mb-2">
-                {t("Campaign segments", "Nhóm chiến dịch")}
+                {t("Email segments", "Nhóm email")}
               </h3>
               <p className="text-xs text-teal-700/90 mb-2">{t("Targeted cohorts with pre-built templates, grouped by focus.", "Đối tượng có mẫu sẵn, nhóm theo mục tiêu.")}</p>
               <p className="text-xs text-teal-800/80 mb-2 font-medium">
@@ -606,12 +606,12 @@ export default function AnalyticsCharts({
               )}
             </section>
 
-            {/* Audiences — keyed by MarketingAudienceId */}
+            {/* Audiences — for email campaigns */}
             <section>
               <h3 className="text-xs font-bold text-teal-800 uppercase tracking-wider mb-2">
-                {t("Audiences", "Đối tượng rộng")}
+                {t("Email audiences", "Đối tượng email")}
               </h3>
-              <p className="text-xs text-teal-700/90 mb-3">{t("Broad audiences for custom campaigns (used in Create campaign above).", "Đối tượng rộng cho chiến dịch tùy chỉnh.")}</p>
+              <p className="text-xs text-teal-700/90 mb-3">{t("Broad audiences for custom email campaigns (used in Send email campaign above).", "Đối tượng rộng cho chiến dịch email tùy chỉnh.")}</p>
               {campaignSegmentsLoading ? (
                 <p className="text-sm text-slate-500">{t("Loading…", "Đang tải…")}</p>
               ) : (
@@ -638,7 +638,7 @@ export default function AnalyticsCharts({
                         }}
                         className="mt-1 text-xs text-teal-600 hover:text-teal-800 font-medium self-start"
                       >
-                        {t("Use for campaign →", "Dùng cho chiến dịch →")}
+                        {t("Use for email campaign →", "Dùng cho chiến dịch email →")}
                       </button>
                     </div>
                   ))}
@@ -698,7 +698,7 @@ export default function AnalyticsCharts({
           >
             <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-lg font-semibold text-slate-900 mb-1">
-                {t("New marketing campaign", "Chiến dịch marketing mới")}
+                {t("New email campaign", "Chiến dịch email mới")}
               </h3>
               <p className="text-xs text-slate-500 mb-4">
                 {t(

@@ -296,6 +296,17 @@ export async function GET(req: NextRequest) {
       expensesMtd += Number((e as { cost: number }).cost) || 0;
     }
 
+    // Ad spend from Paid Ads tab (ad_campaign_daily_stats) — single source of truth
+    const { data: adStatsRows } = await supabase
+      .from("ad_campaign_daily_stats")
+      .select("spend")
+      .gte("stat_date", sinceDate)
+      .lte("stat_date", untilDate);
+    let adSpendMtd = 0;
+    for (const r of adStatsRows ?? []) {
+      adSpendMtd += Number((r as { spend: number }).spend) || 0;
+    }
+
     // Prorate fixed costs (rent + payroll) by (days in range / days in current month) so period profit is comparable.
     const [ty, tm] = today.split(/-/).map(Number);
     const daysInMonth = new Date(ty, tm, 0).getDate();
@@ -305,7 +316,7 @@ export async function GET(req: NextRequest) {
     const fixedFullMonth = rentAmount + payrollTotal;
     const proratedFixed =
       daysInMonth > 0 ? (fixedFullMonth * daysInRange) / daysInMonth : 0;
-    const monthlyCosts = Math.round(proratedFixed + expensesMtd);
+    const monthlyCosts = Math.round(proratedFixed + expensesMtd + adSpendMtd);
 
     const profit = revenueMtd - monthlyCosts;
     const cash = Number(config.current_cash) || 0;
@@ -313,6 +324,7 @@ export async function GET(req: NextRequest) {
     const dayOfMonth = parseInt(today.slice(8, 10), 10) || 1;
     const daysElapsed = Math.min(Math.max(1, dayOfMonth), daysInMonth);
     let expensesForRunway = expensesMtd;
+    let adSpendForRunway = adSpendMtd;
     if (sinceDate !== monthStartDate || untilDate !== today) {
       const { data: monthExpRows } = await supabase
         .from("expenses")
@@ -320,9 +332,15 @@ export async function GET(req: NextRequest) {
         .gte("expense_date", monthStartDate)
         .lte("expense_date", today);
       expensesForRunway = (monthExpRows ?? []).reduce((s, e) => s + (Number((e as { cost: number }).cost) || 0), 0);
+      const { data: monthAdRows } = await supabase
+        .from("ad_campaign_daily_stats")
+        .select("spend")
+        .gte("stat_date", monthStartDate)
+        .lte("stat_date", today);
+      adSpendForRunway = (monthAdRows ?? []).reduce((s, r) => s + (Number((r as { spend: number }).spend) || 0), 0);
     }
     const expensesExtrapolated =
-      daysElapsed > 0 ? (expensesForRunway * daysInMonth) / daysElapsed : expensesForRunway;
+      daysElapsed > 0 ? ((expensesForRunway + adSpendForRunway) * daysInMonth) / daysElapsed : expensesForRunway + adSpendForRunway;
     const fullMonthlyCosts = Math.round(fixedFullMonth + expensesExtrapolated);
     const runwayDisplayEarly: "months" | "cash_positive" =
       fullMonthlyCosts <= 0 ? "cash_positive" : "months";
@@ -443,6 +461,14 @@ export async function GET(req: NextRequest) {
       let expSum = 0;
       for (const e of expM ?? []) expSum += Number((e as { cost: number }).cost) || 0;
 
+      const { data: adM } = await supabase
+        .from("ad_campaign_daily_stats")
+        .select("spend")
+        .gte("stat_date", start)
+        .lte("stat_date", end);
+      let adSum = 0;
+      for (const r of adM ?? []) adSum += Number((r as { spend: number }).spend) || 0;
+
       const { data: posStaffM } = await supabase
         .from("pos_transactions")
         .select("staff_id, total, commission_amount, created_at")
@@ -468,11 +494,11 @@ export async function GET(req: NextRequest) {
         checkInsM
       );
 
-      const costs = payM + rentAmount + expSum;
+      const costs = payM + rentAmount + expSum + adSum;
       months_history.push({
         month_key: mk,
         revenue: rev,
-        expenses_total: expSum,
+        expenses_total: expSum + adSum,
         payroll_total: payM,
         rent: rentAmount,
         costs_total: costs,
@@ -573,7 +599,8 @@ export async function GET(req: NextRequest) {
         payroll_accrued_mtd: payrollTotal,
         rent_accrued_mtd: rentAmount,
         opex_accrued_mtd: expensesMtd,
-        operating_costs_mtd: Math.round(payrollTotal + rentAmount + expensesMtd),
+        ad_spend_mtd: adSpendMtd,
+        operating_costs_mtd: Math.round(payrollTotal + rentAmount + expensesMtd + adSpendMtd),
       },
       eom_net_cash_flow_forecast: eomNetCashFlowForecast,
       config: {
@@ -591,6 +618,7 @@ export async function GET(req: NextRequest) {
       payroll_lines: payrollLines,
       rent_amount: rentAmount,
       expenses_mtd: expensesMtd,
+      ad_spend_mtd: Math.round(adSpendMtd),
       expenses_list: (expenseRows ?? []).map((e: Record<string, unknown>) => ({
         ...e,
         created_by_name:

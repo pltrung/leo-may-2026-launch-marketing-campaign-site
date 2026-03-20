@@ -9,6 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getMessages } from "@/lib/messages";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { toE164 } from "@/lib/phoneE164";
+import { trackCompleteRegistration } from "@/lib/metaPixel";
 
 type ClaimStatus = "idle" | "loading" | "not_found" | "has_account" | "rate_limit";
 type SheetView = "main" | "claim" | "login" | "signup" | "signup_check_email" | "not_found" | "rate_limit" | "has_account";
@@ -365,6 +366,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
         setSignupLoading(false);
         return;
       }
+      trackCompleteRegistration();
       handleClose();
       await refresh();
       router.replace(`/${locale}/dashboard`);
@@ -426,6 +428,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
           setSignupVerifyLoading(false);
           return;
         }
+        trackCompleteRegistration();
         handleClose();
         await refresh();
         router.replace(`/${locale}/dashboard`);

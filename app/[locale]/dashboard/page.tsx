@@ -23,6 +23,7 @@ import { roundSalePriceVnd, roundDiscountedPriceVnd } from "@/lib/newbieGraduate
 import { memberIdentityComplete } from "@/lib/memberIdentity";
 import { visitPackVisitCount, visitPackVsDayPassBaseline, dayPassVsMultiDayBaseline, isMultiDayPass, DAY_PASS_BASELINE_PER_VISIT_VND } from "@/lib/visitPackDayPassBaseline";
 import { formatVnd } from "@/lib/formatVndCompact";
+import { trackPurchase } from "@/lib/metaPixel";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -324,8 +325,15 @@ export default function DashboardPage() {
     const vnp = u.searchParams.get("vnp_ResponseCode");
     if (vnp == null) return;
     const isSuccess = vnp === "00";
+    const amtRaw = u.searchParams.get("vnp_Amount");
+    let amountVnd: number | undefined;
+    if (amtRaw && /^\d+$/.test(amtRaw)) {
+      const scaled = parseInt(amtRaw, 10);
+      if (scaled > 0) amountVnd = scaled / 100;
+    }
     if (isSuccess) {
       setPaymentSuccess(true);
+      if (amountVnd != null && amountVnd > 0) trackPurchase(amountVnd);
       refresh({ backgroundMemberFetch: true });
       setTimeout(() => setPaymentSuccess(false), 8000);
     }
