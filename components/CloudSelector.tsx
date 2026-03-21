@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { clouds, CloudPersonality } from "@/lib/cloudData";
 import CloudCard from "./CloudCard";
@@ -26,24 +26,16 @@ interface CloudSelectorProps {
 
 export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelectorProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const [randomizePhase, setRandomizePhase] = useState<"hidden" | "breathing">("hidden");
   const [isRandomizeTapping, setIsRandomizeTapping] = useState(false);
   const stackRef = useRef<CloudStackMobileHandle>(null);
   const locale = useLocale();
   const { whatTypeOfCloud, subtext, randomizeButton } = getMessages(locale).cloudSelector;
 
-  useEffect(() => {
-    const check = () => setIsMobile(typeof window !== "undefined" && window.innerWidth <= 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
   return (
     <section
       id="clouds"
-      className={`cloud-selection-screen cloud-selector relative w-full min-h-[100dvh] lg:min-h-screen flex flex-col items-center overflow-x-hidden overflow-visible px-4 pt-[88px] pb-4 sm:px-6 md:pt-24 lg:pt-32 lg:pb-16 ${detailsOpen ? "card-selected" : ""}`}
+      className={`cloud-selection-screen cloud-selector relative w-full min-h-[100dvh] flex flex-col items-center overflow-x-hidden overflow-visible px-4 pb-4 pt-[88px] md:pt-24 lg:pt-20 lg:pb-8 sm:px-6 ${detailsOpen ? "card-selected" : ""}`}
     >
       {/* Logo: top-to-bottom stagger [0], same style as countdown */}
       <motion.div
@@ -58,7 +50,8 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
         />
       </motion.div>
 
-      <div className="cloud-selector-body w-full max-w-5xl mx-auto text-center flex flex-col items-center">
+      {/* Mobile only: flex-1 min-h-0 so globals .cloud-selection-container { flex:1 } receives real height (wrapper broke this in last change). */}
+      <div className="cloud-selector-body w-full max-w-5xl mx-auto flex flex-col items-center max-lg:flex-1 max-lg:min-h-0">
       {/* Header: top-to-bottom stagger [1], same style as countdown */}
       <motion.div
         className="cloud-selection-header relative flex flex-col items-center w-full max-w-2xl mx-auto mt-2 mb-6 md:mt-0 md:mb-8 lg:mb-2 lg:flex-shrink-0 z-10 transition-opacity duration-400"
@@ -129,13 +122,13 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
         </div>
       </div>
 
-      {/* Desktop only (1024px+): top-anchored grid, natural card height */}
-      <div className="cloud-selector-desktop-grid hidden lg:flex w-full flex-col cloud-selector-container">
-        <div className="cloud-selector-desktop-grid-inner grid grid-cols-2 md:grid-cols-6 gap-4 md:gap-6 max-w-6xl w-full mx-auto overflow-visible">
+      {/* Desktop only (1024px+): 6 cards in a row */}
+      <div className="cloud-selector-desktop-grid hidden lg:flex w-full items-center justify-center cloud-selector-container">
+        <div className="cloud-selector-desktop-grid-inner grid grid-cols-6 gap-6 w-[90%] max-w-[1400px] mx-auto justify-items-center items-start overflow-visible">
           {clouds.map((cloud, index) => (
             <motion.div
               key={cloud.id}
-              className="w-full min-w-0"
+              className="flex justify-center items-center w-full max-w-[200px]"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
@@ -150,8 +143,7 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
         </div>
       </div>
 
-      {/* Desktop: footer follows content (no mt-auto viewport stretch) */}
-      <div className="cloud-selector-desktop-footer hidden lg:flex flex-shrink-0 w-full pt-4 pb-2">
+      <div className="cloud-selector-desktop-footer hidden lg:flex flex-shrink-0 w-full mt-auto justify-center pt-4 pb-2">
         <CloudFooter compact />
       </div>
       </div>
