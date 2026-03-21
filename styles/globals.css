@@ -2109,7 +2109,7 @@ body.hero-ready .hero-scroll {
 
   html.cloud-selection-view .cloud-selection-header {
     flex: 0 0 auto;
-    margin-bottom: 0.5rem;
+    margin-bottom: 1rem;
   }
 
   html.cloud-selection-view .cloud-selector {

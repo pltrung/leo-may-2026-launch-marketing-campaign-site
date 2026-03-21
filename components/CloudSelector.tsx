@@ -54,7 +54,7 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
       <div className="cloud-selector-body w-full max-w-[1600px] mx-auto flex flex-col items-center max-lg:flex-1 max-lg:min-h-0 lg:flex-1 lg:min-h-0">
       {/* Header: top-to-bottom stagger [1], same style as countdown */}
       <motion.div
-        className="cloud-selection-header relative flex flex-col items-center w-full max-w-2xl mx-auto mt-2 mb-6 md:mt-0 md:mb-8 lg:mb-2 lg:flex-shrink-0 z-10 transition-opacity duration-400"
+        className="cloud-selection-header relative flex flex-col items-center w-full max-w-2xl mx-auto mt-2 mb-6 md:mt-0 md:mb-8 lg:mt-12 lg:mb-4 lg:flex-shrink-0 z-10 transition-opacity duration-400"
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: CLOUD_STAGGER_MS[1] / 1000, duration: CONTENT_DURATION, ease: EASE_APPLE_IN_OUT }}

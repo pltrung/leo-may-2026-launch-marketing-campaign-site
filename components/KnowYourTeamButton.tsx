@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import VerificationModal from "./VerificationModal";
 import { useLocale } from "./LocaleProvider";
 import { getMessages } from "@/lib/messages";
@@ -13,10 +13,22 @@ interface KnowYourTeamButtonProps {
   show?: boolean;
   /** Called when user finds their team — triggers Sky transition then redirect to countdown */
   onFoundTeam?: () => void;
+  /** Open modal on mount when URL has ?openLogin=1 */
+  initialOpen?: boolean;
 }
 
-export default function KnowYourTeamButton({ show = true, onFoundTeam }: KnowYourTeamButtonProps) {
+export default function KnowYourTeamButton({ show = true, onFoundTeam, initialOpen }: KnowYourTeamButtonProps) {
   const [open, setOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const hasOpenedFromParamRef = useRef(false);
+
+  useEffect(() => {
+    if (!show || hasOpenedFromParamRef.current) return;
+    if (initialOpen || searchParams.get("openLogin") === "1") {
+      hasOpenedFromParamRef.current = true;
+      setOpen(true);
+    }
+  }, [show, initialOpen, searchParams]);
   const locale = useLocale();
   const router = useRouter();
   const t = getMessages(locale).knowYourCloud;

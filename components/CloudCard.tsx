@@ -90,18 +90,20 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
           className="cloud-card-front absolute inset-0 flex flex-col items-center justify-center text-center rounded-[24px] p-6 border backdrop-blur-[12px]"
           style={sharedFaceStyle}
         >
-          <div className="mb-3 shrink-0" style={{ color: accent }}>
-            <CloudIconByType cloudId={cloud.id} className="w-12 h-12 sm:w-14 sm:h-14 lg:w-[3.25rem] lg:h-[3.25rem]" />
+          <div className="flex flex-col items-center justify-center flex-1 min-h-0">
+            <div className="mb-3 shrink-0" style={{ color: accent }}>
+              <CloudIconByType cloudId={cloud.id} className="w-12 h-12 sm:w-14 sm:h-14 lg:w-[3.25rem] lg:h-[3.25rem]" />
+            </div>
+            <span className="font-subheadline text-base sm:text-lg lg:text-lg xl:text-xl leading-tight px-1" style={{ color: accent }}>
+              {cloud.name}
+            </span>
+            <span
+              className="font-body text-xs sm:text-sm lg:text-sm xl:text-[0.95rem] tracking-[0.5px] mt-1 px-1"
+              style={{ color: accent, opacity: 0.85 }}
+            >
+              {shortName}
+            </span>
           </div>
-          <span className="font-subheadline text-base sm:text-lg lg:text-lg xl:text-xl leading-tight px-1" style={{ color: accent }}>
-            {cloud.name}
-          </span>
-          <span
-            className="font-body text-xs sm:text-sm lg:text-sm xl:text-[0.95rem] tracking-[0.5px] mt-1 px-1"
-            style={{ color: accent, opacity: 0.85 }}
-          >
-            {shortName}
-          </span>
         </div>
 
         {/* Back: equal height, scrollable story inside card boundary, no overflow outside */}
@@ -112,7 +114,7 @@ export default function CloudCard({ cloud, onJoin }: CloudCardProps) {
             transform: "rotateY(180deg)",
           }}
         >
-          <div className="cloud-card-back-scroll w-full flex-1 min-h-[4.5rem] overflow-y-auto overflow-x-hidden [scrollbar-width:thin] text-left lg:text-center py-1">
+          <div className="cloud-card-back-scroll w-full flex-1 min-h-[4.5rem] overflow-y-auto overflow-x-hidden [scrollbar-width:thin] text-left lg:text-center py-1 flex flex-col justify-center">
             <p
               className="font-body text-sm lg:text-[0.9375rem] xl:text-base leading-[1.55] text-[#1a1a1a] px-0.5"
               style={{ opacity: 0.92 }}

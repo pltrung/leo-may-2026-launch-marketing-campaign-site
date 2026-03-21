@@ -322,7 +322,7 @@ export default function SignupModal({
                 )}
                 {alreadyHaveAccount && (
                   <a
-                    href={`/${locale}/gym`}
+                    href={locale === "vi" ? "/vi/prelaunch?openLogin=1" : "/prelaunch?openLogin=1"}
                     className="block w-full py-3 rounded-xl font-subheadline text-center transition-opacity hover:opacity-90"
                     style={{ backgroundColor: accent, color: cloud.joinTextHex ?? "#fff" }}
                   >
