@@ -6,6 +6,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { saveUser, clearUser } from "@/lib/userStorage";
 import type { CloudType } from "@/lib/cloudData";
 import type { Locale } from "@/lib/i18n";
+import { isLandingFlowPath } from "@/lib/landingPaths";
 
 const VALID_LOCALES: Locale[] = ["en", "vi"];
 
@@ -54,7 +55,8 @@ export default function AuthSessionHandler({ children }: { children: React.React
   const locale = (params?.locale as string) ?? "en";
   const [sessionCheckComplete, setSessionCheckComplete] = useState(false);
 
-  const isHero = pathname === `/${locale}` || pathname === `/${locale}/`;
+  /** Any prelaunch landing surface (session + waitlist → countdown). */
+  const isHero = isLandingFlowPath(pathname);
 
   useEffect(() => {
     let supabase;

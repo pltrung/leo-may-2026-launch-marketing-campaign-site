@@ -9,7 +9,6 @@ export default function LanguageSwitch() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // pathname is /en, /en/countdown, etc. Replace locale segment.
   const otherLocale = locale === "en" ? "vi" : "en";
   const segments = pathname?.split("/").filter(Boolean) ?? [];
   const rest = segments.length > 1 ? "/" + segments.slice(1).join("/") : "";

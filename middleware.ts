@@ -2,12 +2,27 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { defaultLocale, isValidLocale } from "@/lib/i18n";
 
+/** Resolve locale for "/" redirect: cookie > Accept-Language > default. */
+function resolveLocale(request: NextRequest): "en" | "vi" {
+  const cookie = request.cookies.get("leo_language");
+  if (cookie?.value === "vi" || cookie?.value === "en") return cookie.value;
+  const accept = request.headers.get("accept-language") ?? "";
+  const viFirst = /^vi|vi[,;-]|.*,\s*vi\b/i.test(accept);
+  return viFirst ? "vi" : defaultLocale;
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Redirect root to default (English)
+  // Root → locale-prefixed home (consistent /{locale}/... URLs)
   if (pathname === "/") {
-    return NextResponse.redirect(new URL(`/${defaultLocale}`, request.url));
+    const locale = resolveLocale(request);
+    const res = NextResponse.redirect(new URL(`/${locale}`, request.url));
+    // Persist chosen locale so next "/" uses same (max-age ~1 year)
+    if (!request.cookies.get("leo_language")) {
+      res.cookies.set("leo_language", locale, { maxAge: 31536000, path: "/" });
+    }
+    return res;
   }
 
   // Allow /en and /vi and their subpaths; allow /api and _next

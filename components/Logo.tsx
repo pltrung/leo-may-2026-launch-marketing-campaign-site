@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocale } from "./LocaleProvider";
 import SafeImg, { isValidImgSrc } from "./SafeImg";
+import { logoHomePath } from "@/lib/landingPaths";
 
 const LOGO_SRC = "/logo-white.svg";
 
@@ -17,7 +18,7 @@ export default function Logo({ className = "h-8 w-auto object-contain", onNaviga
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
-  const homePath = `/${locale}`;
+  const homePath = logoHomePath(pathname, locale);
   const isOnHome = pathname === homePath || pathname === `${homePath}/`;
 
   const handleClick = (e: React.MouseEvent) => {

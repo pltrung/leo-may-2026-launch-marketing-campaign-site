@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Script from "next/script";
 import LoadingScreen from "@/components/LoadingScreen";
 import LandingFlow from "@/components/LandingFlow";
+import { isLandingFlowPath } from "@/lib/landingPaths";
 
 /**
  * On home (/, /en, /vi): wrap in LandingFlow (Sky → Explore pill → portal → hero).
@@ -13,9 +14,7 @@ import LandingFlow from "@/components/LandingFlow";
  */
 export default function LandingGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isHome = Boolean(
-    pathname && (pathname === "/" || pathname === "/en" || pathname === "/vi")
-  );
+  const isHome = isLandingFlowPath(pathname);
   const isGym = Boolean(pathname && pathname.includes("/gym"));
   const isDashboard = Boolean(pathname && pathname.includes("/dashboard"));
 

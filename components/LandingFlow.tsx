@@ -10,6 +10,7 @@ import type { ExploreOrigin } from "@/components/ExploreButton";
 import ClientErrorBoundary from "@/components/ClientErrorBoundary";
 import { startHeroMusicFromUserGesture } from "@/components/HeroMusic";
 import { HERO_BG } from "@/lib/heroConstants";
+import { isLandingFlowPath } from "@/lib/landingPaths";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").then((m) => m.default),
@@ -22,7 +23,7 @@ const LOADING_SKY_MS = 2000;
 
 /**
  * State machine: loadingSky -> exploreIdle -> (click) transitioning -> hero.
- * Only active on home path (/, /en, /vi).
+ * Only active on prelaunch landing paths (see `isLandingFlowPath`).
  */
 export default function LandingFlow({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -31,9 +32,7 @@ export default function LandingFlow({ children }: { children: React.ReactNode })
   const [reduceMotion, setReduceMotion] = useState(false);
   const completedRef = useRef(false);
 
-  const isHome = Boolean(
-    pathname && (pathname === "/" || pathname === "/en" || pathname === "/vi")
-  );
+  const isHome = isLandingFlowPath(pathname);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
