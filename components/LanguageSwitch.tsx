@@ -9,12 +9,51 @@ export default function LanguageSwitch() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const preserveClouds =
+    (pathname === "/prelaunch" ||
+      pathname === "/en/prelaunch" ||
+      pathname === "/vi/prelaunch" ||
+      pathname === "/en" ||
+      pathname === "/vi") &&
+    searchParams?.get("clouds") === "1";
+  const cloudsQs = preserveClouds ? "?clouds=1" : "";
+
+  // Locale-less /prelaunch ↔ /vi/prelaunch
+  if (pathname === "/prelaunch") {
+    return (
+      <Link
+        href={`/vi/prelaunch${cloudsQs}`}
+        className="inline-flex items-center gap-1.5 py-2 px-3 rounded-full border border-white/50 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/70 transition-colors"
+        aria-label="Chuyển sang tiếng Việt"
+      >
+        <span className="opacity-60">VN</span>
+        <span className="text-white/40">|</span>
+        <span className="font-medium">EN</span>
+      </Link>
+    );
+  }
+  if (pathname === "/vi/prelaunch") {
+    return (
+      <Link
+        href={`/prelaunch${cloudsQs}`}
+        className="inline-flex items-center gap-1.5 py-2 px-3 rounded-full border border-white/50 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/70 transition-colors"
+        aria-label="Switch to English"
+      >
+        <span className="font-medium">VN</span>
+        <span className="text-white/40">|</span>
+        <span className="opacity-60">EN</span>
+      </Link>
+    );
+  }
+
+  // pathname is /en, /en/countdown, etc. Replace locale segment.
   const otherLocale = locale === "en" ? "vi" : "en";
   const segments = pathname?.split("/").filter(Boolean) ?? [];
   const rest = segments.length > 1 ? "/" + segments.slice(1).join("/") : "";
-  const onHome = segments.length <= 1;
-  const preserveClouds = onHome && searchParams?.get("clouds") === "1";
-  const newPath = `/${otherLocale}${rest}${preserveClouds ? "?clouds=1" : ""}`;
+  const onEnPrelaunch = pathname === "/en/prelaunch";
+  const newPath = onEnPrelaunch
+    ? `/vi/prelaunch${cloudsQs}`
+    : `/${otherLocale}${rest}${cloudsQs}`;
 
   return (
     <Link

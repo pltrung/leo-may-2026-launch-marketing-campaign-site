@@ -214,7 +214,7 @@ function HomeContent() {
       className="page-container page-wrapper relative flex flex-col"
       style={{ minHeight: showClouds ? undefined : "var(--viewport-height, 100dvh)" }}
     >
-      <main className={`page-content relative z-10 flex-1 min-h-0 flex flex-col justify-center`}>
+      <main className={`page-content relative z-10 flex-1 min-h-0 flex flex-col ${showClouds ? "items-center justify-start md:justify-center py-16 md:py-24" : "justify-center"}`}>
       <BrandBackground
         cloudsView={showClouds}
         cloudsEntranceStep={showClouds ? cloudsEntranceStep : undefined}
