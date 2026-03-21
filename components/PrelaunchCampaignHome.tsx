@@ -224,10 +224,12 @@ function HomeContent() {
   return (
     <div
       id="hero-page"
-      className="page-container page-wrapper relative flex flex-col"
+      className={`page-container page-wrapper relative flex flex-col ${showClouds ? "lg:min-h-[100dvh]" : ""}`}
       style={{ minHeight: showClouds ? undefined : "var(--viewport-height, 100dvh)" }}
     >
-      <main className="page-content relative z-10 flex-1 min-h-0 flex flex-col justify-center">
+      <main
+        className={`page-content relative z-10 flex-1 min-h-0 flex flex-col ${showClouds ? "min-h-[100dvh] lg:min-h-[100dvh]" : "justify-center"}`}
+      >
       <BrandBackground
         cloudsView={showClouds}
         cloudsEntranceStep={showClouds ? cloudsEntranceStep : undefined}
@@ -333,7 +335,7 @@ function HomeContent() {
             {showClouds && (
               <motion.div
                 key="clouds"
-                className="relative z-0 flex flex-col min-h-0"
+                className="relative z-0 flex flex-1 flex-col min-h-0 lg:min-h-[calc(100dvh-2rem)]"
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{
                   opacity: cloudsEntranceStep === "content" ? 1 : 0,
@@ -345,7 +347,7 @@ function HomeContent() {
                   ease: [0.16, 1, 0.3, 1],
                 }}
               >
-                <div className="cloud-section w-full">
+                <div className="cloud-section cloud-section-desktop-fill w-full flex-1 flex flex-col min-h-0 lg:justify-center">
                   <CloudSelector onSelect={setSelectedCloud} onReturnToHero={handleReturnToHero} />
                 </div>
               </motion.div>
@@ -389,7 +391,7 @@ function HomeContent() {
           ) : (
             <motion.div
               key="clouds"
-              className="relative z-0"
+              className="relative z-0 flex flex-1 flex-col min-h-0 lg:min-h-[calc(100dvh-2rem)]"
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{
                 opacity: cloudsEntranceStep === "content" ? 1 : 0,
@@ -401,7 +403,7 @@ function HomeContent() {
                 ease: [0.16, 1, 0.3, 1],
               }}
             >
-              <div className="cloud-section w-full">
+              <div className="cloud-section cloud-section-desktop-fill w-full flex-1 flex flex-col min-h-0 lg:justify-center">
                 <CloudSelector onSelect={setSelectedCloud} onReturnToHero={handleReturnToHero} />
               </div>
             </motion.div>

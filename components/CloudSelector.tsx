@@ -35,7 +35,7 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
   return (
     <section
       id="clouds"
-      className={`cloud-selection-screen cloud-selector relative w-full min-h-[100dvh] flex flex-col items-center overflow-x-hidden overflow-visible px-4 pb-4 pt-[88px] md:pt-24 lg:pt-20 lg:pb-8 sm:px-6 ${detailsOpen ? "card-selected" : ""}`}
+      className={`cloud-selection-screen cloud-selector relative w-full min-h-0 lg:min-h-full flex flex-col items-center overflow-x-hidden overflow-visible px-4 pb-4 pt-[88px] md:pt-24 lg:pt-4 lg:pb-6 sm:px-6 ${detailsOpen ? "card-selected" : ""}`}
     >
       {/* Logo: top-to-bottom stagger [0], same style as countdown */}
       <motion.div
@@ -51,7 +51,7 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
       </motion.div>
 
       {/* Mobile only: flex-1 min-h-0 so globals .cloud-selection-container { flex:1 } receives real height (wrapper broke this in last change). */}
-      <div className="cloud-selector-body w-full max-w-5xl mx-auto flex flex-col items-center max-lg:flex-1 max-lg:min-h-0">
+      <div className="cloud-selector-body w-full max-w-[1600px] mx-auto flex flex-col items-center max-lg:flex-1 max-lg:min-h-0 lg:flex-1 lg:min-h-0">
       {/* Header: top-to-bottom stagger [1], same style as countdown */}
       <motion.div
         className="cloud-selection-header relative flex flex-col items-center w-full max-w-2xl mx-auto mt-2 mb-6 md:mt-0 md:mb-8 lg:mb-2 lg:flex-shrink-0 z-10 transition-opacity duration-400"
@@ -123,12 +123,12 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
       </div>
 
       {/* Desktop only (1024px+): 6 cards in a row */}
-      <div className="cloud-selector-desktop-grid hidden lg:flex w-full items-center justify-center cloud-selector-container">
-        <div className="cloud-selector-desktop-grid-inner grid grid-cols-6 gap-6 w-[90%] max-w-[1400px] mx-auto justify-items-center items-start overflow-visible">
+      <div className="cloud-selector-desktop-grid hidden lg:flex w-full flex-1 min-h-0 items-center justify-center cloud-selector-container py-2">
+        <div className="cloud-selector-desktop-grid-inner grid grid-cols-6 gap-3 xl:gap-5 w-[min(96%,1520px)] mx-auto justify-items-stretch items-stretch overflow-visible">
           {clouds.map((cloud, index) => (
             <motion.div
               key={cloud.id}
-              className="flex justify-center items-center w-full max-w-[200px]"
+              className="cloud-selector-desktop-cell flex justify-center items-stretch w-full min-w-0 h-full"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
@@ -143,7 +143,7 @@ export default function CloudSelector({ onSelect, onReturnToHero }: CloudSelecto
         </div>
       </div>
 
-      <div className="cloud-selector-desktop-footer hidden lg:flex flex-shrink-0 w-full mt-auto justify-center pt-4 pb-2">
+      <div className="cloud-selector-desktop-footer hidden lg:flex flex-shrink-0 w-full justify-center pt-6 pb-4">
         <CloudFooter compact />
       </div>
       </div>

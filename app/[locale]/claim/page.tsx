@@ -84,7 +84,7 @@ export default function ClaimPage() {
 
       {status === "has_account" ? (
         <div className="w-full max-w-sm space-y-4">
-          <p className="text-white/90 text-sm">{m.claimAlreadyHaveAccount}</p>
+          <p className="text-white/90 text-sm">{m.claimPrelaunchHasAccount ?? m.claimAlreadyHaveAccount}</p>
           <Link
             href={`/${locale}/gym`}
             className="block w-full py-3 rounded-full bg-white text-[#0B0B0F] font-medium text-center"

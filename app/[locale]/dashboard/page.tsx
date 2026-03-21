@@ -24,6 +24,7 @@ import { memberIdentityComplete } from "@/lib/memberIdentity";
 import { visitPackVisitCount, visitPackVsDayPassBaseline, dayPassVsMultiDayBaseline, isMultiDayPass, DAY_PASS_BASELINE_PER_VISIT_VND } from "@/lib/visitPackDayPassBaseline";
 import { formatVnd } from "@/lib/formatVndCompact";
 import { trackPurchase } from "@/lib/metaPixel";
+import { isPrelaunchClaimPasswordPending } from "@/lib/prelaunchClaimAuth";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -148,6 +149,12 @@ export default function DashboardPage() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  /** Pre-launch claim: must set password on dedicated page before using dashboard. */
+  useEffect(() => {
+    if (!user || !isPrelaunchClaimPasswordPending(user.user_metadata as Record<string, unknown>)) return;
+    router.replace(`/${locale}/claim/complete-password`);
+  }, [user, locale, router]);
 
   useEffect(() => {
     if (!mounted || typeof window === "undefined" || member == null) return;
@@ -953,6 +960,20 @@ export default function DashboardPage() {
 
   const glassCard = "rgba(0,0,0,0.4)";
   const accentColor = "#7DD3FC";
+
+  if (user && isPrelaunchClaimPasswordPending(user.user_metadata as Record<string, unknown>)) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 relative overflow-hidden">
+        <div className="fixed inset-0" style={{ background: skyBg, zIndex: 1 }} aria-hidden />
+        <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 2 }} aria-hidden>
+          <HeroStarfield heroTransitioning={false} />
+        </div>
+        <p className="relative z-10 text-white/90 text-center text-[15px] drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+          {locale === "vi" ? "Đang mở bước tạo mật khẩu…" : "Setting up your password…"}
+        </p>
+      </div>
+    );
+  }
 
   // ProtectedRoute ensures session exists; wait for /api/member/me before "no profile" state
   if (memberLoading && !member) {

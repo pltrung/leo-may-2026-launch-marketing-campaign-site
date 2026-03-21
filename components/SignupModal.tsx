@@ -51,6 +51,7 @@ export default function SignupModal({
   const [confirmation, setConfirmation] = useState<ConfirmationData | null>(null);
   const [redirectCount, setRedirectCount] = useState(8);
   const [showChangeWarning, setShowChangeWarning] = useState(false);
+  const [alreadyHaveAccount, setAlreadyHaveAccount] = useState(false);
 
   useEffect(() => {
     if (locked && identifier && identifier_type) {
@@ -82,6 +83,7 @@ export default function SignupModal({
   const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setAlreadyHaveAccount(false);
     const nameTrim = name.trim();
     if (!nameTrim) {
       setError(t.nameRequired);
@@ -114,6 +116,12 @@ export default function SignupModal({
         }),
       });
       const data = await res.json();
+      if (res.status === 409 && (data as { alreadyHaveAccount?: boolean }).alreadyHaveAccount) {
+        setAlreadyHaveAccount(true);
+        setError("");
+        setLoading(false);
+        return;
+      }
       if (!res.ok) throw new Error(data.error || t.somethingWentWrong);
 
       setLockedIdentity({
@@ -308,8 +316,20 @@ export default function SignupModal({
                   )}
                 </div>
                 {!locked && <p className="font-caption text-storm text-xs">{t.emailOrPhoneRequired}</p>}
-                {error && <p className="text-red-500 text-sm">{error}</p>}
-                <div className="pt-2 flex justify-center">
+                {error && !alreadyHaveAccount && <p className="text-red-500 text-sm">{error}</p>}
+                {alreadyHaveAccount && (
+                  <p className="font-body text-storm/90 text-sm mb-2">{(t as { alreadyHaveAccount?: string }).alreadyHaveAccount ?? "You already have an account. Go to Login."}</p>
+                )}
+                {alreadyHaveAccount && (
+                  <a
+                    href={`/${locale}/gym`}
+                    className="block w-full py-3 rounded-xl font-subheadline text-center transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: accent, color: cloud.joinTextHex ?? "#fff" }}
+                  >
+                    {(t as { goToLogin?: string }).goToLogin ?? "Go to Login"}
+                  </a>
+                )}
+                <div className={`pt-2 flex justify-center ${alreadyHaveAccount ? "hidden" : ""}`}>
                   <button
                     type="submit"
                     disabled={loading}

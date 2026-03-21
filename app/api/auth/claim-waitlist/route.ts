@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabaseServer";
 import { EVOLUTION_LEVELS } from "@/lib/evolutionLevels";
 import { normalizeEmail } from "@/lib/emailNormalize";
 import { toE164 } from "@/lib/phoneE164";
+import { PRELAUNCH_CLAIM_PASSWORD_PENDING_KEY } from "@/lib/prelaunchClaimAuth";
 
 function tierFromTierLevel(level: number): string {
   const idx = Math.max(0, Math.min(5, level - 1));
@@ -172,7 +173,7 @@ export async function POST(request: NextRequest) {
         : null) ??
       request.headers.get("origin") ??
       (typeof request.url === "string" ? new URL(request.url).origin : "");
-    const redirectTo = `${origin}/${locale}/dashboard`;
+    const redirectTo = `${origin}/${locale}/claim/complete-password`;
 
     const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
       type: "magiclink",

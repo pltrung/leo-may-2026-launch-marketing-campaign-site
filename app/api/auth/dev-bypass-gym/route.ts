@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { normalizeEmail } from "@/lib/emailNormalize";
 import { EVOLUTION_LEVELS } from "@/lib/evolutionLevels";
+import { PRELAUNCH_CLAIM_PASSWORD_PENDING_KEY } from "@/lib/prelaunchClaimAuth";
 
 const TEST_EMAIL_REGEX = /^ev\d+-.+@l$/;
 const TEST_EMAIL_REGEX_2 = /^dummy2\d+@test\.local$/;
@@ -112,8 +113,9 @@ export async function POST(request: NextRequest) {
         : null) ??
       request.headers.get("origin") ??
       (typeof request.url === "string" ? new URL(request.url).origin : "");
-    // Use a path (e.g. /en/dashboard) so the hash is preserved; add this URL to Supabase Auth → URL Configuration → Redirect URLs
-    const redirectTo = `${origin}/${locale}/dashboard`;
+    // Magic link redirect; hash preserved. Add to Supabase Auth → URL Configuration → Redirect URLs.
+    const redirectToDashboard = `${origin}/${locale}/dashboard`;
+    const redirectToClaimPassword = `${origin}/${locale}/claim/complete-password`;
 
     let linkData: MagicLinkResult = null;
     let linkErr: { message?: string } | null = null;
@@ -121,7 +123,7 @@ export async function POST(request: NextRequest) {
     const { data: genData, error: genError } = await supabase.auth.admin.generateLink({
       type: "magiclink",
       email,
-      options: { redirectTo },
+      options: { redirectTo: redirectToDashboard },
     });
     linkData = genData as unknown as MagicLinkResult;
     linkErr = genError;
@@ -136,6 +138,7 @@ export async function POST(request: NextRequest) {
           email,
           password: tempPassword,
           email_confirm: true,
+          user_metadata: { [PRELAUNCH_CLAIM_PASSWORD_PENDING_KEY]: true },
         });
         if (createErr || !authUser?.user) {
           console.error("Dev bypass gym createUser error:", createErr);
@@ -156,7 +159,7 @@ export async function POST(request: NextRequest) {
         const { data: retryData, error: retryErr } = await supabase.auth.admin.generateLink({
           type: "magiclink",
           email,
-          options: { redirectTo },
+          options: { redirectTo: redirectToClaimPassword },
         });
         if (retryErr) {
           console.error("Dev bypass gym generateLink retry error:", retryErr);

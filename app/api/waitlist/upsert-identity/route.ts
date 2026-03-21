@@ -52,12 +52,46 @@ export async function POST(request: NextRequest) {
     const emailValue = type === "email" ? identifier : null;
     const phoneValue = type === "phone" ? identifier : null;
 
+    // If they already have an account (waitlist.auth_id or member_profiles), block "join" and tell them to log in.
+    if (type === "email") {
+      const { data: memberRow } = await supabase
+        .from("member_profiles")
+        .select("auth_id")
+        .eq("email", identifier)
+        .maybeSingle();
+      if (memberRow?.auth_id) {
+        return NextResponse.json(
+          { error: "Already have account", alreadyHaveAccount: true },
+          { status: 409 }
+        );
+      }
+    } else {
+      const { data: memberRow } = await supabase
+        .from("member_profiles")
+        .select("auth_id")
+        .eq("phone", identifier)
+        .maybeSingle();
+      if (memberRow?.auth_id) {
+        return NextResponse.json(
+          { error: "Already have account", alreadyHaveAccount: true },
+          { status: 409 }
+        );
+      }
+    }
+
     const { data: existing } = await supabase
       .from("waitlist")
-      .select("id, referral_code, name, cloud_type, referred_by")
+      .select("id, referral_code, name, cloud_type, referred_by, auth_id")
       .eq("identifier_type", type)
       .eq("identifier", identifier)
       .maybeSingle();
+
+    if (existing && (existing as { auth_id?: string | null }).auth_id) {
+      return NextResponse.json(
+        { error: "Already have account", alreadyHaveAccount: true },
+        { status: 409 }
+      );
+    }
 
     let referrerId: string | null = null;
     if (referred_by) {

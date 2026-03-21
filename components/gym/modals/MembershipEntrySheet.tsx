@@ -11,6 +11,8 @@ import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { toE164 } from "@/lib/phoneE164";
 import { trackCompleteRegistration } from "@/lib/metaPixel";
 
+type LeaderboardTeam = { id: string; name: string; nameEn: string; count: number };
+
 type ClaimStatus = "idle" | "loading" | "not_found" | "has_account" | "rate_limit";
 type SheetView = "main" | "claim" | "login" | "signup" | "signup_check_email" | "not_found" | "rate_limit" | "has_account";
 
@@ -55,8 +57,17 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
   const [signupRateLimitHit, setSignupRateLimitHit] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [forgotPasswordModalOpen, setForgotPasswordModalOpen] = useState(false);
+  const [top3Teams, setTop3Teams] = useState<LeaderboardTeam[]>([]);
 
   const isEmail = (v: string) => /@/.test(v.trim());
+
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/leaderboard")
+      .then((r) => r.json())
+      .then((d) => setTop3Teams((d.teams ?? []).slice(0, 3)))
+      .catch(() => {});
+  }, [open]);
   const isTestEmail = (e: string) =>
     /^ev\d+-.+@l$/.test(e.trim().toLowerCase()) || /^dummy2\d+@test\.local$/.test(e.trim().toLowerCase());
 
@@ -316,7 +327,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
         return;
       }
       if (claimRes.ok && (claimData as { hasAccount?: boolean }).hasAccount) {
-        setSignupError(auth.signupAlreadyRegistered);
+        setSignupError(auth.signupPrelaunchAlreadyClaimed ?? auth.signupAlreadyRegistered);
         setSignupAlreadyRegistered(true);
         setSignupLoading(false);
         return;
@@ -662,7 +673,7 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
       };
       return (
         <div className="space-y-3">
-          <p className="text-[var(--sky-text-secondary)] text-sm">{auth.claimAlreadyHaveAccount}</p>
+          <p className="text-[var(--sky-text-secondary)] text-sm">{auth.claimPrelaunchHasAccount ?? auth.claimAlreadyHaveAccount}</p>
           {hasAccountEmail && isTestEmail(hasAccountEmail) && (
             <button
               type="button"
@@ -694,8 +705,27 @@ export default function MembershipEntrySheet({ open, onClose }: MembershipEntryS
       );
     }
 
+    const teamNames = top3Teams
+      .map((t) => (locale === "vi" ? t.name : t.nameEn))
+      .filter(Boolean)
+      .join(", ");
+    const winningBanner = top3Teams.length > 0 && m.winningTeamsBanner && teamNames;
+
     return (
       <div className="flex flex-col gap-6">
+        {winningBanner && (
+          <div
+            className="rounded-xl px-4 py-3 text-sm"
+            style={{
+              backgroundColor: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.15)",
+            }}
+          >
+            <p className="text-[var(--sky-text-primary)]" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
+              {(m.winningTeamsBanner as string).replace("{teams}", teamNames)}
+            </p>
+          </div>
+        )}
         <section>
           <p className="text-[var(--sky-text-secondary)] text-sm mb-3" style={{ fontFamily: "MiSans-Regular, sans-serif" }}>
             {m.prelaunch}

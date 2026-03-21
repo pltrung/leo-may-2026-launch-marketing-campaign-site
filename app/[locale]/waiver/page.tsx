@@ -8,6 +8,7 @@ import { getMessages } from "@/lib/messages";
 import { useMemberAuth } from "@/lib/useMemberAuth";
 import { WAIVER_TEXT } from "@/lib/waiverText";
 import WaiverSignaturePad from "@/components/waiver/WaiverSignaturePad";
+import { isPrelaunchClaimPasswordPending } from "@/lib/prelaunchClaimAuth";
 
 type SignatureMode = "typed" | "drawn";
 
@@ -31,6 +32,10 @@ export default function WaiverPage() {
     if (loading) return;
     if (!user) {
       router.replace(`/${locale}/gym`);
+      return;
+    }
+    if (isPrelaunchClaimPasswordPending(user.user_metadata as Record<string, unknown>)) {
+      router.replace(`/${locale}/claim/complete-password`);
       return;
     }
     if (member?.waiver_signed) {

@@ -2060,11 +2060,11 @@ body.hero-ready .hero-scroll {
   }
 }
 
-/* Desktop (1024px+): natural document flow — page height = content height, no blank scroll */
+/* Desktop (1024px+): cloud selector fills viewport; flex distributes headline / grid / footer */
 @media (min-width: 1024px) {
-  /* Page height matches content; no min-height 100vh so no excess blank space below footer */
   html.cloud-selection-view .page-wrapper {
-    min-height: 0;
+    min-height: 100dvh;
+    min-height: 100svh;
     height: auto;
     max-height: none;
     overflow: visible;
@@ -2073,36 +2073,43 @@ body.hero-ready .hero-scroll {
 
   html.cloud-selection-view .page-content {
     min-height: 0;
+    flex: 1 1 0;
     overflow: visible;
-    flex: 1 0 auto;
     padding-top: 0;
-  }
-
-  /* Cloud selector on large desktop: centered block; flexible vertical margins */
-  html.cloud-selection-view .cloud-section {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    margin-top: clamp(40px, 8vh, 100px);
-    margin-bottom: clamp(24px, 6vh, 80px);
+  }
+
+  /* Cloud selector: fill main column and vertically balance (no “content stuck to top + void”) */
+  html.cloud-selection-view .cloud-section-desktop-fill {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     width: 100%;
   }
 
-  /* Section: content-driven height; avoid stacking min-h-screen with page (reduces phantom scroll) */
+  html.cloud-selection-view .cloud-section {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  /* Section fills parent flex area from PrelaunchCampaignHome */
   html.cloud-selection-view .cloud-selection-screen {
-    height: auto;
+    flex: 1 1 auto;
     min-height: 0;
+    width: 100%;
     max-height: none;
     display: flex;
     flex-direction: column;
     overflow: visible;
-    padding-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
   }
 
   html.cloud-selection-view .cloud-selection-header {
     flex: 0 0 auto;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
   }
 
   html.cloud-selection-view .cloud-selector {
@@ -2114,48 +2121,57 @@ body.hero-ready .hero-scroll {
     display: none !important;
   }
 
-  /* Desktop grid: centered row; fixed column intent so card copy isn’t squeezed */
+  /* Desktop grid: grow, center row in remaining space between headline and footer */
   html.cloud-selection-view .cloud-selector-desktop-grid {
-    flex: 0 0 auto;
+    flex: 1 1 0;
+    min-height: 0;
     display: flex !important;
     align-items: center;
     justify-content: center;
     overflow: visible;
-    padding: 1.5rem 0;
+    padding: 0.5rem 0 1rem;
     width: 100%;
   }
 
   html.cloud-selection-view .cloud-selector-desktop-grid-inner {
     height: auto;
     min-height: 0;
-    width: 90%;
-    max-width: 1400px;
+    width: min(96%, 1520px);
+    max-width: none;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     grid-template-rows: auto;
-    gap: 1.5rem;
-    align-items: start;
-    justify-items: center;
+    gap: 0.75rem;
+    align-items: stretch;
+    justify-items: stretch;
   }
 
-  html.cloud-selection-view .cloud-selector-desktop-grid-inner > div {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  @media (min-width: 1280px) {
+    html.cloud-selection-view .cloud-selector-desktop-grid-inner {
+      gap: 1.25rem;
+    }
+  }
+
+  html.cloud-selection-view .cloud-selector-desktop-cell {
+    display: flex !important;
+    align-items: stretch !important;
+    justify-content: center !important;
     width: 100%;
-    max-width: 200px;
+    max-width: none;
+    min-width: 0;
   }
 
   html.cloud-selection-view .cloud-selector-desktop-grid-inner .cloud-card {
     max-width: 100%;
     width: 100%;
+    align-self: stretch;
   }
 
   html.cloud-selection-view .cloud-selector-desktop-footer {
     flex: 0 0 auto;
-    margin-top: auto;
-    padding-top: 1.5rem;
+    margin-top: 0;
+    padding-top: 0.75rem;
   }
 
   /* Scale background (holds) down on desktop for card selector */

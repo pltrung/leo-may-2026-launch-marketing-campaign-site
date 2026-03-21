@@ -58,7 +58,7 @@ export default function SignupPage() {
         return;
       }
       if (claimRes.ok && (claimData as { hasAccount?: boolean }).hasAccount) {
-        setError(m.claimAlreadyHaveAccount);
+        setError(m.signupPrelaunchAlreadyClaimed ?? m.claimAlreadyHaveAccount);
         setAlreadyRegistered(true);
         setLoading(false);
         return;

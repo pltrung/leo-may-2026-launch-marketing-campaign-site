@@ -64,5 +64,6 @@ If you use email/password login, the app supports **Forgot Password**:
 1. **Authentication** → **URL Configuration**
 2. Add **Redirect URLs** (e.g. `http://localhost:3000/**`, `https://your-domain.com/**`, or `https://*.vercel.app/**` for Vercel)
 3. Supabase sends a reset email; the link redirects to `/[locale]/reset-password`
+4. **Pre-launch claim** magic links use **`/[locale]/claim/complete-password`** as `redirectTo` — ensure that path is allowed (wildcards like `/**` cover it)
 
 No redirect URLs or “magic link” site URL are required for OTP-only flows; the user enters the code in the app.

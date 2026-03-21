@@ -175,11 +175,62 @@ Supabase Auth is used for: login (password + OTP), signup, verify OTP, magic lin
 
 ---
 
-## 10. Data model (relevant to /gym and countdown)
+## 10. Claim flow: /countdown → /gym (prelaunch users)
+
+**Entry points:** `MembershipEntrySheet` (on /gym), `/signup`, `/[locale]/claim`.
+
+**POST `/api/auth/claim-waitlist`** (body: `{ email?, phone?, locale?, origin? }`):
+
+| Scenario | Response | UI behavior |
+|----------|----------|-------------|
+| Not in waitlist | 404 `{ status: "not_found" }` | Show "Create account instead" (signup continues) |
+| In waitlist, no `auth_id` | 200 `{ url, magicLinkUrl }` | Redirect to magic link → **`/[locale]/claim/complete-password`** (then dashboard) |
+| In waitlist, has `auth_id` | 200 `{ hasAccount: true, email? }` | Show "You already have an account. Log in." |
+
+**Claim (no auth yet):** API creates `auth.users` with a random temporary password, sets `user_metadata.prelaunch_claim_password_pending: true`, sets `waitlist.auth_id`, inserts `member_profiles`, generates a magic link with `redirectTo` = **`/{locale}/claim/complete-password`**. User never sees the temp password.
+
+**Password after claim (required):**
+1. User opens the magic link → Supabase signs them in and redirects to **`/[locale]/claim/complete-password`**.
+2. They choose a password; the app calls `updateUser({ password, data: { prelaunch_claim_password_pending: false } })`.
+3. They are sent to **`/[locale]/dashboard`** (then waiver / rest of onboarding as usual).
+
+If they hit **dashboard** or **waiver** while `prelaunch_claim_password_pending` is still true, the app redirects them back to **`/claim/complete-password`**.
+
+**Later logins:** Email + password (or **Forgot password** if needed). **Dashboard → Profile** can still change password.
+
+Add **`https://<your-domain>/**/claim/complete-password`** (or wildcard) to Supabase **Authentication → URL Configuration → Redirect URLs**.
+
+**Signup with prelaunch email:** Both `MembershipEntrySheet` and `/signup` call `claim-waitlist` **before** `signUp`. If in waitlist → redirect (claim) or show hasAccount. Normal signup is blocked; user never reaches `signUp()`.
+
+---
+
+## 11. Top 3 teams (leaderboard) and /gym
+
+**GET `/api/leaderboard`** returns teams sorted by verified waitlist count. Countdown shows `leaderboard.slice(0, 3)` as "top 3" (winning teams).
+
+**Using top 3 for /gym claim:**
+- **Option A (recommended):** Show a banner in `MembershipEntrySheet`: "Top 3 teams: [names] — Are you in a winning team? Claim your account!" to motivate prelaunch users.
+- **Option B:** When user claims and we find them in waitlist, show "You're in Team X — currently #N on the leaderboard!" (requires `cloud_type` in claim response).
+- **Option C:** Restrict claiming to top-3 teams only (restrictive; usually not desired).
+
+No leaderboard data is currently fetched on /gym. To implement Option A, fetch `/api/leaderboard` when `MembershipEntrySheet` opens and render the top 3 team names.
+
+---
+
+## 12. Dashboard for claimed prelaunch users
+
+After **complete-password**, same as any other member:
+- **GET `/api/member/me`** returns `member_profiles` (created at claim from waitlist)
+- Tier from `waitlist.tier_level` → `evolutionLevels`
+- Waiver gate, QR code, membership status, activity, redeem, events, leaderboard — all behave identically
+
+---
+
+## 13. Data model (relevant to /gym and countdown)
 
 - **auth.users** (Supabase): canonical identity.
 - **waitlist:** pre-launch signups; `auth_id` set after verification; used by countdown and by **GET `/api/member/me`** to create **member_profiles** when missing.
-- **member_profiles:** gym members; `auth_id` UNIQUE; created on signup (onboard) or by **member/me** from waitlist.
+- **member_profiles:** gym members; `auth_id` UNIQUE; created on signup (onboard), by **claim-waitlist**, or by **member/me** from waitlist.
 - **gym_checkins:** one row per check-in; `member_id` → `member_profiles.id`.
 
 No separate “accounts” table; gym identity is **member_profiles** keyed by **auth_id**.

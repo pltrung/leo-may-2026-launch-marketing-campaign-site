@@ -19,6 +19,9 @@ export default function AuthHashRedirect() {
 
   useEffect(() => {
     if (handled.current || typeof window === "undefined") return;
+    // Pre-launch claim: magic link must land on this page so the user can set a password (do not strip hash / redirect to dashboard).
+    if (pathname?.includes("/claim/complete-password")) return;
+
     const hash = window.location.hash || "";
     if (!/access_token=/.test(hash) && !/type=magiclink/.test(hash)) return;
 
