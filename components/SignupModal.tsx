@@ -16,6 +16,8 @@ interface SignupModalProps {
   onClose: () => void;
   onSuccess: () => void;
   onRedirectToCountdown?: () => void;
+  /** When user already has account: open login popup instead of redirecting */
+  onGoToLogin?: () => void;
   referredBy?: string;
   locale?: Locale;
 }
@@ -34,6 +36,7 @@ export default function SignupModal({
   onClose,
   onSuccess,
   onRedirectToCountdown,
+  onGoToLogin,
   referredBy,
   locale = "en",
 }: SignupModalProps) {
@@ -321,13 +324,27 @@ export default function SignupModal({
                   <p className="font-body text-storm/90 text-sm mb-2">{(t as { alreadyHaveAccount?: string }).alreadyHaveAccount ?? "You already have an account. Go to Login."}</p>
                 )}
                 {alreadyHaveAccount && (
-                  <a
-                    href={locale === "vi" ? "/vi/prelaunch?openLogin=1" : "/prelaunch?openLogin=1"}
-                    className="block w-full py-3 rounded-xl font-subheadline text-center transition-opacity hover:opacity-90"
-                    style={{ backgroundColor: accent, color: cloud.joinTextHex ?? "#fff" }}
-                  >
-                    {(t as { goToLogin?: string }).goToLogin ?? "Go to Login"}
-                  </a>
+                  onGoToLogin ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onGoToLogin();
+                      }}
+                      className="block w-full py-3 rounded-xl font-subheadline text-center transition-opacity hover:opacity-90"
+                      style={{ backgroundColor: accent, color: cloud.joinTextHex ?? "#fff" }}
+                    >
+                      {(t as { goToLogin?: string }).goToLogin ?? "Go to Login"}
+                    </button>
+                  ) : (
+                    <a
+                      href={locale === "vi" ? "/vi/prelaunch?openLogin=1" : "/prelaunch?openLogin=1"}
+                      className="block w-full py-3 rounded-xl font-subheadline text-center transition-opacity hover:opacity-90"
+                      style={{ backgroundColor: accent, color: cloud.joinTextHex ?? "#fff" }}
+                    >
+                      {(t as { goToLogin?: string }).goToLogin ?? "Go to Login"}
+                    </a>
+                  )
                 )}
                 <div className={`pt-2 flex justify-center ${alreadyHaveAccount ? "hidden" : ""}`}>
                   <button

@@ -46,6 +46,7 @@ function HomeContent() {
   const [selectedCloud, setSelectedCloud] = useState<CloudPersonality | null>(null);
   const [heroOpacity, setHeroOpacity] = useState(1);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const { phase: overlayPhase, startTransition } = useTransitionOverlay();
   const { skipWebGL } = useInAppBrowser();
@@ -114,6 +115,16 @@ function HomeContent() {
   useEffect(() => {
     return () => timersRef.current.forEach(clearTimeout);
   }, []);
+
+  /** Open login modal when URL has ?openLogin=1 (e.g. from external link or fallback when onGoToLogin not provided) */
+  const hasOpenedLoginFromParamRef = useRef(false);
+  useEffect(() => {
+    if (hasOpenedLoginFromParamRef.current) return;
+    if (searchParams.get("openLogin") === "1") {
+      hasOpenedLoginFromParamRef.current = true;
+      setLoginModalOpen(true);
+    }
+  }, [searchParams]);
 
   /** Persist ?ref= to localStorage so confirm_referral can run after verify on countdown (user lands here, not /countdown). */
   useEffect(() => {
@@ -275,7 +286,12 @@ function HomeContent() {
             className="flex items-center gap-3"
           >
             <SafeLanguageSwitch />
-            <KnowYourTeamButton show onFoundTeam={() => transitionToCountdown("return")} />
+            <KnowYourTeamButton
+              show
+              onFoundTeam={() => transitionToCountdown("return")}
+              open={loginModalOpen}
+              onOpenChange={setLoginModalOpen}
+            />
           </motion.div>
         </header>
       )}
@@ -292,7 +308,12 @@ function HomeContent() {
           style={{ pointerEvents: transitionActive ? "none" : "auto", willChange: "transform, opacity" }}
         >
           <SafeLanguageSwitch />
-          <KnowYourTeamButton show onFoundTeam={() => transitionToCountdown("return")} />
+          <KnowYourTeamButton
+            show
+            onFoundTeam={() => transitionToCountdown("return")}
+            open={loginModalOpen}
+            onOpenChange={setLoginModalOpen}
+          />
         </motion.div>
       )}
 
@@ -438,6 +459,10 @@ function HomeContent() {
           onClose={() => setSelectedCloud(null)}
           onSuccess={() => {}}
           onRedirectToCountdown={() => transitionToCountdown("forms")}
+          onGoToLogin={() => {
+            setSelectedCloud(null);
+            setLoginModalOpen(true);
+          }}
           referredBy={searchParams.get("ref") ?? undefined}
         />
       )}

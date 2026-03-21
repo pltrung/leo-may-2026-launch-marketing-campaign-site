@@ -15,20 +15,28 @@ interface KnowYourTeamButtonProps {
   onFoundTeam?: () => void;
   /** Open modal on mount when URL has ?openLogin=1 */
   initialOpen?: boolean;
+  /** Controlled: when provided, parent controls open state (e.g. from SignupModal "Go to Login") */
+  open?: boolean;
+  /** Controlled: called when modal opens/closes */
+  onOpenChange?: (open: boolean) => void;
 }
 
-export default function KnowYourTeamButton({ show = true, onFoundTeam, initialOpen }: KnowYourTeamButtonProps) {
-  const [open, setOpen] = useState(false);
+export default function KnowYourTeamButton({ show = true, onFoundTeam, initialOpen, open: controlledOpen, onOpenChange }: KnowYourTeamButtonProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const searchParams = useSearchParams();
   const hasOpenedFromParamRef = useRef(false);
 
+  const isControlled = controlledOpen !== undefined && onOpenChange !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled ? onOpenChange : setInternalOpen;
+
   useEffect(() => {
-    if (!show || hasOpenedFromParamRef.current) return;
+    if (!show || hasOpenedFromParamRef.current || isControlled) return;
     if (initialOpen || searchParams.get("openLogin") === "1") {
       hasOpenedFromParamRef.current = true;
-      setOpen(true);
+      setInternalOpen(true);
     }
-  }, [show, initialOpen, searchParams]);
+  }, [show, initialOpen, searchParams, isControlled]);
   const locale = useLocale();
   const router = useRouter();
   const t = getMessages(locale).knowYourCloud;

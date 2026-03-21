@@ -67,3 +67,18 @@ If you use email/password login, the app supports **Forgot Password**:
 4. **Pre-launch claim** magic links use **`/[locale]/claim/complete-password`** as `redirectTo` — ensure that path is allowed (wildcards like `/**` cover it)
 
 No redirect URLs or “magic link” site URL are required for OTP-only flows; the user enters the code in the app.
+
+### Reset Password email: link not clickable
+
+The app calls `resetPasswordForEmail()` with `redirectTo: {origin}/{locale}/reset-password`. The email body comes from Supabase's **Authentication → Email Templates → Reset password** template. The correct variable is **`{{ .ConfirmationURL }}`** (not `configurationURL`).
+
+If the link appears as plain text or is missing:
+
+1. **Site URL** — Authentication → URL Configuration → **Site URL** must be your real domain (e.g. `https://leomay.space`), not `localhost` or a placeholder.
+2. **Redirect URLs** — Must allow your redirect (e.g. `https://leomay.space/**`).
+3. **SMTP link tracking** — If using custom SMTP (e.g. SendGrid, Resend) with **link tracking** or **click tracking** enabled, it can overwrite links. Disable it for auth emails.
+4. **Fallback template** — If `{{ .ConfirmationURL }}` is empty or broken, build the link manually:
+   ```html
+   <a href="{{ .SiteURL }}/auth/v1/verify?token={{ .TokenHash }}&type=recovery&redirect_to={{ .RedirectTo }}">Reset Password</a>
+   ```
+   Note: `{{ .RedirectTo }}` may need URL encoding; test carefully.
