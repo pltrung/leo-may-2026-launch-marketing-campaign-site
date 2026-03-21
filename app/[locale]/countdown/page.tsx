@@ -42,13 +42,12 @@ import VerificationModal from "@/components/VerificationModal";
 import { createBrowserClient } from "@/lib/supabaseBrowser";
 import { HERO_BG } from "@/lib/heroConstants";
 import { getSkyTheme, getLocalTimeHours } from "@/components/gym/theme/skyTheme";
+import { PENDING_REF_CODE_KEY } from "@/lib/referralStorage";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
   { ssr: false }
 );
-
-const PENDING_REF_CODE_KEY = "leo_may_pending_ref_code";
 const COUNTDOWN_INTRO_VIEW_COUNT_KEY = "leo_may_countdown_intro_view_count";
 const COUNTDOWN_INTRO_MAX_VIEWS = 3;
 /** Once per session: intro ("what this page is") is the first popup on countdown. */

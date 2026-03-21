@@ -28,6 +28,7 @@ import { getUser } from "@/lib/userStorage";
 import { getMascotPartColors, type MascotPartColors } from "@/lib/mascotSpeciesColors";
 import { useLocale } from "@/components/LocaleProvider";
 import { prelaunchBasePath } from "@/lib/landingPaths";
+import { PENDING_REF_CODE_KEY } from "@/lib/referralStorage";
 
 const USE_CINEMATIC_HERO = true;
 const HERO_WRAPPER_VH = 430;
@@ -113,6 +114,18 @@ function HomeContent() {
   useEffect(() => {
     return () => timersRef.current.forEach(clearTimeout);
   }, []);
+
+  /** Persist ?ref= to localStorage so confirm_referral can run after verify on countdown (user lands here, not /countdown). */
+  useEffect(() => {
+    const refCode = searchParams.get("ref")?.trim();
+    if (refCode && typeof window !== "undefined") {
+      try {
+        localStorage.setItem(PENDING_REF_CODE_KEY, refCode);
+      } catch {
+        // ignore
+      }
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const clouds = searchParams.get("clouds") === "1";
@@ -214,7 +227,7 @@ function HomeContent() {
       className="page-container page-wrapper relative flex flex-col"
       style={{ minHeight: showClouds ? undefined : "var(--viewport-height, 100dvh)" }}
     >
-      <main className={`page-content relative z-10 flex-1 min-h-0 flex flex-col ${showClouds ? "items-center justify-start md:justify-center py-16 md:py-24" : "justify-center"}`}>
+      <main className="page-content relative z-10 flex-1 min-h-0 flex flex-col justify-center">
       <BrandBackground
         cloudsView={showClouds}
         cloudsEntranceStep={showClouds ? cloudsEntranceStep : undefined}

@@ -2078,15 +2078,14 @@ body.hero-ready .hero-scroll {
     padding-top: 0;
   }
 
-  /* Cloud selector on large desktop: softly center block without forcing viewport height.
-     Uses top/bottom margins so layout stays flexible and background layers remain independent. */
+  /* Cloud selector: top-anchored; modest margins (section already has lg:pt / lg:pb) */
   html.cloud-selection-view .cloud-section {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    margin-top: clamp(60px, 12vh, 140px);
-    margin-bottom: clamp(40px, 10vh, 120px);
+    margin-top: 0;
+    margin-bottom: 1.5rem;
     width: 100%;
   }
 
@@ -2109,44 +2108,43 @@ body.hero-ready .hero-scroll {
     margin-bottom: 0;
   }
 
-  /* Hide mobile stack + Randomize on desktop */
-  html.cloud-selection-view .cloud-selection-screen > .cloud-selection-container {
+  /* Hide mobile stack + Randomize on desktop (descendant: body wrapper may sit between section and container) */
+  html.cloud-selection-view .cloud-selection-screen .cloud-selection-container.cloud-selector-container {
     display: none !important;
   }
 
-  /* Desktop cards: natural height grid; no flex fill — content defines height */
+  /* Desktop cards: top-anchored — no vertical centering (avoids bottom whitespace + card compression) */
   html.cloud-selection-view .cloud-selector-desktop-grid {
     flex: 0 0 auto;
     display: flex !important;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
     overflow: visible;
-    padding: 1.5rem 0;
+    padding: 1rem 0 0;
     width: 100%;
   }
 
-  /* Responsive grid: one row, natural row height from cards */
+  /* Grid: natural row height; minmax(0,1fr) avoids column squish / bad text wrap */
   html.cloud-selection-view .cloud-selector-desktop-grid-inner {
     height: auto;
     min-height: 0;
-    width: 90%;
-    max-width: 1400px;
+    width: 100%;
+    max-width: 72rem;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     grid-template-rows: auto;
-    gap: 1.5rem;
+    gap: 1rem 1.5rem;
     align-items: start;
-    justify-items: center;
+    justify-items: stretch;
   }
 
-  /* Card wrapper: natural size so full card and text are visible */
+  /* Card wrapper: width only — no flex centering or fixed max-width squeeze */
   html.cloud-selection-view .cloud-selector-desktop-grid-inner > div {
-    display: flex;
-    align-items: center;
-    justify-content: center;
     width: 100%;
-    max-width: 200px;
+    min-width: 0;
+    max-width: none;
   }
 
   /* Cards: natural size; full card and outer rim visible */
@@ -2155,11 +2153,12 @@ body.hero-ready .hero-scroll {
     width: 100%;
   }
 
-  /* Footer: flows after cards */
+  /* Footer: follows content in document flow (no mt:auto viewport stretch) */
   html.cloud-selection-view .cloud-selector-desktop-footer {
     flex: 0 0 auto;
-    margin-top: auto;
+    margin-top: 0;
     padding-top: 1.5rem;
+    justify-content: center;
   }
 
   /* Scale background (holds) down on desktop for card selector */

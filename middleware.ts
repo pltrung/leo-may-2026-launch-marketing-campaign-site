@@ -14,11 +14,13 @@ function resolveLocale(request: NextRequest): "en" | "vi" {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Root → prelaunch (locale-based: /prelaunch or /vi/prelaunch)
+  // Root → prelaunch (locale-based: /prelaunch or /vi/prelaunch); preserve ?ref= for referral
   if (pathname === "/") {
     const locale = resolveLocale(request);
     const prelaunchPath = locale === "vi" ? "/vi/prelaunch" : "/prelaunch";
-    const res = NextResponse.redirect(new URL(prelaunchPath, request.url));
+    const url = new URL(prelaunchPath, request.url);
+    request.nextUrl.searchParams.forEach((v, k) => url.searchParams.set(k, v));
+    const res = NextResponse.redirect(url);
     // Persist chosen locale so next "/" uses same (max-age ~1 year)
     if (!request.cookies.get("leo_language")) {
       res.cookies.set("leo_language", locale, { maxAge: 31536000, path: "/" });
@@ -26,9 +28,11 @@ export function middleware(request: NextRequest) {
     return res;
   }
 
-  // /vi → /prelaunch
+  // /vi → /prelaunch (preserve ?ref= for referral flow)
   if (pathname === "/vi" || pathname === "/vi/") {
-    return NextResponse.redirect(new URL("/prelaunch", request.url));
+    const url = new URL("/prelaunch", request.url);
+    request.nextUrl.searchParams.forEach((v, k) => url.searchParams.set(k, v));
+    return NextResponse.redirect(url);
   }
 
   // Allow /prelaunch, /en and /vi and their subpaths; allow /api and _next
