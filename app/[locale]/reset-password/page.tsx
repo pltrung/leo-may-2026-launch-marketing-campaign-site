@@ -77,8 +77,7 @@ export default function ResetPasswordPage() {
         return;
       }
       setSuccess(true);
-      await supabase.auth.signOut();
-      setTimeout(() => router.replace(`/${locale}/gym`), 1500);
+      setTimeout(() => router.replace(`/${locale}/dashboard`), 800);
     } catch {
       setError(m.error);
     } finally {

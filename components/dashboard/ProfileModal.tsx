@@ -79,9 +79,12 @@ export default function ProfileModal({
   const [extrasLoading, setExtrasLoading] = useState(false);
   const [extrasMsg, setExtrasMsg] = useState<string | null>(null);
 
+  const prevOpenRef = useRef(false);
   useEffect(() => {
-    if (open) {
+    if (open && !prevOpenRef.current) {
+      prevOpenRef.current = true;
       setFullName(member.full_name ?? "");
+      setDisplayName(member.display_name ?? "");
       setEmail(member.email ?? "");
       setPhone(member.phone ?? "");
       setInstagramHandle(member.instagram_handle ?? "");
@@ -107,26 +110,8 @@ export default function ProfileModal({
       setPreferSms(!!member.prefer_sms_notifications);
       setExtrasMsg(null);
     }
-  }, [
-    open,
-    member.full_name,
-    member.display_name,
-    member.email,
-    member.phone,
-    member.instagram_handle,
-    member.gender,
-    member.id_number,
-    member.date_of_birth,
-    member.address,
-    member.profile_photo_url,
-    member.id_verified_from_cccd,
-    member.is_minor,
-    member.guardian_name,
-    member.guardian_phone,
-    member.zalo_user_id,
-    member.prefer_zalo_notifications,
-    member.prefer_sms_notifications,
-  ]);
+    if (!open) prevOpenRef.current = false;
+  }, [open, member]);
 
   const lockedFromCccd = Boolean(member.id_verified_from_cccd);
 
@@ -361,6 +346,45 @@ export default function ProfileModal({
 
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain px-4 pb-4">
+          {/* Profile photo — required, first in section */}
+          <div className="flex flex-col items-start mb-6">
+            <p className="text-xs font-medium text-white/80 mb-2 w-full text-left">
+              {d.profilePhotoRequiredLabel}
+              <span className="text-amber-300 ml-0.5">*</span>
+            </p>
+            <div className="relative">
+              {photoPreview ? (
+                <img
+                  src={photoPreview}
+                  alt=""
+                  className="w-24 h-24 rounded-full object-cover border-2 border-white/20"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center text-white/60 text-2xl font-semibold">
+                  {fullName?.charAt(0).toUpperCase() || member.full_name?.charAt(0).toUpperCase() || "?"}
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-sm hover:bg-emerald-400"
+                title={isVi ? "Chụp / tải ảnh" : "Take / upload photo"}
+              >
+                +
+              </button>
+            </div>
+            <p className="text-xs text-white/60 mt-2">
+              {isVi ? "Chụp ảnh hoặc chọn từ thư viện (bắt buộc để lưu)" : "Take photo or choose from library (required to save)"}
+            </p>
+          </div>
+
           <div className="rounded-xl border border-amber-400/35 bg-amber-500/10 px-3 py-2.5 mb-4">
             <p className="text-xs font-semibold text-amber-100">{d.profileGovtIdRequiredTitle}</p>
             <p className="text-[11px] text-amber-100/85 mt-1 leading-relaxed">{d.profileGovtIdRequiredBody}</p>
@@ -452,44 +476,6 @@ export default function ProfileModal({
                 className="mt-1 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 [color-scheme:dark] disabled:opacity-70 disabled:cursor-not-allowed"
               />
             </label>
-
-          {/* Profile photo — required */}
-          <div className="flex flex-col items-center mb-6 pt-2 border-t border-white/10">
-            <p className="text-xs font-medium text-white/80 mb-2 w-full text-left">
-              {d.profilePhotoRequiredLabel}
-            </p>
-            <div className="relative">
-              {photoPreview ? (
-                <img
-                  src={photoPreview}
-                  alt=""
-                  className="w-24 h-24 rounded-full object-cover border-2 border-white/20"
-                />
-              ) : (
-                <div className="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center text-white/60 text-2xl font-semibold">
-                  {fullName?.charAt(0).toUpperCase() || member.full_name?.charAt(0).toUpperCase() || "?"}
-                </div>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-sm hover:bg-emerald-400"
-                title={isVi ? "Chụp / tải ảnh" : "Take / upload photo"}
-              >
-                +
-              </button>
-            </div>
-            <p className="text-xs text-white/60 mt-2">
-              {isVi ? "Chụp ảnh hoặc chọn từ thư viện" : "Take photo or choose from library"}
-            </p>
-          </div>
 
             <label className="block">
               <span className="text-xs text-white/70">{d.profileDisplayName}</span>

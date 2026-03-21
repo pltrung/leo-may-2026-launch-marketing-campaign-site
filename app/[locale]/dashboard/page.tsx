@@ -1273,6 +1273,15 @@ export default function DashboardPage() {
             : undefined
         }
         onOnboardingComplete={tourPhase === "onboarding" ? () => setTourPhase("main") : undefined}
+        onStepCtaClick={
+          tourPhase === "onboarding"
+            ? (step, i) => {
+                if (i === 0) setWaiverModalOpen(true);
+                else if (i === 1) setProfileModalOpen(true);
+                else if (i === 2) setDashboardTab("membership");
+              }
+            : undefined
+        }
       />
 
       {/* MAIN CONTENT */}

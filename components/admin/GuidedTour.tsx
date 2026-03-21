@@ -23,6 +23,9 @@ export interface TourStep {
   contentVi: string;
   /** When this step is shown, call onNavigate with this so the app can switch to the right tab. */
   navigate?: TourStepNavigate;
+  /** CTA label for onboarding steps — e.g. "Open Waiver", "Open Profile" */
+  ctaLabelEn?: string;
+  ctaLabelVi?: string;
 }
 
 interface GuidedTourProps {
@@ -36,9 +39,11 @@ interface GuidedTourProps {
   getCanAdvance?: (stepIndex: number) => boolean;
   /** When provided and user clicks Done on the last step, call this instead of onClose (e.g. transition from onboarding to main tour). */
   onOnboardingComplete?: () => void;
+  /** When step has ctaLabel, clicking the CTA invokes this (e.g. open waiver, open profile, switch tab). */
+  onStepCtaClick?: (step: TourStep, stepIndex: number) => void;
 }
 
-export function GuidedTour({ steps, isActive, onClose, locale, onNavigate, getCanAdvance, onOnboardingComplete }: GuidedTourProps) {
+export function GuidedTour({ steps, isActive, onClose, locale, onNavigate, getCanAdvance, onOnboardingComplete, onStepCtaClick }: GuidedTourProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
   const [modalAtTop, setModalAtTop] = useState(false);
@@ -141,7 +146,16 @@ export function GuidedTour({ steps, isActive, onClose, locale, onNavigate, getCa
       >
         <h3 className="text-lg font-semibold text-white mb-1">{title}</h3>
         <p className="text-sm text-slate-300 whitespace-pre-wrap mb-4">{content}</p>
-        {!canAdvance && (
+        {!canAdvance && step.ctaLabelEn && step.ctaLabelVi && onStepCtaClick && (
+          <button
+            type="button"
+            onClick={() => onStepCtaClick(step, stepIndex)}
+            className="w-full mb-4 py-3 px-4 rounded-xl text-sm font-semibold bg-amber-500 text-slate-900 hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/50"
+          >
+            {locale === "vi" ? step.ctaLabelVi : step.ctaLabelEn}
+          </button>
+        )}
+        {!canAdvance && !(step.ctaLabelEn && step.ctaLabelVi && onStepCtaClick) && (
           <p className="text-xs text-amber-300/90 mb-3">
             {locale === "vi" ? "Hoàn thành bước này để tiếp tục." : "Complete this step to continue."}
           </p>
@@ -265,9 +279,9 @@ export const TOUR_STEPS_ADMIN: TourStep[] = [
 
 /** Member dashboard first-time: waiver → profile (photo + govt ID) → visits (buy pass OR redeem LMG- friend code). */
 export const TOUR_STEPS_ONBOARDING: TourStep[] = [
-  { id: "onb-waiver", target: "[data-tour=onboarding-waiver]", titleEn: "Step 1: Sign the waiver", titleVi: "Bước 1: Ký giấy từ chối trách nhiệm", contentEn: "Read and sign the safety waiver before using the gym. Tap \"Open Waiver\" below, then sign when ready.", contentVi: "Đọc và ký giấy từ chối trách nhiệm trước khi sử dụng phòng gym. Nhấn \"Mở giấy từ chối\" bên dưới, rồi ký khi sẵn sàng." },
-  { id: "onb-profile", target: "[data-tour=dashboard-profile]", titleEn: "Step 2: Photo & government ID", titleVi: "Bước 2: Ảnh & giấy tờ", contentEn: "Tap your name at the top. Add a profile photo and verify your identity: scan the VN eID chip QR (full CCCD data), or enter CCCD number, full legal name, gender, and date of birth. Save before continuing.", contentVi: "Chạm tên bạn ở trên. Thêm ảnh đại diện và xác thực danh tính: quét mã QR chip CCCD (đủ dữ liệu), hoặc nhập số CCCD, họ tên đầy đủ, giới tính, ngày sinh. Nhấn Lưu trước khi sang bước sau." },
-  { id: "onb-pass-or-redeem", target: "[data-tour=dashboard-tabs]", titleEn: "Step 3: Get a visit — buy or redeem", titleVi: "Bước 3: Có lượt — mua hoặc đổi mã", contentEn: "You need at least one visit to show your check-in QR. Either buy a pass in the Membership tab, or ask a friend for an invite code (LMG-…) and enter it in the Redeem tab. After that, your QR appears here.", contentVi: "Bạn cần ít nhất 1 lượt để hiện QR check-in. Mua pass ở tab Thẻ thành viên, hoặc nhập mã mời từ bạn (LMG-…) ở tab Đổi mã. Sau đó QR sẽ hiện tại đây.", navigate: { dashboardTab: "membership" } },
+  { id: "onb-waiver", target: "[data-tour=onboarding-waiver]", titleEn: "Step 1: Sign the waiver", titleVi: "Bước 1: Ký giấy từ chối trách nhiệm", contentEn: "Read and sign the safety waiver before using the gym.", contentVi: "Đọc và ký giấy từ chối trách nhiệm trước khi sử dụng phòng gym.", ctaLabelEn: "Open Waiver", ctaLabelVi: "Mở giấy từ chối" },
+  { id: "onb-profile", target: "[data-tour=dashboard-profile]", titleEn: "Step 2: Photo & government ID", titleVi: "Bước 2: Ảnh & giấy tờ", contentEn: "Add a profile photo and verify your identity: scan the VN eID chip QR, or enter CCCD number, full legal name, gender, and date of birth. Save before continuing.", contentVi: "Thêm ảnh đại diện và xác thực danh tính: quét mã QR chip CCCD, hoặc nhập số CCCD, họ tên đầy đủ, giới tính, ngày sinh. Nhấn Lưu trước khi sang bước sau.", ctaLabelEn: "Open Profile", ctaLabelVi: "Mở hồ sơ" },
+  { id: "onb-pass-or-redeem", target: "[data-tour=dashboard-tabs]", titleEn: "Step 3: Get a visit — buy or redeem", titleVi: "Bước 3: Có lượt — mua hoặc đổi mã", contentEn: "You need at least one visit to show your check-in QR. Buy a pass in Membership or enter a friend's invite code (LMG-…) in Redeem.", contentVi: "Bạn cần ít nhất 1 lượt để hiện QR check-in. Mua pass ở Thẻ thành viên hoặc nhập mã mời (LMG-…) ở Đổi mã.", navigate: { dashboardTab: "membership" }, ctaLabelEn: "Go to Membership", ctaLabelVi: "Đến Thẻ thành viên" },
 ];
 
 /** Member dashboard app: welcome, profile, check-in QR, gym status, tabs, membership, activity, events, leaderboard. */
