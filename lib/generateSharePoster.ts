@@ -113,6 +113,9 @@ export interface GenerateSharePosterOptions {
 export async function generateSharePoster(
   options: GenerateSharePosterOptions
 ): Promise<Blob> {
+  if (typeof document === "undefined") {
+    throw new Error("generateSharePoster requires browser environment");
+  }
   const { preset, cloud, shareUrl, origin, locale } = options;
   const { width: W, height: H } = PRESETS[preset];
   const scale = 2;

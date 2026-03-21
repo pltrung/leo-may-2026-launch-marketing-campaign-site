@@ -16,6 +16,7 @@ export default function MetaPixelRouteTracker() {
       isFirstPath.current = false;
       return;
     }
+    // Safe: trackPageView already wrapped in safeExecute
     trackPageView();
   }, [pathname]);
 

@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import GlobalErrorBoundary from "@/components/GlobalErrorBoundary";
+import GlobalErrorHandlers from "@/components/GlobalErrorHandlers";
 import GlobalImgSafeguard from "@/components/GlobalImgSafeguard";
 import LandingGate from "@/components/LandingGate";
 import MetaPixelRouteTracker from "@/components/MetaPixelRouteTracker";
@@ -79,14 +81,17 @@ fbq('track', 'PageView');
             alt=""
           />
         </noscript>
-        <MetaPixelRouteTracker />
-        <GlobalImgSafeguard />
-        <AuthProvider>
-          <AttributionCapture />
-          <InAppBrowserProvider>
-            <LandingGate>{children}</LandingGate>
-          </InAppBrowserProvider>
-        </AuthProvider>
+        <GlobalErrorHandlers />
+        <GlobalErrorBoundary>
+          <MetaPixelRouteTracker />
+          <GlobalImgSafeguard />
+          <AuthProvider>
+            <AttributionCapture />
+            <InAppBrowserProvider>
+              <LandingGate>{children}</LandingGate>
+            </InAppBrowserProvider>
+          </AuthProvider>
+        </GlobalErrorBoundary>
       </body>
     </html>
   );

@@ -21,10 +21,16 @@ export default function AttributionCapture() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const search = window.location.search;
-    const pathname = window.location.pathname;
-    const attribution = getAttributionFromUrl(search, pathname);
-    if (attribution) setStoredAttribution(attribution);
+    try {
+      const search = window.location.search;
+      const pathname = window.location.pathname;
+      const attribution = getAttributionFromUrl(search, pathname);
+      if (attribution) setStoredAttribution(attribution);
+    } catch (e) {
+      if (process.env.NODE_ENV === "development") {
+        console.error("[AttributionCapture] Error capturing attribution:", e);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -61,7 +67,12 @@ export default function AttributionCapture() {
           clearStoredAttribution();
         }
       })
-      .catch(() => {});
+      .catch((e) => {
+        // Silently fail - attribution is non-critical
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[AttributionCapture] Failed to persist attribution:", e);
+        }
+      });
 
     return () => {
       cancelled = true;
