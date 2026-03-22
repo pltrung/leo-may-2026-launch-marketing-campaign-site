@@ -275,6 +275,7 @@ export default function DashboardPage() {
     { code: string; used: boolean; expired: boolean; expires_at: string }[]
   >([]);
   const [perksInfoOpen, setPerksInfoOpen] = useState(false);
+  const [expiryNoticeDismissed, setExpiryNoticeDismissed] = useState(false);
   const [newbieClass, setNewbieClass] = useState<{
     session_id: string;
     start_time: string;
@@ -1106,7 +1107,18 @@ export default function DashboardPage() {
     : "Active";
 
   const showPayRenew =
-    (daysRemaining != null && daysRemaining < 5) || visitsRemaining === 1;
+    !canCheckIn ||
+    (daysRemaining != null && daysRemaining > 0 && daysRemaining <= 5) ||
+    (visitsRemaining > 0 && visitsRemaining <= 2);
+
+  const expiryNoticeType: "none" | "no_pass" | "expiring" | "visit_low" =
+    !canCheckIn
+      ? "no_pass"
+      : daysRemaining != null && daysRemaining > 0 && daysRemaining <= 5
+        ? "expiring"
+        : visitsRemaining > 0 && visitsRemaining <= 2
+          ? "visit_low"
+          : "none";
 
   const graduateSale = member.newbie_graduate_sale;
   const saleEndsMs = graduateSale?.ends_at ? new Date(graduateSale.ends_at).getTime() : 0;
@@ -1245,6 +1257,77 @@ export default function DashboardPage() {
             <p className="text-[14px] text-emerald-100/90 mt-1">
               {checkInToast === "repeat" ? d.checkInWelcomeBackSubtitle : d.checkInToastSubtitle}
             </p>
+          </div>
+        </div>
+      )}
+
+      {expiryNoticeType !== "none" && !expiryNoticeDismissed && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="expiry-notice-title"
+          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => setExpiryNoticeDismissed(true)}
+        >
+          <div
+            className="w-full max-w-md rounded-t-2xl sm:rounded-2xl border border-amber-400/30 bg-[#0f1419] p-5 sm:p-6 shadow-2xl animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start gap-3 mb-4">
+              <h3 id="expiry-notice-title" className="text-lg font-semibold text-amber-200">
+                {expiryNoticeType === "no_pass"
+                  ? isVi
+                    ? "Thêm hoặc gia hạn thẻ"
+                    : "Add or renew membership"
+                  : expiryNoticeType === "expiring"
+                    ? isVi
+                      ? "Thẻ sắp hết hạn"
+                      : "Membership expiring soon"
+                    : isVi
+                      ? "Sắp hết lượt"
+                      : "Visit pass running low"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setExpiryNoticeDismissed(true)}
+                className="shrink-0 w-9 h-9 rounded-full bg-white/10 text-white/80 hover:bg-white/15 flex items-center justify-center text-xl leading-none"
+                aria-label={isVi ? "Đóng" : "Close"}
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-[14px] text-white/80 leading-relaxed mb-5">
+              {expiryNoticeType === "no_pass"
+                ? isVi
+                  ? "Bạn chưa có gói hoạt động. Thêm hoặc gia hạn thẻ thành viên để tiếp tục leo núi."
+                  : "You don't have an active pass. Add or renew your membership to continue climbing."
+                : expiryNoticeType === "expiring"
+                  ? isVi
+                    ? `Thẻ thành viên của bạn còn ${daysRemaining} ngày. Gia hạn trên tab Thẻ TV để không bị gián đoạn.`
+                    : `Your membership expires in ${daysRemaining} days. Renew on the Membership tab to keep climbing.`
+                  : isVi
+                    ? `Bạn còn ${visitsRemaining} lượt. Thêm hoặc gia hạn trên tab Thẻ TV khi sẵn sàng.`
+                    : `You have ${visitsRemaining} visit(s) left. Add or renew on the Membership tab when you're ready.`}
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setExpiryNoticeDismissed(true);
+                  setDashboardTab("membership");
+                }}
+                className="flex-1 py-3 rounded-xl font-semibold bg-amber-500/90 text-slate-900 hover:bg-amber-400 transition-colors"
+              >
+                {isVi ? "Đến Thẻ TV" : "Go to Membership"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setExpiryNoticeDismissed(true)}
+                className="px-4 py-3 rounded-xl font-medium text-white/70 hover:text-white/90 hover:bg-white/10 transition-colors"
+              >
+                {isVi ? "Để sau" : "Later"}
+              </button>
+            </div>
           </div>
         </div>
       )}
