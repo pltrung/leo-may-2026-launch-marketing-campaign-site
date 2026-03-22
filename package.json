@@ -26,6 +26,7 @@
     "recharts": "^3.8.0",
     "stripe": "^20.3.1",
     "three": "^0.160.0",
+    "twilio": "^5.13.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

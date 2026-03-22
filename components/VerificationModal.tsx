@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { createBrowserClient } from "@/lib/supabaseBrowser";
@@ -50,6 +50,7 @@ export default function VerificationModal({
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const codeInputRef = useRef<HTMLInputElement>(null);
 
   const isCountdownFlow = typeof name === "string" && name.trim() !== "" && typeof cloud_type === "string" && cloud_type.trim() !== "";
 
@@ -99,13 +100,25 @@ export default function VerificationModal({
         }
       }
 
-      const supabase = createBrowserClient();
-      const options = useEmail ? { email: eTrim } : { phone: pTrim };
-      const { error: err } = await supabase.auth.signInWithOtp(options as { email: string } | { phone: string });
-      if (err) {
-        const msg = err.message?.toLowerCase() ?? "";
-        setError(msg.includes("rate limit") || msg.includes("rate_limit") ? t.rateLimit : err.message || t.errorSend);
-        return;
+      if (useEmail) {
+        const supabase = createBrowserClient();
+        const { error: err } = await supabase.auth.signInWithOtp({ email: eTrim });
+        if (err) {
+          const msg = err.message?.toLowerCase() ?? "";
+          setError(msg.includes("rate limit") || msg.includes("rate_limit") ? t.rateLimit : err.message || t.errorSend);
+          return;
+        }
+      } else {
+        const res = await fetch("/api/send-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: pTrim }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data?.error?.includes("rate limit") || data?.error?.includes("Too many") ? t.rateLimit : (data?.error || t.errorSend));
+          return;
+        }
       }
       setStep("code");
     } catch (e) {
@@ -122,63 +135,106 @@ export default function VerificationModal({
     setLoading(true);
     setStep("verifying");
     try {
-      const supabase = createBrowserClient();
       const eTrim = useEmail ? (identityLocked ? lockedIdentifier! : email.trim().toLowerCase()) : "";
       const phoneE164 = useEmail ? "" : (identityLocked ? lockedIdentifier! : toE164(phone));
       const tokenVal = code.trim();
-      const { data, error: verifyErr } = useEmail
-        ? await supabase.auth.verifyOtp({ email: eTrim, token: tokenVal, type: "email" })
-        : await supabase.auth.verifyOtp({ phone: phoneE164, token: tokenVal, type: "sms" });
-      if (verifyErr || !data?.session) {
-        setError(t.invalidCode);
-        setStep("code");
-        setLoading(false);
-        return;
-      }
-      const token = data.session.access_token;
 
-      if (isCountdownFlow && name && cloud_type) {
-        const res = await fetch("/api/waitlist/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            name: name.trim(),
-            cloud_type: cloud_type.trim(),
-            email: useEmail ? (identityLocked ? lockedIdentifier : eTrim) || undefined : undefined,
-            phone: !useEmail ? (identityLocked ? lockedIdentifier : phoneE164) || undefined : undefined,
-          }),
+      if (useEmail) {
+        const supabase = createBrowserClient();
+        const { data, error: verifyErr } = await supabase.auth.verifyOtp({
+          email: eTrim,
+          token: tokenVal,
+          type: "email",
         });
-        const json = await res.json();
-        if (!res.ok) {
-          setError(json?.error || "Failed to verify");
+        if (verifyErr || !data?.session) {
+          setError(t.invalidCode);
           setStep("code");
           setLoading(false);
           return;
         }
-        onSuccess({ mode: "countdown" });
-        setStep("success");
-        setError("");
-        setLoading(false);
-        setTimeout(() => onClose(), 1200);
-        return;
-      } else {
-        const linkRes = await fetch("/api/waitlist/link", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const linkJson = await linkRes.json();
-        let u = linkJson?.user;
-        if (!u) {
-          const meRes = await fetch("/api/waitlist/me", { headers: { Authorization: `Bearer ${token}` } });
-          const meJson = await meRes.json();
-          u = meJson?.user;
+        const token = data.session.access_token;
+
+        if (isCountdownFlow && name && cloud_type) {
+          const res = await fetch("/api/waitlist/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              name: name.trim(),
+              cloud_type: cloud_type.trim(),
+              email: (identityLocked ? lockedIdentifier : eTrim) || undefined,
+              phone: undefined,
+            }),
+          });
+          const json = await res.json();
+          if (!res.ok) {
+            setError(json?.error || "Failed to verify");
+            setStep("code");
+            setLoading(false);
+            return;
+          }
+          onSuccess({ mode: "countdown" });
+          setStep("success");
+          setError("");
+          setLoading(false);
+          setTimeout(() => onClose(), 1200);
+          return;
+        } else {
+          const linkRes = await fetch("/api/waitlist/link", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const linkJson = await linkRes.json();
+          let u = linkJson?.user;
+          if (!u) {
+            const meRes = await fetch("/api/waitlist/me", { headers: { Authorization: `Bearer ${token}` } });
+            const meJson = await meRes.json();
+            u = meJson?.user;
+          }
+          onSuccess({
+            mode: "lookup",
+            hasWaitlist: !!u,
+            user: u ? { name: u.name, email: u.email, phone: u.phone, team: u.team, referralCode: u.referralCode } : undefined,
+          });
+          onClose();
         }
-        onSuccess({
-          mode: "lookup",
-          hasWaitlist: !!u,
-          user: u ? { name: u.name, email: u.email, phone: u.phone, team: u.team, referralCode: u.referralCode } : undefined,
+      } else {
+        const origin = typeof window !== "undefined" ? window.location.origin : "";
+        const path = typeof window !== "undefined" ? window.location.pathname : "/";
+        const redirectTo = `${origin}${path}`;
+        const res = await fetch("/api/verify-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: phoneE164,
+            code: tokenVal,
+            redirectTo,
+            ...(isCountdownFlow && name && cloud_type ? { name: name.trim(), cloud_type: cloud_type.trim() } : {}),
+          }),
         });
-        onClose();
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data?.error || t.invalidCode);
+          setStep("code");
+          setLoading(false);
+          return;
+        }
+        if (data.url) {
+          if (isCountdownFlow && name && cloud_type) {
+            onSuccess({ mode: "countdown" });
+            setStep("success");
+            setError("");
+            setLoading(false);
+            onClose();
+            setTimeout(() => {
+              window.location.href = data.url;
+            }, 600);
+          } else {
+            window.location.href = data.url;
+          }
+        } else {
+          setError(t.invalidCode);
+          setStep("code");
+        }
       }
     } catch {
       setError(t.invalidCode);
@@ -190,6 +246,10 @@ export default function VerificationModal({
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (step === "code") codeInputRef.current?.focus();
+  }, [step]);
 
   const modal = (
     <motion.div
@@ -303,11 +363,19 @@ export default function VerificationModal({
             >
               <p className="font-caption text-white/80 text-sm mb-4">{t.enterCode}</p>
               <input
+                ref={codeInputRef}
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, "").slice(0, 6);
+                  setCode(v);
+                  if (v.length === 6 && !loading) {
+                    const form = e.target.form;
+                    if (form) form.requestSubmit();
+                  }
+                }}
                 placeholder="000000"
                 className="w-full min-w-0 box-border px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50 text-center text-lg tracking-widest"
                 maxLength={6}
