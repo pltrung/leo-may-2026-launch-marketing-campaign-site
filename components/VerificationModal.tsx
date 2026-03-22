@@ -52,6 +52,7 @@ export default function VerificationModal({
   const [loading, setLoading] = useState(false);
   const [verificationSid, setVerificationSid] = useState<string | null>(null);
   const codeInputRef = useRef<HTMLInputElement>(null);
+  const codeValueRef = useRef<string>("");
 
   const isCountdownFlow = typeof name === "string" && name.trim() !== "" && typeof cloud_type === "string" && cloud_type.trim() !== "";
 
@@ -139,14 +140,19 @@ export default function VerificationModal({
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!code.trim()) return;
+    // Prefer ref (set on auto-submit) — state/input can be stale when form submits on 6th digit
+    const rawCode =
+      codeValueRef.current ||
+      (codeInputRef.current?.value ?? "").replace(/\D/g, "").slice(0, 6) ||
+      code.trim().replace(/\D/g, "");
+    if (!rawCode) return;
     setError("");
     setLoading(true);
     setStep("verifying");
     try {
       const eTrim = useEmail ? (identityLocked ? lockedIdentifier! : email.trim().toLowerCase()) : "";
       const phoneE164 = useEmail ? "" : (identityLocked ? lockedIdentifier! : toE164(phone));
-      const tokenVal = code.trim();
+      const tokenVal = rawCode;
 
       if (useEmail) {
         const supabase = createBrowserClient();
@@ -392,6 +398,7 @@ export default function VerificationModal({
                 onChange={(e) => {
                   const v = e.target.value.replace(/\D/g, "").slice(0, 6);
                   setCode(v);
+                  codeValueRef.current = v;
                   if (v.length === 6 && !loading) {
                     const form = e.target.form;
                     if (form) form.requestSubmit();
@@ -415,6 +422,7 @@ export default function VerificationModal({
                   onClick={() => {
                     setStep("input");
                     setCode("");
+                    codeValueRef.current = "";
                     setError("");
                     setVerificationSid(null);
                     try {

@@ -55,9 +55,19 @@ export async function POST(req: NextRequest) {
     }
 
     const client = getTwilioClient();
+    const useSid = verificationSid && /^VE[A-Za-z0-9]{32}$/.test(verificationSid);
+
+    console.log("verify-otp request:", {
+      hasVerificationSid: !!verificationSid,
+      sidValid: useSid,
+      sidPrefix: verificationSid?.slice(0, 8),
+      phone: phone ? `${phone.slice(0, 4)}***` : "none",
+      codeLen: code.length,
+    });
+
     let check: { status: string; to?: string };
     try {
-      if (verificationSid && /^VE[0-9a-fA-F]{32}$/.test(verificationSid)) {
+      if (useSid) {
         check = await client.verify.v2
           .services(verifySid!)
           .verificationChecks.create({
@@ -105,6 +115,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (check.status !== "approved") {
+      console.error("verify-otp Twilio check returned non-approved:", {
+        status: check.status,
+        hasVerificationSid: !!verificationSid,
+        usedSid: useSid,
+      });
       return NextResponse.json({ error: "Invalid or expired code" }, { status: 400 });
     }
 
