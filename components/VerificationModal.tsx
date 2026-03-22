@@ -121,7 +121,13 @@ export default function VerificationModal({
           setError(data?.error?.includes("rate limit") || data?.error?.includes("Too many") ? t.rateLimit : (data?.error || t.errorSend));
           return;
         }
-        setVerificationSid(data?.verificationSid ?? null);
+        const sid = data?.verificationSid ?? null;
+        setVerificationSid(sid);
+        if (sid && typeof window !== "undefined") {
+          try {
+            sessionStorage.setItem("twilio_verification_sid", sid);
+          } catch {}
+        }
       }
       setStep("code");
     } catch (e) {
@@ -205,12 +211,13 @@ export default function VerificationModal({
         const path = typeof window !== "undefined" ? window.location.pathname : "/";
         const redirectTo = `${origin}${path}`;
         const phoneForVerify = toStrictE164(phoneE164 || phone);
+        const sid = verificationSid || (typeof window !== "undefined" ? sessionStorage.getItem("twilio_verification_sid") : null);
         const res = await fetch("/api/verify-otp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             phone: phoneForVerify,
-            verificationSid: verificationSid || undefined,
+            verificationSid: sid || undefined,
             code: tokenVal,
             redirectTo,
             ...(isCountdownFlow && name && cloud_type ? { name: name.trim(), cloud_type: cloud_type.trim() } : {}),
@@ -224,6 +231,9 @@ export default function VerificationModal({
           return;
         }
         if (data.url) {
+          try {
+            if (typeof window !== "undefined") sessionStorage.removeItem("twilio_verification_sid");
+          } catch {}
           if (isCountdownFlow && name && cloud_type) {
             onSuccess({ mode: "countdown" });
             setStep("success");
@@ -253,8 +263,14 @@ export default function VerificationModal({
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    if (step === "code") codeInputRef.current?.focus();
-  }, [step]);
+    if (step === "code") {
+      codeInputRef.current?.focus();
+      if (!verificationSid && method === "phone" && typeof window !== "undefined") {
+        const stored = sessionStorage.getItem("twilio_verification_sid");
+        if (stored) setVerificationSid(stored);
+      }
+    }
+  }, [step, method, verificationSid]);
 
   const modal = (
     <motion.div
@@ -396,7 +412,15 @@ export default function VerificationModal({
               {!identityLocked && (
                 <button
                   type="button"
-                  onClick={() => { setStep("input"); setCode(""); setError(""); setVerificationSid(null); }}
+                  onClick={() => {
+                    setStep("input");
+                    setCode("");
+                    setError("");
+                    setVerificationSid(null);
+                    try {
+                      if (typeof window !== "undefined") sessionStorage.removeItem("twilio_verification_sid");
+                    } catch {}
+                  }}
                   className="w-full py-2 text-white/70 text-sm hover:text-white/90"
                 >
                   Use a different email or phone

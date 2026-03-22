@@ -75,9 +75,27 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Phone or verification ID required" }, { status: 400 });
       }
     } catch (verifyErr: unknown) {
-      const twilioErr = verifyErr as { code?: number; status?: number; message?: string };
+      const twilioErr = verifyErr as { code?: number; status?: number; message?: string; moreInfo?: string };
       const msg = String(twilioErr?.message ?? "").toLowerCase();
-      if (twilioErr?.status === 404 || twilioErr?.code === 20404 || msg.includes("not found") || msg.includes("verificationcheck")) {
+      const moreInfo = String(twilioErr?.moreInfo ?? "").toLowerCase();
+      const is404 =
+        twilioErr?.status === 404 ||
+        twilioErr?.code === 20404 ||
+        twilioErr?.code === 60623 ||
+        msg.includes("not found") ||
+        msg.includes("verificationcheck") ||
+        moreInfo.includes("not found");
+
+      console.error("verify-otp Twilio check error:", {
+        status: twilioErr?.status,
+        code: twilioErr?.code,
+        message: twilioErr?.message,
+        hasVerificationSid: !!verificationSid,
+        verificationSidPrefix: verificationSid?.slice(0, 6),
+        phoneProvided: !!phone,
+      });
+
+      if (is404) {
         return NextResponse.json(
           { error: "Code expired or invalid. Please request a new code and try again." },
           { status: 400 }
