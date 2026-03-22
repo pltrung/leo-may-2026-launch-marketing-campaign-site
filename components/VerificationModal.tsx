@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { createBrowserClient } from "@/lib/supabaseBrowser";
-import { toE164 } from "@/lib/phoneE164";
+import { toE164, toStrictE164 } from "@/lib/phoneE164";
 import { getMessages } from "@/lib/messages";
 import type { Locale } from "@/lib/i18n";
 
@@ -50,6 +50,7 @@ export default function VerificationModal({
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [verificationSid, setVerificationSid] = useState<string | null>(null);
   const codeInputRef = useRef<HTMLInputElement>(null);
 
   const isCountdownFlow = typeof name === "string" && name.trim() !== "" && typeof cloud_type === "string" && cloud_type.trim() !== "";
@@ -109,16 +110,18 @@ export default function VerificationModal({
           return;
         }
       } else {
+        const phoneForApi = toStrictE164(pTrim);
         const res = await fetch("/api/send-otp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone: pTrim }),
+          body: JSON.stringify({ phone: phoneForApi }),
         });
         const data = await res.json();
         if (!res.ok) {
           setError(data?.error?.includes("rate limit") || data?.error?.includes("Too many") ? t.rateLimit : (data?.error || t.errorSend));
           return;
         }
+        setVerificationSid(data?.verificationSid ?? null);
       }
       setStep("code");
     } catch (e) {
@@ -201,11 +204,13 @@ export default function VerificationModal({
         const origin = typeof window !== "undefined" ? window.location.origin : "";
         const path = typeof window !== "undefined" ? window.location.pathname : "/";
         const redirectTo = `${origin}${path}`;
+        const phoneForVerify = toStrictE164(phoneE164 || phone);
         const res = await fetch("/api/verify-otp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            phone: phoneE164,
+            phone: phoneForVerify,
+            verificationSid: verificationSid || undefined,
             code: tokenVal,
             redirectTo,
             ...(isCountdownFlow && name && cloud_type ? { name: name.trim(), cloud_type: cloud_type.trim() } : {}),
@@ -391,7 +396,7 @@ export default function VerificationModal({
               {!identityLocked && (
                 <button
                   type="button"
-                  onClick={() => { setStep("input"); setCode(""); setError(""); }}
+                  onClick={() => { setStep("input"); setCode(""); setError(""); setVerificationSid(null); }}
                   className="w-full py-2 text-white/70 text-sm hover:text-white/90"
                 >
                   Use a different email or phone

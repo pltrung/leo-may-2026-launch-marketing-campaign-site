@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import twilio from "twilio";
-import { toE164 } from "@/lib/phoneE164";
+import { toStrictE164 } from "@/lib/phoneE164";
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const rawPhone = typeof body.phone === "string" ? body.phone.trim() : "";
-    const phone = toE164(rawPhone);
+    const phone = toStrictE164(rawPhone);
 
     if (!phone || !phone.startsWith("+")) {
       return NextResponse.json({ error: "Invalid phone format" }, { status: 400 });
@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       status: verification.status,
+      verificationSid: verification.sid,
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to send OTP";

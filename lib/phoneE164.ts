@@ -12,3 +12,11 @@ export function toE164(phone: string): string {
   if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
   return digits ? `+${digits}` : "";
 }
+
+/** Strict E.164 for Twilio Verify: + and digits only. Use for send + verify to avoid mismatch. */
+export function toStrictE164(phone: string): string {
+  const normalized = toE164(phone);
+  if (!normalized) return "";
+  const digits = normalized.replace(/\D/g, "");
+  return digits ? `+${digits}` : "";
+}

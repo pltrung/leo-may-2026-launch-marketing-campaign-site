@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import twilio from "twilio";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@/lib/supabaseServer";
-import { toE164 } from "@/lib/phoneE164";
+import { toStrictE164 } from "@/lib/phoneE164";
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -33,19 +33,21 @@ function syntheticEmail(phone: string): string {
 /**
  * POST /api/verify-otp
  * Verifies OTP via Twilio Verify, creates/fetches Supabase user, returns magic link for session.
- * Body: { phone, code, redirectTo?, name?, cloud_type? } — name/cloud_type for countdown waitlist verify
+ * Body: { phone, code, verificationSid?, redirectTo?, name?, cloud_type? }
+ * Use verificationSid (from send-otp) when available — more reliable than phone lookup.
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const rawPhone = typeof body.phone === "string" ? body.phone.trim() : "";
-    const phone = toE164(rawPhone);
+    const phone = toStrictE164(rawPhone);
+    const verificationSid = typeof body.verificationSid === "string" ? body.verificationSid.trim() : null;
     const code = typeof body.code === "string" ? body.code.trim().replace(/\D/g, "") : "";
     const redirectTo = typeof body.redirectTo === "string" ? body.redirectTo.trim() : null;
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const cloud_type = typeof body.cloud_type === "string" ? body.cloud_type.trim() : "";
 
-    if (!phone || !phone.startsWith("+")) {
+    if (!verificationSid && (!phone || !phone.startsWith("+"))) {
       return NextResponse.json({ error: "Invalid phone format" }, { status: 400 });
     }
     if (!code || code.length < 4) {
@@ -53,19 +55,51 @@ export async function POST(req: NextRequest) {
     }
 
     const client = getTwilioClient();
-    const check = await client.verify.v2
-      .services(verifySid!)
-      .verificationChecks.create({
-        to: phone,
-        code,
-      });
+    let check: { status: string; to?: string };
+    try {
+      if (verificationSid && /^VE[0-9a-fA-F]{32}$/.test(verificationSid)) {
+        check = await client.verify.v2
+          .services(verifySid!)
+          .verificationChecks.create({
+            verificationSid,
+            code,
+          });
+      } else if (phone) {
+        check = await client.verify.v2
+          .services(verifySid!)
+          .verificationChecks.create({
+            to: phone,
+            code,
+          });
+      } else {
+        return NextResponse.json({ error: "Phone or verification ID required" }, { status: 400 });
+      }
+    } catch (verifyErr: unknown) {
+      const twilioErr = verifyErr as { code?: number; status?: number; message?: string };
+      const msg = String(twilioErr?.message ?? "").toLowerCase();
+      if (twilioErr?.status === 404 || twilioErr?.code === 20404 || msg.includes("not found") || msg.includes("verificationcheck")) {
+        return NextResponse.json(
+          { error: "Code expired or invalid. Please request a new code and try again." },
+          { status: 400 }
+        );
+      }
+      throw verifyErr;
+    }
 
     if (check.status !== "approved") {
       return NextResponse.json({ error: "Invalid or expired code" }, { status: 400 });
     }
 
+    const verifiedPhone = phone || (check.to && toStrictE164(check.to)) || "";
+    if (!verifiedPhone) {
+      return NextResponse.json({ error: "Could not determine verified phone" }, { status: 400 });
+    }
+
     const supabase = getSupabaseAdmin();
     const serverSupabase = createServerClient();
+
+    // Use verifiedPhone for all downstream operations
+    const phoneForDb = verifiedPhone;
 
     // Try to find existing user by phone (waitlist first, then auth.users)
     let authUserId: string | null = null;
@@ -73,7 +107,7 @@ export async function POST(req: NextRequest) {
     const { data: waitlistRow } = await serverSupabase
       .from("waitlist")
       .select("auth_id")
-      .eq("phone", phone)
+      .eq("phone", phoneForDb)
       .not("auth_id", "is", null)
       .limit(1)
       .maybeSingle();
@@ -84,7 +118,7 @@ export async function POST(req: NextRequest) {
 
     if (!authUserId) {
       const { data: rpcData } = await serverSupabase.rpc("get_auth_user_id_by_phone", {
-        p_phone: phone,
+        p_phone: phoneForDb,
       });
       authUserId = Array.isArray(rpcData) ? rpcData[0] : rpcData;
     }
@@ -97,9 +131,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (!user) {
-      const synthEmail = syntheticEmail(phone);
+      const synthEmail = syntheticEmail(phoneForDb);
       const { data: createData, error: createErr } = await supabase.auth.admin.createUser({
-        phone,
+        phone: phoneForDb,
         email: synthEmail,
         phone_confirm: true,
         email_confirm: true,
@@ -107,7 +141,7 @@ export async function POST(req: NextRequest) {
       if (createErr) {
         if (createErr.message?.toLowerCase().includes("already") || createErr.message?.toLowerCase().includes("duplicate")) {
           const { data: rpcData } = await serverSupabase.rpc("get_auth_user_id_by_phone", {
-            p_phone: phone,
+            p_phone: phoneForDb,
           });
           const uid = Array.isArray(rpcData) ? rpcData[0] : rpcData;
           if (uid) {
@@ -124,7 +158,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const emailForLink = user.email && user.email.includes("@") ? user.email : syntheticEmail(phone);
+    const emailForLink = user.email && user.email.includes("@") ? user.email : syntheticEmail(phoneForDb);
     if (!user.email || !user.email.includes("@")) {
       await supabase.auth.admin.updateUserById(user.id, { email: emailForLink, email_confirm: true });
     }
@@ -158,7 +192,7 @@ export async function POST(req: NextRequest) {
       const { data: existing } = await serverSupabase
         .from("waitlist")
         .select("id")
-        .eq("phone", phone)
+        .eq("phone", phoneForDb)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -182,7 +216,7 @@ export async function POST(req: NextRequest) {
         for (let i = 0; i < 8; i++) referralCode += chars[Math.floor(Math.random() * chars.length)];
         await serverSupabase.from("waitlist").insert({
           name,
-          phone,
+          phone: phoneForDb,
           cloud_type,
           auth_id: user.id,
           is_verified: true,
