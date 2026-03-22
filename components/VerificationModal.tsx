@@ -47,7 +47,7 @@ export default function VerificationModal({
   const [method, setMethod] = useState<"email" | "phone">(lockedType ?? "email");
   const [email, setEmail] = useState(lockedType === "email" ? (lockedIdentifier ?? initialEmail ?? "") : (initialEmail ?? ""));
   const [phone, setPhone] = useState(lockedType === "phone" ? (lockedIdentifier ?? initialPhone ?? "") : (initialPhone ?? ""));
-  const [code, setCode] = useState("");
+  const [codeLength, setCodeLength] = useState(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [verificationSid, setVerificationSid] = useState<string | null>(null);
@@ -127,6 +127,7 @@ export default function VerificationModal({
         if (sid && typeof window !== "undefined") {
           try {
             sessionStorage.setItem("twilio_verification_sid", sid);
+            sessionStorage.setItem("twilio_verification_phone", phoneForApi);
           } catch {}
         }
       }
@@ -140,11 +141,9 @@ export default function VerificationModal({
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Prefer ref (set on auto-submit) — state/input can be stale when form submits on 6th digit
-    const rawCode =
-      codeValueRef.current ||
-      (codeInputRef.current?.value ?? "").replace(/\D/g, "").slice(0, 6) ||
-      code.trim().replace(/\D/g, "");
+    // Read from DOM first (handles autofill); ref is backup for auto-submit before DOM updates
+    const fromInput = (codeInputRef.current?.value ?? "").replace(/\D/g, "").slice(0, 6);
+    const rawCode = fromInput || codeValueRef.current;
     if (!rawCode) return;
     setError("");
     setLoading(true);
@@ -217,7 +216,12 @@ export default function VerificationModal({
         const path = typeof window !== "undefined" ? window.location.pathname : "/";
         const redirectTo = `${origin}${path}`;
         const phoneForVerify = toStrictE164(phoneE164 || phone);
-        const sid = verificationSid || (typeof window !== "undefined" ? sessionStorage.getItem("twilio_verification_sid") : null);
+        let sid = verificationSid;
+        if (!sid && typeof window !== "undefined") {
+          const stored = sessionStorage.getItem("twilio_verification_sid");
+          const storedPhone = sessionStorage.getItem("twilio_verification_phone");
+          if (stored && storedPhone === phoneForVerify) sid = stored;
+        }
         const res = await fetch("/api/verify-otp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -238,7 +242,10 @@ export default function VerificationModal({
         }
         if (data.url) {
           try {
-            if (typeof window !== "undefined") sessionStorage.removeItem("twilio_verification_sid");
+            if (typeof window !== "undefined") {
+              sessionStorage.removeItem("twilio_verification_sid");
+              sessionStorage.removeItem("twilio_verification_phone");
+            }
           } catch {}
           if (isCountdownFlow && name && cloud_type) {
             onSuccess({ mode: "countdown" });
@@ -273,10 +280,12 @@ export default function VerificationModal({
       codeInputRef.current?.focus();
       if (!verificationSid && method === "phone" && typeof window !== "undefined") {
         const stored = sessionStorage.getItem("twilio_verification_sid");
-        if (stored) setVerificationSid(stored);
+        const storedPhone = sessionStorage.getItem("twilio_verification_phone");
+        const currentPhone = toStrictE164(identityLocked ? lockedIdentifier! : toE164(phone));
+        if (stored && storedPhone === currentPhone) setVerificationSid(stored);
       }
     }
-  }, [step, method, verificationSid]);
+  }, [step, method, verificationSid, identityLocked, lockedIdentifier, phone]);
 
   const modal = (
     <motion.div
@@ -390,18 +399,26 @@ export default function VerificationModal({
             >
               <p className="font-caption text-white/80 text-sm mb-4">{t.enterCode}</p>
               <input
+                key={`code-${verificationSid || "new"}`}
                 ref={codeInputRef}
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                value={code}
+                defaultValue=""
                 onChange={(e) => {
                   const v = e.target.value.replace(/\D/g, "").slice(0, 6);
-                  setCode(v);
+                  setCodeLength(v.length);
                   codeValueRef.current = v;
                   if (v.length === 6 && !loading) {
                     const form = e.target.form;
                     if (form) form.requestSubmit();
+                  }
+                }}
+                onInput={(e) => {
+                  const v = (e.target as HTMLInputElement).value.replace(/\D/g, "").slice(0, 6);
+                  if (v.length >= 4) {
+                    setCodeLength(v.length);
+                    codeValueRef.current = v;
                   }
                 }}
                 placeholder="000000"
@@ -411,7 +428,7 @@ export default function VerificationModal({
               {error && <p className="text-red-300 text-sm">{error}</p>}
               <button
                 type="submit"
-                disabled={loading || code.length < 4}
+                disabled={loading || codeLength < 4}
                 className="w-full py-3 rounded-xl bg-white/25 text-white font-subheadline hover:bg-white/35 disabled:opacity-50"
               >
                 {loading ? t.verifying : t.verify}
@@ -421,12 +438,15 @@ export default function VerificationModal({
                   type="button"
                   onClick={() => {
                     setStep("input");
-                    setCode("");
+                    setCodeLength(0);
                     codeValueRef.current = "";
                     setError("");
                     setVerificationSid(null);
                     try {
-                      if (typeof window !== "undefined") sessionStorage.removeItem("twilio_verification_sid");
+                      if (typeof window !== "undefined") {
+                        sessionStorage.removeItem("twilio_verification_sid");
+                        sessionStorage.removeItem("twilio_verification_phone");
+                      }
                     } catch {}
                   }}
                   className="w-full py-2 text-white/70 text-sm hover:text-white/90"

@@ -57,12 +57,14 @@ export async function POST(req: NextRequest) {
     const client = getTwilioClient();
     const useSid = verificationSid && /^VE[A-Za-z0-9]{32}$/.test(verificationSid);
 
+    const mask = (s: string) => (s.length >= 4 ? `${s.slice(0, 2)}****${s.slice(-2)}` : "****");
     console.log("verify-otp request:", {
       hasVerificationSid: !!verificationSid,
       sidValid: useSid,
       sidPrefix: verificationSid?.slice(0, 8),
       phone: phone ? `${phone.slice(0, 4)}***` : "none",
       codeLen: code.length,
+      codeMasked: mask(code),
     });
 
     let check: { status: string; to?: string };
