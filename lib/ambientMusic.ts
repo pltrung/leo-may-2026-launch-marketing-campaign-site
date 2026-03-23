@@ -46,9 +46,9 @@ export function setAmbientMuted(muted: boolean): void {
   if (typeof window === "undefined") return;
   mutedCache = muted;
   writeStorage(muted);
-  for (const el of registered) {
+  registered.forEach((el) => {
     el.muted = muted;
-  }
+  });
   listeners.forEach((l) => l());
 }
 
