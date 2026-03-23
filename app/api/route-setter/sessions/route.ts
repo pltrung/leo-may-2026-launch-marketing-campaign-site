@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
 import { getRouteSetterFromRequest } from "@/lib/routeSetterAuth";
 import { getGymToday, parseGymDateTime, getGymEndOfDay } from "@/lib/gymTimezone";
+import {
+  aggregateNewbieSessionsBySlot,
+  type CoachingSessionRow,
+} from "@/lib/newbieCoachingAggregation";
 
 /**
  * GET /api/route-setter/sessions
- * Returns today's coaching sessions: upcoming, assigned to me, unassigned.
- * Ensures today's 30-min slots (09:00–21:00) exist with up to 2 sessions per slot.
+ * Returns today's coaching sessions (gym day, from open through close) with at least one newbie booking:
+ * all such slots, assigned to me, and unassigned. Matches /api/admin/staff sessionsToday window (not only next 2h).
  */
 export async function GET(request: NextRequest) {
   const user = await getRouteSetterFromRequest(request);
@@ -21,8 +25,7 @@ export async function GET(request: NextRequest) {
   if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
 
   const now = new Date();
-  const nowIso = now.toISOString();
-  const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
+  const nowMs = now.getTime();
   const today = getGymToday();
   const openStartIso = parseGymDateTime(today, "10:00");
   const todayEndIso = getGymEndOfDay(today);
@@ -30,16 +33,14 @@ export async function GET(request: NextRequest) {
   const { data: sessions, error } = await supabase
     .from("coaching_sessions")
     .select("id, start_time, end_time, coach_id, session_type, status, location, staff_profiles(email, display_name)")
-    .gt("start_time", nowIso)
     .gte("start_time", openStartIso)
-    .lte("start_time", twoHoursLater)
     .lte("start_time", todayEndIso)
     .in("status", ["scheduled"])
     .order("start_time", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const list = sessions ?? [];
+  const list = (sessions ?? []) as CoachingSessionRow[];
   const sessionIds = list.map((s) => s.id);
   const newbieCountBySession: Record<string, number> = {};
   if (sessionIds.length > 0) {
@@ -53,11 +54,11 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const listWithMeta = list.map((s) => ({
-    ...s,
-    location: (s.location as string) ?? "Main Wall - Beginner Area",
-    newbie_count: newbieCountBySession[s.id] ?? 0,
-  })).filter((s) => (s.newbie_count ?? 0) > 0);
+  const aggregated = aggregateNewbieSessionsBySlot(list, newbieCountBySession);
+  const listWithMeta = aggregated.filter((s) => {
+    if (!s.end_time) return true;
+    return new Date(s.end_time).getTime() > nowMs;
+  });
 
   const mySessions = listWithMeta.filter((s) => s.coach_id === staff.id);
   const unassigned = listWithMeta.filter((s) => !s.coach_id);
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
     .single();
   if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getGymToday();
   const { data: attendance } = await supabase
     .from("staff_attendance")
     .select("status")

@@ -3,6 +3,10 @@ import { createServerClient } from "@/lib/supabaseServer";
 import { getUnifiedAdminOrStaffFromRequest, canAccessOperations } from "@/lib/unifiedAdminAuth";
 import { getGymToday, getGymStartOfDay, getGymEndOfDay, getGymDateFromISO, parseGymDateTime } from "@/lib/gymTimezone";
 import { mergeStaffTasksWithTodayLogs } from "@/lib/staffTaskToday";
+import {
+  aggregateNewbieSessionsBySlot,
+  type CoachingSessionRow,
+} from "@/lib/newbieCoachingAggregation";
 
 const STAFF_REQUIRED_DEFAULT = 3;
 const GYM_TZ = "America/Los_Angeles";
@@ -23,64 +27,6 @@ function compareHHMM(a: string, b: string): number {
   const [ah, am] = a.split(":").map((n) => parseInt(n, 10) || 0);
   const [bh, bm] = b.split(":").map((n) => parseInt(n, 10) || 0);
   return (ah * 60 + am) - (bh * 60 + bm);
-}
-
-const MAX_NEWBIES_PER_COACHING_SLOT = 5;
-
-type CoachingSessionRow = {
-  id: string;
-  start_time: string;
-  end_time?: string;
-  coach_id: string | null;
-  session_type?: string;
-  status?: string;
-  location?: string | null;
-  staff_profiles?: unknown;
-};
-
-/** Merge rows that share the same slot (same start_time + location) so UI shows one row + total newbies. */
-function aggregateNewbieSessionsBySlot(
-  sessions: CoachingSessionRow[],
-  newbieCountBySession: Record<string, number>
-): Array<
-  CoachingSessionRow & {
-    newbie_count: number;
-    session_ids: string[];
-    max_newbies: number;
-  }
-> {
-  const map = new Map<
-    string,
-    CoachingSessionRow & { newbie_count: number; session_ids: string[]; max_newbies: number }
-  >();
-  for (const s of sessions) {
-    const n = newbieCountBySession[s.id] ?? 0;
-    if (n <= 0) continue;
-    const loc = (s.location as string) ?? "Main Wall - Beginner Area";
-    const key = `${s.start_time}\0${loc}`;
-    const prev = map.get(key);
-    if (!prev) {
-      map.set(key, {
-        ...s,
-        location: loc,
-        newbie_count: n,
-        session_ids: [s.id],
-        max_newbies: MAX_NEWBIES_PER_COACHING_SLOT,
-      });
-    } else {
-      prev.newbie_count += n;
-      prev.session_ids.push(s.id);
-      if (!prev.coach_id && s.coach_id) {
-        prev.coach_id = s.coach_id;
-        prev.staff_profiles = s.staff_profiles;
-        prev.id = s.id;
-        prev.end_time = s.end_time ?? prev.end_time;
-      }
-    }
-  }
-  return Array.from(map.values()).sort(
-    (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-  );
 }
 
 /** Minutes from midnight in gym TZ for current moment. */

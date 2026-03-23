@@ -1,13 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getNextNewbieClassSlotStartIso } from "@/lib/gymTimezone";
+import { getNextNewbieClassSlotStartIso, getGymToday } from "@/lib/gymTimezone";
+import { isEligibleNewbieCoachRole } from "@/lib/newbieCoachingAggregation";
 
 const MAX_NEWBIES_PER_SESSION = 5;
 const MAX_SESSIONS_PER_SLOT = 1; // one 30-min bucket; up to 5 newbies per session
 const SLOT_LENGTH_MINUTES = 30;
 
 /**
- * If the session has no coach and at least one person is signed up, assign a route setter
- * who is IN today. Picks the one with the fewest sessions already assigned today.
+ * If the session has no coach and at least one person is signed up, assign a staff member
+ * who is IN today and has role route_setter, coach, or admin (not frontdesk / check-in kiosk).
+ * Picks the one with the fewest newbie coaching sessions already assigned today.
  */
 async function tryAutoAssignCoach(
   supabase: SupabaseClient,
@@ -26,7 +28,16 @@ async function tryAutoAssignCoach(
     .select("staff_id")
     .eq("date", today)
     .eq("status", "IN");
-  const staffIds = (staffIn ?? []).map((r) => r.staff_id).filter(Boolean);
+  const checkedInIds = (staffIn ?? []).map((r) => r.staff_id).filter(Boolean) as string[];
+  if (checkedInIds.length === 0) return;
+
+  const { data: profiles } = await supabase
+    .from("staff_profiles")
+    .select("id, role")
+    .in("id", checkedInIds);
+  const staffIds = (profiles ?? [])
+    .filter((p) => p.id && isEligibleNewbieCoachRole(p.role as string))
+    .map((p) => p.id as string);
   if (staffIds.length === 0) return;
 
   const startOfDay = `${today}T00:00:00.000Z`;
@@ -70,8 +81,8 @@ async function tryAutoAssignCoach(
  * - One session per 30-min slot, max 5 newbies (aligned to gym TZ slots).
  * - Sessions are created on demand if none exist for that slot.
  * - If the slot is full (5), rolls forward to the next 30‑min slot.
- * - If the session has no coach and at least one person is now signed up, a route setter
- *   who is IN today is auto-assigned (one with fewest sessions today).
+ * - If the session has no coach and at least one person is now signed up, eligible wall/coaching
+ *   staff (route_setter, coach, or admin) who are IN today is auto-assigned (fewest sessions today).
  * Returns the booking id and session id, or null if no slot available.
  */
 export async function bookNewbieClass(
@@ -80,7 +91,7 @@ export async function bookNewbieClass(
   paymentId: string | null
 ): Promise<{ bookingId: string; sessionId: string } | null> {
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
+  const today = getGymToday();
 
   let slotIso = getNextNewbieClassSlotStartIso(now);
 

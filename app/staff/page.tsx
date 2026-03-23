@@ -41,6 +41,8 @@ interface CoachingSession {
   status: string;
   location?: string;
   newbie_count?: number;
+  max_newbies?: number;
+  session_ids?: string[];
   staff_profiles?: { email?: string; display_name?: string } | { email?: string; display_name?: string }[] | null;
 }
 
@@ -395,6 +397,7 @@ export default function StaffPage() {
   // Show upcoming tasks as part of the active checklist (matches admin view of "pending" before start_time)
   const activePending = activeTasks.filter((t) => t.status === "pending" || t.status === "upcoming");
   const activeCompleted = activeTasks.filter((t) => t.status === "completed");
+  const otherCoachingSessions = sessions.filter((s) => s.coach_id && s.coach_id !== staff.id);
   const priority = (p: TaskPriority) => (t: StaffTask) => (t.priority ?? "medium") === p;
   const highTasks = activeTasks.filter(priority("high"));
   const mediumTasks = activeTasks.filter(priority("medium"));
@@ -838,20 +841,25 @@ export default function StaffPage() {
             {staffTab === "coaching" && (
               <section className="rounded-xl bg-slate-800 border border-slate-700 p-4">
                 <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">{m.todayCoachingSessions}</h2>
-                {sessions.length === 0 && <p className="text-slate-500 text-sm">{m.noSessionsScheduled}</p>}
+                {mySessions.length === 0 && unassignedSessions.length === 0 && otherCoachingSessions.length === 0 && (
+                  <p className="text-slate-500 text-sm">{m.noSessionsScheduled}</p>
+                )}
                 {mySessions.length > 0 && (
                   <div className="mb-3">
                     <p className="text-xs text-slate-400 mb-2">{m.yourSessions}</p>
                     <ul className="space-y-1.5">
-                      {mySessions.map((s) => (
-                        <li key={s.id} className="py-2 px-3 rounded-lg bg-slate-700/50 text-sm space-y-1">
-                          <div className="flex justify-between items-center">
-                            <span>{formatTime(s.start_time)} – {formatTime(s.end_time)}</span>
-                            <span className="text-emerald-400">{m.assignedToYou}</span>
-                          </div>
-                          <div className="text-xs text-slate-400">{s.location && <span>{s.location}</span>}{(s.newbie_count ?? 0) > 0 && <span className="ml-2">{s.newbie_count} {m.newbiesAttending}</span>}</div>
-                        </li>
-                      ))}
+                      {mySessions.map((s) => {
+                        const k = (s.session_ids?.length ? s.session_ids : [s.id]).join(",");
+                        return (
+                          <li key={k} className="py-2 px-3 rounded-lg bg-slate-700/50 text-sm space-y-1">
+                            <div className="flex justify-between items-center">
+                              <span>{formatTime(s.start_time)} – {formatTime(s.end_time)}</span>
+                              <span className="text-emerald-400">{m.assignedToYou}</span>
+                            </div>
+                            <div className="text-xs text-slate-400">{s.location && <span>{s.location}</span>}{(s.newbie_count ?? 0) > 0 && <span className="ml-2">{s.newbie_count} {m.newbiesAttending}</span>}</div>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 )}
@@ -859,15 +867,44 @@ export default function StaffPage() {
                   <div>
                     <p className="text-xs text-slate-400 mb-2">{m.unassignedTapToTake}</p>
                     <ul className="space-y-1.5">
-                      {unassignedSessions.map((s) => (
-                        <li key={s.id} className="py-2 px-3 rounded-lg bg-slate-700/50 text-sm space-y-1">
-                          <div className="flex justify-between items-center">
-                            <span>{formatTime(s.start_time)} – {formatTime(s.end_time)}</span>
-                            <button type="button" disabled={assigningId === s.id} onClick={() => handleAssignSession(s.id)} className="text-amber-400 hover:text-amber-300 text-sm font-medium disabled:opacity-50">{assigningId === s.id ? "…" : m.assignToMe}</button>
-                          </div>
-                          <div className="text-xs text-slate-400">{s.location && <span>{s.location}</span>}{(s.newbie_count ?? 0) > 0 && <span className="ml-2">{s.newbie_count} {m.newbiesAttending}</span>}</div>
-                        </li>
-                      ))}
+                      {unassignedSessions.map((s) => {
+                        const k = (s.session_ids?.length ? s.session_ids : [s.id]).join(",");
+                        const sid = s.session_ids?.[0] ?? s.id;
+                        return (
+                          <li key={k} className="py-2 px-3 rounded-lg bg-slate-700/50 text-sm space-y-1">
+                            <div className="flex justify-between items-center">
+                              <span>{formatTime(s.start_time)} – {formatTime(s.end_time)}</span>
+                              <button type="button" disabled={assigningId === sid} onClick={() => handleAssignSession(sid)} className="text-amber-400 hover:text-amber-300 text-sm font-medium disabled:opacity-50">{assigningId === sid ? "…" : m.assignToMe}</button>
+                            </div>
+                            <div className="text-xs text-slate-400">{s.location && <span>{s.location}</span>}{(s.newbie_count ?? 0) > 0 && <span className="ml-2">{s.newbie_count} {m.newbiesAttending}</span>}</div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+                {otherCoachingSessions.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-slate-700/80">
+                    <p className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">{m.otherCoachesSessions}</p>
+                    <p className="text-xs text-slate-500 mb-2">{m.otherCoachesSessionsHint}</p>
+                    <ul className="space-y-1.5">
+                      {otherCoachingSessions.map((s) => {
+                        const k = (s.session_ids?.length ? s.session_ids : [s.id]).join(",");
+                        const p = Array.isArray(s.staff_profiles) ? s.staff_profiles[0] : s.staff_profiles;
+                        const coachLabel = p?.display_name || p?.email || "—";
+                        return (
+                          <li key={k} className="py-2 px-3 rounded-lg bg-slate-700/30 text-sm border border-slate-600/50 space-y-1">
+                            <div className="flex justify-between items-center gap-2 flex-wrap">
+                              <span>{formatTime(s.start_time)} – {formatTime(s.end_time)}</span>
+                              <span className="text-slate-400 text-xs">
+                                {locale === "vi" ? "HLV: " : "Coach: "}
+                                <span className="text-slate-200 font-medium">{coachLabel}</span>
+                              </span>
+                            </div>
+                            <div className="text-xs text-slate-400">{s.location && <span>{s.location}</span>}{(s.newbie_count ?? 0) > 0 && <span className="ml-2">{s.newbie_count} {m.newbiesAttending}</span>}</div>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 )}

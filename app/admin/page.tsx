@@ -5180,9 +5180,17 @@ export default function AdminPage() {
               newbie_count?: number;
               max_newbies?: number;
               session_ids?: string[];
+              staff_profiles?: { display_name?: string; email?: string } | { display_name?: string; email?: string }[] | null;
             }[];
             const mySessions = staffId ? sessionsToday.filter((s) => s.coach_id === staffId) : [];
             const unassignedSessions = sessionsToday.filter((s) => !s.coach_id);
+            const otherCoachesSessions = staffId
+              ? sessionsToday.filter((s) => s.coach_id && s.coach_id !== staffId)
+              : sessionsToday.filter((s) => !!s.coach_id);
+            const coachNameFromSession = (s: (typeof sessionsToday)[0]) => {
+              const p = Array.isArray(s.staff_profiles) ? s.staff_profiles[0] : s.staff_profiles;
+              return p?.display_name || p?.email || "—";
+            };
             const formatTime = (iso: string) => new Date(iso).toLocaleTimeString(locale === "vi" ? "vi-VN" : "en-US", { hour: "numeric", minute: "2-digit", hour12: locale === "en" });
             const formatDate = (iso: string | null) => iso ? new Date(iso).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
             const timeline = (staffOpsData?.timeline ?? []) as { staff_name: string; task_title: string; completed_at: string }[];
@@ -5422,6 +5430,37 @@ export default function AdminPage() {
                               })}
                             </ul>
                           </div>
+                        )}
+                        {otherCoachesSessions.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-slate-700/80">
+                            <p className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">{staffMsg.otherCoachesSessions}</p>
+                            <p className="text-xs text-slate-500 mb-2">{staffMsg.otherCoachesSessionsHint}</p>
+                            <ul className="space-y-1.5">
+                              {otherCoachesSessions.map((s) => {
+                                const slotKey = (s.session_ids?.length ? s.session_ids : [s.id]).join(",");
+                                const n = s.newbie_count ?? 1;
+                                const mx = s.max_newbies ?? 5;
+                                return (
+                                  <li key={slotKey} className="py-2 px-3 rounded-lg bg-slate-700/30 text-sm border border-slate-600/50">
+                                    <div className="flex justify-between items-center gap-2 flex-wrap">
+                                      <span className="text-slate-200">
+                                        {formatTime(s.start_time)}
+                                        {s.end_time ? ` – ${formatTime(s.end_time)}` : ""}
+                                        <span className="text-slate-400 ml-1">({n}/{mx})</span>
+                                      </span>
+                                      <span className="text-slate-400 shrink-0 text-xs">
+                                        {locale === "vi" ? "HLV: " : "Coach: "}
+                                        <span className="text-slate-200 font-medium">{coachNameFromSession(s)}</span>
+                                      </span>
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        )}
+                        {mySessions.length === 0 && unassignedSessions.length === 0 && otherCoachesSessions.length === 0 && (
+                          <p className="text-sm text-slate-400 py-2">{staffMsg.noSessionsScheduled}</p>
                         )}
                       </div>
                     )}
