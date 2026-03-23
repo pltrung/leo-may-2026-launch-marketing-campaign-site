@@ -582,16 +582,26 @@ function CountdownPageContent() {
         style={{ zIndex: 10 }}
       >
       <HeroMusic heroReady={phase === "content"} />
-      {/* VN/EN fixed bottom-left (mobile + desktop) */}
+      {/* Mobile: VN/EN bottom-left + music bottom-right in one footer row; desktop: language bottom-left only */}
       <motion.div
-        className="fixed bottom-6 left-6 z-[60] scale-90 opacity-80 md:scale-100 md:opacity-100"
+        className="fixed bottom-6 left-6 right-6 z-[60] flex flex-row justify-between items-center gap-3 scale-90 opacity-80 md:left-6 md:right-auto md:justify-start md:scale-100 md:opacity-100 pointer-events-none"
         initial={{ opacity: 0 }}
         animate={{ opacity: phase === "content" ? 1 : 0 }}
         transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
         style={{ visibility: phase === "content" ? "visible" : "hidden", pointerEvents: phase === "content" ? "auto" : "none" }}
       >
-        <SafeLanguageSwitch />
-
+        <div className="pointer-events-auto">
+          <SafeLanguageSwitch />
+        </div>
+        <div className="pointer-events-auto md:hidden shrink-0">
+          <AmbientMusicToggle
+            variant="light"
+            labels={{
+              mute: locale === "vi" ? "Tắt nhạc nền" : "Mute background music",
+              unmute: locale === "vi" ? "Bật nhạc nền" : "Unmute background music",
+            }}
+          />
+        </div>
       </motion.div>
       {/* 1) Dark background — bottom layer */}
       <div
@@ -661,11 +671,11 @@ function CountdownPageContent() {
         )}
       </AnimatePresence>
 
-      {/* Desktop: About Us top-left, Log out top-right (fixed) */}
+      {/* Desktop: About / Log out / music — absolute inside scroll main so all stay pinned to top bar when scrolling */}
       <motion.button
         type="button"
         onClick={() => setAboutOpen(true)}
-        className="about-btn-breathe hidden md:flex absolute top-8 left-10 z-10 py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 hover:scale-[1.02] transition-all duration-300 items-center justify-center"
+        className="about-btn-breathe hidden md:flex absolute top-8 left-10 z-[65] py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 hover:scale-[1.02] transition-all duration-300 items-center justify-center"
         aria-label={t.aboutUs}
         initial={{ opacity: 0 }}
         animate={{ opacity: phase === "content" ? 1 : 0 }}
@@ -677,7 +687,7 @@ function CountdownPageContent() {
       <motion.button
         type="button"
         onClick={handleLogout}
-        className="hidden md:flex absolute top-8 right-10 z-10 py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors items-center justify-center"
+        className="hidden md:flex absolute top-8 right-10 z-[65] py-2 px-4 rounded-full border border-white/60 text-white/90 text-sm font-medium hover:bg-white/10 hover:border-white/80 transition-colors items-center justify-center"
         aria-label={t.logOut}
         initial={{ opacity: 0 }}
         animate={{ opacity: phase === "content" ? 1 : 0 }}
@@ -686,8 +696,9 @@ function CountdownPageContent() {
       >
         {t.logOut}
       </motion.button>
+      {/* Desktop only: music top-right (mobile uses bottom bar with locale) */}
       <motion.div
-        className="fixed top-6 right-6 md:top-8 md:right-36 z-[65] flex items-center"
+        className="hidden md:flex absolute top-8 right-36 z-[65] items-center"
         initial={{ opacity: 0 }}
         animate={{ opacity: phase === "content" ? 1 : 0 }}
         transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
