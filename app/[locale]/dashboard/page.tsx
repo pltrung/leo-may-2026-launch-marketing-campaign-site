@@ -16,7 +16,7 @@ import PaymentModal from "@/components/dashboard/PaymentModal";
 import EventDetailModal, { type DashboardEvent } from "@/components/dashboard/EventDetailModal";
 import WaiverModal from "@/components/dashboard/WaiverModal";
 import AchievementUnlockModal, { type AchievementUnlockData } from "@/components/dashboard/AchievementUnlockModal";
-import { GuidedTour, TOUR_STEPS_DASHBOARD, TOUR_STEPS_ONBOARDING } from "@/components/admin/GuidedTour";
+import { GuidedTour, TOUR_STEPS_DASHBOARD } from "@/components/admin/GuidedTour";
 import { getMessages } from "@/lib/messages";
 import { getGymDateFromISO, getGymToday } from "@/lib/gymTimezone";
 import { roundSalePriceVnd, roundDiscountedPriceVnd } from "@/lib/newbieGraduateSale";
@@ -156,30 +156,6 @@ export default function DashboardPage() {
     router.replace(`/${locale}/claim/complete-password`);
   }, [user, locale, router]);
 
-  useEffect(() => {
-    if (!mounted || typeof window === "undefined" || member == null) return;
-    if (window.localStorage.getItem("dashboard_tour_done")) return;
-    const hasPass = (member.membership_expires_at && new Date(member.membership_expires_at).getTime() > Date.now()) || (member.visits_remaining ?? 0) > 0;
-    const profileReady =
-      !!member.profile_photo_url && memberIdentityComplete(member);
-    const readyForQr = member.waiver_signed && hasPass && profileReady;
-    if (readyForQr) return;
-    setGuidedTourActive(true);
-    setTourPhase("onboarding");
-  }, [
-    mounted,
-    member?.id,
-    member?.waiver_signed,
-    member?.profile_photo_url,
-    member?.id_number,
-    member?.full_name,
-    member?.gender,
-    member?.date_of_birth,
-    member?.id_verified_from_cccd,
-    member?.visits_remaining,
-    member?.membership_expires_at,
-  ]);
-
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isVietQrModalOpen, setIsVietQrModalOpen] = useState(false);
   const wakeLockRef = useRef<any | null>(null);
@@ -266,7 +242,6 @@ export default function DashboardPage() {
   const [showAchievementUnlock, setShowAchievementUnlock] = useState(false);
   const [leaderboardPeriod, setLeaderboardPeriod] = useState<"week" | "month" | "all">("month");
   const [guidedTourActive, setGuidedTourActive] = useState(false);
-  const [tourPhase, setTourPhase] = useState<"onboarding" | "main">("onboarding");
   const [redeemCode, setRedeemCode] = useState("");
   const [redeemLoading, setRedeemLoading] = useState(false);
   const [redeemMessage, setRedeemMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -1194,10 +1169,7 @@ export default function DashboardPage() {
             </div>
             <button
               type="button"
-              onClick={() => {
-                setGuidedTourActive(true);
-                setTourPhase(canShowQR ? "main" : "onboarding");
-              }}
+              onClick={() => setGuidedTourActive(true)}
               className="text-[13px] font-medium px-3 py-1.5 rounded-full border border-white/20 text-white/90 hover:bg-white/10 transition-colors"
             >
               {isVi ? "Tour" : "Tour"}
@@ -1333,38 +1305,17 @@ export default function DashboardPage() {
       )}
 
       <GuidedTour
-        key={tourPhase}
-        steps={tourPhase === "onboarding" ? TOUR_STEPS_ONBOARDING : TOUR_STEPS_DASHBOARD}
+        steps={TOUR_STEPS_DASHBOARD}
         isActive={guidedTourActive}
         onClose={() => {
           setGuidedTourActive(false);
-          if (tourPhase === "main" && typeof window !== "undefined") window.localStorage.setItem("dashboard_tour_done", "1");
+          if (typeof window !== "undefined") window.localStorage.setItem("dashboard_tour_done", "1");
         }}
         locale={locale as "en" | "vi"}
         onNavigate={(step) => {
           const tab = step.navigate?.dashboardTab;
           if (tab) setDashboardTab(tab);
         }}
-        getCanAdvance={
-          tourPhase === "onboarding"
-            ? (i) =>
-                i === 0
-                  ? !!member?.waiver_signed
-                  : i === 1
-                    ? !!member?.profile_photo_url && memberIdentityComplete(member)
-                    : canCheckIn
-            : undefined
-        }
-        onOnboardingComplete={tourPhase === "onboarding" ? () => setTourPhase("main") : undefined}
-        onStepCtaClick={
-          tourPhase === "onboarding"
-            ? (step, i) => {
-                if (i === 0) setWaiverModalOpen(true);
-                else if (i === 1) setProfileModalOpen(true);
-                else if (i === 2) setDashboardTab("membership");
-              }
-            : undefined
-        }
       />
 
       {/* MAIN CONTENT */}
@@ -1548,19 +1499,57 @@ export default function DashboardPage() {
                     />
                   </div>
                 </div>
-                <p className="text-amber-200/95 text-[14px] leading-relaxed">
+                <p className="text-amber-200/95 text-[14px] leading-relaxed mb-4">
                   {!member.waiver_signed
                     ? (isVi ? "1. Ký giấy từ chối trách nhiệm trước khi check-in." : "1. Sign the waiver first before checking in.")
                     : !profileStepComplete
                     ? (isVi
-                        ? "2. Hoàn tất hồ sơ: ảnh đại diện + giấy tờ (quét QR chip CCCD hoặc nhập số CCCD, họ tên, giới tính, ngày sinh) — nhấn tên bạn ở trên."
-                        : "2. Complete profile: photo + ID (scan VN eID chip QR or enter CCCD, full name, gender, DoB) — tap your name above.")
+                        ? "2. Hoàn tất hồ sơ: ảnh đại diện + giấy tờ (quét QR chip CCCD hoặc nhập số CCCD, họ tên, giới tính, ngày sinh)."
+                        : "2. Complete profile: photo + ID (scan VN eID chip QR or enter CCCD, full name, gender, DoB).")
                     : !canCheckIn
                     ? (isVi
                         ? "3. Có ít nhất 1 lượt: mua pass (tab Thẻ thành viên) hoặc đổi mã mời bạn LMG-… (tab Đổi mã). Sau đó QR check-in sẽ hiện."
                         : "3. Get at least one visit: buy a pass (Membership tab) or redeem a friend’s invite code LMG-… (Redeem tab). Your check-in QR will then appear.")
                     : null}
                 </p>
+                <div className="flex flex-wrap gap-2">
+                  {!member.waiver_signed && (
+                    <button
+                      type="button"
+                      onClick={() => setWaiverModalOpen(true)}
+                      className="px-4 py-2.5 rounded-full bg-white text-[#0B0B0F] font-medium hover:opacity-90 transition-opacity"
+                    >
+                      {isVi ? "Mở giấy từ chối" : "Open Waiver"}
+                    </button>
+                  )}
+                  {member.waiver_signed && !profileStepComplete && (
+                    <button
+                      type="button"
+                      onClick={() => setProfileModalOpen(true)}
+                      className="px-4 py-2.5 rounded-full bg-white text-[#0B0B0F] font-medium hover:opacity-90 transition-opacity"
+                    >
+                      {isVi ? "Mở hồ sơ" : "Open Profile"}
+                    </button>
+                  )}
+                  {member.waiver_signed && profileStepComplete && !canCheckIn && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setDashboardTab("membership")}
+                        className="px-4 py-2.5 rounded-full bg-white text-[#0B0B0F] font-medium hover:opacity-90 transition-opacity"
+                      >
+                        {isVi ? "Đến Thẻ thành viên" : "Go to Membership"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDashboardTab("redeem")}
+                        className="px-4 py-2.5 rounded-full border border-white/60 text-white font-medium hover:bg-white/10 transition-opacity"
+                      >
+                        {isVi ? "Đổi mã" : "Redeem code"}
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </section>
           )}
