@@ -10,6 +10,7 @@ import { useGymNav } from "@/components/gym/context/GymNavContext";
 import { useLocale } from "@/components/LocaleProvider";
 import { useMemberAuth } from "@/lib/useMemberAuth";
 import { getMessages } from "@/lib/messages";
+import AmbientMusicToggle from "@/components/AmbientMusicToggle";
 
 /** Header logo fades in after intro crossfade (logo→Welcome) completes at progress 0.18. */
 const HEADER_LOGO_FADE_START = 0.18;
@@ -111,6 +112,13 @@ export default function GymHeader({ scrollProgress }: GymHeaderProps) {
             </button>
           </>
         ) : null}
+        <AmbientMusicToggle
+          variant="light"
+          labels={{
+            mute: locale === "vi" ? "Tắt nhạc nền" : "Mute background music",
+            unmute: locale === "vi" ? "Bật nhạc nền" : "Unmute background music",
+          }}
+        />
         <SafeLanguageSwitch />
       </nav>
     </header>

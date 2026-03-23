@@ -32,6 +32,7 @@ import LocationSheet from "@/components/gym/modals/LocationSheet";
 import PricingSheet from "@/components/gym/modals/PricingSheet";
 import AboutUsModal from "@/components/AboutUsModal";
 import { useLocale } from "@/components/LocaleProvider";
+import HeroMusic from "@/components/HeroMusic";
 
 function useStoryVh(): number {
   const [vh, setVh] = useState(GYM_STORY_VH);
@@ -166,6 +167,7 @@ export default function GymWorld() {
   return (
     <GymNavProvider value={navValue}>
       <div className="min-h-screen relative">
+        <HeroMusic heroReady />
         {/* 1) Sky gradient — bottom layer (time-of-day) */}
         <div className="fixed inset-0 pointer-events-none" style={{ background: theme.bgGradient, zIndex: 1 }} aria-hidden />
         {/* 2) Starfield (twinkle, drift, shooting stars) */}

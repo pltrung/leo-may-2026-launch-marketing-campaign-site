@@ -18,6 +18,7 @@ import KnowYourTeamButton from "@/components/KnowYourTeamButton";
 import SafeLanguageSwitch from "@/components/SafeLanguageSwitch";
 import HeroScrollObserver from "@/components/HeroScrollObserver";
 import HeroMusic from "@/components/HeroMusic";
+import AmbientMusicToggle from "@/components/AmbientMusicToggle";
 import MistAscent from "@/components/MistAscent";
 import HeroStarfield from "@/components/HeroStarfield";
 import { useTransitionOverlay } from "@/context/TransitionOverlayContext";
@@ -285,6 +286,14 @@ function HomeContent() {
             transition={{ duration: 0.5, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className="flex items-center gap-3"
           >
+            <AmbientMusicToggle
+              variant="light"
+              labels={
+                locale === "vi"
+                  ? { mute: "Tắt nhạc nền", unmute: "Bật nhạc nền" }
+                  : { mute: "Mute background music", unmute: "Unmute background music" }
+              }
+            />
             <SafeLanguageSwitch />
             <KnowYourTeamButton
               show
@@ -307,6 +316,14 @@ function HomeContent() {
           transition={{ duration: 0.8, delay: transitionActive ? 0 : heroReady ? 0.5 : 0, ease: heroEase }}
           style={{ pointerEvents: transitionActive ? "none" : "auto", willChange: "transform, opacity" }}
         >
+          <AmbientMusicToggle
+            variant="light"
+            labels={
+              locale === "vi"
+                ? { mute: "Tắt nhạc nền", unmute: "Bật nhạc nền" }
+                : { mute: "Mute background music", unmute: "Unmute background music" }
+            }
+          />
           <SafeLanguageSwitch />
           <KnowYourTeamButton
             show

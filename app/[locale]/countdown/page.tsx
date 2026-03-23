@@ -43,6 +43,8 @@ import { createBrowserClient } from "@/lib/supabaseBrowser";
 import { HERO_BG } from "@/lib/heroConstants";
 import { getSkyTheme, getLocalTimeHours } from "@/components/gym/theme/skyTheme";
 import { PENDING_REF_CODE_KEY } from "@/lib/referralStorage";
+import HeroMusic from "@/components/HeroMusic";
+import AmbientMusicToggle from "@/components/AmbientMusicToggle";
 
 const HeroStarfield = dynamic(
   () => import("@/components/HeroStarfield").catch(() => ({ default: () => null })),
@@ -579,6 +581,7 @@ function CountdownPageContent() {
         className="flex-1 flex flex-col items-center justify-center px-4 py-4 relative overflow-y-auto overflow-x-hidden min-h-0"
         style={{ zIndex: 10 }}
       >
+      <HeroMusic heroReady={phase === "content"} />
       {/* VN/EN fixed bottom-left (mobile + desktop) */}
       <motion.div
         className="fixed bottom-6 left-6 z-[60] scale-90 opacity-80 md:scale-100 md:opacity-100"
@@ -683,6 +686,21 @@ function CountdownPageContent() {
       >
         {t.logOut}
       </motion.button>
+      <motion.div
+        className="fixed top-6 right-6 md:top-8 md:right-36 z-[65] flex items-center"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: phase === "content" ? 1 : 0 }}
+        transition={{ duration: 1.1, delay: phase === "content" ? CONTENT_STAGGER_MS[5] / 1000 : 0, ease: EASE_APPLE_IN_OUT }}
+        style={{ visibility: phase === "content" ? "visible" : "hidden", pointerEvents: phase === "content" ? "auto" : "none" }}
+      >
+        <AmbientMusicToggle
+          variant="light"
+          labels={{
+            mute: locale === "vi" ? "Tắt nhạc nền" : "Mute background music",
+            unmute: locale === "vi" ? "Bật nhạc nền" : "Unmute background music",
+          }}
+        />
+      </motion.div>
 
       <div
         className="flex flex-col items-center w-full max-w-lg mx-auto flex-1 pt-4 pb-14 md:pb-3"

@@ -1,11 +1,30 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-
-const HERO_MUSIC_SRC = "/As%20We%20Are.mp3";
+import {
+  AMBIENT_MUSIC_SRC,
+  registerAmbientAudioElement,
+  unregisterAmbientAudioElement,
+} from "@/lib/ambientMusic";
 
 let sharedAudio: HTMLAudioElement | null = null;
 let sharedStarted = false;
+
+function createAmbientAudio(): HTMLAudioElement {
+  const audio = document.createElement("audio");
+  audio.src = AMBIENT_MUSIC_SRC;
+  audio.preload = "auto";
+  audio.loop = true;
+  audio.volume = 0.75;
+  audio.setAttribute("aria-hidden", "true");
+  audio.style.position = "absolute";
+  audio.style.width = "0";
+  audio.style.height = "0";
+  audio.style.opacity = "0";
+  audio.style.pointerEvents = "none";
+  registerAmbientAudioElement(audio);
+  return audio;
+}
 
 /**
  * Call from within a user gesture (e.g. Explore button tap). Required on mobile for audio to play.
@@ -17,16 +36,8 @@ export function startHeroMusicFromUserGesture(): void {
     sharedAudio.play().catch(() => {});
     return;
   }
-  const audio = document.createElement("audio");
-  audio.src = HERO_MUSIC_SRC;
-  audio.preload = "auto";
+  const audio = createAmbientAudio();
   audio.load(); // start loading immediately so play() doesn't lag (layout also preloads)
-  audio.setAttribute("aria-hidden", "true");
-  audio.style.position = "absolute";
-  audio.style.width = "0";
-  audio.style.height = "0";
-  audio.style.opacity = "0";
-  audio.style.pointerEvents = "none";
   document.body.appendChild(audio);
   sharedAudio = audio;
   audio.play().then(
@@ -54,15 +65,7 @@ export default function HeroMusic({ heroReady }: { heroReady: boolean }) {
     if (typeof window === "undefined" || !heroReady || startedRef.current) return;
     if (isHeroMusicStarted()) return;
 
-    const audio = document.createElement("audio");
-    audio.src = HERO_MUSIC_SRC;
-    audio.preload = "auto";
-    audio.setAttribute("aria-hidden", "true");
-    audio.style.position = "absolute";
-    audio.style.width = "0";
-    audio.style.height = "0";
-    audio.style.opacity = "0";
-    audio.style.pointerEvents = "none";
+    const audio = createAmbientAudio();
     document.body.appendChild(audio);
     audioRef.current = audio;
 
@@ -96,6 +99,7 @@ export default function HeroMusic({ heroReady }: { heroReady: boolean }) {
     return () => {
       removeListeners();
       if (audioRef.current && audioRef.current.parentNode) {
+        unregisterAmbientAudioElement(audioRef.current);
         audioRef.current.pause();
         audioRef.current.src = "";
         audioRef.current.parentNode.removeChild(audioRef.current);
